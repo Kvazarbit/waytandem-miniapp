@@ -376,12 +376,10 @@ async function loadBoardData() {
   var data = await apiFetch('/api/v3/board', params);
   if (data) {
     S.dirs = data;
-    // Refresh current card if on board
-    if (['bg', 'bm', 'bgg'].indexOf(curScene) >= 0) {
-      var area = document.getElementById('ca');
-      var card = area.querySelector('.card');
-      if (card) card.innerHTML = SCENES[curScene].render();
-    }
+    // 🌐 v24.6.17: Force full scene re-render
+    var area = document.getElementById('ca');
+    var card = area.querySelector('.card');
+    if (card && SCENES[curScene]) card.innerHTML = SCENES[curScene].render();
   }
 }
 
@@ -389,28 +387,7 @@ var S = {
   user:{ name:(tg&&tg.initDataUnsafe&&tg.initDataUnsafe.user&&tg.initDataUnsafe.user.first_name)||'Дмитро' },
   role:null, seats:3,
   
-  dirs:[
-    
-    {id:10,title:'🇵🇱 Польща',      parent_id:null,group_id:null,drivers:12,passengers:34,has_kids:true, sub:false, kind:'topic'},
-    {id:11,title:'🇩🇪 Німеччина',   parent_id:null,group_id:null,drivers:5, passengers:18,has_kids:true, sub:false, kind:'topic'},
-    {id:12,title:'🇭🇺 Угорщина',    parent_id:null,group_id:null,drivers:2, passengers:7, has_kids:true, sub:false, kind:'topic'},
-    {id:13,title:'🇺🇦 Україна',     parent_id:null,group_id:null,drivers:8, passengers:22,has_kids:true, sub:true,  kind:'topic'},
-    
-    {id:20,title:'Київ → Варшава',  parent_id:10,  group_id:null,drivers:4, passengers:9, has_kids:false,sub:false, kind:'custom'},
-    {id:21,title:'Львів → Краків',  parent_id:10,  group_id:null,drivers:2, passengers:5, has_kids:false,sub:true,  kind:'custom'},
-    {id:22,title:'Харків → Варшава',parent_id:10,  group_id:null,drivers:1, passengers:3, has_kids:false,sub:false, kind:'custom'},
-    {id:23,title:'Дніпро → Вроцлав',parent_id:10, group_id:null,drivers:3, passengers:8, has_kids:false,sub:false, kind:'custom'},
-    
-    {id:30,title:'Київ → Берлін',   parent_id:11,  group_id:null,drivers:2, passengers:6, has_kids:false,sub:false, kind:'custom'},
-    {id:31,title:'Львів → Мюнхен',  parent_id:11,  group_id:null,drivers:1, passengers:4, has_kids:false,sub:false, kind:'custom'},
-    
-    {id:40,title:'Харків → Полтава',parent_id:13,  group_id:null,drivers:5, passengers:2, has_kids:false,sub:true,  kind:'custom'},
-    {id:41,title:'Одеса → Київ',    parent_id:13,  group_id:null,drivers:0, passengers:3, has_kids:false,sub:false, kind:'custom'},
-    {id:42,title:'Дніпро → Запоріжжя',parent_id:13,group_id:null,drivers:2,passengers:6, has_kids:false,sub:false, kind:'custom'},
-    
-    {id:50,title:'Прага Осінь 2024', parent_id:null,group_id:1,  drivers:3, passengers:11,has_kids:false,sub:false, kind:'custom'},
-    {id:51,title:'Відень Зима 2025', parent_id:null,group_id:2,  drivers:1, passengers:5, has_kids:false,sub:false, kind:'custom'},
-  ],
+  dirs:[], // 🛡 v24.6.17: Clear placeholders
   groups:[
     {id:1,name:'Прага Осінь 2024',  status:'open',  members:14,emoji:'🏰'},
     {id:2,name:'Відень Зима 2025',  status:'open',  members:6, emoji:'🎶'},
