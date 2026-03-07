@@ -218,7 +218,11 @@ async function apiFetch(endpoint, params, options){
   var url = new URL(API_URL + endpoint);
   Object.keys(params).forEach(function(k){ if(params[k]!==undefined && params[k]!==null) url.searchParams.append(k, params[k]); });
   try{
-    var headers = {'Content-Type':'application/json', 'bypass-tunnel-reminder':'true'};
+    var headers = {
+      'Content-Type': 'application/json',
+      'bypass-tunnel-reminder': 'true',
+      'User-Agent': 'WayTandemMiniApp/1.0'
+    };
     if(tg && tg.initData) headers['Authorization'] = 'tma ' + tg.initData;
     var res = await fetch(url.toString(), Object.assign({headers:headers}, options));
     if(!res.ok){ console.error('API error:', res.status, endpoint); return null; }
@@ -266,8 +270,12 @@ async function checkApiHealth(){
 
 // ── State ─────────────────────────────────────────────────────────────────
 var tgUser = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) || {};
+// Мова: з Telegram → або збережена → або uk
+var _tgLang = (tgUser.language_code || '').slice(0,2);
+var _savedLang = (function(){ try{ return localStorage.getItem('wt_lang'); }catch(e){ return null; } })();
 var S = {
   user: { name: tgUser.first_name || 'Користувач', id: tgUser.id || 0 },
+  lang: _savedLang || (['uk','pl','en'].includes(_tgLang) ? _tgLang : 'uk'),
   role: null,
   dirs: [],
   groups: [],
@@ -280,7 +288,7 @@ var LIMIT = 8;
 // ── Data loaders ──────────────────────────────────────────────────────────
 async function loadBoard(){
   S.loading = true; renderCurrent();
-  var params = {};
+  var params = { lang: S.lang };
   if(S.board.parentId !== null) params.parent_id = S.board.parentId;
   var data = await apiFetch('/api/v3/board', params);
   S.dirs = data || [];
@@ -527,7 +535,7 @@ function navTo(i){
 
 // ── Board actions ─────────────────────────────────────────────────────────
 function openBoard(){ S.board.parentId=null; go('bm'); }
-function boardGlobal(){ S.board.parentId=null; go('bg'); loadBoard(); }
+async function boardGlobal(){ S.board.parentId=null; S.loading=true; go('bg'); await loadBoard(); }
 function boardGroups(){ go('bgg'); loadGroups(); }
 function goHome(){ go(S.role ? (S.role==='driver'?'rd':'rp') : 'role'); }
 function pickRole(r){ S.role=r; go('r'+r[0]); } // rd or rp
