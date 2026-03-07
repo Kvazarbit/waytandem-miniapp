@@ -1735,7 +1735,8 @@
           </div>
         </div>
         <div class="s-foot">
-          <div class="btn btn-ghost" onclick="goBack()">← Назад</div>
+          <div class="btn btn-sky" onclick="_history.push('sc-board');showScreen('sc-groups');renderGroups()">👥 Групові виїзди</div>
+          <div class="btn btn-ghost" style="margin-top:8px" onclick="goBack()">← Назад</div>
         </div>
       </div>
 
@@ -1770,7 +1771,7 @@
           </div>
         </div>
         <div class="s-foot">
-          <div class="btn btn-ghost" onclick="showScreen('sc-board','left')">← До дошки</div>
+          <div class="btn btn-ghost" onclick="goBack()">← Назад</div>
         </div>
       </div>
 
@@ -2777,11 +2778,18 @@
 
       // Load matches — спочатку беремо підписки щоб отримати direction_id
       var subs = await api('/api/v3/user/subscriptions', { user_id: ST.user.id });
-      var dirId = (subs && subs.length) ? subs[0].direction_id : null;
-      var d = dirId ? await api('/api/v3/match/find', { user_id: ST.user.id, direction_id: dirId }) : null;
-      // Сервер повертає {match: {user_id, name}} або {match: null}
-      if (d && d.match && d.match.user_id) {
-        _matchCards = [{ user_id: d.match.user_id, name: d.match.name, direction_id: dirId }];
+      // Перебираємо всі підписки — одна картка на підписку
+      _matchCards = [];
+      if (subs && subs.length) {
+        for (var si = 0; si < subs.length; si++) {
+          var sid = subs[si].direction_id;
+          var dm = await api('/api/v3/match/find', { user_id: ST.user.id, direction_id: sid });
+          if (dm && dm.match && dm.match.user_id) {
+            _matchCards.push({ user_id: dm.match.user_id, name: dm.match.name, direction_id: sid });
+          }
+        }
+      }
+      if (_matchCards.length) {
         _matchIdx = 0;
         renderMatchCard();
         foot.style.display = '';
@@ -2804,8 +2812,8 @@
             '<div><div class="mc-pend-name">' + (h.target_name || 'ID:' + h.target_id) + '</div>' +
             '<div class="mc-pend-dir">' + (h.direction || '?') + '</div></div>' +
             '<div class="mc-pend-btns">' +
-            '<button class="mc-pend-btn ok" onclick="respondPending(' + h.target_id + ',' + h.direction_id + ',true)">Так</button>' +
-            '<button class="mc-pend-btn no" onclick="respondPending(' + h.target_id + ',' + h.direction_id + ',false)">Ні</button>' +
+            '<button class="mc-pend-btn ok" onclick="respondPending('+h.target_id+','+h.direction_id+',true)">Так</button>' +
+            '<button class="mc-pend-btn no" onclick="respondPending('+h.target_id+','+h.direction_id+',false)">Ні</button>' +
             '</div></div>';
         }).join('');
       } else {
@@ -2840,25 +2848,40 @@
     async function matchRespond(action) {
       if (_matchIdx >= _matchCards.length) return;
       var m = _matchCards[_matchIdx];
-      // invite: {user_id, target_id, direction_id} | respond: {user_id, target_id, direction_id, accept:bool}
-      var endpoint = action === 'accept' ? '/api/v3/match/invite' : '/api/v3/match/respond';
-      var body = action === 'accept'
-        ? { user_id: ST.user.id, target_id: m.user_id, direction_id: m.direction_id }
-        : { user_id: ST.user.id, target_id: m.user_id, direction_id: m.direction_id, accept: false };
 
-      var r = await api(endpoint, {}, { method: 'POST', body: JSON.stringify(body) });
-      if (r && r.status === 'ok') {
-        toast(action === 'accept' ? 'Запрошення надіслано!' : 'Відхилено', action === 'accept' ? 'ok' : '');
-        // Animate card exit
-        var card = document.querySelector('.mc-card.top');
-        if (card) {
-          card.style.transform = action === 'accept' ? 'translateX(120%) rotate(15deg)' : 'translateX(-120%) rotate(-15deg)';
-          card.style.opacity = '0';
+      // accept -> /match/invite  |  decline -> просто skip (немає API endpoint для відмови чужого пошуку)
+      if (action === 'accept') {
+        var r = await api('/api/v3/match/invite', {}, {
+          method: 'POST',
+          body: JSON.stringify({ user_id: ST.user.id, target_id: m.user_id, direction_id: m.direction_id })
+        });
+        if (!r || r.status !== 'ok') { toast('Помилка', 'err'); return; }
+        if (r.mutual) {
+          toast('Взаємний меч! Поїздку створено 🎉', 'ok');
+          // Animate, then navigate to active trip
+          var card = document.querySelector('.mc-card.top');
+          if (card) { card.style.transform = 'translateX(120%) rotate(15deg)'; card.style.opacity = '0'; }
+          setTimeout(function () {
+            _history.push('sc-match');
+            showScreen('sc-trips');
+            renderHistory();
+          }, 600);
+          return;
+        } else {
+          toast('Запрошення надіслано!', 'ok');
         }
-        setTimeout(function () { _matchIdx++; renderMatchCard(); }, 300);
       } else {
-        toast('Помилка', 'err');
+        // decline = просто skip картки, без API виклику
+        toast('Пропущено', '');
       }
+
+      // Анімація виходу картки
+      var card = document.querySelector('.mc-card.top');
+      if (card) {
+        card.style.transform = action === 'accept' ? 'translateX(120%) rotate(15deg)' : 'translateX(-120%) rotate(-15deg)';
+        card.style.opacity = '0';
+      }
+      setTimeout(function () { _matchIdx++; renderMatchCard(); }, 300);
     }
 
     async function matchTired() {
