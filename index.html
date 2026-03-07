@@ -348,6 +348,39 @@ html,body{height:100%;width:100%;background:var(--bg);color:var(--w);font-family
 var tg = window.Telegram && window.Telegram.WebApp;
 if(tg){tg.ready();tg.expand();try{tg.setHeaderColor('#080A0F');tg.setBackgroundColor('#080A0F');}catch(e){}}
 
+// 🌐 API Configuration (ВСТАВТЕ ВАШУ АДРЕСУ NGROK ТУТ)
+var API_URL = "https://your-ngrok-id.ngrok-free.app"; 
+
+async function apiFetch(endpoint, params = {}) {
+  if (!API_URL || API_URL.includes("your-ngrok-id")) return null;
+  var url = new URL(API_URL + endpoint);
+  Object.keys(params).forEach(function(key) { url.searchParams.append(key, params[key]); });
+  
+  try {
+    var response = await fetch(url, {
+      headers: { 'Authorization': 'tma ' + (tg ? tg.initData : '') }
+    });
+    if (!response.ok) throw new Error('API Error');
+    return await response.json();
+  } catch (e) {
+    console.error("Fetch failed:", e);
+    return null;
+  }
+}
+
+async function loadBoardData() {
+  var data = await apiFetch('/api/board', { parent_id: S.board.parentId || '' });
+  if (data) {
+    S.dirs = data;
+    // Refresh current card if on board
+    if (['bg', 'bm', 'bgg'].indexOf(curScene) >= 0) {
+      var area = document.getElementById('ca');
+      var card = area.querySelector('.card');
+      if (card) card.innerHTML = SCENES[curScene].render();
+    }
+  }
+}
+
 var S = {
   user:{ name:(tg&&tg.initDataUnsafe&&tg.initDataUnsafe.user&&tg.initDataUnsafe.user.first_name)||'Дмитро' },
   role:null, seats:3,
