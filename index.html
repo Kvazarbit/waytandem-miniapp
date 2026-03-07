@@ -349,7 +349,7 @@ var tg = window.Telegram && window.Telegram.WebApp;
 if(tg){tg.ready();tg.expand();try{tg.setHeaderColor('#080A0F');tg.setBackgroundColor('#080A0F');}catch(e){}}
 
 // 🌐 API Configuration
-var API_URL = "https://f65542cc9901bf.lhr.life"; 
+var API_URL = "https://3b5c12985fb953.lhr.life"; 
 
 async function apiFetch(endpoint, params = {}) {
   if (!API_URL || API_URL.includes("your-ngrok-id")) return null;
@@ -373,7 +373,7 @@ async function loadBoardData() {
   if (S.board.parentId) params.parent_id = S.board.parentId;
   if (S.board.groupId) params.group_id = S.board.groupId;
   
-  var data = await apiFetch('/api/v2/board', params);
+  var data = await apiFetch('/api/v3/board', params);
   if (data) {
     S.dirs = data;
     // Refresh current card if on board
