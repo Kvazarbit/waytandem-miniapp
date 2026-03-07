@@ -1788,7 +1788,8 @@
           </div>
         </div>
         <div class="s-foot">
-          <div class="btn btn-lime" onclick="openBoard()">До дошки маршрутів</div>
+          <div class="btn btn-sky" onclick="_history.push('sc-trips');showScreen('sc-active-trip');renderTrip()">Поточна поїздка</div>
+          <div class="btn btn-ghost" style="margin-top:8px" onclick="openBoard()">До дошки маршрутів</div>
         </div>
       </div>
 
@@ -2256,13 +2257,13 @@
     }
 
     function navTo(i) {
-      var map = ['sc-role', 'sc-board', 'sc-match', 'sc-profile'];
+      var map = ['sc-role', 'sc-board', 'sc-trips', 'sc-profile'];
       if (i === 0 && ST.role) map[0] = 'sc-home';
       _history = [];
       showScreen(map[i]);
       updateNav(i);
       if (i === 1) renderBoard();
-      if (i === 2) renderMatch();
+      if (i === 2) renderHistory();
       if (i === 3) renderProfile();
     }
 
@@ -2774,10 +2775,13 @@
       var pendTitle = document.getElementById('mcPendTitle');
       var pendList = document.getElementById('mcPendList');
 
-      // Load matches
-      var d = await api('/api/v3/match/find', { user_id: ST.user.id });
-      if (d && d.length) {
-        _matchCards = d;
+      // Load matches — спочатку беремо підписки щоб отримати direction_id
+      var subs = await api('/api/v3/user/subscriptions', { user_id: ST.user.id });
+      var dirId = (subs && subs.length) ? subs[0].direction_id : null;
+      var d = dirId ? await api('/api/v3/match/find', { user_id: ST.user.id, direction_id: dirId }) : null;
+      // Сервер повертає {match: {user_id, name}} або {match: null}
+      if (d && d.match && d.match.user_id) {
+        _matchCards = [{ user_id: d.match.user_id, name: d.match.name, direction_id: dirId }];
         _matchIdx = 0;
         renderMatchCard();
         foot.style.display = '';
@@ -2791,16 +2795,17 @@
       }
 
       // Load pending handshakes
+      // Сервер повертає масив [{target_id, direction_id, target_name, direction}]
       var p = await api('/api/v3/match/pending', { user_id: ST.user.id });
       if (p && p.length) {
         pendTitle.style.display = '';
         pendList.innerHTML = p.map(function (h) {
           return '<div class="mc-pend-item">' +
-            '<div><div class="mc-pend-name">' + (h.partner_name || 'ID:' + h.partner_id) + '</div>' +
+            '<div><div class="mc-pend-name">' + (h.target_name || 'ID:' + h.target_id) + '</div>' +
             '<div class="mc-pend-dir">' + (h.direction || '?') + '</div></div>' +
             '<div class="mc-pend-btns">' +
-            '<button class="mc-pend-btn ok" onclick="respondPending(' + h.handshake_id + ',\'accept\')">Так</button>' +
-            '<button class="mc-pend-btn no" onclick="respondPending(' + h.handshake_id + ',\'decline\')">Ні</button>' +
+            '<button class="mc-pend-btn ok" onclick="respondPending(' + h.target_id + ',' + h.direction_id + ',true)">Так</button>' +
+            '<button class="mc-pend-btn no" onclick="respondPending(' + h.target_id + ',' + h.direction_id + ',false)">Ні</button>' +
             '</div></div>';
         }).join('');
       } else {
@@ -2835,10 +2840,11 @@
     async function matchRespond(action) {
       if (_matchIdx >= _matchCards.length) return;
       var m = _matchCards[_matchIdx];
+      // invite: {user_id, target_id, direction_id} | respond: {user_id, target_id, direction_id, accept:bool}
       var endpoint = action === 'accept' ? '/api/v3/match/invite' : '/api/v3/match/respond';
       var body = action === 'accept'
-        ? { user_id: ST.user.id, partner_id: m.user_id, direction_id: m.direction_id }
-        : { user_id: ST.user.id, handshake_id: m.handshake_id, action: 'decline' };
+        ? { user_id: ST.user.id, target_id: m.user_id, direction_id: m.direction_id }
+        : { user_id: ST.user.id, target_id: m.user_id, direction_id: m.direction_id, accept: false };
 
       var r = await api(endpoint, {}, { method: 'POST', body: JSON.stringify(body) });
       if (r && r.status === 'ok') {
@@ -2856,9 +2862,11 @@
     }
 
     async function matchTired() {
+      if (_matchIdx >= _matchCards.length) return;
+      var m = _matchCards[_matchIdx];
       var r = await api('/api/v3/match/tired', {}, {
         method: 'POST',
-        body: JSON.stringify({ user_id: ST.user.id })
+        body: JSON.stringify({ user_id: ST.user.id, target_id: m.user_id, direction_id: m.direction_id })
       });
       if (r && r.status === 'ok') {
         toast('Всі мечі скасовано', 'ok');
@@ -2867,13 +2875,13 @@
       }
     }
 
-    async function respondPending(hsId, action) {
+    async function respondPending(targetId, dirId, accept) {
       var r = await api('/api/v3/match/respond', {}, {
         method: 'POST',
-        body: JSON.stringify({ user_id: ST.user.id, handshake_id: hsId, action: action })
+        body: JSON.stringify({ user_id: ST.user.id, target_id: targetId, direction_id: dirId, accept: accept })
       });
       if (r && r.status === 'ok') {
-        toast(action === 'accept' ? 'Прийнято! Поїздку створено.' : 'Відхилено', action === 'accept' ? 'ok' : '');
+        toast(accept ? 'Прийнято! Поїздку створено.' : 'Відхилено', accept ? 'ok' : '');
         renderMatch();
       } else {
         toast('Помилка', 'err');
@@ -2888,10 +2896,11 @@
       // Load rating summary
       var d = await api('/api/v3/rating', { user_id: ST.user.id });
       if (d) {
-        document.getElementById('rtAvg').textContent = d.average ? d.average.toFixed(1) : '—';
+        // Сервер повертає {total, count, avg, positive, negative} — НЕ average
+        document.getElementById('rtAvg').textContent = d.avg ? d.avg.toFixed(1) : '—';
         document.getElementById('rtCount').textContent = (d.count || 0) + ' оцінок';
         // Fill stars
-        var avg = d.average || 0;
+        var avg = d.avg || 0;
         var starsEl = document.getElementById('rtAvgStars');
         var starHtml = '';
         for (var i = 1; i <= 5; i++) {
@@ -2899,7 +2908,7 @@
         }
         starsEl.innerHTML = starHtml;
 
-        // Rating history
+        // Rating history — сервер не повертає history[], ховаємо gracefully
         var hl = document.getElementById('rtHistList');
         if (d.ratings && d.ratings.length) {
           hl.innerHTML = d.ratings.map(function (r) {
@@ -2909,18 +2918,13 @@
               '<div class="rt-hist-who">' + (r.from_name || 'Анонім') + '</div>' +
               '<div class="rt-hist-stars">' + stars + '</div></div>';
           }).join('');
+        } else {
+          hl.innerHTML = '<div class="empty-state"><div class="es-text">Ще немає оцінок</div></div>';
         }
 
-        // Check if we have a trip to rate
-        if (d.pending_request_id) {
-          _ratingReqId = d.pending_request_id;
-          document.getElementById('rtForm').style.display = 'block';
-          document.getElementById('rtNoTrips').style.display = 'none';
-          document.getElementById('rtTripInfo').textContent = 'Поїздка #' + d.pending_request_id;
-        } else {
-          document.getElementById('rtForm').style.display = 'none';
-          document.getElementById('rtNoTrips').style.display = '';
-        }
+        // Форма оцінки — сервер не повертає pending_request_id
+        document.getElementById('rtForm').style.display = 'none';
+        document.getElementById('rtNoTrips').style.display = '';
       }
     }
 
@@ -3099,3 +3103,4 @@
 </body>
 
 </html>
+
