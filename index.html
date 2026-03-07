@@ -97,6 +97,14 @@
       border: 1px solid var(--border);
       padding: 5px 12px 5px 5px;
       border-radius: 30px;
+      cursor: pointer;
+      transition: all .2s;
+    }
+
+    .hdr-user:active {
+      background: rgba(255,255,255,.08);
+      border-color: var(--lime);
+      transform: scale(.97);
     }
 
     .hdr-av {
@@ -1644,7 +1652,7 @@
     <!-- HEADER -->
     <header class="hdr">
       <div class="logo">WayTandem</div>
-      <div class="hdr-user">
+      <div class="hdr-user" onclick="navTo(3)">
         <div class="hdr-av" id="hdAv">?</div>
         <div class="hdr-name" id="hdName">...</div>
         <div id="roleChip" style="display:none"></div>
@@ -2047,10 +2055,6 @@
         <div class="nv-lbl">Поїздка</div>
       </div>
       <div class="nv" id="nv3" onclick="navTo(3)">
-        <div class="nv-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
-        <div class="nv-lbl">Профіль</div>
-      </div>
-      <div class="nv" id="nv4" onclick="navTo(4)">
         <div class="nv-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg></div>
         <div class="nv-lbl">Більше</div>
       </div>
@@ -2252,7 +2256,7 @@
     }
 
     function navTo(i) {
-      var map = ['sc-role', 'sc-board', 'sc-match', 'sc-profile', 'sc-trips'];
+      var map = ['sc-role', 'sc-board', 'sc-match', 'sc-profile'];
       if (i === 0 && ST.role) map[0] = 'sc-home';
       _history = [];
       showScreen(map[i]);
@@ -2260,7 +2264,6 @@
       if (i === 1) renderBoard();
       if (i === 2) renderMatch();
       if (i === 3) renderProfile();
-      if (i === 4) renderHistory();
     }
 
     function updateNav(i) {
