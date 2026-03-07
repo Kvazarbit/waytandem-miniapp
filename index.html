@@ -1,320 +1,230 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8"/>
-    <title>Поездки (MiniApp)</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; background-color: #f0f0f0; }
-        .screen { display: none; width: 100%; max-width: 400px; padding: 20px; box-sizing: border-box; }
-        #login-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
-        h1, h2 { margin: 10px 0; text-align: center; color: #333; }
-        input[type="text"] { padding: 10px; margin: 10px 0; width: 100%; box-sizing: border-box; }
-        button { padding: 10px 20px; margin: 5px; border: none; border-radius: 5px; background-color: #4CAF50; color: #fff; font-size: 1em; cursor: pointer; }
-        button:hover { background-color: #45a049; }
-        #role-buttons { display: flex; gap: 10px; }
-        .mission { background: #fff; padding: 10px; margin: 10px 0; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .mission h3 { margin: 5px 0; font-size: 1em; }
-        .mission p { margin: 5px 0; font-size: 0.9em; }
-        .crew-list { list-style: none; padding: 0; }
-        .crew-list li { background: #fff; padding: 8px; margin: 5px 0; border-radius: 5px; }
-        #finish-trip { background-color: #d9534f; }
-        #finish-trip:hover { background-color: #c9302c; }
-        #logout-button { background-color: #888; }
-        #logout-button:hover { background-color: #666; }
-        .star { font-size: 2em; color: #ccc; cursor: pointer; }
-        .star.selected { color: gold; }
-        #thankyou { font-size: 1.2em; color: #4CAF50; margin-top: 10px; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RideShare MiniApp</title>
+<style>
+  /* Мобільний мінімалістичний стиль */
+  body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f0f0f0; color: #000; }
+  h2 { text-align: center; margin: 10px 0; }
+  .view { display: none; padding: 20px; }
+  .active { display: block; }
+  button, .btn { 
+    display: block; width: 80%; margin: 10px auto; padding: 10px; 
+    font-size: 1.2em; border: none; border-radius: 5px; cursor: pointer; 
+  }
+  button.primary, .btn.primary { background: #4CAF50; color: white; }
+  button.secondary, .btn.secondary { background: #008CBA; color: white; }
+  .btn-group { margin: 20px 0; text-align: center; }
+  .btn-group .btn { display: inline-block; width: auto; margin: 5px; }
+  .hint { text-align: center; font-size: 0.9em; color: #555; margin-top: 10px; }
+  .star-rating { font-size: 2em; text-align: center; }
+  .star-rating .star { cursor: pointer; color: #ccc; }
+  .star-rating .star.active { color: #fc0; }
+</style>
 </head>
 <body>
-
-<div id="login-screen" class="screen">
-    <h1>Каршеринг MiniApp</h1>
-    <input type="text" id="username" placeholder="Ваше имя" />
-    <div id="role-buttons">
-        <button id="role-driver">Водитель</button>
-        <button id="role-passenger">Пассажир</button>
-    </div>
+<!-- Вибір ролі -->
+<div id="role-selection" class="view active">
+  <h2>Оберіть роль</h2>
+  <button class="primary" onclick="selectRole('passenger')">Я – Пасажир</button>
+  <button class="secondary" onclick="selectRole('driver')">Я – Водій</button>
+  <div class="hint">Пасажир шукає поїздки, водій – створює їх</div>
 </div>
 
-<div id="board-screen" class="screen">
-    <h2 id="board-title"></h2>
-    <div id="mission-list"></div>
-    <button id="logout-button">Выйти</button>
+<!-- Вибір напрямку -->
+<div id="route-selection" class="view">
+  <h2>Обрати напрямок</h2>
+  <div class="btn-group" id="routes-list">
+    <!-- Тут будуть кнопки маршруту -->
+  </div>
+  <div class="hint">Виберіть маршрут, яким ви плануєте їхати</div>
 </div>
 
-<div id="crew-screen" class="screen">
-    <h2>Экипаж</h2>
-    <ul id="crew-members" class="crew-list"></ul>
-    <button id="start-trip">🚀 Поехали!</button>
-    <button id="finish-trip" style="display:none">🏁 Финиш</button>
+<!-- Список поїздок для пасажира -->
+<div id="trips-list" class="view">
+  <h2>Доступні поїздки</h2>
+  <div id="trips-container">
+    <!-- Тут генеруються поїздки -->
+  </div>
+  <div class="hint">Оберіть поїздку, щоб приєднатися</div>
 </div>
 
-<div id="rating-screen" class="screen">
-    <h2>Оцените поездку</h2>
-    <div id="stars">
-        <span class="star" data-value="1">&#9733;</span>
-        <span class="star" data-value="2">&#9733;</span>
-        <span class="star" data-value="3">&#9733;</span>
-        <span class="star" data-value="4">&#9733;</span>
-        <span class="star" data-value="5">&#9733;</span>
-    </div>
-    <button id="submit-rating">Оценить</button>
-    <p id="thankyou" style="display:none">Спасибо!</p>
+<!-- Підтвердження запитів для водія -->
+<div id="confirm-requests" class="view">
+  <h2>Запити на приєднання</h2>
+  <div id="requests-container">
+    <!-- Тут показуються запити від пасажирів -->
+  </div>
+  <div class="hint">Підтвердіть запит для формування екіпажу</div>
+</div>
+
+<!-- Очікування підтвердження -->
+<div id="join-request" class="view">
+  <h2>Запит відправлено</h2>
+  <p>Очікуємо підтвердження від водія...</p>
+  <div class="hint">Ви надіслали запит на приєднання</div>
+</div>
+
+<!-- Екіпаж сформовано -->
+<div id="crew-formed" class="view">
+  <h2>Екіпаж сформовано!</h2>
+  <p>Водій та пасажир готові до поїздки.</p>
+  <button class="primary" onclick="startTrip()">🚀 Поїхали!</button>
+</div>
+
+<!-- Поїздка в процесі -->
+<div id="trip-start" class="view">
+  <h2>Поїздка в процесі...</h2>
+  <button class="primary" onclick="finishTrip()">🏁 Фініш</button>
+</div>
+
+<!-- Поїздка завершена з оцінкою -->
+<div id="trip-end" class="view">
+  <h2>Поїздка завершена!</h2>
+  <div class="star-rating">
+    <!-- Зірочки для оцінки -->
+    <span class="star" data-value="1" onclick="selectRating(1)">★</span>
+    <span class="star" data-value="2" onclick="selectRating(2)">★</span>
+    <span class="star" data-value="3" onclick="selectRating(3)">★</span>
+    <span class="star" data-value="4" onclick="selectRating(4)">★</span>
+    <span class="star" data-value="5" onclick="selectRating(5)">★</span>
+  </div>
+  <p class="hint">Оцініть поїздку (1-5 зірок)</p>
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const loginScreen = document.getElementById('login-screen');
-    const boardScreen = document.getElementById('board-screen');
-    const crewScreen = document.getElementById('crew-screen');
-    const ratingScreen = document.getElementById('rating-screen');
-    const usernameInput = document.getElementById('username');
-    const roleDriverBtn = document.getElementById('role-driver');
-    const rolePassengerBtn = document.getElementById('role-passenger');
-    const boardTitle = document.getElementById('board-title');
-    const missionList = document.getElementById('mission-list');
-    const crewMembersList = document.getElementById('crew-members');
-    const startTripBtn = document.getElementById('start-trip');
-    const finishTripBtn = document.getElementById('finish-trip');
-    const stars = document.querySelectorAll('.star');
-    const submitRatingBtn = document.getElementById('submit-rating');
-    const thankyouText = document.getElementById('thankyou');
-    const logoutBtn = document.getElementById('logout-button');
+  // Ініціалізація Telegram WebApp
+  window.Telegram.WebApp.ready();  // повідомляємо Telegram, що вебдодаток готовий:contentReference[oaicite:2]{index=2}  
+  // Приховуємо головну кнопку за замовчуванням
+  Telegram.WebApp.MainButton.setParams({ text: '', is_visible: false });
 
-    let currentUser = localStorage.getItem('username') || '';
-    let currentRole = localStorage.getItem('role') || '';
-    let currentCrew = null;
-    let selectedRating = 0;
+  // Функція для перемикання між екранами
+  function showView(id) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
 
-    function showScreen(screen) {
-        [loginScreen, boardScreen, crewScreen, ratingScreen].forEach(s => s.style.display = 'none');
-        screen.style.display = 'block';
-    }
+  // Вибір ролі: зберігаємо в localStorage і показуємо вибір маршруту
+  function selectRole(role) {
+    localStorage.setItem('role', role); // зберігаємо роль:contentReference[oaicite:3]{index=3}
+    showView('route-selection');
+    loadRoutes();
+  }
 
-    function init() {
-        if (currentUser && currentRole) {
-            showBoardScreen();
-        } else {
-            showScreen(loginScreen);
-        }
-    }
-
-    function showBoardScreen() {
-        currentCrew = null;
-        boardTitle.textContent = 'Привет, ' + currentUser + '! Вы ' + (currentRole === 'driver' ? 'водитель' : 'пассажир') + '.';
-        missionList.innerHTML = '';
-        showScreen(boardScreen);
-        if (currentRole === 'passenger') {
-            loadMissions();
-        } else if (currentRole === 'driver') {
-            loadRequests();
-        }
-    }
-
-    function loadMissions() {
-        // Fetch missions from API
-        fetch('/api/v3/missions')
-        .then(response => response.json())
-        .then(data => {
-            populateMissions(data);
-        })
-        .catch(error => {
-            console.error('Ошибка загрузки миссий, использую тестовые данные.', error);
-            // Test data if API fails
-            const dummyMissions = [
-                { id: 1, driver: 'Иван', route: 'Москва → Тула', seats: 3 },
-                { id: 2, driver: 'Пётр', route: 'Санкт-Петербург → Москва', seats: 2 }
-            ];
-            populateMissions(dummyMissions);
-        });
-    }
-
-    function populateMissions(missions) {
-        missions.forEach(mission => {
-            const div = document.createElement('div');
-            div.className = 'mission';
-            const title = document.createElement('h3');
-            title.textContent = mission.route;
-            const info = document.createElement('p');
-            info.textContent = 'Водитель: ' + mission.driver + ' | Мест: ' + mission.seats;
-            const btn = document.createElement('button');
-            btn.textContent = '✋ Подать заявку';
-            btn.onclick = function() {
-                joinMission(mission);
-            };
-            div.appendChild(title);
-            div.appendChild(info);
-            div.appendChild(btn);
-            missionList.appendChild(div);
-        });
-    }
-
-    function joinMission(mission) {
-        // Send join request to API
-        fetch('/api/v3/mission/' + mission.id + '/join', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ passenger: currentUser })
-        }).then(response => {
-            currentCrew = { id: mission.id, driver: mission.driver, passengers: [currentUser] };
-            showCrewScreen();
-        }).catch(error => {
-            console.error('Ошибка при подаче заявки.', error);
-            // Fallback: simulate acceptance
-            currentCrew = { id: mission.id, driver: mission.driver, passengers: [currentUser] };
-            showCrewScreen();
-        });
-    }
-
-    function loadRequests() {
-        // Fetch requests for this driver's missions
-        fetch('/api/v3/requests?driver=' + encodeURIComponent(currentUser))
-        .then(response => response.json())
-        .then(data => {
-            populateRequests(data);
-        })
-        .catch(error => {
-            console.error('Ошибка загрузки заявок, использую тестовые данные.', error);
-            const dummyRequests = [
-                { id: 1, passenger: 'Ольга', missionId: 1 },
-                { id: 2, passenger: 'Михаил', missionId: 1 }
-            ];
-            populateRequests(dummyRequests);
-        });
-    }
-
-    function populateRequests(requests) {
-        missionList.innerHTML = '';
-        if (requests.length === 0) {
-            missionList.textContent = 'Нет новых заявок.';
-            return;
-        }
-        requests.forEach(req => {
-            const div = document.createElement('div');
-            div.className = 'mission';
-            const info = document.createElement('p');
-            info.textContent = 'Пассажир: ' + req.passenger + ' хочет присоединиться к вашей поездке.';
-            const btn = document.createElement('button');
-            btn.textContent = 'Принять';
-            btn.onclick = function() {
-                acceptRequest(req);
-            };
-            div.appendChild(info);
-            div.appendChild(btn);
-            missionList.appendChild(div);
-        });
-    }
-
-    function acceptRequest(req) {
-        // Accept request via API and create crew
-        fetch('/api/v3/crew', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ missionId: req.missionId, passenger: req.passenger })
-        }).then(response => {
-            currentCrew = { id: req.missionId, driver: currentUser, passengers: [req.passenger] };
-            showCrewScreen();
-        }).catch(error => {
-            console.error('Ошибка при принятии заявки.', error);
-            currentCrew = { id: req.missionId, driver: currentUser, passengers: [req.passenger] };
-            showCrewScreen();
-        });
-    }
-
-    function showCrewScreen() {
-        crewMembersList.innerHTML = '';
-        if (currentCrew) {
-            // Add driver
-            const liDriver = document.createElement('li');
-            liDriver.textContent = currentCrew.driver + ' (водитель)';
-            crewMembersList.appendChild(liDriver);
-            // Add passengers
-            currentCrew.passengers.forEach(p => {
-                const li = document.createElement('li');
-                li.textContent = p + ' (пассажир)';
-                crewMembersList.appendChild(li);
-            });
-        }
-        startTripBtn.style.display = 'inline-block';
-        finishTripBtn.style.display = 'none';
-        showScreen(crewScreen);
-    }
-
-    startTripBtn.onclick = function() {
-        // Notify server that trip started (optional)
-        fetch('/api/v3/crew/start', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ crewId: currentCrew.id })
-        }).catch(e => {});
-        startTripBtn.style.display = 'none';
-        finishTripBtn.style.display = 'inline-block';
-    };
-
-    finishTripBtn.onclick = function() {
-        // Notify server trip finished (optional)
-        fetch('/api/v3/crew/finish', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ crewId: currentCrew.id })
-        }).catch(e => {});
-        showScreen(ratingScreen);
-    };
-
-    stars.forEach(star => {
-        star.addEventListener('click', function() {
-            selectedRating = parseInt(this.getAttribute('data-value'));
-            stars.forEach(s => {
-                s.classList.toggle('selected', parseInt(s.getAttribute('data-value')) <= selectedRating);
-            });
-        });
+  // Завантажуємо список маршрутів (симуляція API)
+  function loadRoutes() {
+    const routes = ['Київ — Львів', 'Київ — Одеса', 'Львів — Харків'];
+    const container = document.getElementById('routes-list');
+    container.innerHTML = '';
+    routes.forEach(route => {
+      const btn = document.createElement('button');
+      btn.className = 'btn primary';
+      btn.innerText = route;
+      btn.onclick = () => selectRoute(route);
+      container.appendChild(btn);
     });
+  }
 
-    submitRatingBtn.onclick = function() {
-        if (selectedRating > 0) {
-            // Send rating to server
-            fetch('/api/v3/crew/rate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ crewId: currentCrew.id, rating: selectedRating })
-            }).catch(e => {});
-            submitRatingBtn.style.display = 'none';
-            document.getElementById('stars').style.display = 'none';
-            thankyouText.style.display = 'block';
-        }
-    };
+  // Вибір маршруту: якщо пасажир — вантажимо поїздки, якщо водій — запити
+  function selectRoute(route) {
+    localStorage.setItem('route', route);
+    const role = localStorage.getItem('role');
+    if (role === 'passenger') {
+      loadTrips(route);
+      showView('trips-list');
+    } else {
+      loadRequests(route);
+      showView('confirm-requests');
+    }
+  }
 
-    roleDriverBtn.onclick = function() {
-        const name = usernameInput.value.trim();
-        if (!name) { alert('Пожалуйста, введите имя.'); return; }
-        currentUser = name;
-        currentRole = 'driver';
-        localStorage.setItem('username', currentUser);
-        localStorage.setItem('role', currentRole);
-        showBoardScreen();
-    };
+  // Пасажир: завантаження поїздок (запит до API /api/v3/trips)
+  function loadTrips(route) {
+    // У реальному випадку:
+    // fetch(`/api/v3/trips?route=${encodeURIComponent(route)}`)
+    //   .then(res => res.json()).then(data => { ... });
+    // Приклад даних:
+    const trips = [
+      { id: 1, driver: 'Іван', seats: 2, time: '08:00' },
+      { id: 2, driver: 'Олена', seats: 1, time: '09:30' }
+    ];
+    const container = document.getElementById('trips-container');
+    container.innerHTML = '';
+    trips.forEach(trip => {
+      const div = document.createElement('div');
+      div.innerHTML = `<p>Водій: ${trip.driver}, Місць: ${trip.seats}, Час: ${trip.time}</p>
+        <button class="btn secondary" onclick="joinTrip(${trip.id})">Приєднатися</button>`;
+      container.appendChild(div);
+    });
+  }
 
-    rolePassengerBtn.onclick = function() {
-        const name = usernameInput.value.trim();
-        if (!name) { alert('Пожалуйста, введите имя.'); return; }
-        currentUser = name;
-        currentRole = 'passenger';
-        localStorage.setItem('username', currentUser);
-        localStorage.setItem('role', currentRole);
-        showBoardScreen();
-    };
+  // Пасажир: відправка запиту на приєднання (симуляція POST /api/v3/join)
+  function joinTrip(tripId) {
+    // У реальному випадку:
+    // fetch('/api/v3/join', { method: 'POST', body: JSON.stringify({ tripId }) })
+    showView('join-request');
+    // Симулюємо збереження запиту, щоб водій його побачив
+    let requests = JSON.parse(localStorage.getItem('requests')) || [];
+    requests.push({ tripId: tripId, passenger: 'Ви (пасажир)' });
+    localStorage.setItem('requests', JSON.stringify(requests));
+  }
 
-    logoutBtn.onclick = function() {
-        localStorage.removeItem('username');
-        localStorage.removeItem('role');
-        currentUser = '';
-        currentRole = '';
-        currentCrew = null;
-        showScreen(loginScreen);
-    };
+  // Водій: завантаження запитів на приєднання (симуляція GET /api/v3/requests)
+  function loadRequests(route) {
+    let requests = JSON.parse(localStorage.getItem('requests')) || [];
+    const container = document.getElementById('requests-container');
+    container.innerHTML = '';
+    requests.forEach((req, index) => {
+      const div = document.createElement('div');
+      div.innerHTML = `<p>Запит від: ${req.passenger}</p>
+        <button class="btn secondary" onclick="confirmRequest(${index})">Підтвердити</button>`;
+      container.appendChild(div);
+    });
+    if (requests.length === 0) {
+      container.innerHTML = '<p>Немає запитів</p>';
+    }
+  }
 
-    init();
-});
+  // Водій підтверджує запит (симуляція POST /api/v3/confirm)
+  function confirmRequest(reqIndex) {
+    // У реальному випадку:
+    // fetch('/api/v3/confirm', { method: 'POST', body: JSON.stringify({ reqIndex }) })
+    let requests = JSON.parse(localStorage.getItem('requests')) || [];
+    requests.splice(reqIndex, 1);
+    localStorage.setItem('requests', JSON.stringify(requests));
+    showView('crew-formed');
+  }
+
+  // Запуск поїздки (симуляція POST /api/v3/start)
+  function startTrip() {
+    // fetch('/api/v3/start', { method: 'POST' })
+    showView('trip-start');
+  }
+
+  // Завершення поїздки (симуляція POST /api/v3/finish)
+  function finishTrip() {
+    // fetch('/api/v3/finish', { method: 'POST' })
+    showView('trip-end');
+  }
+
+  // Вибір рейтингу (1–5 зірок) та відправка даних боту
+  function selectRating(value) {
+    const stars = document.querySelectorAll('.star');
+    stars.forEach(s => s.classList.remove('active'));
+    for (let i = 0; i < value; i++) {
+      stars[i].classList.add('active');
+    }
+    // Показуємо головну кнопку Telegram з текстом "Надіслати відгук"
+    Telegram.WebApp.MainButton.setText('Надіслати відгук');
+    Telegram.WebApp.MainButton.show();
+    Telegram.WebApp.MainButton.onClick(() => {
+      // Відправляємо дані назад у бота як JSON:contentReference[oaicite:4]{index=4}
+      Telegram.WebApp.sendData(JSON.stringify({ rating: value }));
+      Telegram.WebApp.MainButton.hide();
+    });
+  }
 </script>
-
 </body>
 </html>
