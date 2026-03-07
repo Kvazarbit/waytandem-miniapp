@@ -923,12 +923,17 @@ function _updateModeBadge(){
 
 function navTo(i){
   var m={0:S.role?'role_'+S.role:'role',1:'bm',2:S._cf==='idle'?'hsi':S._cf,3:'mt'};
-  if(m[i]&&SCENES[m[i]])go(m[i]);
+  if(m[i]&&SCENES[m[i]]){
+    go(m[i]);
+    // 🌐 v24.6: Load real data when board tab is clicked
+    if(i===1) loadBoardData();
+  }
 }
 
 function _ob(){
   S.board.parentId=null;S.board.page=0;S.board.expandedId=null;
   go('bm');
+  loadBoardData(); // 🌐 v24.6: Load real data
 }
 function _bsm(m){
   S.board.mode=m;S.board.parentId=null;S.board.page=0;S.board.expandedId=null;
