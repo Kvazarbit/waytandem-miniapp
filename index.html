@@ -218,7 +218,7 @@ async function apiFetch(endpoint, params, options){
   var url = new URL(API_URL + endpoint);
   Object.keys(params).forEach(function(k){ if(params[k]!==undefined && params[k]!==null) url.searchParams.append(k, params[k]); });
   try{
-    var headers = {'Content-Type':'application/json'};
+    var headers = {'Content-Type':'application/json', 'bypass-tunnel-reminder':'true'};
     if(tg && tg.initData) headers['Authorization'] = 'tma ' + tg.initData;
     var res = await fetch(url.toString(), Object.assign({headers:headers}, options));
     if(!res.ok){ console.error('API error:', res.status, endpoint); return null; }
