@@ -851,6 +851,57 @@
       color: var(--sky);
     }
 
+    .hi-tag.pend {
+      background: rgba(255, 154, 60, .1);
+      color: var(--orange);
+    }
+
+    .hi-tag.canc {
+      background: rgba(255, 77, 77, .08);
+      color: var(--red);
+    }
+
+    .hi-ico.g {
+      background: rgba(201, 255, 71, .12);
+      color: var(--lime);
+      font-weight: 700;
+    }
+
+    .hi-ico.b {
+      background: rgba(77, 207, 255, .12);
+      color: var(--sky);
+      font-weight: 700;
+    }
+
+    /* ── DELETE / MINE TAG ── */
+    .sh-btn-red {
+      background: rgba(255, 77, 77, .1);
+      color: var(--red);
+      border: 1px solid rgba(255, 77, 77, .2);
+      padding: 10px;
+      border-radius: var(--r2);
+      font-weight: 600;
+      font-size: 12px;
+      cursor: pointer;
+      text-align: center;
+      margin-top: 6px;
+      transition: background .15s;
+    }
+
+    .sh-btn-red:active {
+      background: rgba(255, 77, 77, .25);
+    }
+
+    .sh-mine-tag {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--lime);
+      padding: 4px 0;
+      text-align: center;
+    }
+
     /* ── LOADING / EMPTY ── */
     .loading-wrap {
       display: flex;
@@ -1150,11 +1201,11 @@
           <div id="apiStatus" class="info-panel" style="display:none">
             <div class="ip-dot wait" id="apiDot"></div>
             <div class="ip-text" id="apiTxt">Сервер...</div>
-            <div class="ip-btn" onclick="showApiSheet()">⚙️</div>
+            <div class="ip-btn" onclick="showApiSheet()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
           </div>
           <div class="role-grid">
             <div class="role-card lime" onclick="pickRole('driver')">
-              <div class="rc-ico">🚗</div>
+              <div class="rc-ico"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--lime)" stroke-width="1.5"><path d="M5 17h14M5 17a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1l2-3h8l2 3h1a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2M7 17v2m10-2v2"/><circle cx="7.5" cy="13" r="1.5"/><circle cx="16.5" cy="13" r="1.5"/></svg></div>
               <div class="rc-body">
                 <div class="rc-title" style="color:var(--lime)">Мандрівник</div>
                 <div class="rc-sub">Їду сам, можу взяти попутника.<br>Розміщую свій маршрут на дошці.</div>
@@ -1162,7 +1213,7 @@
               <div class="rc-arrow">›</div>
             </div>
             <div class="role-card sky" onclick="pickRole('passenger')">
-              <div class="rc-ico">👤</div>
+              <div class="rc-ico"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--sky)" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
               <div class="rc-body">
                 <div class="rc-title" style="color:var(--sky)">Попутник</div>
                 <div class="rc-sub">Шукаю з ким поїхати.<br>Підписуюсь на потрібний напрямок.</div>
@@ -1190,8 +1241,7 @@
           </div>
         </div>
         <div class="s-foot">
-          <div class="btn btn-lime" id="homeBoardBtn" onclick="openBoard()">🌍&nbsp;&nbsp;Переглянути дошку маршрутів
-          </div>
+          <div class="btn btn-lime" id="homeBoardBtn" onclick="openBoard()">Переглянути дошку маршрутів</div>
           <div class="btn btn-ghost" style="margin-top:8px" onclick="showScreen('sc-role','left')">← Змінити роль</div>
         </div>
       </div>
@@ -1266,7 +1316,7 @@
           </div>
         </div>
         <div class="s-foot">
-          <div class="btn btn-lime" onclick="openBoard()">🌍&nbsp;&nbsp;До дошки маршрутів</div>
+          <div class="btn btn-lime" onclick="openBoard()">До дошки маршрутів</div>
         </div>
       </div>
 
@@ -1275,19 +1325,19 @@
     <!-- BOTTOM NAV -->
     <nav class="nav">
       <div class="nv on" id="nv0" onclick="navTo(0)">
-        <div class="nv-ico">🏠</div>
+        <div class="nv-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
         <div class="nv-lbl">Головна</div>
       </div>
       <div class="nv" id="nv1" onclick="navTo(1)">
-        <div class="nv-ico">🗺️</div>
+        <div class="nv-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
         <div class="nv-lbl">Дошка</div>
       </div>
       <div class="nv" id="nv2" onclick="navTo(2)">
-        <div class="nv-ico">👥</div>
+        <div class="nv-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
         <div class="nv-lbl">Групи</div>
       </div>
       <div class="nv" id="nv3" onclick="navTo(3)">
-        <div class="nv-ico">🧭</div>
+        <div class="nv-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg></div>
         <div class="nv-lbl">Мої</div>
       </div>
     </nav>
@@ -1298,7 +1348,7 @@
   <div class="overlay" id="ovNewDir">
     <div class="sheet">
       <div class="sh-handle"></div>
-      <div class="sh-title">✨ Новий маршрут</div>
+      <div class="sh-title">Новий маршрут</div>
       <div class="field">
         <label>Назва напрямку</label>
         <input id="ndInput" placeholder="Наприклад: Київ → Варшава" maxlength="60" autocomplete="off">
@@ -1312,7 +1362,7 @@
   <div class="overlay" id="ovApi">
     <div class="sheet">
       <div class="sh-handle"></div>
-      <div class="sh-title">⚙️ Сервер</div>
+      <div class="sh-title">Сервер</div>
       <div class="field">
         <label>URL сервера (cloudflared/ngrok)</label>
         <input id="apiInput" placeholder="https://xxxx.trycloudflare.com" autocomplete="off" inputmode="url">
@@ -1384,8 +1434,8 @@
       closeSheet('ovApi');
       setApiStatus('wait');
       var d = await api('/api/health');
-      if (d) { toast('🟢 Сервер підключено', 'ok'); setApiStatus('ok'); renderBoard(); }
-      else { toast('🔴 Не вдалось підключитись', 'err'); setApiStatus('err'); }
+      if (d) { toast('Сервер підключено', 'ok'); setApiStatus('ok'); renderBoard(); }
+      else { toast('Не вдалось підключитись', 'err'); setApiStatus('err'); }
     }
 
     // ══ STATE ══════════════════════════════════════════════════════
@@ -1483,7 +1533,7 @@
       // update header chip
       var chip = document.getElementById('roleChip');
       chip.className = 'role-chip ' + r;
-      chip.textContent = isDriver ? '🚗 Мандрівник' : '👤 Попутник';
+      chip.textContent = isDriver ? 'Мандрівник' : 'Попутник';
       chip.style.display = 'block';
 
       // update home screen
@@ -1532,10 +1582,10 @@
 
       var data = await api('/api/v3/board', { lang: ST.lang });
       ST.loadingBoard = false;
-      if (!data) { el.innerHTML = emptyHtml('📡', 'Немає з\'єднання з сервером.<br>Перевірте URL у налаштуваннях.'); return; }
+      if (!data) { el.innerHTML = emptyHtml('!', 'Немає з\'єднання з сервером.<br>Перевірте URL у налаштуваннях.'); return; }
 
       ST.cats = data;
-      if (!data.length) { el.innerHTML = emptyHtml('📭', 'Категорій поки немає'); return; }
+      if (!data.length) { el.innerHTML = emptyHtml('—', 'Категорій поки немає'); return; }
 
       el.innerHTML = data.map(function (c) {
         var total = (c.drivers || 0) + (c.passengers || 0);
@@ -1604,8 +1654,8 @@
       ST.loadingDirs = false;
       ST.dirs = data || [];
 
-      if (!data) { list.innerHTML = emptyHtml('📡', 'Помилка з\'єднання'); return; }
-      if (!data.length) { list.innerHTML = emptyHtml('📭', 'Маршрутів поки немає.<br>Будьте першим!'); return; }
+      if (!data) { list.innerHTML = emptyHtml('!', 'Помилка з\'єднання'); return; }
+      if (!data.length) { list.innerHTML = emptyHtml('—', 'Маршрутів поки немає.<br>Будьте першим!'); return; }
 
       renderDirs();
     }
@@ -1620,6 +1670,7 @@
         var hasPax = d.passengers > 0;
 
         var shutter = '';
+        var isMine = d.creator_id && d.creator_id === ST.user.id;
         if (!d.has_kids) {
           var actionBtn = isDriver
             ? '<div class="sh-btn sh-btn-lime" data-sub-id="'+d.id+'">Я їду сюди</div>'
@@ -1627,13 +1678,18 @@
           var askBtn = (!isDriver && hasDrivers)
             ? '<div class="sh-btn sh-btn-ghost" data-ask-id="'+d.id+'">Попросити водія</div>'
             : '';
+          var delBtn = isMine
+            ? '<div class="sh-btn sh-btn-red" data-del-id="'+d.id+'" data-del-title="'+escAttr(d.title)+'">Видалити мій напрямок</div>'
+            : '';
+          var mineTag = isMine ? '<div class="sh-mine-tag">Ваш напрямок</div>' : '';
           shutter = '<div class="shutter' + (isExp ? ' open' : '') + '"><div class="shutter-inner">'
             + '<div class="sh-sep"></div>'
+            + mineTag
             + '<div class="sh-counters">'
             + '<div class="sh-counter"><div class="sh-c-lbl">Мандрівники</div><div class="sh-c-val g">' + d.drivers + '</div></div>'
             + '<div class="sh-counter"><div class="sh-c-lbl">Попутники</div><div class="sh-c-val b">' + d.passengers + '</div></div>'
             + '</div>'
-            + '<div class="sh-actions">' + actionBtn + askBtn + '</div>'
+            + '<div class="sh-actions">' + actionBtn + askBtn + delBtn + '</div>'
             + '</div></div>';
         } else {
           shutter = '<div class="shutter' + (isExp ? ' open' : '') + '"><div class="shutter-inner">'
@@ -1672,6 +1728,11 @@
       list.querySelectorAll('[data-ask-id]').forEach(function(btn){
         btn.addEventListener('click', function(e){
           e.stopPropagation(); askDriver(Number(btn.dataset.askId));
+        });
+      });
+      list.querySelectorAll('[data-del-id]').forEach(function(btn){
+        btn.addEventListener('click', function(e){
+          e.stopPropagation(); deleteDir(Number(btn.dataset.delId), btn.dataset.delTitle);
         });
       });
       list.querySelectorAll('[data-drill-id]').forEach(function(btn){
@@ -1735,10 +1796,27 @@
       if (r && r.status === 'ok') {
         closeSheet('ovNewDir');
         document.getElementById('ndInput').value = '';
-        toast('✅ Маршрут додано!', 'ok');
+        toast('Маршрут додано!', 'ok');
+        loadDirs(ST.curParentId || ST.curCatId);
+      } else if (r && r.status === 'limit') {
+        toast('Ви вже маєте напрямок. Видаліть попередній.', 'err');
+      } else {
+        toast('Помилка. Спробуйте ще.', 'err');
+      }
+    }
+
+    // ══ DELETE DIRECTION ═══════════════════════════════════════════
+    async function deleteDir(id, title) {
+      if (!confirm('Видалити напрямок "' + title + '"?')) return;
+      var r = await api('/api/v3/board/direction', {}, {
+        method: 'DELETE',
+        body: JSON.stringify({ direction_id: id, user_id: ST.user.id })
+      });
+      if (r && r.status === 'ok') {
+        toast('Напрямок видалено', 'ok');
         loadDirs(ST.curParentId || ST.curCatId);
       } else {
-        toast('❌ Помилка. Спробуйте ще.', 'err');
+        toast('Не вдалось видалити', 'err');
       }
     }
 
@@ -1747,10 +1825,11 @@
       var list = document.getElementById('grpList');
       list.innerHTML = '<div class="loading-wrap"><div class="spin"></div></div>';
       var data = await api('/api/v3/groups');
-      if (!data || !data.length) { list.innerHTML = emptyHtml('👥', 'Організованих груп поки немає'); return; }
+      if (!data || !data.length) { list.innerHTML = emptyHtml('G', 'Організованих груп поки немає'); return; }
       list.innerHTML = data.map(function (g) {
+        var initial = (g.name||'G')[0].toUpperCase();
         return '<div class="grp-item">'
-          + '<div class="grp-av">👥</div>'
+          + '<div class="grp-av">' + esc(initial) + '</div>'
           + '<div class="grp-body"><div class="grp-name">' + esc(g.name) + '</div>'
           + '<div class="grp-meta">' + g.members + ' учасників' + (g.date ? ' · ' + g.date : '') + '</div></div>'
           + '<div class="grp-status ' + (g.status === 'open' ? 'open' : 'closed') + '">' + (g.status === 'open' ? 'Відкрита' : 'Закрита') + '</div>'
@@ -1763,12 +1842,14 @@
       var list = document.getElementById('histList');
       list.innerHTML = '<div class="loading-wrap"><div class="spin"></div></div>';
       var data = await api('/api/v3/history', { user_id: ST.user.id });
-      if (!data || !data.length) { list.innerHTML = emptyHtml('🧭', 'Поїздок ще немає.<br>Оберіть маршрут на дошці!'); return; }
-      var statusMap = { completed: '✅ Завершено', active: '🔵 В дорозі', pending: '⏳ Очікує', cancelled: '❌ Скасовано' };
+      if (!data || !data.length) { list.innerHTML = emptyHtml('—', 'Поїздок ще немає.<br>Оберіть маршрут на дошці!'); return; }
+      var statusMap = { completed: 'Завершено', active: 'В дорозі', pending: 'Очікує', cancelled: 'Скасовано' };
       list.innerHTML = data.map(function (h) {
-        var tagClass = h.status === 'completed' ? 'ok' : (h.status === 'active' ? 'act' : '');
+        var tagClass = h.status === 'completed' ? 'ok' : (h.status === 'active' ? 'act' : (h.status === 'pending' ? 'pend' : 'canc'));
+        var roleInitial = h.role === 'driver' ? 'М' : 'П';
+        var roleClass = h.role === 'driver' ? 'g' : 'b';
         return '<div class="hist-item">'
-          + '<div class="hi-ico">' + (h.role === 'driver' ? '🚗' : '👤') + '</div>'
+          + '<div class="hi-ico ' + roleClass + '">' + roleInitial + '</div>'
           + '<div class="hi-body"><div class="hi-dir">' + esc(h.dir) + '</div>'
           + '<div class="hi-meta">' + h.date + '</div></div>'
           + '<div class="hi-tag ' + tagClass + '">' + (statusMap[h.status] || h.status) + '</div>'
