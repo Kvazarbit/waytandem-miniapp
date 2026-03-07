@@ -348,8 +348,8 @@ html,body{height:100%;width:100%;background:var(--bg);color:var(--w);font-family
 var tg = window.Telegram && window.Telegram.WebApp;
 if(tg){tg.ready();tg.expand();try{tg.setHeaderColor('#080A0F');tg.setBackgroundColor('#080A0F');}catch(e){}}
 
-// 🌐 API Configuration (ВСТАВТЕ ВАШУ АДРЕСУ NGROK ТУТ)
-var API_URL = "https://your-ngrok-id.ngrok-free.app"; 
+// 🌐 API Configuration
+var API_URL = "https://b1157c8b19a2aa.lhr.life"; 
 
 async function apiFetch(endpoint, params = {}) {
   if (!API_URL || API_URL.includes("your-ngrok-id")) return null;
