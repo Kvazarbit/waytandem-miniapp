@@ -1,230 +1,1010 @@
 <!DOCTYPE html>
-<html>
+<html lang="uk">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RideShare MiniApp</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>WayTandem</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  /* Мобільний мінімалістичний стиль */
-  body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f0f0f0; color: #000; }
-  h2 { text-align: center; margin: 10px 0; }
-  .view { display: none; padding: 20px; }
-  .active { display: block; }
-  button, .btn { 
-    display: block; width: 80%; margin: 10px auto; padding: 10px; 
-    font-size: 1.2em; border: none; border-radius: 5px; cursor: pointer; 
-  }
-  button.primary, .btn.primary { background: #4CAF50; color: white; }
-  button.secondary, .btn.secondary { background: #008CBA; color: white; }
-  .btn-group { margin: 20px 0; text-align: center; }
-  .btn-group .btn { display: inline-block; width: auto; margin: 5px; }
-  .hint { text-align: center; font-size: 0.9em; color: #555; margin-top: 10px; }
-  .star-rating { font-size: 2em; text-align: center; }
-  .star-rating .star { cursor: pointer; color: #ccc; }
-  .star-rating .star.active { color: #fc0; }
+:root {
+  --bg: #07090E;
+  --card: #0D1017;
+  --card2: #131720;
+  --card3: #1A2030;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.13);
+  --lime: #C9FF47;
+  --lime2: #A8E030;
+  --sky: #4DCFFF;
+  --sky2: #28B0E8;
+  --red: #FF4D4D;
+  --orange: #FF9A3C;
+  --white: #F0F3FF;
+  --muted: #7A82A0;
+  --dim: #353D55;
+  --r: 18px;
+  --r2: 12px;
+  --safe: env(safe-area-inset-bottom, 0px);
+  --hdr: 56px;
+  --nav: 62px;
+}
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html, body { height:100%; width:100%; overflow:hidden; background:var(--bg); color:var(--white); font-family:'Manrope',sans-serif; -webkit-font-smoothing:antialiased; }
+
+/* ── LAYOUT ── */
+#root { height:100dvh; display:flex; flex-direction:column; overflow:hidden; position:relative; }
+
+/* ── HEADER ── */
+.hdr {
+  height: var(--hdr);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 18px;
+  background: rgba(7,9,14,.9);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  position: relative; z-index: 20;
+}
+.logo {
+  font-family:'Unbounded',sans-serif;
+  font-weight:900; font-size:15px; letter-spacing:-.5px;
+  background: linear-gradient(120deg, var(--lime), var(--sky));
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+}
+.hdr-user {
+  display:flex; align-items:center; gap:8px;
+  background: var(--card2); border:1px solid var(--border);
+  padding: 5px 12px 5px 5px; border-radius:30px;
+}
+.hdr-av {
+  width:26px; height:26px; border-radius:50%;
+  background: linear-gradient(135deg,var(--lime),var(--sky));
+  display:flex; align-items:center; justify-content:center;
+  font-size:11px; font-weight:700; color:#07090E;
+  flex-shrink:0;
+}
+.hdr-name { font-size:13px; font-weight:600; color:var(--white); }
+.role-chip {
+  font-size:10px; font-weight:700; padding:3px 8px; border-radius:20px;
+  letter-spacing:.5px;
+}
+.role-chip.driver { background:rgba(201,255,71,.12); color:var(--lime); border:1px solid rgba(201,255,71,.2); }
+.role-chip.passenger { background:rgba(77,207,255,.12); color:var(--sky); border:1px solid rgba(77,207,255,.2); }
+
+/* ── SCREEN AREA ── */
+#screen { flex:1; overflow:hidden; position:relative; }
+
+/* ── SCREENS ── */
+.screen {
+  position:absolute; inset:0;
+  display:flex; flex-direction:column;
+  overflow:hidden;
+  transform:translateX(100%);
+  opacity:0;
+  pointer-events:none;
+  transition: transform .3s cubic-bezier(.4,0,.2,1), opacity .25s;
+  will-change: transform, opacity;
+}
+.screen.active {
+  transform:translateX(0);
+  opacity:1;
+  pointer-events:auto;
+}
+.screen.out-left {
+  transform:translateX(-30%);
+  opacity:0;
+  pointer-events:none;
+}
+
+.s-body { flex:1; overflow-y:auto; overflow-x:hidden; scrollbar-width:none; }
+.s-body::-webkit-scrollbar { display:none; }
+.s-pad { padding:16px 16px 20px; }
+.s-foot { flex-shrink:0; padding:10px 16px calc(10px + var(--safe)); background:linear-gradient(to top,var(--card) 65%,transparent); }
+
+/* ── HERO BANNER ── */
+.hero-banner {
+  padding:28px 20px 22px;
+  position:relative; overflow:hidden;
+  flex-shrink:0;
+}
+.hero-banner::before {
+  content:''; position:absolute; inset:0; z-index:0;
+  background: radial-gradient(ellipse 80% 60% at 80% -10%, var(--clr,rgba(201,255,71,.09)), transparent 70%);
+}
+.hero-banner > * { position:relative; z-index:1; }
+.hb-tag { font-size:11px; font-weight:600; letter-spacing:1.8px; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
+.hb-title { font-family:'Unbounded',sans-serif; font-weight:700; font-size:clamp(20px,5.5vw,26px); line-height:1.2; color:var(--white); }
+.hb-title span { color:var(--lime); }
+.hb-sub { font-size:13px; color:var(--muted); margin-top:8px; line-height:1.6; font-weight:400; }
+
+/* ── SECTION TITLE ── */
+.sec-title { font-size:11px; font-weight:700; letter-spacing:1.4px; text-transform:uppercase; color:var(--muted); margin-bottom:10px; }
+
+/* ── ROLE CARDS ── */
+.role-grid { display:flex; flex-direction:column; gap:10px; }
+.role-card {
+  background:var(--card2); border:1.5px solid var(--border);
+  border-radius:var(--r); padding:18px 20px;
+  cursor:pointer; transition:all .16s; display:flex; align-items:center; gap:16px;
+  user-select:none;
+}
+.role-card:active { transform:scale(.97); }
+.role-card.lime { border-color:rgba(201,255,71,.2); background:rgba(201,255,71,.04); }
+.role-card.sky  { border-color:rgba(77,207,255,.2); background:rgba(77,207,255,.04); }
+.rc-ico { font-size:32px; flex-shrink:0; line-height:1; }
+.rc-body { flex:1; min-width:0; }
+.rc-title { font-family:'Unbounded',sans-serif; font-weight:700; font-size:15px; margin-bottom:4px; }
+.rc-sub { font-size:12px; color:var(--muted); line-height:1.5; }
+.rc-arrow { font-size:18px; color:var(--dim); flex-shrink:0; }
+
+/* ── STATUS CARD (after role pick) ── */
+.status-card {
+  background:var(--card2); border:1.5px solid var(--border2);
+  border-radius:var(--r); padding:18px 20px;
+  display:flex; align-items:center; gap:14px;
+}
+.sc-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.sc-dot.lime { background:var(--lime); box-shadow:0 0 10px var(--lime); }
+.sc-dot.sky  { background:var(--sky);  box-shadow:0 0 10px var(--sky); }
+.sc-text { flex:1; font-size:14px; font-weight:600; }
+.sc-sub  { font-size:11px; color:var(--muted); margin-top:2px; }
+
+/* ── PRIMARY / SECONDARY BUTTONS ── */
+.btn {
+  width:100%; padding:15px 18px; border-radius:var(--r2); border:none;
+  font-family:'Manrope',sans-serif; font-size:14px; font-weight:700;
+  cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;
+  transition:transform .12s, box-shadow .12s;
+  position:relative; overflow:hidden; user-select:none;
+}
+.btn:active { transform:scale(.97); }
+.btn + .btn { margin-top:8px; }
+.btn-lime { background:linear-gradient(135deg,var(--lime),var(--lime2)); color:#07090E; box-shadow:0 4px 20px rgba(201,255,71,.22); }
+.btn-sky  { background:linear-gradient(135deg,var(--sky),var(--sky2));  color:#07090E; box-shadow:0 4px 20px rgba(77,207,255,.18); }
+.btn-ghost { background:var(--card2); border:1px solid var(--border2); color:var(--muted); }
+.btn-ghost:active { background:var(--card3); }
+
+/* ── CATEGORY LIST (board top level) ── */
+.cat-list { display:flex; flex-direction:column; gap:8px; }
+.cat-item {
+  background:var(--card2); border:1px solid var(--border);
+  border-radius:var(--r); padding:16px 18px;
+  display:flex; align-items:center; gap:14px;
+  cursor:pointer; transition:all .16s; user-select:none;
+}
+.cat-item:active { transform:scale(.98); background:var(--card3); }
+.cat-item.active { border-color:var(--lime); background:rgba(201,255,71,.04); }
+.ci-ico { font-size:26px; flex-shrink:0; line-height:1; }
+.ci-body { flex:1; min-width:0; }
+.ci-name { font-weight:600; font-size:14px; }
+.ci-sub  { font-size:11px; color:var(--muted); margin-top:2px; }
+.ci-badge {
+  font-size:11px; font-weight:700; padding:3px 9px;
+  border-radius:20px; flex-shrink:0;
+  background:var(--card3); color:var(--muted);
+}
+.ci-badge.has { background:rgba(201,255,71,.1); color:var(--lime); }
+.ci-arrow { font-size:16px; color:var(--dim); flex-shrink:0; }
+
+/* ── DIRECTION LIST (inside category) ── */
+.dir-list { display:flex; flex-direction:column; gap:7px; }
+.dir-item {
+  background:var(--card2); border:1px solid var(--border);
+  border-radius:var(--r2); overflow:hidden; transition:border-color .2s;
+}
+.dir-item.open { border-color:var(--sky); }
+.dir-row {
+  display:flex; align-items:center; gap:12px;
+  padding:13px 16px; cursor:pointer; user-select:none;
+}
+.dir-row:active { background:rgba(255,255,255,.02); }
+.di-ico {
+  width:36px; height:36px; border-radius:10px; flex-shrink:0;
+  background:var(--card3); display:flex; align-items:center; justify-content:center;
+  font-size:15px;
+}
+.di-ico.g { background:rgba(201,255,71,.1); }
+.di-ico.b { background:rgba(77,207,255,.1); }
+.di-body { flex:1; min-width:0; }
+.di-name { font-weight:600; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.di-counts { display:flex; gap:6px; margin-top:3px; }
+.di-count { font-size:11px; color:var(--muted); display:flex; align-items:center; gap:2px; }
+.di-count.g { color:var(--lime); }
+.di-count.b { color:var(--sky); }
+.di-chevron { font-size:12px; color:var(--dim); transition:transform .22s; flex-shrink:0; }
+.dir-item.open .di-chevron { transform:rotate(180deg); }
+
+/* ── SHUTTER ── */
+.shutter { overflow:hidden; max-height:0; transition:max-height .28s cubic-bezier(.4,0,.2,1); }
+.shutter.open { max-height:180px; }
+.shutter-inner { padding:0 16px 14px; }
+.sh-sep { height:1px; background:var(--border); margin-bottom:12px; }
+.sh-counters { display:flex; gap:8px; margin-bottom:12px; }
+.sh-counter {
+  flex:1; background:var(--card3); border-radius:10px; padding:10px 12px;
+  display:flex; flex-direction:column; gap:2px;
+}
+.sh-c-lbl { font-size:9px; text-transform:uppercase; letter-spacing:.8px; color:var(--muted); }
+.sh-c-val { font-family:'Unbounded',sans-serif; font-size:18px; font-weight:700; }
+.sh-c-val.g { color:var(--lime); }
+.sh-c-val.b { color:var(--sky); }
+.sh-actions { display:flex; gap:7px; }
+.sh-btn {
+  flex:1; padding:10px 8px; border-radius:10px; border:none;
+  font-family:'Manrope',sans-serif; font-size:12px; font-weight:700;
+  cursor:pointer; text-align:center; transition:all .14s;
+}
+.sh-btn:active { transform:scale(.97); }
+.sh-btn-lime { background:var(--lime); color:#07090E; }
+.sh-btn-sky  { background:var(--sky); color:#07090E; }
+.sh-btn-ghost { background:var(--card3); color:var(--muted); border:1px solid var(--border); }
+
+/* ── BREADCRUMB ── */
+.crumb {
+  display:flex; align-items:center; gap:6px;
+  padding:10px 16px 4px; flex-shrink:0;
+}
+.crumb-seg {
+  font-size:12px; color:var(--muted); cursor:pointer;
+  padding:4px 8px; border-radius:8px; transition:all .14s;
+  white-space:nowrap;
+}
+.crumb-seg:active, .crumb-seg:hover { background:var(--card2); color:var(--white); }
+.crumb-seg.cur { color:var(--white); font-weight:600; background:var(--card2); }
+.crumb-div { font-size:12px; color:var(--dim); }
+
+/* ── GROUPS ── */
+.grp-list { display:flex; flex-direction:column; gap:8px; }
+.grp-item {
+  background:var(--card2); border:1px solid var(--border);
+  border-radius:var(--r); padding:14px 16px;
+  display:flex; align-items:center; gap:12px;
+  cursor:pointer; transition:all .16s;
+}
+.grp-item:active { transform:scale(.98); }
+.grp-av {
+  width:44px; height:44px; border-radius:12px; flex-shrink:0;
+  background:linear-gradient(135deg,var(--sky),rgba(201,255,71,.5));
+  display:flex; align-items:center; justify-content:center; font-size:20px;
+}
+.grp-body { flex:1; min-width:0; }
+.grp-name { font-weight:600; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.grp-meta { font-size:11px; color:var(--muted); margin-top:3px; }
+.grp-status {
+  font-size:10px; font-weight:700; padding:3px 9px; border-radius:20px; flex-shrink:0;
+}
+.grp-status.open   { background:rgba(201,255,71,.1); color:var(--lime); }
+.grp-status.closed { background:var(--card3); color:var(--muted); }
+
+/* ── HISTORY ── */
+.hist-list { display:flex; flex-direction:column; gap:8px; }
+.hist-item {
+  background:var(--card2); border:1px solid var(--border);
+  border-radius:var(--r2); padding:13px 16px;
+  display:flex; align-items:center; gap:12px;
+}
+.hi-ico {
+  width:38px; height:38px; border-radius:10px; flex-shrink:0;
+  background:var(--card3); display:flex; align-items:center; justify-content:center; font-size:17px;
+}
+.hi-body { flex:1; min-width:0; }
+.hi-dir  { font-weight:600; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.hi-meta { font-size:11px; color:var(--muted); margin-top:2px; }
+.hi-tag  {
+  font-size:9px; font-weight:700; padding:3px 8px; border-radius:8px;
+  background:var(--card3); color:var(--muted); flex-shrink:0;
+  white-space:nowrap;
+}
+.hi-tag.ok  { background:rgba(201,255,71,.1); color:var(--lime); }
+.hi-tag.act { background:rgba(77,207,255,.1);  color:var(--sky); }
+
+/* ── LOADING / EMPTY ── */
+.loading-wrap { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:48px 20px; }
+.spin { width:24px; height:24px; border:2.5px solid var(--dim); border-top-color:var(--lime); border-radius:50%; animation:sp .65s linear infinite; }
+@keyframes sp { to { transform:rotate(360deg); } }
+.loading-txt { font-size:13px; color:var(--muted); }
+.empty-wrap { text-align:center; padding:40px 20px; }
+.empty-ico  { font-size:40px; margin-bottom:12px; }
+.empty-msg  { font-size:14px; color:var(--muted); line-height:1.6; }
+
+/* ── INFO PANEL (server status) ── */
+.info-panel {
+  background:var(--card2); border:1px solid rgba(255,154,60,.2);
+  border-radius:var(--r2); padding:12px 14px;
+  display:flex; align-items:center; gap:10px; margin-bottom:12px;
+}
+.ip-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; transition:background .3s; }
+.ip-dot.ok   { background:var(--lime); box-shadow:0 0 8px var(--lime); }
+.ip-dot.err  { background:var(--red); }
+.ip-dot.wait { background:var(--orange); animation:pulse 1.2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+.ip-text { flex:1; font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ip-btn { font-size:11px; font-weight:700; color:var(--orange); cursor:pointer; flex-shrink:0; }
+
+/* ── BOTTOM NAV ── */
+.nav {
+  height: calc(var(--nav) + var(--safe));
+  display:flex; background:rgba(7,9,14,.95); backdrop-filter:blur(24px);
+  border-top:1px solid var(--border); flex-shrink:0;
+  position:relative; z-index:20;
+  padding-bottom: var(--safe);
+}
+.nv {
+  flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:3px; cursor:pointer; color:var(--dim); transition:color .15s; user-select:none;
+  padding: 8px 0;
+}
+.nv.on { color:var(--lime); }
+.nv-ico { font-size:22px; line-height:1; }
+.nv-lbl { font-size:9px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; }
+
+/* ── BOTTOM SHEET ── */
+.overlay {
+  position:fixed; inset:0; z-index:100;
+  background:rgba(0,0,0,.65); backdrop-filter:blur(8px);
+  display:none; align-items:flex-end;
+}
+.overlay.open { display:flex; }
+.sheet {
+  background:var(--card); border:1px solid var(--border2);
+  border-radius:22px 22px 0 0;
+  padding: 16px 18px calc(20px + var(--safe));
+  width:100%;
+  animation:shup .28s cubic-bezier(.4,0,.2,1);
+}
+@keyframes shup { from{transform:translateY(100%)} to{transform:translateY(0)} }
+.sh-handle { width:32px; height:3px; background:var(--dim); border-radius:2px; margin:0 auto 18px; }
+.sh-title { font-family:'Unbounded',sans-serif; font-weight:700; font-size:15px; margin-bottom:16px; }
+.field { margin-bottom:12px; }
+.field label { display:block; font-size:11px; font-weight:600; color:var(--muted); margin-bottom:6px; letter-spacing:.5px; text-transform:uppercase; }
+.field input {
+  width:100%; background:var(--card2); border:1.5px solid var(--border2);
+  border-radius:var(--r2); padding:13px 14px;
+  font-family:'Manrope',sans-serif; font-size:14px; color:var(--white);
+  outline:none; transition:border-color .2s;
+}
+.field input:focus { border-color:var(--sky); }
+.field input::placeholder { color:var(--dim); }
+
+/* ── TOAST ── */
+#toast {
+  position:fixed; bottom:calc(var(--nav) + var(--safe) + 10px); left:50%;
+  transform:translateX(-50%) translateY(8px);
+  background:var(--card3); border:1px solid var(--border2);
+  padding:9px 18px; border-radius:30px;
+  font-size:12px; font-weight:600; white-space:nowrap;
+  opacity:0; pointer-events:none; z-index:999;
+  transition:all .24s cubic-bezier(.34,1.3,.64,1);
+}
+#toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+#toast.ok  { border-color:rgba(201,255,71,.4); color:var(--lime); }
+#toast.err { border-color:rgba(255,77,77,.4);  color:var(--red); }
 </style>
 </head>
 <body>
-<!-- Вибір ролі -->
-<div id="role-selection" class="view active">
-  <h2>Оберіть роль</h2>
-  <button class="primary" onclick="selectRole('passenger')">Я – Пасажир</button>
-  <button class="secondary" onclick="selectRole('driver')">Я – Водій</button>
-  <div class="hint">Пасажир шукає поїздки, водій – створює їх</div>
-</div>
+<div id="root">
 
-<!-- Вибір напрямку -->
-<div id="route-selection" class="view">
-  <h2>Обрати напрямок</h2>
-  <div class="btn-group" id="routes-list">
-    <!-- Тут будуть кнопки маршруту -->
+  <!-- HEADER -->
+  <header class="hdr">
+    <div class="logo">WayTandem</div>
+    <div class="hdr-user">
+      <div class="hdr-av" id="hdAv">?</div>
+      <div class="hdr-name" id="hdName">...</div>
+      <div id="roleChip" style="display:none"></div>
+    </div>
+  </header>
+
+  <!-- SCREENS -->
+  <div id="screen">
+
+    <!-- ══ SCREEN: ROLE ══ -->
+    <div class="screen" id="sc-role">
+      <div class="hero-banner" style="--clr:rgba(201,255,71,.1)">
+        <div class="hb-tag">Крок 1 з 2 — Оберіть роль</div>
+        <div class="hb-title">Хто ти<br><span>сьогодні?</span></div>
+        <div class="hb-sub">Від цього залежить що ти побачиш на дошці маршрутів</div>
+      </div>
+      <div class="s-body s-pad">
+        <div id="apiStatus" class="info-panel" style="display:none">
+          <div class="ip-dot wait" id="apiDot"></div>
+          <div class="ip-text" id="apiTxt">Сервер...</div>
+          <div class="ip-btn" onclick="showApiSheet()">⚙️</div>
+        </div>
+        <div class="role-grid">
+          <div class="role-card lime" onclick="pickRole('driver')">
+            <div class="rc-ico">🚗</div>
+            <div class="rc-body">
+              <div class="rc-title" style="color:var(--lime)">Мандрівник</div>
+              <div class="rc-sub">Їду сам, можу взяти попутника.<br>Розміщую свій маршрут на дошці.</div>
+            </div>
+            <div class="rc-arrow">›</div>
+          </div>
+          <div class="role-card sky" onclick="pickRole('passenger')">
+            <div class="rc-ico">👤</div>
+            <div class="rc-body">
+              <div class="rc-title" style="color:var(--sky)">Попутник</div>
+              <div class="rc-sub">Шукаю з ким поїхати.<br>Підписуюсь на потрібний напрямок.</div>
+            </div>
+            <div class="rc-arrow">›</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SCREEN: HOME (after role pick) ══ -->
+    <div class="screen right" id="sc-home">
+      <div class="hero-banner" id="homeBanner">
+        <div class="hb-tag" id="homeTag">Ваша роль</div>
+        <div class="hb-title" id="homeTitle">—</div>
+        <div class="hb-sub" id="homeSub">—</div>
+      </div>
+      <div class="s-body s-pad">
+        <div class="status-card" id="homeStatus">
+          <div class="sc-dot" id="homeStatusDot"></div>
+          <div>
+            <div class="sc-text" id="homeStatusText">—</div>
+            <div class="sc-sub" id="homeStatusSub">—</div>
+          </div>
+        </div>
+      </div>
+      <div class="s-foot">
+        <div class="btn btn-lime" id="homeBoardBtn" onclick="openBoard()">🌍&nbsp;&nbsp;Переглянути дошку маршрутів</div>
+        <div class="btn btn-ghost" style="margin-top:8px" onclick="showScreen('sc-role','left')">← Змінити роль</div>
+      </div>
+    </div>
+
+    <!-- ══ SCREEN: BOARD (categories) ══ -->
+    <div class="screen right" id="sc-board">
+      <div class="hero-banner" style="--clr:rgba(201,255,71,.08)">
+        <div class="hb-tag">Дошка маршрутів</div>
+        <div class="hb-title">Оберіть<br><span>напрямок</span></div>
+        <div class="hb-sub">Натисніть на категорію щоб побачити маршрути</div>
+      </div>
+      <div class="s-body s-pad">
+        <div class="sec-title">Категорії</div>
+        <div class="cat-list" id="catList">
+          <div class="loading-wrap"><div class="spin"></div><div class="loading-txt">Завантаження...</div></div>
+        </div>
+      </div>
+      <div class="s-foot">
+        <div class="btn btn-ghost" onclick="goBack()">← Назад</div>
+      </div>
+    </div>
+
+    <!-- ══ SCREEN: DIRS (inside category) ══ -->
+    <div class="screen right" id="sc-dirs">
+      <div class="crumb" id="crumb"></div>
+      <div class="s-body s-pad" style="padding-top:8px">
+        <div class="dir-list" id="dirList">
+          <div class="loading-wrap"><div class="spin"></div></div>
+        </div>
+      </div>
+      <div class="s-foot">
+        <div class="btn btn-lime" id="subBtn" onclick="showNewDir()">+ Запропонувати маршрут</div>
+        <div class="btn btn-ghost" style="margin-top:8px" onclick="goBack()">← Назад</div>
+      </div>
+    </div>
+
+    <!-- ══ SCREEN: GROUPS ══ -->
+    <div class="screen right" id="sc-groups">
+      <div class="hero-banner" style="--clr:rgba(77,207,255,.08)">
+        <div class="hb-tag">Організовані виїзди</div>
+        <div class="hb-title">Групи</div>
+        <div class="hb-sub">Спільні подорожі з фіксованою датою</div>
+      </div>
+      <div class="s-body s-pad">
+        <div class="grp-list" id="grpList">
+          <div class="loading-wrap"><div class="spin"></div></div>
+        </div>
+      </div>
+      <div class="s-foot">
+        <div class="btn btn-ghost" onclick="showScreen('sc-board','left')">← До дошки</div>
+      </div>
+    </div>
+
+    <!-- ══ SCREEN: MY TRIPS ══ -->
+    <div class="screen right" id="sc-trips">
+      <div class="hero-banner" style="--clr:rgba(77,207,255,.06)">
+        <div class="hb-tag">Моя активність</div>
+        <div class="hb-title">Мої<br><span style="color:var(--sky)">поїздки</span></div>
+      </div>
+      <div class="s-body s-pad">
+        <div class="hist-list" id="histList">
+          <div class="loading-wrap"><div class="spin"></div></div>
+        </div>
+      </div>
+      <div class="s-foot">
+        <div class="btn btn-lime" onclick="openBoard()">🌍&nbsp;&nbsp;До дошки маршрутів</div>
+      </div>
+    </div>
+
+  </div><!-- /screen -->
+
+  <!-- BOTTOM NAV -->
+  <nav class="nav">
+    <div class="nv on" id="nv0" onclick="navTo(0)">
+      <div class="nv-ico">🏠</div><div class="nv-lbl">Головна</div>
+    </div>
+    <div class="nv" id="nv1" onclick="navTo(1)">
+      <div class="nv-ico">🗺️</div><div class="nv-lbl">Дошка</div>
+    </div>
+    <div class="nv" id="nv2" onclick="navTo(2)">
+      <div class="nv-ico">👥</div><div class="nv-lbl">Групи</div>
+    </div>
+    <div class="nv" id="nv3" onclick="navTo(3)">
+      <div class="nv-ico">🧭</div><div class="nv-lbl">Мої</div>
+    </div>
+  </nav>
+
+</div><!-- /root -->
+
+<!-- Sheet: New direction -->
+<div class="overlay" id="ovNewDir">
+  <div class="sheet">
+    <div class="sh-handle"></div>
+    <div class="sh-title">✨ Новий маршрут</div>
+    <div class="field">
+      <label>Назва напрямку</label>
+      <input id="ndInput" placeholder="Наприклад: Київ → Варшава" maxlength="60" autocomplete="off">
+    </div>
+    <div class="btn btn-lime" onclick="createDir()">Додати на дошку</div>
+    <div class="btn btn-ghost" style="margin-top:8px" onclick="closeSheet('ovNewDir')">Скасувати</div>
   </div>
-  <div class="hint">Виберіть маршрут, яким ви плануєте їхати</div>
 </div>
 
-<!-- Список поїздок для пасажира -->
-<div id="trips-list" class="view">
-  <h2>Доступні поїздки</h2>
-  <div id="trips-container">
-    <!-- Тут генеруються поїздки -->
+<!-- Sheet: API URL -->
+<div class="overlay" id="ovApi">
+  <div class="sheet">
+    <div class="sh-handle"></div>
+    <div class="sh-title">⚙️ Сервер</div>
+    <div class="field">
+      <label>URL сервера (cloudflared/ngrok)</label>
+      <input id="apiInput" placeholder="https://xxxx.trycloudflare.com" autocomplete="off" inputmode="url">
+    </div>
+    <div class="btn btn-sky" onclick="saveApi()">Підключитись</div>
+    <div class="btn btn-ghost" style="margin-top:8px" onclick="closeSheet('ovApi')">Скасувати</div>
   </div>
-  <div class="hint">Оберіть поїздку, щоб приєднатися</div>
 </div>
 
-<!-- Підтвердження запитів для водія -->
-<div id="confirm-requests" class="view">
-  <h2>Запити на приєднання</h2>
-  <div id="requests-container">
-    <!-- Тут показуються запити від пасажирів -->
-  </div>
-  <div class="hint">Підтвердіть запит для формування екіпажу</div>
-</div>
-
-<!-- Очікування підтвердження -->
-<div id="join-request" class="view">
-  <h2>Запит відправлено</h2>
-  <p>Очікуємо підтвердження від водія...</p>
-  <div class="hint">Ви надіслали запит на приєднання</div>
-</div>
-
-<!-- Екіпаж сформовано -->
-<div id="crew-formed" class="view">
-  <h2>Екіпаж сформовано!</h2>
-  <p>Водій та пасажир готові до поїздки.</p>
-  <button class="primary" onclick="startTrip()">🚀 Поїхали!</button>
-</div>
-
-<!-- Поїздка в процесі -->
-<div id="trip-start" class="view">
-  <h2>Поїздка в процесі...</h2>
-  <button class="primary" onclick="finishTrip()">🏁 Фініш</button>
-</div>
-
-<!-- Поїздка завершена з оцінкою -->
-<div id="trip-end" class="view">
-  <h2>Поїздка завершена!</h2>
-  <div class="star-rating">
-    <!-- Зірочки для оцінки -->
-    <span class="star" data-value="1" onclick="selectRating(1)">★</span>
-    <span class="star" data-value="2" onclick="selectRating(2)">★</span>
-    <span class="star" data-value="3" onclick="selectRating(3)">★</span>
-    <span class="star" data-value="4" onclick="selectRating(4)">★</span>
-    <span class="star" data-value="5" onclick="selectRating(5)">★</span>
-  </div>
-  <p class="hint">Оцініть поїздку (1-5 зірок)</p>
-</div>
+<div id="toast"></div>
 
 <script>
-  // Ініціалізація Telegram WebApp
-  window.Telegram.WebApp.ready();  // повідомляємо Telegram, що вебдодаток готовий:contentReference[oaicite:2]{index=2}  
-  // Приховуємо головну кнопку за замовчуванням
-  Telegram.WebApp.MainButton.setParams({ text: '', is_visible: false });
+// ══ TELEGRAM ══════════════════════════════════════════════════
+var tg = window.Telegram && window.Telegram.WebApp;
+if(tg){ tg.ready(); tg.expand();
+  try{ tg.setHeaderColor('#07090E'); tg.setBackgroundColor('#07090E'); }catch(e){}
+}
+var tgUser = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) || {};
 
-  // Функція для перемикання між екранами
-  function showView(id) {
-    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    document.getElementById(id).classList.add('active');
+// ══ API ════════════════════════════════════════════════════════
+var API_URL = (function(){
+  var p = new URLSearchParams(location.search).get('api');
+  if(p){ try{localStorage.setItem('wt_api',p);}catch(e){} return p.replace(/\/$/,''); }
+  try{ var s=localStorage.getItem('wt_api'); if(s) return s.replace(/\/$/,''); }catch(e){}
+  return '';
+})();
+
+async function api(endpoint, params, opts){
+  if(!API_URL){ showApiSheet(); return null; }
+  params = params||{}; opts = opts||{};
+  var url = new URL(API_URL + endpoint);
+  Object.keys(params).forEach(function(k){
+    if(params[k]!=null) url.searchParams.append(k, params[k]);
+  });
+  try{
+    var r = await fetch(url.toString(), Object.assign({
+      headers:{ 'Content-Type':'application/json', 'bypass-tunnel-reminder':'true' }
+    }, opts));
+    if(!r.ok) return null;
+    setApiStatus('ok');
+    return await r.json();
+  }catch(e){ setApiStatus('err'); return null; }
+}
+
+function setApiStatus(s){
+  var dot = document.getElementById('apiDot');
+  var txt = document.getElementById('apiTxt');
+  var panel = document.getElementById('apiStatus');
+  if(!dot) return;
+  dot.className = 'ip-dot ' + s;
+  if(s==='ok'){ txt.textContent = API_URL.replace('https://',''); panel.style.display='none'; }
+  else if(s==='err'){ txt.textContent = 'Сервер недоступний'; panel.style.display='flex'; }
+  else { txt.textContent = 'Підключення...'; panel.style.display='flex'; }
+}
+
+function showApiSheet(){
+  try{ document.getElementById('apiInput').value = API_URL||''; }catch(e){}
+  openSheet('ovApi');
+}
+
+async function saveApi(){
+  var v=(document.getElementById('apiInput').value||'').trim().replace(/\/$/,'');
+  if(!v){ toast('Введіть URL сервера','err'); return; }
+  try{ localStorage.setItem('wt_api',v); }catch(e){}
+  API_URL = v;
+  closeSheet('ovApi');
+  setApiStatus('wait');
+  var d = await api('/api/health');
+  if(d){ toast('🟢 Сервер підключено','ok'); setApiStatus('ok'); renderBoard(); }
+  else { toast('🔴 Не вдалось підключитись','err'); setApiStatus('err'); }
+}
+
+// ══ STATE ══════════════════════════════════════════════════════
+var _tgLang = (tgUser.language_code||'').slice(0,2);
+var ST = {
+  user: { name: tgUser.first_name||'Користувач', id: tgUser.id||0 },
+  lang: (['uk','pl','en'].includes(_tgLang)?_tgLang:'uk'),
+  role: null,         // 'driver' | 'passenger'
+  cats: [],           // root categories
+  dirs: [],           // dirs inside current category
+  curCatId: null,
+  curCatName: '',
+  curParentId: null,
+  groups: [],
+  history: [],
+  loadingBoard: false,
+  loadingDirs: false,
+  loadingGroups: false,
+  loadingHistory: false,
+  expandedDir: null,
+};
+
+// ══ NAVIGATION ════════════════════════════════════════════════
+var _history = [];   // screen stack for back
+
+function showScreen(id, dir){
+  var next = document.getElementById(id);
+  if(!next) return;
+  var cur = document.querySelector('.screen.active');
+  if(cur === next) return;
+
+  // Підготувати новий екран з потрібного боку
+  var comingFromRight = (dir !== 'left');
+
+  // Скинути всі екрани у вихідний стан (правий) і прибрати active/out
+  document.querySelectorAll('.screen').forEach(function(s){
+    s.classList.remove('active','out-left');
+    // не чіпаємо позицію — default = translateX(100%)
+  });
+
+  if(comingFromRight){
+    // next приходить справа (вже translateX(100%) — default)
+    // cur іде вліво
+    if(cur){ cur.classList.add('out-left'); }
+  } else {
+    // next приходить зліва — ставимо його зліва без transition
+    next.style.transition = 'none';
+    next.style.transform  = 'translateX(-30%)';
+    next.style.opacity    = '0';
+    // форсуємо reflow
+    next.getBoundingClientRect();
+    // повертаємо transition
+    next.style.transition = '';
+    next.style.transform  = '';
+    next.style.opacity    = '';
+    // cur іде вправо (default translateX(100%) — нічого не робимо, просто прибираємо active)
   }
 
-  // Вибір ролі: зберігаємо в localStorage і показуємо вибір маршруту
-  function selectRole(role) {
-    localStorage.setItem('role', role); // зберігаємо роль:contentReference[oaicite:3]{index=3}
-    showView('route-selection');
-    loadRoutes();
-  }
+  // Активуємо новий екран
+  next.classList.add('active');
+}
 
-  // Завантажуємо список маршрутів (симуляція API)
-  function loadRoutes() {
-    const routes = ['Київ — Львів', 'Київ — Одеса', 'Львів — Харків'];
-    const container = document.getElementById('routes-list');
-    container.innerHTML = '';
-    routes.forEach(route => {
-      const btn = document.createElement('button');
-      btn.className = 'btn primary';
-      btn.innerText = route;
-      btn.onclick = () => selectRoute(route);
-      container.appendChild(btn);
-    });
-  }
+function goBack(){
+  var prev = _history.pop();
+  if(prev) showScreen(prev, 'left');
+  else showScreen('sc-home', 'left');
+}
 
-  // Вибір маршруту: якщо пасажир — вантажимо поїздки, якщо водій — запити
-  function selectRoute(route) {
-    localStorage.setItem('route', route);
-    const role = localStorage.getItem('role');
-    if (role === 'passenger') {
-      loadTrips(route);
-      showView('trips-list');
+function navTo(i){
+  var map = ['sc-role','sc-board','sc-groups','sc-trips'];
+  if(i===0 && ST.role) map[0]='sc-home';
+  _history = [];
+  showScreen(map[i]);
+  updateNav(i);
+  if(i===1) renderBoard();
+  if(i===2) renderGroups();
+  if(i===3) renderHistory();
+}
+
+function updateNav(i){
+  document.querySelectorAll('.nv').forEach(function(n,idx){
+    n.classList.toggle('on', idx===i);
+  });
+}
+
+// ══ ROLE ══════════════════════════════════════════════════════
+function pickRole(r){
+  ST.role = r;
+  var isDriver = r==='driver';
+
+  // update header chip
+  var chip = document.getElementById('roleChip');
+  chip.className = 'role-chip ' + r;
+  chip.textContent = isDriver ? '🚗 Мандрівник' : '👤 Попутник';
+  chip.style.display = 'block';
+
+  // update home screen
+  document.getElementById('homeBanner').style.setProperty('--clr',
+    isDriver ? 'rgba(201,255,71,.1)' : 'rgba(77,207,255,.1)');
+  document.getElementById('homeTag').textContent = 'Ваша роль';
+  document.getElementById('homeTitle').innerHTML = isDriver
+    ? '<span style="color:var(--lime)">Мандрівник</span>'
+    : '<span style="color:var(--sky)">Попутник</span>';
+  document.getElementById('homeSub').textContent = isDriver
+    ? 'Ви їдете — можете взяти попутника по дорозі'
+    : 'Ви шукаєте — підпишіться на потрібний напрямок';
+
+  var dot = document.getElementById('homeStatusDot');
+  dot.className = 'sc-dot ' + (isDriver ? 'lime' : 'sky');
+  document.getElementById('homeStatusText').textContent = isDriver
+    ? 'Готовий взяти попутника' : 'Шукаю попутку';
+  document.getElementById('homeStatusSub').textContent = isDriver
+    ? 'Оберіть напрямок і станьте видимими на дошці'
+    : 'Оберіть напрямок і підпишіться — вас знайдуть';
+
+  document.getElementById('homeBoardBtn').className = 'btn ' + (isDriver ? 'btn-lime' : 'btn-sky');
+
+  _history.push('sc-role');
+  showScreen('sc-home');
+  updateNav(0);
+}
+
+// ══ BOARD — CATEGORIES ════════════════════════════════════════
+function openBoard(){
+  _history.push(document.querySelector('.screen.active').id);
+  showScreen('sc-board');
+  updateNav(1);
+  renderBoard();
+}
+
+async function renderBoard(){
+  if(ST.loadingBoard) return;
+  ST.loadingBoard = true;
+  var el = document.getElementById('catList');
+  el.innerHTML = '<div class="loading-wrap"><div class="spin"></div><div class="loading-txt">Завантаження...</div></div>';
+
+  var data = await api('/api/v3/board', { lang: ST.lang });
+  ST.loadingBoard = false;
+  if(!data){ el.innerHTML = emptyHtml('📡','Немає з\'єднання з сервером.<br>Перевірте URL у налаштуваннях.'); return; }
+
+  ST.cats = data;
+  if(!data.length){ el.innerHTML = emptyHtml('📭','Категорій поки немає'); return; }
+
+  el.innerHTML = data.map(function(c){
+    var total = (c.drivers||0) + (c.passengers||0);
+    return '<div class="cat-item" onclick="openCat('+c.id+',\''+esc(c.title)+'\',0)">'
+      +'<div class="ci-ico">'+catIcon(c.title)+'</div>'
+      +'<div class="ci-body">'
+      +'<div class="ci-name">'+esc(c.title)+'</div>'
+      +(c.has_kids ? '<div class="ci-sub">Декілька підрозділів</div>' : '<div class="ci-sub">Маршрути</div>')
+      +'</div>'
+      +'<div class="ci-badge'+(total>0?' has':'')+'">'+total+'</div>'
+      +'<div class="ci-arrow">›</div>'
+      +'</div>';
+  }).join('');
+}
+
+function catIcon(title){
+  var t=(title||'').toLowerCase();
+  if(t.includes('відпуст')||t.includes('wakacje')||t.includes('travel')) return '🌴';
+  if(t.includes('гор')||t.includes('góry')||t.includes('mount')) return '⛰️';
+  if(t.includes('мор')||t.includes('morze')||t.includes('sea')) return '🌊';
+  if(t.includes('місто')||t.includes('miasto')||t.includes('city')) return '🏙️';
+  if(t.includes('кордон')||t.includes('granic')||t.includes('abroad')) return '✈️';
+  if(t.includes('робот')||t.includes('praca')||t.includes('work')) return '💼';
+  if(t.includes('серв')||t.includes('serwis')||t.includes('service')) return '🔧';
+  return '📌';
+}
+
+// ══ BOARD — DIRS (inside category) ═══════════════════════════
+async function openCat(id, name, parentId){
+  ST.curCatId = id; ST.curCatName = name; ST.curParentId = parentId;
+  ST.expandedDir = null;
+  _history.push('sc-board');
+  showScreen('sc-dirs');
+  await loadDirs(id);
+}
+
+async function loadDirs(parentId){
+  ST.loadingDirs = true;
+  var list = document.getElementById('dirList');
+  list.innerHTML = '<div class="loading-wrap"><div class="spin"></div></div>';
+
+  // breadcrumb
+  var crumb = document.getElementById('crumb');
+  crumb.innerHTML = '<span class="crumb-seg" onclick="showScreen(\'sc-board\',\'left\')">Дошка</span>'
+    +'<span class="crumb-div">›</span>'
+    +'<span class="crumb-seg cur">'+esc(ST.curCatName)+'</span>';
+
+  var data = await api('/api/v3/board', { lang: ST.lang, parent_id: parentId });
+  ST.loadingDirs = false;
+  ST.dirs = data || [];
+
+  if(!data){ list.innerHTML = emptyHtml('📡','Помилка з\'єднання'); return; }
+  if(!data.length){ list.innerHTML = emptyHtml('📭','Маршрутів поки немає.<br>Будьте першим!'); return; }
+
+  renderDirs();
+}
+
+function renderDirs(){
+  var list = document.getElementById('dirList');
+  var isDriver = ST.role === 'driver';
+
+  list.innerHTML = ST.dirs.map(function(d){
+    var isExp = ST.expandedDir === d.id;
+    var hasDrivers = d.drivers > 0;
+    var hasPax = d.passengers > 0;
+
+    var shutter = '';
+    if(!d.has_kids){
+      var actionBtn = isDriver
+        ? '<div class="sh-btn sh-btn-lime" onclick="event.stopPropagation();subToDir('+d.id+')">✅ Я їду сюди</div>'
+        : '<div class="sh-btn sh-btn-sky"  onclick="event.stopPropagation();subToDir('+d.id+')">✅ Підписатись</div>';
+      var askBtn = (!isDriver && hasDrivers)
+        ? '<div class="sh-btn sh-btn-ghost" onclick="event.stopPropagation();askDriver('+d.id+')">👋 Попросити водія</div>'
+        : '';
+      shutter = '<div class="shutter'+(isExp?' open':'')+'"><div class="shutter-inner">'
+        +'<div class="sh-sep"></div>'
+        +'<div class="sh-counters">'
+        +'<div class="sh-counter"><div class="sh-c-lbl">Мандрівники</div><div class="sh-c-val g">'+d.drivers+'</div></div>'
+        +'<div class="sh-counter"><div class="sh-c-lbl">Попутники</div><div class="sh-c-val b">'+d.passengers+'</div></div>'
+        +'</div>'
+        +'<div class="sh-actions">'+actionBtn+askBtn+'</div>'
+        +'</div></div>';
     } else {
-      loadRequests(route);
-      showView('confirm-requests');
+      shutter = '<div class="shutter'+(isExp?' open':'')+'"><div class="shutter-inner">'
+        +'<div class="sh-sep"></div>'
+        +'<div class="sh-actions"><div class="sh-btn sh-btn-sky" style="width:100%" onclick="event.stopPropagation();drillIn('+d.id+',\''+esc(d.title)+'\')">↳ Відкрити підрозділи</div></div>'
+        +'</div></div>';
     }
-  }
 
-  // Пасажир: завантаження поїздок (запит до API /api/v3/trips)
-  function loadTrips(route) {
-    // У реальному випадку:
-    // fetch(`/api/v3/trips?route=${encodeURIComponent(route)}`)
-    //   .then(res => res.json()).then(data => { ... });
-    // Приклад даних:
-    const trips = [
-      { id: 1, driver: 'Іван', seats: 2, time: '08:00' },
-      { id: 2, driver: 'Олена', seats: 1, time: '09:30' }
-    ];
-    const container = document.getElementById('trips-container');
-    container.innerHTML = '';
-    trips.forEach(trip => {
-      const div = document.createElement('div');
-      div.innerHTML = `<p>Водій: ${trip.driver}, Місць: ${trip.seats}, Час: ${trip.time}</p>
-        <button class="btn secondary" onclick="joinTrip(${trip.id})">Приєднатися</button>`;
-      container.appendChild(div);
+    var icoClass = 'di-ico'+(d.has_kids?'':hasDrivers?' g':' b');
+    var ico = d.has_kids ? '📁' : (hasDrivers ? '🚗' : '📍');
+
+    return '<div class="dir-item'+(isExp?' open':'')+'"><div class="dir-row" onclick="expandDir('+d.id+')">'
+      +'<div class="'+icoClass+'">'+ico+'</div>'
+      +'<div class="di-body"><div class="di-name">'+esc(d.title)+'</div>'
+      +'<div class="di-counts">'
+      +'<span class="di-count g">'+d.drivers+' 🚗</span>'
+      +'<span class="di-count b">'+d.passengers+' 👤</span>'
+      +(d.has_kids?'<span class="di-count">📁 підрозділи</span>':'')
+      +'</div></div>'
+      +'<div class="di-chevron">▾</div>'
+      +'</div>'+shutter+'</div>';
+  }).join('');
+}
+
+function expandDir(id){
+  ST.expandedDir = ST.expandedDir===id ? null : id;
+  renderDirs();
+}
+
+function drillIn(id, name){
+  ST.curParentId = id;
+  ST.curCatName = name;
+  loadDirs(id);
+}
+
+function subToDir(id){
+  toast('✅ Підписку оновлено','ok');
+}
+function askDriver(id){
+  toast('👋 Запит надіслано водію','ok');
+}
+
+function showNewDir(){
+  document.getElementById('ndInput').value='';
+  openSheet('ovNewDir');
+}
+
+async function createDir(){
+  var v=(document.getElementById('ndInput').value||'').trim();
+  if(v.length<3){ toast('Мінімум 3 символи','err'); return; }
+  var r = await api('/api/v3/board',{},{
+    method:'POST',
+    body:JSON.stringify({title:v, parent_id:ST.curParentId||ST.curCatId, user_id:ST.user.id})
+  });
+  if(r&&r.status==='ok'){
+    closeSheet('ovNewDir');
+    document.getElementById('ndInput').value='';
+    toast('✅ Маршрут додано!','ok');
+    loadDirs(ST.curParentId||ST.curCatId);
+  } else {
+    toast('❌ Помилка. Спробуйте ще.','err');
+  }
+}
+
+// ══ GROUPS ════════════════════════════════════════════════════
+async function renderGroups(){
+  var list = document.getElementById('grpList');
+  list.innerHTML = '<div class="loading-wrap"><div class="spin"></div></div>';
+  var data = await api('/api/v3/groups');
+  if(!data||!data.length){ list.innerHTML = emptyHtml('👥','Організованих груп поки немає'); return; }
+  list.innerHTML = data.map(function(g){
+    return '<div class="grp-item">'
+      +'<div class="grp-av">👥</div>'
+      +'<div class="grp-body"><div class="grp-name">'+esc(g.name)+'</div>'
+      +'<div class="grp-meta">'+g.members+' учасників'+(g.date?' · '+g.date:'')+'</div></div>'
+      +'<div class="grp-status '+(g.status==='open'?'open':'closed')+'">'+(g.status==='open'?'Відкрита':'Закрита')+'</div>'
+      +'</div>';
+  }).join('');
+}
+
+// ══ HISTORY ═══════════════════════════════════════════════════
+async function renderHistory(){
+  var list = document.getElementById('histList');
+  list.innerHTML = '<div class="loading-wrap"><div class="spin"></div></div>';
+  var data = await api('/api/v3/history',{user_id:ST.user.id});
+  if(!data||!data.length){ list.innerHTML = emptyHtml('🧭','Поїздок ще немає.<br>Оберіть маршрут на дошці!'); return; }
+  var statusMap={completed:'✅ Завершено',active:'🔵 В дорозі',pending:'⏳ Очікує',cancelled:'❌ Скасовано'};
+  list.innerHTML = data.map(function(h){
+    var tagClass = h.status==='completed'?'ok':(h.status==='active'?'act':'');
+    return '<div class="hist-item">'
+      +'<div class="hi-ico">'+(h.role==='driver'?'🚗':'👤')+'</div>'
+      +'<div class="hi-body"><div class="hi-dir">'+esc(h.dir)+'</div>'
+      +'<div class="hi-meta">'+h.date+'</div></div>'
+      +'<div class="hi-tag '+tagClass+'">'+(statusMap[h.status]||h.status)+'</div>'
+      +'</div>';
+  }).join('');
+}
+
+// ══ UTILS ═════════════════════════════════════════════════════
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function emptyHtml(ico,msg){
+  return '<div class="empty-wrap"><div class="empty-ico">'+ico+'</div><div class="empty-msg">'+msg+'</div></div>';
+}
+
+function openSheet(id){ document.getElementById(id).classList.add('open'); }
+function closeSheet(id){ document.getElementById(id).classList.remove('open'); }
+
+// Close sheets on backdrop click
+document.querySelectorAll('.overlay').forEach(function(el){
+  el.addEventListener('click', function(e){ if(e.target===el) el.classList.remove('open'); });
+});
+
+var _toastT;
+function toast(msg, type){
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show '+(type||'');
+  clearTimeout(_toastT);
+  _toastT = setTimeout(function(){ el.className=''; }, 2800);
+}
+
+// ══ INIT ══════════════════════════════════════════════════════
+function init(){
+  // Перший екран без анімації
+  var first = document.getElementById('sc-role');
+  first.style.transition = 'none';
+  first.classList.add('active');
+  first.getBoundingClientRect();
+  first.style.transition = '';
+
+  var n = ST.user.name || 'Користувач';
+  document.getElementById('hdAv').textContent = (n[0]||'?').toUpperCase();
+  document.getElementById('hdName').textContent = n.split(' ')[0];
+
+  // Show server panel if no API set
+  if(!API_URL){
+    document.getElementById('apiStatus').style.display='flex';
+    setApiStatus('wait');
+  } else {
+    // Quietly check server health
+    api('/api/health').then(function(d){
+      if(d) setApiStatus('ok'); else setApiStatus('err');
     });
   }
 
-  // Пасажир: відправка запиту на приєднання (симуляція POST /api/v3/join)
-  function joinTrip(tripId) {
-    // У реальному випадку:
-    // fetch('/api/v3/join', { method: 'POST', body: JSON.stringify({ tripId }) })
-    showView('join-request');
-    // Симулюємо збереження запиту, щоб водій його побачив
-    let requests = JSON.parse(localStorage.getItem('requests')) || [];
-    requests.push({ tripId: tripId, passenger: 'Ви (пасажир)' });
-    localStorage.setItem('requests', JSON.stringify(requests));
+  // Telegram MainButton
+  if(tg && tg.MainButton){
+    tg.MainButton.setText('🗺️ Дошка маршрутів');
+    tg.MainButton.show();
+    tg.MainButton.onClick(function(){ navTo(1); });
   }
-
-  // Водій: завантаження запитів на приєднання (симуляція GET /api/v3/requests)
-  function loadRequests(route) {
-    let requests = JSON.parse(localStorage.getItem('requests')) || [];
-    const container = document.getElementById('requests-container');
-    container.innerHTML = '';
-    requests.forEach((req, index) => {
-      const div = document.createElement('div');
-      div.innerHTML = `<p>Запит від: ${req.passenger}</p>
-        <button class="btn secondary" onclick="confirmRequest(${index})">Підтвердити</button>`;
-      container.appendChild(div);
-    });
-    if (requests.length === 0) {
-      container.innerHTML = '<p>Немає запитів</p>';
-    }
-  }
-
-  // Водій підтверджує запит (симуляція POST /api/v3/confirm)
-  function confirmRequest(reqIndex) {
-    // У реальному випадку:
-    // fetch('/api/v3/confirm', { method: 'POST', body: JSON.stringify({ reqIndex }) })
-    let requests = JSON.parse(localStorage.getItem('requests')) || [];
-    requests.splice(reqIndex, 1);
-    localStorage.setItem('requests', JSON.stringify(requests));
-    showView('crew-formed');
-  }
-
-  // Запуск поїздки (симуляція POST /api/v3/start)
-  function startTrip() {
-    // fetch('/api/v3/start', { method: 'POST' })
-    showView('trip-start');
-  }
-
-  // Завершення поїздки (симуляція POST /api/v3/finish)
-  function finishTrip() {
-    // fetch('/api/v3/finish', { method: 'POST' })
-    showView('trip-end');
-  }
-
-  // Вибір рейтингу (1–5 зірок) та відправка даних боту
-  function selectRating(value) {
-    const stars = document.querySelectorAll('.star');
-    stars.forEach(s => s.classList.remove('active'));
-    for (let i = 0; i < value; i++) {
-      stars[i].classList.add('active');
-    }
-    // Показуємо головну кнопку Telegram з текстом "Надіслати відгук"
-    Telegram.WebApp.MainButton.setText('Надіслати відгук');
-    Telegram.WebApp.MainButton.show();
-    Telegram.WebApp.MainButton.onClick(() => {
-      // Відправляємо дані назад у бота як JSON:contentReference[oaicite:4]{index=4}
-      Telegram.WebApp.sendData(JSON.stringify({ rating: value }));
-      Telegram.WebApp.MainButton.hide();
-    });
-  }
+}
+init();
 </script>
 </body>
 </html>
