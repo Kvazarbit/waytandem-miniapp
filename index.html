@@ -15,7 +15,7 @@
       --bg: #07090E;
       --card: #0D1017;
       --card2: #131720;
-      --card3: #1A2030;ф
+      --card3: #1A2030;
       --border: rgba(255, 255, 255, 0.07);
       --border2: rgba(255, 255, 255, 0.13);
       --lime: #C9FF47;
@@ -1171,7 +1171,471 @@
       border-color: rgba(255, 77, 77, .4);
       color: var(--red);
     }
+
+    /* ── PROFILE SCREEN ── */
+    .prof-stats {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .ps-item {
+      flex: 1;
+      background: var(--card2);
+      border-radius: var(--r2);
+      padding: 14px 8px;
+      text-align: center;
+    }
+    .ps-val {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--txt);
+    }
+    .ps-pos { color: var(--lime); }
+    .ps-neg { color: var(--red); }
+    .ps-lbl {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .pd-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .pd-item {
+      background: var(--card2);
+      border-radius: var(--r2);
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+    }
+    .pd-lbl {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--muted);
+    }
+    .pd-val {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--txt);
+      margin-top: 2px;
+    }
+
+    .prof-subs-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .ps-sub-item {
+      background: var(--card2);
+      border-radius: var(--r2);
+      padding: 10px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .ps-sub-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--txt);
+    }
+    .ps-sub-role {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--muted);
+    }
+    .ps-unsub {
+      font-size: 11px;
+      color: var(--red);
+      background: rgba(255,77,77,.1);
+      border: none;
+      padding: 4px 10px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    /* ── ACTIVE TRIP ── */
+    .at-info {
+      background: var(--card2);
+      border-radius: var(--r2);
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .at-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .at-lbl {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .at-val {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--txt);
+    }
+    .at-crew-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .at-crew-item {
+      background: var(--card2);
+      border-radius: var(--r2);
+      padding: 10px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .at-crew-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--txt);
+    }
+
+    /* ── SETTINGS ── */
+    .set-lang-grid, .set-role-grid {
+      display: flex;
+      gap: 8px;
+    }
+    .set-lang-btn, .set-role-btn {
+      flex: 1;
+      background: var(--card2);
+      border: 1px solid rgba(255,255,255,.06);
+      border-radius: var(--r2);
+      padding: 12px 8px;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .2s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .set-lang-btn.on, .set-role-btn.on {
+      border-color: var(--lime);
+      color: var(--lime);
+      background: rgba(201,255,71,.06);
+    }
+
+    /* ── BTN OUTLINE ── */
+    .btn-outline {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,.12);
+      color: var(--txt);
+      padding: 12px;
+      border-radius: var(--r2);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all .15s;
+    }
+    .btn-outline:active {
+      background: rgba(255,255,255,.06);
+    }
+
+    /* ── MATCH CARDS ── */
+    .mc-deck {
+      position: relative;
+      min-height: 200px;
+    }
+    .mc-empty {
+      text-align: center;
+      padding: 40px 20px;
+    }
+    .mc-empty-ico { margin-bottom: 12px; opacity: .5; }
+    .mc-empty-txt {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--txt);
+      margin-bottom: 4px;
+    }
+    .mc-empty-sub {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .mc-card {
+      background: var(--card);
+      border: 1px solid rgba(255,255,255,.06);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 10px;
+      position: relative;
+      transition: transform .3s, opacity .3s;
+    }
+    .mc-card.top {
+      box-shadow: 0 8px 32px rgba(0,0,0,.3);
+      border-color: rgba(255,154,60,.15);
+    }
+    .mc-card-name {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--txt);
+    }
+    .mc-card-role {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--orange);
+      margin-bottom: 8px;
+    }
+    .mc-card-info {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .mc-card-field {
+      background: rgba(255,255,255,.04);
+      border-radius: var(--r2);
+      padding: 8px 10px;
+    }
+    .mc-card-fl {
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .3px;
+    }
+    .mc-card-fv {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--txt);
+      margin-top: 2px;
+    }
+    .mc-card-dir {
+      margin-top: 10px;
+      padding: 8px 12px;
+      background: rgba(255,154,60,.08);
+      border-radius: var(--r2);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--orange);
+      text-align: center;
+    }
+    .mc-actions {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      padding: 4px 0;
+    }
+    .mc-btn {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: 2px solid;
+      background: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .mc-decline {
+      border-color: var(--red);
+      color: var(--red);
+    }
+    .mc-decline:active {
+      background: rgba(255,77,77,.2);
+      transform: scale(1.1);
+    }
+    .mc-tired {
+      border-color: var(--muted);
+      color: var(--muted);
+      width: 44px;
+      height: 44px;
+      align-self: center;
+    }
+    .mc-tired:active {
+      background: rgba(255,255,255,.1);
+    }
+    .mc-accept {
+      border-color: var(--lime);
+      color: var(--lime);
+    }
+    .mc-accept:active {
+      background: rgba(201,255,71,.2);
+      transform: scale(1.1);
+    }
+    .mc-pend-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .mc-pend-item {
+      background: var(--card2);
+      border-radius: var(--r2);
+      padding: 10px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .mc-pend-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--txt);
+    }
+    .mc-pend-dir {
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .mc-pend-btns {
+      display: flex;
+      gap: 6px;
+    }
+    .mc-pend-btn {
+      padding: 4px 10px;
+      border-radius: 12px;
+      border: none;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .mc-pend-btn.ok {
+      background: rgba(201,255,71,.15);
+      color: var(--lime);
+    }
+    .mc-pend-btn.no {
+      background: rgba(255,77,77,.1);
+      color: var(--red);
+    }
+
+    /* ── RATING ── */
+    .rt-summary {
+      background: var(--card2);
+      border-radius: var(--r2);
+      padding: 20px;
+      text-align: center;
+    }
+    .rt-avg {
+      font-size: 36px;
+      font-weight: 900;
+      color: #ffc83c;
+    }
+    .rt-stars { font-size: 20px; margin: 4px 0; }
+    .rt-star { color: #ffc83c; }
+    .rt-star.dim { color: rgba(255,200,60,.2); }
+    .rt-count {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .rt-form {
+      background: var(--card2);
+      border-radius: var(--r2);
+      padding: 14px;
+    }
+    .rt-trip-info {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--txt);
+      margin-bottom: 8px;
+    }
+    .rt-input-stars {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+    }
+    .rt-star-btn {
+      font-size: 32px;
+      color: rgba(255,200,60,.2);
+      cursor: pointer;
+      transition: color .15s, transform .15s;
+    }
+    .rt-star-btn.on { color: #ffc83c; }
+    .rt-star-btn:active { transform: scale(1.2); }
+    .rt-hist-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .rt-hist-item {
+      background: var(--card2);
+      border-radius: var(--r2);
+      padding: 10px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .rt-hist-who {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--txt);
+    }
+    .rt-hist-stars {
+      font-size: 14px;
+      color: #ffc83c;
+    }
+
+    /* ── DONATIONS ── */
+    .dn-balance {
+      background: linear-gradient(135deg, rgba(201,255,71,.08), rgba(77,207,255,.06));
+      border: 1px solid rgba(201,255,71,.12);
+      border-radius: 16px;
+      padding: 24px;
+      text-align: center;
+    }
+    .dn-bal-lbl {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+    }
+    .dn-bal-val {
+      font-size: 42px;
+      font-weight: 900;
+      color: var(--lime);
+      line-height: 1.1;
+      margin: 4px 0;
+    }
+    .dn-bal-cur {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .dn-send-form {
+      background: var(--card2);
+      border-radius: var(--r2);
+      padding: 14px;
+    }
+    .dn-hist-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .dn-hist-item {
+      background: var(--card2);
+      border-radius: var(--r2);
+      padding: 10px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .dn-hist-who {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--txt);
+    }
+    .dn-hist-amt {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--lime);
+    }
   </style>
+
 </head>
 
 <body>
@@ -1320,9 +1784,255 @@
         </div>
       </div>
 
+      <!-- ══ SCREEN: PROFILE ══ -->
+      <div class="screen right" id="sc-profile">
+        <div class="hero-banner" style="--clr:rgba(201,255,71,.06)">
+          <div class="hb-tag">Ваш акаунт</div>
+          <div class="hb-title" id="profName">—</div>
+          <div class="hb-sub" id="profRole">—</div>
+        </div>
+        <div class="s-body s-pad">
+          <div class="prof-stats" id="profStats">
+            <div class="ps-item">
+              <div class="ps-val" id="profTrips">0</div>
+              <div class="ps-lbl">Поїздок</div>
+            </div>
+            <div class="ps-item">
+              <div class="ps-val ps-pos" id="profPos">0</div>
+              <div class="ps-lbl">Подяк</div>
+            </div>
+            <div class="ps-item">
+              <div class="ps-val ps-neg" id="profNeg">0</div>
+              <div class="ps-lbl">Скарг</div>
+            </div>
+          </div>
+
+          <!-- Driver card (hidden for passengers) -->
+          <div class="prof-driver-card" id="profDriverCard" style="display:none">
+            <div class="sec-title" style="margin-top:16px">Мій автомобіль</div>
+            <div class="pd-grid">
+              <div class="pd-item"><span class="pd-lbl">Авто</span><span class="pd-val" id="profCar">—</span></div>
+              <div class="pd-item"><span class="pd-lbl">Номер</span><span class="pd-val" id="profPlate">—</span></div>
+              <div class="pd-item"><span class="pd-lbl">Телефон</span><span class="pd-val" id="profPhone">—</span></div>
+              <div class="pd-item"><span class="pd-lbl">Місця</span><span class="pd-val" id="profSeats">—</span></div>
+            </div>
+          </div>
+
+          <div class="sec-title" style="margin-top:16px">Мої підписки</div>
+          <div id="profSubsList" class="prof-subs-list">
+            <div class="empty-state"><div class="es-text">Ще немає підписок</div></div>
+          </div>
+
+          <div class="prof-actions" style="margin-top:20px">
+            <div class="btn btn-outline" style="border-color:rgba(255,154,60,.2);color:var(--orange)" onclick="_history.push('sc-profile');showScreen('sc-match');renderMatch()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              Знайти попутника
+            </div>
+            <div class="btn btn-outline" style="margin-top:8px;border-color:rgba(255,200,60,.2);color:#ffc83c" onclick="_history.push('sc-profile');showScreen('sc-rating');renderRating()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              Мій рейтинг
+            </div>
+            <div class="btn btn-outline" style="margin-top:8px;border-color:rgba(201,255,71,.2);color:var(--lime)" onclick="_history.push('sc-profile');showScreen('sc-donations');renderDonations()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+              Донати / Подяки
+            </div>
+            <div class="btn btn-outline" style="margin-top:8px" onclick="showScreen('sc-settings');_history.push('sc-profile');renderSettings()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              Налаштування
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ SCREEN: ACTIVE TRIP ══ -->
+      <div class="screen right" id="sc-active-trip">
+        <div class="hero-banner" style="--clr:rgba(201,255,71,.08)">
+          <div class="hb-tag" id="atTag">Активна поїздка</div>
+          <div class="hb-title" id="atTitle">—</div>
+          <div class="hb-sub" id="atSub">—</div>
+        </div>
+        <div class="s-body s-pad">
+          <div class="at-info">
+            <div class="at-row"><span class="at-lbl">Статус</span><span class="at-val" id="atStatus">—</span></div>
+            <div class="at-row"><span class="at-lbl">Маршрут</span><span class="at-val" id="atRoute">—</span></div>
+            <div class="at-row"><span class="at-lbl">Екіпаж #</span><span class="at-val" id="atCrew">—</span></div>
+          </div>
+          <div class="sec-title" style="margin-top:16px">Екіпаж</div>
+          <div id="atCrewList" class="at-crew-list">
+            <div class="empty-state"><div class="es-text">Завантаження...</div></div>
+          </div>
+        </div>
+        <div class="s-foot">
+          <div class="btn btn-lime" id="atDoneBtn" onclick="tripMarkDone()">Завершити поїздку</div>
+          <div class="btn btn-ghost" style="margin-top:8px;color:var(--red)" id="atCancelBtn" onclick="tripCancel()">Скасувати поїздку</div>
+        </div>
+      </div>
+
+      <!-- ══ SCREEN: MATCH (swipe cards) ══ -->
+      <div class="screen right" id="sc-match">
+        <div class="hero-banner" style="--clr:rgba(255,154,60,.08)">
+          <div class="hb-tag" id="mcTag">Пошук попутника</div>
+          <div class="hb-title">Знайомства<br><span style="color:var(--orange)">поруч</span></div>
+          <div class="hb-sub" id="mcSub">Свайпайте картки — знаходьте попутників</div>
+        </div>
+        <div class="s-body s-pad">
+          <div id="mcDeck" class="mc-deck">
+            <div class="mc-empty">
+              <div class="mc-empty-ico">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1"><circle cx="12" cy="12" r="10"/><path d="M8 15s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+              </div>
+              <div class="mc-empty-txt">Поки немає мечів</div>
+              <div class="mc-empty-sub">Підпишіться на напрямок — і мечі з'являться тут</div>
+            </div>
+          </div>
+          <!-- Pending handshakes -->
+          <div class="sec-title" style="margin-top:20px" id="mcPendTitle" style="display:none">Очікують відповіді</div>
+          <div id="mcPendList" class="mc-pend-list"></div>
+        </div>
+        <div class="s-foot" id="mcFoot" style="display:none">
+          <div class="mc-actions">
+            <button class="mc-btn mc-decline" onclick="matchRespond('decline')" title="Відхилити">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+            <button class="mc-btn mc-tired" onclick="matchTired()" title="Втомився чекати">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            </button>
+            <button class="mc-btn mc-accept" onclick="matchRespond('accept')" title="Прийняти">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ SCREEN: RATING ══ -->
+      <div class="screen right" id="sc-rating">
+        <div class="hero-banner" style="--clr:rgba(255,200,60,.06)">
+          <div class="hb-tag">Оцінки</div>
+          <div class="hb-title">Рейтинг<br><span style="color:#ffc83c">поїздок</span></div>
+          <div class="hb-sub">Оцініть ваші останні поїздки</div>
+        </div>
+        <div class="s-body s-pad">
+          <div class="sec-title">Мій рейтинг</div>
+          <div class="rt-summary" id="rtSummary">
+            <div class="rt-avg" id="rtAvg">—</div>
+            <div class="rt-stars" id="rtAvgStars">
+              <span class="rt-star dim">&#9733;</span><span class="rt-star dim">&#9733;</span><span class="rt-star dim">&#9733;</span><span class="rt-star dim">&#9733;</span><span class="rt-star dim">&#9733;</span>
+            </div>
+            <div class="rt-count" id="rtCount">0 оцінок</div>
+          </div>
+
+          <div class="sec-title" style="margin-top:16px">Оцінити поїздку</div>
+          <div id="rtForm" class="rt-form" style="display:none">
+            <div class="rt-trip-info" id="rtTripInfo">—</div>
+            <div class="rt-input-stars" id="rtInputStars">
+              <span class="rt-star-btn" onclick="setStars(1)">&#9733;</span>
+              <span class="rt-star-btn" onclick="setStars(2)">&#9733;</span>
+              <span class="rt-star-btn" onclick="setStars(3)">&#9733;</span>
+              <span class="rt-star-btn" onclick="setStars(4)">&#9733;</span>
+              <span class="rt-star-btn" onclick="setStars(5)">&#9733;</span>
+            </div>
+            <div class="field" style="margin-top:8px">
+              <label>Коментар (необов'язково)</label>
+              <input id="rtComment" placeholder="Як пройшла поїздка?" maxlength="200" autocomplete="off">
+            </div>
+            <div class="btn btn-lime" onclick="submitRating()">Надіслати оцінку</div>
+          </div>
+          <div id="rtNoTrips" class="empty-state">
+            <div class="es-text">Немає поїздок для оцінки</div>
+          </div>
+
+          <div class="sec-title" style="margin-top:16px">Історія оцінок</div>
+          <div id="rtHistList" class="rt-hist-list">
+            <div class="empty-state"><div class="es-text">Ще немає оцінок</div></div>
+          </div>
+        </div>
+        <div class="s-foot">
+          <div class="btn btn-ghost" onclick="goBack()">← Назад</div>
+        </div>
+      </div>
+
+      <!-- ══ SCREEN: DONATIONS ══ -->
+      <div class="screen right" id="sc-donations">
+        <div class="hero-banner" style="--clr:rgba(201,255,71,.06)">
+          <div class="hb-tag">Подяка</div>
+          <div class="hb-title">Донати<br><span style="color:var(--lime)">подяки</span></div>
+          <div class="hb-sub">Подякуйте водію за поїздку</div>
+        </div>
+        <div class="s-body s-pad">
+          <div class="dn-balance">
+            <div class="dn-bal-lbl">Ваш баланс подяк</div>
+            <div class="dn-bal-val" id="dnBalance">0</div>
+            <div class="dn-bal-cur">балів</div>
+          </div>
+
+          <div class="sec-title" style="margin-top:16px">Надіслати подяку</div>
+          <div class="dn-send-form">
+            <div class="field">
+              <label>ID отримувача</label>
+              <input id="dnRecipient" placeholder="Telegram ID водія" inputmode="numeric" autocomplete="off">
+            </div>
+            <div class="field">
+              <label>Сума (1-100)</label>
+              <input id="dnAmount" type="number" min="1" max="100" value="5" inputmode="numeric">
+            </div>
+            <div class="btn btn-lime" onclick="sendDonation()">Надіслати подяку</div>
+          </div>
+
+          <div class="sec-title" style="margin-top:16px">Історія</div>
+          <div id="dnHistList" class="dn-hist-list">
+            <div class="empty-state"><div class="es-text">Поки немає транзакцій</div></div>
+          </div>
+        </div>
+        <div class="s-foot">
+          <div class="btn btn-ghost" onclick="goBack()">← Назад</div>
+        </div>
+      </div>
+
+      <!-- ══ SCREEN: SETTINGS ══ -->
+      <div class="screen right" id="sc-settings">
+        <div class="hero-banner" style="--clr:rgba(255,255,255,.04)">
+          <div class="hb-tag">Налаштування</div>
+          <div class="hb-title">Параметри</div>
+        </div>
+        <div class="s-body s-pad">
+          <div class="sec-title">Мова інтерфейсу</div>
+          <div class="set-lang-grid">
+            <div class="set-lang-btn" id="langUk" onclick="setLang('uk')">Українська</div>
+            <div class="set-lang-btn" id="langPl" onclick="setLang('pl')">Polski</div>
+            <div class="set-lang-btn" id="langEn" onclick="setLang('en')">English</div>
+          </div>
+
+          <div class="sec-title" style="margin-top:20px">Роль</div>
+          <div class="set-role-grid">
+            <div class="set-role-btn" id="setRoleDriver" onclick="switchRole('driver')">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 17h14M5 17a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1l2-3h8l2 3h1a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2M7 17v2m10-2v2"/><circle cx="7.5" cy="13" r="1.5"/><circle cx="16.5" cy="13" r="1.5"/></svg>
+              Мандрівник
+            </div>
+            <div class="set-role-btn" id="setRoleClient" onclick="switchRole('passenger')">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              Попутник
+            </div>
+          </div>
+
+          <div class="sec-title" style="margin-top:20px">Водій</div>
+          <div class="btn btn-outline" onclick="openSheet('ovDriver')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 17h14M5 17a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1l2-3h8l2 3h1a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2"/></svg>
+            Реєстрація авто / оновити дані
+          </div>
+
+          <div class="sec-title" style="margin-top:20px;color:var(--red)">Небезпечна зона</div>
+          <div class="btn btn-ghost" style="color:var(--red);border:1px solid rgba(255,77,77,.2)" onclick="requestDeleteAccount()">
+            Видалити акаунт (GDPR)
+          </div>
+        </div>
+        <div class="s-foot">
+          <div class="btn btn-ghost" onclick="goBack()">← Назад</div>
+        </div>
+      </div>
+
     </div><!-- /screen -->
 
-    <!-- BOTTOM NAV -->
+    <!-- BOTTOM NAV (5 tabs) -->
     <nav class="nav">
       <div class="nv on" id="nv0" onclick="navTo(0)">
         <div class="nv-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
@@ -1333,12 +2043,16 @@
         <div class="nv-lbl">Дошка</div>
       </div>
       <div class="nv" id="nv2" onclick="navTo(2)">
-        <div class="nv-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
-        <div class="nv-lbl">Групи</div>
+        <div class="nv-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg></div>
+        <div class="nv-lbl">Поїздка</div>
       </div>
       <div class="nv" id="nv3" onclick="navTo(3)">
-        <div class="nv-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg></div>
-        <div class="nv-lbl">Мої</div>
+        <div class="nv-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+        <div class="nv-lbl">Профіль</div>
+      </div>
+      <div class="nv" id="nv4" onclick="navTo(4)">
+        <div class="nv-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg></div>
+        <div class="nv-lbl">Більше</div>
       </div>
     </nav>
 
@@ -1369,6 +2083,32 @@
       </div>
       <div class="btn btn-sky" onclick="saveApi()">Підключитись</div>
       <div class="btn btn-ghost" style="margin-top:8px" onclick="closeSheet('ovApi')">Скасувати</div>
+    </div>
+  </div>
+
+  <!-- Sheet: Driver registration -->
+  <div class="overlay" id="ovDriver">
+    <div class="sheet">
+      <div class="sh-handle"></div>
+      <div class="sh-title">Реєстрація автомобіля</div>
+      <div class="field">
+        <label>Модель авто</label>
+        <input id="drvCar" placeholder="Наприклад: Toyota Corolla" maxlength="60" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Номерний знак</label>
+        <input id="drvPlate" placeholder="AA 1234 BB" maxlength="20" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Телефон</label>
+        <input id="drvPhone" placeholder="+380..." maxlength="20" autocomplete="off" inputmode="tel">
+      </div>
+      <div class="field">
+        <label>Кількість місць (1-4)</label>
+        <input id="drvSeats" type="number" min="1" max="4" value="4" inputmode="numeric">
+      </div>
+      <div class="btn btn-lime" onclick="registerDriver()">Зареєструватись як водій</div>
+      <div class="btn btn-ghost" style="margin-top:8px" onclick="closeSheet('ovDriver')">Скасувати</div>
     </div>
   </div>
 
@@ -1512,14 +2252,15 @@
     }
 
     function navTo(i) {
-      var map = ['sc-role', 'sc-board', 'sc-groups', 'sc-trips'];
+      var map = ['sc-role', 'sc-board', 'sc-match', 'sc-profile', 'sc-trips'];
       if (i === 0 && ST.role) map[0] = 'sc-home';
       _history = [];
       showScreen(map[i]);
       updateNav(i);
       if (i === 1) renderBoard();
-      if (i === 2) renderGroups();
-      if (i === 3) renderHistory();
+      if (i === 2) renderMatch();
+      if (i === 3) renderProfile();
+      if (i === 4) renderHistory();
     }
 
     function updateNav(i) {
@@ -1768,6 +2509,8 @@
       if (r && r.status === 'ok') {
         toast('Підписку оновлено', 'ok');
         loadDirs(ST.curParentId || ST.curCatId);
+      } else if (r && r.status === 'already_subscribed') {
+        toast('Ви вже підписані на цей напрямок', 'ok');
       } else {
         toast('Помилка підписки', 'err');
       }
@@ -1884,6 +2627,433 @@
       el.className = 'show ' + (type || '');
       clearTimeout(_toastT);
       _toastT = setTimeout(function () { el.className = ''; }, 2800);
+    }
+
+    // ══ PROFILE ═══════════════════════════════════════════════════
+    async function renderProfile() {
+      var d = await api('/api/v3/user/profile', { user_id: ST.user.id });
+      if (!d || !d.found) {
+        document.getElementById('profName').textContent = ST.user.name;
+        document.getElementById('profRole').textContent = ST.role === 'driver' ? 'Мандрівник' : 'Попутник';
+        return;
+      }
+      document.getElementById('profName').textContent = d.name;
+      document.getElementById('profRole').textContent = d.role === 'driver' ? 'Мандрівник' : 'Попутник';
+      document.getElementById('profTrips').textContent = d.trips || 0;
+      document.getElementById('profPos').textContent = d.positive || 0;
+      document.getElementById('profNeg').textContent = d.negative || 0;
+
+      // Driver card
+      var dc = document.getElementById('profDriverCard');
+      if (d.driver) {
+        dc.style.display = 'block';
+        document.getElementById('profCar').textContent = d.driver.car || '—';
+        document.getElementById('profPlate').textContent = d.driver.plate || '—';
+        document.getElementById('profPhone').textContent = d.driver.phone || '—';
+        document.getElementById('profSeats').textContent = (d.driver.seats_total || 4) + ' місць';
+      } else {
+        dc.style.display = 'none';
+      }
+
+      // Subscriptions
+      var subs = await api('/api/v3/user/subscriptions', { user_id: ST.user.id });
+      var el = document.getElementById('profSubsList');
+      if (!subs || !subs.length) {
+        el.innerHTML = '<div class="empty-state"><div class="es-text">Ще немає підписок</div></div>';
+        return;
+      }
+      el.innerHTML = subs.map(function (s) {
+        return '<div class="ps-sub-item">' +
+          '<div><div class="ps-sub-title">' + (s.title || '?') + '</div>' +
+          '<div class="ps-sub-role">' + s.role + '</div></div>' +
+          '<button class="ps-unsub" onclick="unsubscribe(' + s.direction_id + ')">Відписатись</button>' +
+          '</div>';
+      }).join('');
+    }
+
+    async function unsubscribe(dirId) {
+      var r = await api('/api/v3/board/unsubscribe', {}, {
+        method: 'POST',
+        body: JSON.stringify({ direction_id: dirId, user_id: ST.user.id })
+      });
+      if (r && r.status === 'ok') {
+        toast('Відписано', 'ok');
+        renderProfile();
+      } else {
+        toast('Помилка відписки', 'err');
+      }
+    }
+
+    // ══ ACTIVE TRIP ═══════════════════════════════════════════════
+    async function renderTrip() {
+      var d = await api('/api/v3/trip/active', { user_id: ST.user.id });
+      if (!d || !d.active) {
+        document.getElementById('atTitle').innerHTML = 'Немає<br><span>активних</span>';
+        document.getElementById('atSub').textContent = 'Коли розпочнете поїздку — вона з\'явиться тут';
+        document.getElementById('atStatus').textContent = '—';
+        document.getElementById('atRoute').textContent = '—';
+        document.getElementById('atCrew').textContent = '—';
+        document.getElementById('atCrewList').innerHTML =
+          '<div class="empty-state"><div class="es-text">Підпишіться на напрямок і чекайте мечу</div></div>';
+        document.getElementById('atDoneBtn').style.display = 'none';
+        document.getElementById('atCancelBtn').style.display = 'none';
+        return;
+      }
+
+      ST.activeTrip = d;
+      var statusMap = {
+        'pending': 'Очікує', 'pending_confirm': 'Підтвердження',
+        'active': 'Активна', 'pickup': 'Збір', 'driving': 'В дорозі'
+      };
+      document.getElementById('atTitle').innerHTML = '<span style="color:var(--lime)">Активна</span><br>поїздка';
+      document.getElementById('atSub').textContent = 'Екіпаж #' + (d.crew_id || '—');
+      document.getElementById('atStatus').textContent = statusMap[d.status] || d.status;
+      document.getElementById('atRoute').textContent = d.pickup || '—';
+      document.getElementById('atCrew').textContent = d.crew_id || '—';
+      document.getElementById('atDoneBtn').style.display = '';
+      document.getElementById('atCancelBtn').style.display = '';
+
+      // Load crew
+      if (d.driver_id) {
+        var crew = await api('/api/v3/trip/crew', { driver_id: d.driver_id, direction_id: d.direction_id });
+        var cl = document.getElementById('atCrewList');
+        if (crew && crew.length) {
+          cl.innerHTML = crew.map(function (c) {
+            return '<div class="at-crew-item">' +
+              '<div class="at-crew-name">' + c.name + '</div>' +
+              '<div class="hi-tag act">' + c.status + '</div>' +
+              '</div>';
+          }).join('');
+        } else {
+          cl.innerHTML = '<div class="empty-state"><div class="es-text">Немає пасажирів</div></div>';
+        }
+      }
+    }
+
+    async function tripMarkDone() {
+      if (!ST.activeTrip) return;
+      var r = await api('/api/v3/trip/done', {}, {
+        method: 'POST',
+        body: JSON.stringify({ request_id: ST.activeTrip.id, user_id: ST.user.id })
+      });
+      if (r && r.status === 'ok') {
+        toast(r.completed ? 'Поїздку завершено!' : 'Ваш голос зараховано', 'ok');
+        renderTrip();
+      } else {
+        toast('Помилка', 'err');
+      }
+    }
+
+    async function tripCancel() {
+      if (!ST.activeTrip) return;
+      if (!confirm('Скасувати поїздку?')) return;
+      var r = await api('/api/v3/trip/cancel', {}, {
+        method: 'POST',
+        body: JSON.stringify({ request_id: ST.activeTrip.id, user_id: ST.user.id })
+      });
+      if (r && r.status === 'ok') {
+        toast('Запит на скасування надіслано', 'ok');
+        renderTrip();
+      } else if (r && r.status === 'already_finished') {
+        toast('Поїздка вже завершена', 'ok');
+      } else {
+        toast('Помилка', 'err');
+      }
+    }
+
+    // ══ MATCH ══════════════════════════════════════════════════════
+    var _matchCards = [];
+    var _matchIdx = 0;
+
+    async function renderMatch() {
+      var deck = document.getElementById('mcDeck');
+      var foot = document.getElementById('mcFoot');
+      var pendTitle = document.getElementById('mcPendTitle');
+      var pendList = document.getElementById('mcPendList');
+
+      // Load matches
+      var d = await api('/api/v3/match/find', { user_id: ST.user.id });
+      if (d && d.length) {
+        _matchCards = d;
+        _matchIdx = 0;
+        renderMatchCard();
+        foot.style.display = '';
+      } else {
+        _matchCards = [];
+        deck.innerHTML = '<div class="mc-empty">' +
+          '<div class="mc-empty-ico"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1"><circle cx="12" cy="12" r="10"/><path d="M8 15s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></div>' +
+          '<div class="mc-empty-txt">Поки немає мечів</div>' +
+          '<div class="mc-empty-sub">Підпишіться на напрямок — і мечі з\'являться тут</div></div>';
+        foot.style.display = 'none';
+      }
+
+      // Load pending handshakes
+      var p = await api('/api/v3/match/pending', { user_id: ST.user.id });
+      if (p && p.length) {
+        pendTitle.style.display = '';
+        pendList.innerHTML = p.map(function (h) {
+          return '<div class="mc-pend-item">' +
+            '<div><div class="mc-pend-name">' + (h.partner_name || 'ID:' + h.partner_id) + '</div>' +
+            '<div class="mc-pend-dir">' + (h.direction || '?') + '</div></div>' +
+            '<div class="mc-pend-btns">' +
+            '<button class="mc-pend-btn ok" onclick="respondPending(' + h.handshake_id + ',\'accept\')">Так</button>' +
+            '<button class="mc-pend-btn no" onclick="respondPending(' + h.handshake_id + ',\'decline\')">Ні</button>' +
+            '</div></div>';
+        }).join('');
+      } else {
+        pendTitle.style.display = 'none';
+        pendList.innerHTML = '';
+      }
+    }
+
+    function renderMatchCard() {
+      var deck = document.getElementById('mcDeck');
+      if (_matchIdx >= _matchCards.length) {
+        deck.innerHTML = '<div class="mc-empty"><div class="mc-empty-txt">Більше немає карток</div>' +
+          '<div class="mc-empty-sub">Поверніться пізніше</div></div>';
+        document.getElementById('mcFoot').style.display = 'none';
+        return;
+      }
+      var m = _matchCards[_matchIdx];
+      var isDriver = m.role === 'driver';
+      deck.innerHTML = '<div class="mc-card top">' +
+        '<div class="mc-card-role">' + (isDriver ? 'Мандрівник' : 'Попутник') + '</div>' +
+        '<div class="mc-card-name">' + (m.name || 'Користувач') + '</div>' +
+        '<div class="mc-card-info">' +
+          (m.car ? '<div class="mc-card-field"><div class="mc-card-fl">Авто</div><div class="mc-card-fv">' + m.car + '</div></div>' : '') +
+          (m.seats ? '<div class="mc-card-field"><div class="mc-card-fl">Місця</div><div class="mc-card-fv">' + m.seats + '</div></div>' : '') +
+          (m.phone ? '<div class="mc-card-field"><div class="mc-card-fl">Телефон</div><div class="mc-card-fv">' + m.phone + '</div></div>' : '') +
+          (m.rating ? '<div class="mc-card-field"><div class="mc-card-fl">Рейтинг</div><div class="mc-card-fv">' + m.rating + ' ★</div></div>' : '') +
+        '</div>' +
+        '<div class="mc-card-dir">' + (m.direction || '?') + '</div>' +
+        '</div>';
+    }
+
+    async function matchRespond(action) {
+      if (_matchIdx >= _matchCards.length) return;
+      var m = _matchCards[_matchIdx];
+      var endpoint = action === 'accept' ? '/api/v3/match/invite' : '/api/v3/match/respond';
+      var body = action === 'accept'
+        ? { user_id: ST.user.id, partner_id: m.user_id, direction_id: m.direction_id }
+        : { user_id: ST.user.id, handshake_id: m.handshake_id, action: 'decline' };
+
+      var r = await api(endpoint, {}, { method: 'POST', body: JSON.stringify(body) });
+      if (r && r.status === 'ok') {
+        toast(action === 'accept' ? 'Запрошення надіслано!' : 'Відхилено', action === 'accept' ? 'ok' : '');
+        // Animate card exit
+        var card = document.querySelector('.mc-card.top');
+        if (card) {
+          card.style.transform = action === 'accept' ? 'translateX(120%) rotate(15deg)' : 'translateX(-120%) rotate(-15deg)';
+          card.style.opacity = '0';
+        }
+        setTimeout(function () { _matchIdx++; renderMatchCard(); }, 300);
+      } else {
+        toast('Помилка', 'err');
+      }
+    }
+
+    async function matchTired() {
+      var r = await api('/api/v3/match/tired', {}, {
+        method: 'POST',
+        body: JSON.stringify({ user_id: ST.user.id })
+      });
+      if (r && r.status === 'ok') {
+        toast('Всі мечі скасовано', 'ok');
+        _matchCards = [];
+        renderMatchCard();
+      }
+    }
+
+    async function respondPending(hsId, action) {
+      var r = await api('/api/v3/match/respond', {}, {
+        method: 'POST',
+        body: JSON.stringify({ user_id: ST.user.id, handshake_id: hsId, action: action })
+      });
+      if (r && r.status === 'ok') {
+        toast(action === 'accept' ? 'Прийнято! Поїздку створено.' : 'Відхилено', action === 'accept' ? 'ok' : '');
+        renderMatch();
+      } else {
+        toast('Помилка', 'err');
+      }
+    }
+
+    // ══ RATING ════════════════════════════════════════════════════
+    var _ratingStars = 0;
+    var _ratingReqId = null;
+
+    async function renderRating() {
+      // Load rating summary
+      var d = await api('/api/v3/rating', { user_id: ST.user.id });
+      if (d) {
+        document.getElementById('rtAvg').textContent = d.average ? d.average.toFixed(1) : '—';
+        document.getElementById('rtCount').textContent = (d.count || 0) + ' оцінок';
+        // Fill stars
+        var avg = d.average || 0;
+        var starsEl = document.getElementById('rtAvgStars');
+        var starHtml = '';
+        for (var i = 1; i <= 5; i++) {
+          starHtml += '<span class="rt-star' + (i <= Math.round(avg) ? '' : ' dim') + '">&#9733;</span>';
+        }
+        starsEl.innerHTML = starHtml;
+
+        // Rating history
+        var hl = document.getElementById('rtHistList');
+        if (d.ratings && d.ratings.length) {
+          hl.innerHTML = d.ratings.map(function (r) {
+            var stars = '';
+            for (var j = 1; j <= 5; j++) stars += (j <= r.score ? '★' : '☆');
+            return '<div class="rt-hist-item">' +
+              '<div class="rt-hist-who">' + (r.from_name || 'Анонім') + '</div>' +
+              '<div class="rt-hist-stars">' + stars + '</div></div>';
+          }).join('');
+        }
+
+        // Check if we have a trip to rate
+        if (d.pending_request_id) {
+          _ratingReqId = d.pending_request_id;
+          document.getElementById('rtForm').style.display = 'block';
+          document.getElementById('rtNoTrips').style.display = 'none';
+          document.getElementById('rtTripInfo').textContent = 'Поїздка #' + d.pending_request_id;
+        } else {
+          document.getElementById('rtForm').style.display = 'none';
+          document.getElementById('rtNoTrips').style.display = '';
+        }
+      }
+    }
+
+    function setStars(n) {
+      _ratingStars = n;
+      document.querySelectorAll('#rtInputStars .rt-star-btn').forEach(function (el, idx) {
+        el.classList.toggle('on', idx < n);
+      });
+    }
+
+    async function submitRating() {
+      if (!_ratingStars) { toast('Оберіть кількість зірок', 'err'); return; }
+      var comment = (document.getElementById('rtComment').value || '').trim();
+      var r = await api('/api/v3/rating', {}, {
+        method: 'POST',
+        body: JSON.stringify({
+          user_id: ST.user.id,
+          request_id: _ratingReqId,
+          score: _ratingStars,
+          comment: comment || null
+        })
+      });
+      if (r && r.status === 'ok') {
+        toast('Дякуємо за оцінку!', 'ok');
+        _ratingStars = 0;
+        document.getElementById('rtComment').value = '';
+        renderRating();
+      } else if (r && r.status === 'already_rated') {
+        toast('Ви вже оцінювали цю поїздку', 'err');
+      } else {
+        toast('Помилка', 'err');
+      }
+    }
+
+    // ══ DONATIONS ════════════════════════════════════════════════
+    async function renderDonations() {
+      var d = await api('/api/v3/donations', { user_id: ST.user.id });
+      if (d) {
+        document.getElementById('dnBalance').textContent = d.balance || 0;
+        var hl = document.getElementById('dnHistList');
+        if (d.history && d.history.length) {
+          hl.innerHTML = d.history.map(function (h) {
+            var sign = h.to_id === ST.user.id ? '+' : '-';
+            var clr = sign === '+' ? 'var(--lime)' : 'var(--red)';
+            return '<div class="dn-hist-item">' +
+              '<div class="dn-hist-who">' + (h.partner_name || 'ID:' + (h.from_id === ST.user.id ? h.to_id : h.from_id)) + '</div>' +
+              '<div class="dn-hist-amt" style="color:' + clr + '">' + sign + h.amount + '</div></div>';
+          }).join('');
+        }
+      }
+    }
+
+    async function sendDonation() {
+      var toId = parseInt(document.getElementById('dnRecipient').value);
+      var amt = parseInt(document.getElementById('dnAmount').value);
+      if (!toId) { toast('Введіть ID отримувача', 'err'); return; }
+      if (!amt || amt < 1 || amt > 100) { toast('Сума від 1 до 100', 'err'); return; }
+      var r = await api('/api/v3/donations', {}, {
+        method: 'POST',
+        body: JSON.stringify({ from_id: ST.user.id, to_id: toId, amount: amt })
+      });
+      if (r && r.status === 'ok') {
+        toast('Подяку надіслано!', 'ok');
+        document.getElementById('dnRecipient').value = '';
+        renderDonations();
+      } else {
+        toast('Помилка', 'err');
+      }
+    }
+
+    // ══ SETTINGS ══════════════════════════════════════════════════
+    function renderSettings() {
+      // Highlight current lang
+      ['uk', 'pl', 'en'].forEach(function (l) {
+        var el = document.getElementById('lang' + l.charAt(0).toUpperCase() + l.slice(1));
+        if (el) el.classList.toggle('on', l === ST.lang);
+      });
+      // Highlight current role
+      var isDriver = ST.role === 'driver';
+      var rd = document.getElementById('setRoleDriver');
+      var rc = document.getElementById('setRoleClient');
+      if (rd) rd.classList.toggle('on', isDriver);
+      if (rc) rc.classList.toggle('on', !isDriver);
+    }
+
+    async function setLang(lang) {
+      ST.lang = lang;
+      await api('/api/v3/user/lang', {}, {
+        method: 'POST',
+        body: JSON.stringify({ user_id: ST.user.id, lang: lang })
+      });
+      toast('Мову змінено', 'ok');
+      renderSettings();
+    }
+
+    async function switchRole(role) {
+      var apiRole = role === 'passenger' ? 'client' : role;
+      await api('/api/v3/user/role', {}, {
+        method: 'POST',
+        body: JSON.stringify({ user_id: ST.user.id, role: apiRole })
+      });
+      pickRole(role);
+      toast('Роль змінено', 'ok');
+      renderSettings();
+    }
+
+    async function registerDriver() {
+      var car = (document.getElementById('drvCar').value || '').trim();
+      var plate = (document.getElementById('drvPlate').value || '').trim();
+      var phone = (document.getElementById('drvPhone').value || '').trim();
+      var seats = parseInt(document.getElementById('drvSeats').value || '4');
+      if (!car) { toast('Введіть модель авто', 'err'); return; }
+      var r = await api('/api/v3/driver/register', {}, {
+        method: 'POST',
+        body: JSON.stringify({ user_id: ST.user.id, car: car, plate: plate, phone: phone, seats: seats })
+      });
+      if (r && r.status === 'ok') {
+        closeSheet('ovDriver');
+        toast('Авто зареєстровано!', 'ok');
+        pickRole('driver');
+      } else {
+        toast('Помилка реєстрації', 'err');
+      }
+    }
+
+    async function requestDeleteAccount() {
+      if (!confirm('Ви впевнені? Ваші дані будуть видалені через 7 днів.')) return;
+      var r = await api('/api/v3/user/delete-request', {}, {
+        method: 'POST',
+        body: JSON.stringify({ user_id: ST.user.id })
+      });
+      if (r && r.status === 'ok') {
+        toast('Запит на видалення отримано. 7 днів щоб передумати.', 'ok');
+      } else {
+        toast('Помилка', 'err');
+      }
     }
 
     // ══ INIT ══════════════════════════════════════════════════════
