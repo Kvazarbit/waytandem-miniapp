@@ -80,16 +80,22 @@ html, body { height:100%; width:100%; overflow:hidden; background:var(--bg); col
   position:absolute; inset:0;
   display:flex; flex-direction:column;
   overflow:hidden;
-  transition: transform .32s cubic-bezier(.4,0,.2,1), opacity .28s;
+  transform:translateX(100%);
+  opacity:0;
+  pointer-events:none;
+  transition: transform .3s cubic-bezier(.4,0,.2,1), opacity .25s;
   will-change: transform, opacity;
 }
-.screen.active { transform:translateX(0); opacity:1; }
-.screen.left   { transform:translateX(-100%); opacity:0; pointer-events:none; }
-.screen.right  { transform:translateX(100%);  opacity:0; pointer-events:none; }
-.screen.slide-in-right { animation: sir .3s cubic-bezier(.4,0,.2,1) forwards; }
-.screen.slide-in-left  { animation: sil .3s cubic-bezier(.4,0,.2,1) forwards; }
-@keyframes sir { from{transform:translateX(100%);opacity:0} to{transform:translateX(0);opacity:1} }
-@keyframes sil { from{transform:translateX(-100%);opacity:0} to{transform:translateX(0);opacity:1} }
+.screen.active {
+  transform:translateX(0);
+  opacity:1;
+  pointer-events:auto;
+}
+.screen.out-left {
+  transform:translateX(-30%);
+  opacity:0;
+  pointer-events:none;
+}
 
 .s-body { flex:1; overflow-y:auto; overflow-x:hidden; scrollbar-width:none; }
 .s-body::-webkit-scrollbar { display:none; }
@@ -393,7 +399,7 @@ html, body { height:100%; width:100%; overflow:hidden; background:var(--bg); col
   <div id="screen">
 
     <!-- ══ SCREEN: ROLE ══ -->
-    <div class="screen active" id="sc-role">
+    <div class="screen" id="sc-role">
       <div class="hero-banner" style="--clr:rgba(201,255,71,.1)">
         <div class="hb-tag">Крок 1 з 2 — Оберіть роль</div>
         <div class="hb-title">Хто ти<br><span>сьогодні?</span></div>
@@ -648,23 +654,40 @@ var ST = {
 var _history = [];   // screen stack for back
 
 function showScreen(id, dir){
-  var screens = document.querySelectorAll('.screen');
   var next = document.getElementById(id);
   if(!next) return;
   var cur = document.querySelector('.screen.active');
   if(cur === next) return;
 
-  screens.forEach(function(s){ s.className='screen right'; });
-  if(cur) cur.className = 'screen ' + (dir==='left' ? 'right' : 'left');
-  next.className = 'screen active';
+  // Підготувати новий екран з потрібного боку
+  var comingFromRight = (dir !== 'left');
 
-  // animate in
-  next.style.animation='none';
-  requestAnimationFrame(function(){
-    next.style.animation = dir==='left'
-      ? 'sil .3s cubic-bezier(.4,0,.2,1) forwards'
-      : 'sir .3s cubic-bezier(.4,0,.2,1) forwards';
+  // Скинути всі екрани у вихідний стан (правий) і прибрати active/out
+  document.querySelectorAll('.screen').forEach(function(s){
+    s.classList.remove('active','out-left');
+    // не чіпаємо позицію — default = translateX(100%)
   });
+
+  if(comingFromRight){
+    // next приходить справа (вже translateX(100%) — default)
+    // cur іде вліво
+    if(cur){ cur.classList.add('out-left'); }
+  } else {
+    // next приходить зліва — ставимо його зліва без transition
+    next.style.transition = 'none';
+    next.style.transform  = 'translateX(-30%)';
+    next.style.opacity    = '0';
+    // форсуємо reflow
+    next.getBoundingClientRect();
+    // повертаємо transition
+    next.style.transition = '';
+    next.style.transform  = '';
+    next.style.opacity    = '';
+    // cur іде вправо (default translateX(100%) — нічого не робимо, просто прибираємо active)
+  }
+
+  // Активуємо новий екран
+  next.classList.add('active');
 }
 
 function goBack(){
@@ -952,6 +975,13 @@ function toast(msg, type){
 
 // ══ INIT ══════════════════════════════════════════════════════
 function init(){
+  // Перший екран без анімації
+  var first = document.getElementById('sc-role');
+  first.style.transition = 'none';
+  first.classList.add('active');
+  first.getBoundingClientRect();
+  first.style.transition = '';
+
   var n = ST.user.name || 'Користувач';
   document.getElementById('hdAv').textContent = (n[0]||'?').toUpperCase();
   document.getElementById('hdName').textContent = n.split(' ')[0];
