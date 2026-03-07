@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>WayTandem</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#080A0F; --s1:#0E1118; --s2:#141926; --s3:#1C2235;
+  --rim:rgba(255,255,255,0.06); --rim2:rgba(255,255,255,0.11);
+  --g1:#C8FF57; --g2:#A8EF3C;
+  --b1:#57D1FF; --b2:#38B8F0;
+  --r1:#FF5757; --o1:#FFB347;
+  --w:#EEF1F8; --w2:#8890AA; --w3:#3D4460;
+  --rad:20px; --rad2:14px; --rad3:10px;
+  --safe-b:env(safe-area-inset-bottom,0px);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+html,body{height:100%;width:100%;background:var(--bg);color:var(--w);font-family:'DM Sans',sans-serif;overflow:hidden;-webkit-font-smoothing:antialiased;}
+#app{height:100dvh;display:flex;flex-direction:column;position:relative;overflow:hidden;}
+/* grain */
+#app::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.4;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.05'/%3E%3C/svg%3E");}
+/* ambients */
+.amb{position:fixed;pointer-events:none;border-radius:50%;filter:blur(90px);transition:all 1.4s cubic-bezier(.4,0,.2,1);}
+#a1{width:340px;height:340px;top:-100px;right:-80px;background:rgba(200,255,87,.07);}
+#a2{width:300px;height:300px;bottom:40px;left:-90px;background:rgba(87,209,255,.06);}
+#a3{width:180px;height:180px;top:38%;left:28%;background:rgba(255,87,87,.05);opacity:0;transition:opacity .8s;}
+
+/* HDR */
+.hdr{position:relative;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:14px 18px 8px;flex-shrink:0;}
+.logo{font-family:'Syne',sans-serif;font-weight:800;font-size:17px;letter-spacing:-.5px;
+  background:linear-gradient(110deg,var(--g1),var(--b1));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.hdr-r{display:flex;align-items:center;gap:8px;}
+.hdr-pill{display:flex;align-items:center;gap:7px;background:var(--s2);border:1px solid var(--rim);padding:5px 11px 5px 5px;border-radius:30px;font-size:12px;color:var(--w2);}
+.hdr-av{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--g1),var(--b1));display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#080A0F;}
+.mode-badge{font-size:10px;font-weight:700;letter-spacing:.8px;padding:4px 9px;border-radius:20px;text-transform:uppercase;}
+.mode-g{background:rgba(200,255,87,.1);color:var(--g1);border:1px solid rgba(200,255,87,.2);}
+.mode-b{background:rgba(87,209,255,.1);color:var(--b1);border:1px solid rgba(87,209,255,.2);}
+
+/* STAGE BAR */
+.sbar{position:relative;z-index:10;display:flex;align-items:center;gap:9px;padding:0 18px 12px;flex-shrink:0;}
+.sdots{display:flex;gap:4px;align-items:center;}
+.sd{height:3px;border-radius:2px;background:var(--w3);transition:all .3s;}
+.sd.a{background:var(--g1);width:20px;}
+.sd.d{background:var(--w2);width:8px;}
+.sd.t{width:8px;}
+.slbl{font-family:'Syne',sans-serif;font-size:11px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:var(--w3);}
+
+/* CARD AREA */
+.ca{flex:1;position:relative;overflow:hidden;padding:0 14px;}
+.card{position:absolute;inset:0 14px;display:flex;flex-direction:column;border-radius:var(--rad);border:1px solid var(--rim);background:var(--s1);overflow:hidden;
+  transition:transform .38s cubic-bezier(.34,1.15,.64,1),opacity .32s;
+  transform:translateX(0) scale(1);opacity:1;will-change:transform,opacity;}
+.card.xl{transform:translateX(108%) scale(.93);opacity:0;}
+.card.xr{transform:translateX(-108%) scale(.93);opacity:0;}
+.card.er{transform:translateX(108%) scale(.93);opacity:0;}
+.card.el{transform:translateX(-108%) scale(.93);opacity:0;}
+.card.in{transform:translateX(0) scale(1);opacity:1;}
+
+/* HERO */
+.hero{flex-shrink:0;padding:24px 22px 20px;position:relative;overflow:hidden;}
+.hero::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 55%,var(--s1) 100%);pointer-events:none;}
+.h-em{font-size:52px;line-height:1;display:block;margin-bottom:14px;filter:drop-shadow(0 6px 20px rgba(0,0,0,.4));}
+.h-tag{font-size:10px;font-weight:600;letter-spacing:1.8px;text-transform:uppercase;color:var(--w3);margin-bottom:5px;}
+.h-ttl{font-family:'Syne',sans-serif;font-weight:800;font-size:clamp(20px,5.5vw,26px);line-height:1.15;color:var(--w);}
+.h-ttl em{font-style:normal;}
+.h-sub{font-size:13px;color:var(--w2);margin-top:7px;line-height:1.55;font-weight:300;}
+
+/* BODY */
+.body{flex:1;overflow-y:auto;overflow-x:hidden;padding:0 22px 12px;scrollbar-width:none;}
+.body::-webkit-scrollbar{display:none;}
+
+/* ACTIONS */
+.acts{flex-shrink:0;padding:10px 18px calc(10px + var(--safe-b));display:flex;flex-direction:column;gap:8px;
+  background:linear-gradient(to top,var(--s1) 75%,transparent);}
+
+/* BTNS */
+.btn{width:100%;padding:14px 18px;border-radius:var(--rad2);border:none;
+  font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:transform .14s,box-shadow .14s;position:relative;overflow:hidden;}
+.btn:active{transform:scale(.97);}
+.btn-p{background:linear-gradient(135deg,var(--g1),var(--g2));color:#080A0F;box-shadow:0 5px 24px rgba(200,255,87,.26);}
+.btn-b{background:linear-gradient(135deg,var(--b1),var(--b2));color:#080A0F;box-shadow:0 5px 24px rgba(87,209,255,.20);}
+.btn-g{background:var(--s2);border:1px solid var(--rim);color:var(--w2);}
+.btn-d{background:rgba(255,87,87,.09);border:1px solid rgba(255,87,87,.18);color:var(--r1);}
+.btn-row{display:flex;gap:8px;}
+.btn-row .btn{flex:1;}
+
+/* ── FRACTAL BOARD SPECIFIC ── */
+
+/* Mode selector — 3 cards side by side */
+.mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+.mode-card{background:var(--s2);border:1px solid var(--rim);border-radius:var(--rad2);padding:14px 12px;
+  cursor:pointer;transition:all .18s;display:flex;flex-direction:column;gap:6px;}
+.mode-card:active{transform:scale(.97);}
+.mode-card.mc-g{border-color:rgba(200,255,87,.2);background:rgba(200,255,87,.04);}
+.mode-card.mc-b{border-color:rgba(87,209,255,.2);background:rgba(87,209,255,.04);}
+.mode-card.mc-o{border-color:rgba(255,179,71,.2);background:rgba(255,179,71,.04);}
+.mc-ico{font-size:26px;line-height:1;}
+.mc-title{font-family:'Syne',sans-serif;font-weight:700;font-size:13px;}
+.mc-sub{font-size:11px;color:var(--w2);line-height:1.4;}
+
+/* Breadcrumb trail */
+.breadcrumb{display:flex;align-items:center;gap:5px;margin-bottom:12px;flex-wrap:wrap;}
+.bc-seg{font-size:11px;color:var(--w3);cursor:pointer;padding:3px 7px;border-radius:8px;transition:all .15s;}
+.bc-seg:hover,.bc-seg:active{background:var(--s2);color:var(--w2);}
+.bc-seg.cur{color:var(--w);background:var(--s3);}
+.bc-arr{font-size:10px;color:var(--w3);}
+
+/* Dir item with shutter expand */
+.dir-list{display:flex;flex-direction:column;gap:7px;margin-bottom:10px;}
+.dir-item{background:var(--s2);border:1px solid var(--rim);border-radius:var(--rad2);overflow:hidden;transition:border-color .2s;}
+.dir-item.pinned{border-color:rgba(200,255,87,.3);background:rgba(200,255,87,.03);}
+.dir-item.pinned-b{border-color:rgba(87,209,255,.3);background:rgba(87,209,255,.03);}
+.dir-item.expanded{border-color:var(--b1);}
+.dir-row{display:flex;align-items:center;gap:11px;padding:12px 14px;cursor:pointer;user-select:none;}
+.dir-row:active{background:rgba(255,255,255,.03);}
+.di-icon{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;background:var(--s3);}
+.di-icon.g{background:rgba(200,255,87,.1);}
+.di-icon.b{background:rgba(87,209,255,.1);}
+.di-icon.has-kids{background:linear-gradient(135deg,rgba(200,255,87,.12),rgba(87,209,255,.12));}
+.di-body{flex:1;min-width:0;}
+.di-name{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.di-meta{display:flex;align-items:center;gap:7px;margin-top:3px;flex-wrap:wrap;}
+.di-tag{font-size:10px;font-weight:600;padding:1px 6px;border-radius:6px;}
+.di-tag.g{background:rgba(200,255,87,.1);color:var(--g1);}
+.di-tag.b{background:rgba(87,209,255,.1);color:var(--b1);}
+.di-tag.w{background:var(--s3);color:var(--w3);}
+.di-tag.o{background:rgba(255,179,71,.1);color:var(--o1);}
+.di-count{font-size:11px;color:var(--w2);}
+.di-right{flex-shrink:0;display:flex;align-items:center;gap:5px;}
+.di-chevron{font-size:11px;color:var(--w3);transition:transform .25s;}
+.dir-item.expanded .di-chevron{transform:rotate(180deg);}
+
+/* Shutter (expanded panel inside dir-item) */
+.shutter{overflow:hidden;max-height:0;transition:max-height .3s cubic-bezier(.4,0,.2,1);}
+.shutter.open{max-height:220px;}
+.shutter-body{padding:0 14px 14px;display:flex;flex-direction:column;gap:7px;}
+.sh-stats{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+.sh-stat{background:var(--s3);border-radius:var(--rad3);padding:8px 10px;}
+.sh-label{font-size:9px;letter-spacing:.8px;text-transform:uppercase;color:var(--w3);margin-bottom:2px;}
+.sh-val{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;}
+.sh-val.g{color:var(--g1);} .sh-val.b{color:var(--b1);}
+.sh-btn-row{display:flex;gap:7px;}
+.sh-btn{flex:1;padding:9px 10px;border-radius:var(--rad3);border:none;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;text-align:center;transition:all .15s;}
+.sh-btn:active{transform:scale(.97);}
+.sh-btn-p{background:linear-gradient(135deg,var(--g1),var(--g2));color:#080A0F;}
+.sh-btn-b{background:linear-gradient(135deg,var(--b1),var(--b2));color:#080A0F;}
+.sh-btn-g{background:var(--s3);color:var(--w2);border:1px solid var(--rim);}
+.sh-btn-d{background:rgba(255,87,87,.09);color:var(--r1);border:1px solid rgba(255,87,87,.15);}
+.sh-divider{height:1px;background:var(--rim);margin:0 -14px;}
+.sh-kids-hint{font-size:11px;color:var(--b1);cursor:pointer;display:flex;align-items:center;gap:5px;padding:2px 0;}
+
+/* Pagination row */
+.pag-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0 2px;}
+.pag-btn{padding:7px 14px;border-radius:var(--rad3);border:none;background:var(--s2);border:1px solid var(--rim);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;color:var(--w2);cursor:pointer;transition:all .15s;}
+.pag-btn:disabled{opacity:.3;cursor:default;}
+.pag-info{font-size:12px;color:var(--w3);}
+
+/* Sort toggle */
+.sort-row{display:flex;gap:6px;margin-bottom:12px;}
+.sort-btn{padding:5px 12px;border-radius:20px;border:1px solid var(--rim);background:var(--s2);font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;color:var(--w3);cursor:pointer;transition:all .15s;}
+.sort-btn.on{background:var(--s3);border-color:var(--rim2);color:var(--w);}
+
+/* Group cards */
+.group-grid{display:flex;flex-direction:column;gap:7px;margin-bottom:10px;}
+.grp-card{background:var(--s2);border:1px solid var(--rim);border-radius:var(--rad2);padding:13px 14px;cursor:pointer;transition:all .18s;display:flex;align-items:center;gap:12px;}
+.grp-card:active{transform:scale(.98);}
+.grp-av{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--b1),rgba(200,255,87,.6));display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.grp-body{flex:1;min-width:0;}
+.grp-name{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.grp-meta{font-size:11px;color:var(--w2);margin-top:2px;}
+.grp-badge{flex-shrink:0;font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;}
+.grp-open{background:rgba(200,255,87,.1);color:var(--g1);}
+.grp-closed{background:var(--s3);color:var(--w3);}
+
+/* Misc shared */
+.sec-lbl{font-size:10px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:var(--w3);margin-bottom:9px;}
+.stat-row{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:12px;}
+.stat-cell{background:var(--s2);border:1px solid var(--rim);border-radius:var(--rad2);padding:11px 13px;}
+.stat-label{font-size:9px;letter-spacing:.8px;text-transform:uppercase;color:var(--w3);margin-bottom:3px;}
+.stat-val{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;}
+.stat-val.g{color:var(--g1);} .stat-val.b{color:var(--b1);}
+
+.seat-row{display:flex;gap:6px;margin-bottom:13px;}
+.seat-btn{flex:1;padding:10px 5px;background:var(--s2);border:1px solid var(--rim);border-radius:var(--rad2);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;color:var(--w2);cursor:pointer;text-align:center;transition:all .17s;}
+.seat-btn.sel{background:rgba(200,255,87,.1);border-color:var(--g1);color:var(--g1);}
+
+.member-list{display:flex;flex-direction:column;gap:6px;margin-bottom:11px;}
+.member{display:flex;align-items:center;gap:11px;background:var(--s2);border:1px solid var(--rim);border-radius:var(--rad2);padding:10px 13px;}
+.member.you{border-color:rgba(87,209,255,.25);background:rgba(87,209,255,.04);}
+.member.drv{border-color:rgba(200,255,87,.2);background:rgba(200,255,87,.04);}
+.member.empty{opacity:.32;}
+.m-av{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;}
+.m-av.d{background:linear-gradient(135deg,var(--g1),#80E800);color:#080A0F;}
+.m-av.y{background:linear-gradient(135deg,var(--b1),var(--b2));color:#080A0F;}
+.m-av.p{background:var(--s3);color:var(--w2);}
+.m-av.e{background:var(--s3);border:1px dashed var(--w3);}
+.m-name{font-weight:600;font-size:13px;}
+.m-sub{font-size:11px;color:var(--w3);margin-top:1px;}
+.m-tag{margin-left:auto;font-size:9px;font-weight:700;letter-spacing:.8px;padding:2px 6px;border-radius:5px;}
+.m-tag.d{background:rgba(200,255,87,.1);color:var(--g1);}
+.m-tag.y{background:rgba(87,209,255,.1);color:var(--b1);}
+
+.radar-line{display:flex;align-items:center;gap:9px;background:var(--s3);border-radius:11px;padding:9px 13px;margin-bottom:11px;}
+.r-dot{width:7px;height:7px;border-radius:50%;background:var(--g1);box-shadow:0 0 10px var(--g1);animation:pulse 1.8s infinite;flex-shrink:0;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.35;transform:scale(.7);}}
+.r-txt{font-size:12px;color:var(--w2);}
+.r-cnt{color:var(--g1);font-weight:700;}
+
+.live-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(200,255,87,.09);border:1px solid rgba(200,255,87,.2);padding:4px 11px;border-radius:30px;font-size:10px;font-weight:700;letter-spacing:1px;color:var(--g1);margin-bottom:12px;}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--g1);box-shadow:0 0 7px var(--g1);animation:pulse 1.2s infinite;}
+
+.stars{display:flex;gap:7px;justify-content:center;padding:8px 0 14px;}
+.star{font-size:36px;cursor:pointer;transition:transform .17s;filter:grayscale(1) opacity(.3);}
+.star.on{filter:none;transform:scale(1.1);}
+
+.wait-anim{font-size:60px;display:block;text-align:center;margin:14px 0 18px;animation:float 2.5s ease-in-out infinite;}
+@keyframes float{0%,100%{transform:translateY(0);}50%{transform:translateY(-11px);}}
+
+.contact-card{display:flex;align-items:center;gap:12px;background:var(--s2);border:1px solid var(--rim);border-radius:var(--rad2);padding:13px 15px;margin-bottom:11px;}
+.c-av{width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#5b7fff,#9f6fff);display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:700;color:#fff;flex-shrink:0;}
+.c-name{font-weight:600;font-size:15px;}
+.c-meta{font-size:11px;color:var(--w2);margin-top:2px;}
+.c-dir{font-size:11px;color:var(--b1);margin-top:2px;}
+
+.hist-list{display:flex;flex-direction:column;gap:7px;margin-bottom:10px;}
+.hist-item{display:flex;align-items:center;gap:12px;background:var(--s2);border:1px solid var(--rim);border-radius:var(--rad2);padding:12px 14px;}
+.h-ico{width:38px;height:38px;border-radius:10px;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
+.h-info{flex:1;min-width:0;}
+.h-dir{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.h-meta{font-size:11px;color:var(--w2);margin-top:2px;}
+.h-stars{font-size:11px;margin-top:2px;}
+
+/* Toast */
+#toast{position:fixed;bottom:calc(72px + var(--safe-b));left:50%;transform:translateX(-50%) translateY(10px);
+  background:var(--s3);border:1px solid var(--rim2);padding:9px 18px;border-radius:30px;
+  font-size:12px;white-space:nowrap;opacity:0;pointer-events:none;z-index:999;
+  transition:all .26s cubic-bezier(.34,1.3,.64,1);}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+#toast.ok{border-color:var(--g1);color:var(--g1);}
+#toast.err{border-color:var(--r1);color:var(--r1);}
+#toast.warn{border-color:var(--o1);color:var(--o1);}
+
+/* NAV */
+.nav{position:relative;z-index:10;display:flex;background:rgba(8,10,15,.94);backdrop-filter:blur(22px);border-top:1px solid var(--rim);padding:7px 0 calc(7px + var(--safe-b));flex-shrink:0;}
+.nv{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:3px;cursor:pointer;color:var(--w3);transition:color .14s;position:relative;user-select:none;}
+.nv.on{color:var(--g1);}
+.nv-ico{font-size:20px;line-height:1;position:relative;}
+.nv-lbl{font-size:8px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;}
+.nv-badge{position:absolute;top:-3px;right:-7px;min-width:14px;height:14px;border-radius:7px;background:var(--r1);font-size:9px;font-weight:700;color:#fff;display:none;align-items:center;justify-content:center;padding:0 3px;}
+.nv-badge.show{display:flex;}
+
+/* SHEET */
+.sheet-ov{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.62);backdrop-filter:blur(10px);display:none;align-items:flex-end;}
+.sheet-ov.open{display:flex;}
+.sheet{background:var(--s1);border:1px solid var(--rim);border-radius:22px 22px 0 0;padding:18px 18px calc(18px + var(--safe-b));width:100%;animation:sup .3s cubic-bezier(.34,1.2,.64,1);}
+@keyframes sup{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.sh-handle{width:30px;height:3px;border-radius:2px;background:var(--w3);margin:0 auto 16px;}
+.sh-ttl{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:14px;}
+.fld label{display:block;font-size:11px;color:var(--w3);font-weight:500;margin-bottom:5px;letter-spacing:.4px;}
+.fld input{width:100%;background:var(--s2);border:1px solid var(--rim);border-radius:var(--rad2);padding:12px 14px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--w);outline:none;transition:border-color .2s;margin-bottom:11px;}
+.fld input:focus{border-color:var(--b1);}
+.fld input::placeholder{color:var(--w3);}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="amb" id="a1"></div>
+  <div class="amb" id="a2"></div>
+  <div class="amb" id="a3"></div>
+
+  <div class="hdr">
+    <div class="logo">WayTandem</div>
+    <div class="hdr-r">
+      <div id="modeBadge" style="display:none"></div>
+      <div class="hdr-pill">
+        <div class="hdr-av" id="hdAv">?</div>
+        <span id="hdName">...</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="sbar">
+    <div class="sdots" id="sdots"></div>
+    <div class="slbl" id="slbl">Вибір ролі</div>
+  </div>
+
+  <div class="ca" id="ca"></div>
+
+  <div class="nav">
+    <div class="nv on" id="nv0" data-nav="0">
+      <div class="nv-ico">🏠</div>
+      <div class="nv-lbl">Головна</div>
+    </div>
+    <div class="nv" id="nv1" data-nav="1">
+      <div class="nv-ico">🌍</div>
+      <div class="nv-lbl">Дошка</div>
+    </div>
+    <div class="nv" id="nv2" data-nav="2">
+      <div class="nv-ico" style="position:relative">🤝<div class="nv-badge" id="crewBadge">1</div></div>
+      <div class="nv-lbl">Екіпаж</div>
+    </div>
+    <div class="nv" id="nv3" data-nav="3">
+      <div class="nv-ico">📋</div>
+      <div class="nv-lbl">Мої</div>
+    </div>
+  </div>
+</div>
+
+<div class="sheet-ov" id="shNewDir">
+  <div class="sheet">
+    <div class="sh-handle"></div>
+    <div class="sh-ttl">✨ Запропонувати маршрут</div>
+    <div class="fld">
+      <label>Назва напрямку (до 50 симв.)</label>
+      <input id="ndInput" placeholder="Київ → Краків" maxlength="50" autocomplete="off">
+    </div>
+    <div class="fld">
+      <label>Місце збору (необов'язково)</label>
+      <input id="ndMeet" placeholder="Вул. Хрещатик, 1" maxlength="80" autocomplete="off">
+    </div>
+    <div class="btn btn-p" onclick="_cd()">Додати на дошку →</div>
+    <div class="btn btn-g" style="margin-top:7px" onclick="_cs('shNewDir')">Скасувати</div>
+  </div>
+</div>
+
+<div class="sheet-ov" id="shChat">
+  <div class="sheet">
+    <div class="sh-handle"></div>
+    <div class="sh-ttl">💬 Чат екіпажу</div>
+    <div id="chatLog" style="background:var(--s2);border-radius:13px;padding:13px;min-height:90px;font-size:13px;color:var(--w2);line-height:1.7;margin-bottom:11px;max-height:160px;overflow-y:auto;"></div>
+    <div style="display:flex;gap:7px">
+      <input id="chatIn" placeholder="Повідомлення..." style="flex:1;background:var(--s2);border:1px solid var(--rim);border-radius:13px;padding:10px 13px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--w);outline:none">
+      <div class="btn btn-p" style="width:auto;padding:10px 16px" onclick="_sm()">→</div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+
+var tg = window.Telegram && window.Telegram.WebApp;
+if(tg){tg.ready();tg.expand();try{tg.setHeaderColor('#080A0F');tg.setBackgroundColor('#080A0F');}catch(e){}}
+
+var S = {
+  user:{ name:(tg&&tg.initDataUnsafe&&tg.initDataUnsafe.user&&tg.initDataUnsafe.user.first_name)||'Дмитро' },
+  role:null, seats:3,
+  
+  dirs:[
+    
+    {id:10,title:'🇵🇱 Польща',      parent_id:null,group_id:null,drivers:12,passengers:34,has_kids:true, sub:false, kind:'topic'},
+    {id:11,title:'🇩🇪 Німеччина',   parent_id:null,group_id:null,drivers:5, passengers:18,has_kids:true, sub:false, kind:'topic'},
+    {id:12,title:'🇭🇺 Угорщина',    parent_id:null,group_id:null,drivers:2, passengers:7, has_kids:true, sub:false, kind:'topic'},
+    {id:13,title:'🇺🇦 Україна',     parent_id:null,group_id:null,drivers:8, passengers:22,has_kids:true, sub:true,  kind:'topic'},
+    
+    {id:20,title:'Київ → Варшава',  parent_id:10,  group_id:null,drivers:4, passengers:9, has_kids:false,sub:false, kind:'custom'},
+    {id:21,title:'Львів → Краків',  parent_id:10,  group_id:null,drivers:2, passengers:5, has_kids:false,sub:true,  kind:'custom'},
+    {id:22,title:'Харків → Варшава',parent_id:10,  group_id:null,drivers:1, passengers:3, has_kids:false,sub:false, kind:'custom'},
+    {id:23,title:'Дніпро → Вроцлав',parent_id:10, group_id:null,drivers:3, passengers:8, has_kids:false,sub:false, kind:'custom'},
+    
+    {id:30,title:'Київ → Берлін',   parent_id:11,  group_id:null,drivers:2, passengers:6, has_kids:false,sub:false, kind:'custom'},
+    {id:31,title:'Львів → Мюнхен',  parent_id:11,  group_id:null,drivers:1, passengers:4, has_kids:false,sub:false, kind:'custom'},
+    
+    {id:40,title:'Харків → Полтава',parent_id:13,  group_id:null,drivers:5, passengers:2, has_kids:false,sub:true,  kind:'custom'},
+    {id:41,title:'Одеса → Київ',    parent_id:13,  group_id:null,drivers:0, passengers:3, has_kids:false,sub:false, kind:'custom'},
+    {id:42,title:'Дніпро → Запоріжжя',parent_id:13,group_id:null,drivers:2,passengers:6, has_kids:false,sub:false, kind:'custom'},
+    
+    {id:50,title:'Прага Осінь 2024', parent_id:null,group_id:1,  drivers:3, passengers:11,has_kids:false,sub:false, kind:'custom'},
+    {id:51,title:'Відень Зима 2025', parent_id:null,group_id:2,  drivers:1, passengers:5, has_kids:false,sub:false, kind:'custom'},
+  ],
+  groups:[
+    {id:1,name:'Прага Осінь 2024',  status:'open',  members:14,emoji:'🏰'},
+    {id:2,name:'Відень Зима 2025',  status:'open',  members:6, emoji:'🎶'},
+    {id:3,name:'Берлін Літо 2024',  status:'closed',members:22,emoji:'🎸'},
+  ],
+  privateDirs:[
+    {id:60,title:'Запрошення: Олена→Берлін',parent_id:null,group_id:null,drivers:1,passengers:0,has_kids:false,sub:false,kind:'custom',access_policy:'private'},
+  ],
+  
+  board:{ mode:null, parentId:null, groupId:null, page:0, sort:'popularity', expandedId:null },
+  
+  _cf:'idle',
+  crew:{id:1042,dirTitle:'Харків → Полтава',
+    driver:{name:'Олег В.',rating:4.9,trips:87},
+    passengers:[{name:'Ваш слот',isYou:true},{name:'Іванна К.',rating:4.7}],
+    freeSeats:1,totalSeats:4},
+  _phs:{user:'Марія Т.',rating:4.9,trips:12,dir:'Харків → Полтава'},
+  history:[
+    {dir:'Київ → Варшава',date:'2 берез.',role:'Попутник',stars:5},
+    {dir:'Одеса → Київ',  date:'3 лют.',role:'Мандрівник',stars:4},
+    {dir:'Львів → Краків',date:'15 січ.',role:'Попутник',stars:5},
+  ],
+  rating:4,
+  _sd:null,
+};
+
+var SCENES={};
+
+SCENES.role={label:'Вибір ролі',flow:'home',stage:1,total:3,render:function(){
+  return '<div class="hero" style="background:linear-gradient(160deg,rgba(200,255,87,.07),transparent 60%)">'
+    +'<span class="h-em">🛣️</span>'
+    +'<div class="h-tag">WayTandem</div>'
+    +'<div class="h-ttl">Хто ти<br><em style="color:var(--g1)">сьогодні?</em></div>'
+    +'<div class="h-sub">Оберіть роль — система налаштується під вас автоматично</div>'
+    +'</div><div class="body"></div>'
+    +'<div class="acts">'
+    +'<div class="btn btn-p" onclick="_pr(\'driver\')">🚗&nbsp; Я Мандрівник — везу</div>'
+    +'<div class="btn btn-b" onclick="_pr(\'passenger\')">👤&nbsp; Я Попутник — шукаю</div>'
+    +'</div>';
+}};
+
+SCENES.rd={label:'Мандрівник',flow:'home',stage:2,total:3,render:function(){
+  var seats='';
+  [1,2,3,4].forEach(function(n){seats+='<div class="seat-btn'+(n===S.seats?' sel':'')+'" onclick="_ss('+n+')">'+n+(n===1?' місце':' місця')+'</div>';});
+  var sub=S.dirs.filter(function(d){return d.sub;}).length;
+  return '<div class="hero" style="background:linear-gradient(160deg,rgba(200,255,87,.09),transparent 55%)">'
+    +'<span class="h-em">🚗</span>'
+    +'<div class="h-tag">Ваша роль</div>'
+    +'<div class="h-ttl">Мандрівник</div>'
+    +'<div class="h-sub">Їдете самі — можете підвезти попутника. Вкажіть кількість вільних місць.</div>'
+    +'</div>'
+    +'<div class="body">'
+    +'<div class="sec-lbl">Вільних місць в авто</div>'
+    +'<div class="seat-row">'+seats+'</div>'
+    +'<div class="stat-row">'
+    +'<div class="stat-cell"><div class="stat-label">Підписки</div><div class="stat-val g">'+sub+'</div></div>'
+    +'<div class="stat-cell"><div class="stat-label">Поїздок</div><div class="stat-val">'+S.history.filter(function(h){return h.role==='Мандрівник';}).length+'</div></div>'
+    +'</div></div>'
+    +'<div class="acts">'
+    +'<div class="btn btn-p" onclick="_ob()">🌍&nbsp; До дошки маршрутів</div>'
+    +'<div class="btn btn-g" onclick="go(\'role\')">← Змінити роль</div>'
+    +'</div>';
+}};
+
+SCENES.rp={label:'Попутник',flow:'home',stage:2,total:3,render:function(){
+  var sub=S.dirs.filter(function(d){return d.sub;}).length;
+  var subDirs=S.dirs.filter(function(d){return d.sub&&!d.group_id;});
+  var subList=subDirs.length?subDirs.map(function(d){
+    return '<div class="dir-item pinned-b" onclick="_bod('+d.id+')" style="cursor:pointer">'
+      +'<div class="dir-row">'
+      +'<div class="di-icon b">📍</div>'
+      +'<div class="di-body"><div class="di-name">'+d.title+'</div>'
+      +'<div class="di-meta"><span class="di-count">🚗 '+d.drivers+' · 👤 '+d.passengers+'</span></div></div>'
+      +'<div class="di-right"><span class="di-tag b">Активно</span></div>'
+      +'</div></div>';
+  }).join(''):'<div style="color:var(--w3);font-size:13px;padding:6px 0">Поки немає підписок</div>';
+  return '<div class="hero" style="background:linear-gradient(160deg,rgba(87,209,255,.08),transparent 55%)">'
+    +'<span class="h-em">👤</span>'
+    +'<div class="h-tag">Ваша роль</div>'
+    +'<div class="h-ttl">Попутник</div>'
+    +'<div class="h-sub">Шукаєте водія за маршрутом. Підпишіться — мандрівники вас побачать.</div>'
+    +'</div>'
+    +'<div class="body">'
+    +'<div class="stat-row">'
+    +'<div class="stat-cell"><div class="stat-label">Підписки</div><div class="stat-val b">'+sub+'</div></div>'
+    +'<div class="stat-cell"><div class="stat-label">Поїздок</div><div class="stat-val">'+S.history.filter(function(h){return h.role==='Попутник';}).length+'</div></div>'
+    +'</div>'
+    +'<div class="sec-lbl">Мої маршрути</div>'
+    +'<div class="dir-list">'+subList+'</div>'
+    +'</div>'
+    +'<div class="acts">'
+    +'<div class="btn btn-b" onclick="_ob()">🌍&nbsp; Всі маршрути на дошці</div>'
+    +'<div class="btn btn-g" onclick="go(\'role\')">← Змінити роль</div>'
+    +'</div>';
+}};
+
+SCENES.bm={label:'Дошка',flow:'board',stage:1,total:4,render:function(){
+  var sub=S.dirs.filter(function(d){return d.sub;});
+  var pinHtml='';
+  if(sub.length){
+    pinHtml='<div class="sec-lbl" style="margin-top:4px">Мої активні підписки</div>'
+      +'<div class="dir-list">'+sub.slice(0,2).map(function(d){
+        return '<div class="dir-item '+(S.role==='driver'?'pinned':'pinned-b')+'" onclick="_bod('+d.id+')">'
+          +'<div class="dir-row">'
+          +'<div class="di-icon '+(S.role==='driver'?'g':'b')+'">📍</div>'
+          +'<div class="di-body"><div class="di-name">'+d.title+'</div>'
+          +'<div class="di-meta"><span class="di-count">🚗 '+d.drivers+' · 👤 '+d.passengers+'</span></div></div>'
+          +'<div class="di-right"><span class="di-tag '+(S.role==='driver'?'g':'b')+'">'+(S.role==='driver'?'Ви тут':'Активно')+'</span></div>'
+          +'</div></div>';
+      }).join('')+'</div>';
+  }
+  return '<div class="hero" style="padding-bottom:14px">'
+    +'<span class="h-em">🌍</span>'
+    +'<div class="h-tag">Режим дошки</div>'
+    +'<div class="h-ttl">Оберіть<br><em style="color:var(--g1)">простір</em></div>'
+    +'</div>'
+    +'<div class="body">'
+    +pinHtml
+    +'<div class="sec-lbl" style="margin-top:'+(sub.length?'14':'4')+'px">Де шукати?</div>'
+    +'<div class="mode-grid">'
+    +'<div class="mode-card mc-g" onclick="_bsm(\'global\')" style="grid-column:1/-1">'
+    +'<div class="mc-ico">🌐</div>'
+    +'<div class="mc-title">Глобальна дошка</div>'
+    +'<div class="mc-sub">Всі публічні маршрути. Фрактальна структура по країнах.</div>'
+    +'</div>'
+    +'<div class="mode-card mc-b" onclick="_bsm(\'groups\')">'
+    +'<div class="mc-ico">👥</div>'
+    +'<div class="mc-title">Групи</div>'
+    +'<div class="mc-sub">Організовані поїздки</div>'
+    +'</div>'
+    +'<div class="mode-card mc-o" onclick="_bsm(\'private\')">'
+    +'<div class="mc-ico">🔐</div>'
+    +'<div class="mc-title">Приватні</div>'
+    +'<div class="mc-sub">Запрошення, закриті</div>'
+    +'</div>'
+    +'</div>'
+    +'</div>'
+    +'<div class="acts">'
+    +'<div class="btn btn-g" onclick="_gh()">← До головного меню</div>'
+    +'</div>';
+}};
+
+SCENES.bg={label:'Маршрути',flow:'board',stage:2,total:4,render:function(){
+  var b=S.board;
+  var LIMIT=4;
+  
+  var pool=S.dirs.filter(function(d){
+    return d.group_id===null && d.parent_id===b.parentId;
+  });
+  
+  if(b.sort==='popularity') pool.sort(function(a,c){return (c.drivers+c.passengers)-(a.drivers+a.passengers);});
+  else pool.sort(function(a,c){return c.id-a.id;});
+  
+  if(b.page===0){
+    var pinned=pool.filter(function(d){return d.sub;});
+    var rest=pool.filter(function(d){return !d.sub;});
+    pool=pinned.concat(rest);
+  }
+  var offset=b.page*LIMIT;
+  var page=pool.slice(offset,offset+LIMIT);
+  var hasNext=pool.length>offset+LIMIT;
+  var hasPrev=b.page>0;
+
+  var bc='<div class="breadcrumb">'
+    +'<span class="bc-seg" onclick="_bsm(\'global\')">🌐 Глобальна</span>';
+  if(b.parentId!==null){
+    var parent=S.dirs.find(function(d){return d.id===b.parentId;});
+    if(parent) bc+='<span class="bc-arr">›</span><span class="bc-seg cur">'+parent.title+'</span>';
+  }
+  bc+='</div>';
+
+  var items=page.map(function(d){
+    var isExp=b.expandedId===d.id;
+    var isSub=d.sub;
+    var cls='dir-item'+(isSub?(S.role==='driver'?' pinned':' pinned-b'):'')+(isExp?' expanded':'');
+    var icoClass=d.has_kids?'di-icon has-kids':(isSub?(S.role==='driver'?'di-icon g':'di-icon b'):'di-icon');
+    var icoEmoji=d.has_kids?'📁':(d.drivers>0?'🚗':'📍');
+    var tagHtml='';
+    if(isSub) tagHtml='<span class="di-tag '+(S.role==='driver'?'g':'b')+'">'+(S.role==='driver'?'Ви тут':'Активно')+'</span>';
+    else if(d.drivers>0) tagHtml='<span class="di-tag g">'+d.drivers+' 🚗</span>';
+    else tagHtml='<span class="di-tag w">Тихо</span>';
+    if(d.has_kids) tagHtml+='<span class="di-tag b" style="margin-left:3px">↳ підрозділи</span>';
+
+    var shutterHtml='';
+    if(!d.has_kids){
+      var subBtn=(isSub)
+        ?'<div class="sh-btn sh-btn-d" onclick="event.stopPropagation();_bun('+d.id+')">Відписатись</div>'
+        :(S.role==='driver'
+          ?'<div class="sh-btn sh-btn-p" onclick="event.stopPropagation();_bsu('+d.id+')">✅ Я їду сюди</div>'
+          :'<div class="sh-btn sh-btn-b" onclick="event.stopPropagation();_bsu('+d.id+')">✅ Підписатись</div>');
+      var hsBtn=S.role==='passenger'&&d.drivers>0
+        ?'<div class="sh-btn sh-btn-g" onclick="event.stopPropagation();_shs('+d.id+')">👋 Попроситись</div>':'' ;
+      shutterHtml='<div class="shutter'+(isExp?' open':'')+'"><div class="shutter-body">'
+        +'<div class="sh-divider" style="margin:0 -14px 10px"></div>'
+        +'<div class="sh-stats">'
+        +'<div class="sh-stat"><div class="sh-label">Мандрівники</div><div class="sh-val g">'+d.drivers+'</div></div>'
+        +'<div class="sh-stat"><div class="sh-label">Попутники</div><div class="sh-val b">'+d.passengers+'</div></div>'
+        +'</div>'
+        +(d.meeting_point?'<div style="font-size:11px;color:var(--w2)">📍 '+d.meeting_point+'</div>':'')
+        +'<div class="sh-btn-row">'+subBtn+hsBtn+'</div>'
+        +'</div></div>';
+    } else {
+      shutterHtml='<div class="shutter'+(isExp?' open':'')+'"><div class="shutter-body">'
+        +'<div class="sh-divider" style="margin:0 -14px 10px"></div>'
+        +'<div class="sh-kids-hint" onclick="event.stopPropagation();_bdi('+d.id+')">'
+        +'↳ Відкрити підрозділи ('+S.dirs.filter(function(x){return x.parent_id===d.id;}).length+' маршрутів)'
+        +'<span style="color:var(--b1)">→</span>'
+        +'</div>'
+        +'<div class="sh-stats">'
+        +'<div class="sh-stat"><div class="sh-label">Водіїв всього</div><div class="sh-val g">'+d.drivers+'</div></div>'
+        +'<div class="sh-stat"><div class="sh-label">Попутників</div><div class="sh-val b">'+d.passengers+'</div></div>'
+        +'</div>'
+        +'</div></div>';
+    }
+    return '<div class="'+cls+'" id="dir'+d.id+'">'
+      +'<div class="dir-row" onclick="_be('+d.id+')">'
+      +'<div class="'+icoClass+'">'+icoEmoji+'</div>'
+      +'<div class="di-body">'
+      +'<div class="di-name">'+d.title+'</div>'
+      +'<div class="di-meta">'+tagHtml+'<span class="di-count">'+d.drivers+'🚗&nbsp;'+d.passengers+'👤</span></div>'
+      +'</div>'
+      +'<div class="di-right"><span class="di-chevron">▾</span></div>'
+      +'</div>'
+      +shutterHtml
+      +'</div>';
+  }).join('');
+
+  if(!page.length) items='<div style="color:var(--w3);font-size:13px;padding:12px 0;text-align:center">Немає маршрутів у цьому розділі</div>';
+
+  var sortHtml='<div class="sort-row">'
+    +'<div class="sort-btn'+(b.sort==='popularity'?' on':'')+'" onclick="_bs(\'popularity\')">🔥 Популярні</div>'
+    +'<div class="sort-btn'+(b.sort==='newest'?' on':'')+'" onclick="_bs(\'newest\')">🆕 Нові</div>'
+    +'</div>';
+
+  var pagHtml='<div class="pag-row">'
+    +'<button class="pag-btn" onclick="_bp(-1)"'+(hasPrev?'':' disabled')+'>← Назад</button>'
+    +'<span class="pag-info">Стор. '+(b.page+1)+'</span>'
+    +'<button class="pag-btn" onclick="_bp(1)"'+(hasNext?'':' disabled')+'>Далі →</button>'
+    +'</div>';
+
+  var backBtn=b.parentId!==null
+    ?'<div class="btn btn-g" onclick="_bdb()">← Назад до списку</div>'
+    :'<div class="btn btn-g" onclick="go(\'bm\')">← Змінити режим</div>';
+
+  return '<div class="hero" style="padding-bottom:12px">'
+    +'<span class="h-em">'+(b.parentId!==null?'📁':'🌐')+'</span>'
+    +'<div class="h-tag">Глобальна дошка</div>'
+    +'<div class="h-ttl" style="font-size:20px">'+(b.parentId!==null?(S.dirs.find(function(d){return d.id===b.parentId;})||{title:''}).title:'Всі напрямки')+'</div>'
+    +'</div>'
+    +'<div class="body">'
+    +bc
+    +sortHtml
+    +'<div class="dir-list">'+items+'</div>'
+    +pagHtml
+    +'</div>'
+    +'<div class="acts">'
+    +'<div class="btn btn-g" onclick="_os(\'shNewDir\')">+ Запропонувати маршрут</div>'
+    +backBtn
+    +'</div>';
+}};
+
+SCENES.bgg={label:'Групи',flow:'board',stage:2,total:4,render:function(){
+  var grps=S.groups.map(function(g){
+    return '<div class="grp-card" onclick="_bog('+g.id+')">'
+      +'<div class="grp-av">'+g.emoji+'</div>'
+      +'<div class="grp-body">'
+      +'<div class="grp-name">'+g.name+'</div>'
+      +'<div class="grp-meta">👥 '+g.members+' учасників</div>'
+      +'</div>'
+      +'<div class="grp-badge '+(g.status==='open'?'grp-open':'grp-closed')+'">'+(g.status==='open'?'Відкрита':'Закрита')+'</div>'
+      +'</div>';
+  }).join('');
+  return '<div class="hero" style="padding-bottom:12px;background:linear-gradient(160deg,rgba(87,209,255,.07),transparent 55%)">'
+    +'<span class="h-em">👥</span>'
+    +'<div class="h-tag">Організовані подорожі</div>'
+    +'<div class="h-ttl">Групи</div>'
+    +'<div class="h-sub">Закриті або відкриті поїздки з організатором</div>'
+    +'</div>'
+    +'<div class="body">'
+    +'<div class="sec-lbl">Доступні групи</div>'
+    +'<div class="group-grid">'+grps+'</div>'
+    +'</div>'
+    +'<div class="acts">'
+    +'<div class="btn btn-g" onclick="go(\'bm\')">← До вибору режиму</div>'
+    +'</div>';
+}};
+
+SCENES.bp={label:'Приватні',flow:'board',stage:2,total:4,render:function(){
+  var items=S.privateDirs.map(function(d){
+    return '<div class="dir-item" style="border-color:rgba(255,179,71,.2);background:rgba(255,179,71,.04)">'
+      +'<div class="dir-row" onclick="_be('+d.id+')">'
+      +'<div class="di-icon o" style="background:rgba(255,179,71,.1)">🔐</div>'
+      +'<div class="di-body"><div class="di-name">'+d.title+'</div>'
+      +'<div class="di-meta"><span class="di-tag o">Запрошення</span></div></div>'
+      +'<div class="di-right"><span class="di-chevron">▾</span></div>'
+      +'</div>'
+      +'</div>';
+  }).join('');
+  if(!items) items='<div style="color:var(--w3);font-size:13px;padding:12px 0;text-align:center">Немає приватних запрошень</div>';
+  return '<div class="hero" style="padding-bottom:12px;background:linear-gradient(160deg,rgba(255,179,71,.06),transparent 55%)">'
+    +'<span class="h-em">🔐</span>'
+    +'<div class="h-tag">Приватний доступ</div>'
+    +'<div class="h-ttl">Закриті<br><em style="color:var(--o1)">маршрути</em></div>'
+    +'<div class="h-sub">Сюди потрапляють лише за запрошенням від організатора</div>'
+    +'</div>'
+    +'<div class="body"><div class="dir-list">'+items+'</div></div>'
+    +'<div class="acts">'
+    +'<div class="btn btn-g" onclick="go(\'bm\')">← До вибору режиму</div>'
+    +'</div>';
+}};
+
+SCENES.bgv={label:'Група',flow:'board',stage:3,total:4,render:function(){
+  var g=S.groups.find(function(x){return x.id===S.board.groupId;})||{name:'Група',emoji:'👥',status:'open',members:0};
+  var gdirs=S.dirs.filter(function(d){return d.group_id===g.id;});
+  var items=gdirs.map(function(d){
+    var isSub=d.sub;
+    return '<div class="dir-item'+(isSub?' pinned-b':'')+'"><div class="dir-row" onclick="_be('+d.id+')">'
+      +'<div class="di-icon '+(isSub?'b':'')+'">🚗</div>'
+      +'<div class="di-body"><div class="di-name">'+d.title+'</div>'
+      +'<div class="di-meta"><span class="di-count">🚗 '+d.drivers+' · 👤 '+d.passengers+'</span></div></div>'
+      +'<div class="di-right">'+(isSub?'<span class="di-tag b">Активно</span>':'')+'<span class="di-chevron">▾</span></div>'
+      +'</div></div>';
+  }).join('') || '<div style="color:var(--w3);font-size:13px;padding:10px 0">Немає маршрутів у групі</div>';
+  return '<div class="hero" style="padding-bottom:12px;background:linear-gradient(160deg,rgba(87,209,255,.08),transparent 55%)">'
+    +'<div style="font-size:42px;margin-bottom:12px">'+g.emoji+'</div>'
+    +'<div class="h-tag">Організована поїздка</div>'
+    +'<div class="h-ttl" style="font-size:20px">'+g.name+'</div>'
+    +'<div class="h-sub">'+g.members+' учасників · '+(g.status==='open'?'Реєстрація відкрита':'Закрита')+'</div>'
+    +'</div>'
+    +'<div class="body">'
+    +'<div class="sec-lbl">Маршрути групи</div>'
+    +'<div class="dir-list">'+items+'</div>'
+    +'</div>'
+    +'<div class="acts">'
+    +'<div class="btn btn-g" onclick="go(\'bgg\')">← До груп</div>'
+    +'</div>';
+}};
+
+SCENES.waiting={label:'Очікування',flow:'crew',stage:2,total:4,render:function(){
+  var t=S._sd?S._sd.title:S.crew.dirTitle;
+  return '<div class="hero" style="background:linear-gradient(160deg,rgba(87,209,255,.06),transparent 50%)">'
+    +'<span class="wait-anim">⏳</span>'
+    +'<div class="h-tag">Запит надіслано</div>'
+    +'<div class="h-ttl">Чекаємо<br><em style="color:var(--b1)">відповіді</em></div>'
+    +'<div class="h-sub">Мандрівник отримав ваш запит<br><b style="color:var(--w)">'+t+'</b></div>'
+    +'</div>'
+    +'<div class="body">'
+    +'<div class="contact-card"><div class="c-av">М</div>'
+    +'<div><div class="c-name">Мандрівник #1</div><div class="c-meta">⭐ 4.9 · 87 поїздок</div><div class="c-dir">'+t+'</div></div>'
+    +'</div></div>'
+    +'<div class="acts"><div class="btn btn-d" onclick="_cw()">😤 Втомився чекати</div></div>';
+}};
+
+SCENES.hsi={label:'Запит',flow:'crew',stage:2,total:4,render:function(){
+  var hs=S._phs;
+  return '<div class="hero" style="background:linear-gradient(160deg,rgba(200,255,87,.08),transparent 50%)">'
+    +'<span class="h-em">👋</span>'
+    +'<div class="h-tag">Хтось хоче з вами!</div>'
+    +'<div class="h-ttl">Запит від<br><em style="color:var(--g1)">'+hs.user+'</em></div>'
+    +'<div class="h-sub">'+hs.dir+'</div>'
+    +'</div>'
+    +'<div class="body">'
+    +'<div class="contact-card">'
+    +'<div class="c-av">'+hs.user[0]+'</div>'
+    +'<div><div class="c-name">'+hs.user+'</div><div class="c-meta">⭐ '+hs.rating+' · '+hs.trips+' поїздок</div><div class="c-dir">'+hs.dir+'</div></div>'
+    +'</div></div>'
+    +'<div class="acts">'
+    +'<div class="btn btn-p" onclick="_ahs()">✅&nbsp; Взяти в екіпаж</div>'
+    +'<div class="btn btn-d" onclick="_dhs()">❌&nbsp; Відхилити</div>'
+    +'</div>';
+}};
+
+SCENES.ic={label:'Екіпаж',flow:'crew',stage:3,total:4,render:function(){
+  var c=S.crew;
+  var mems='<div class="member drv"><div class="m-av d">'+c.driver.name[0]+'</div>'
+    +'<div><div class="m-name">🚗 '+c.driver.name+'</div><div class="m-sub">⭐ '+c.driver.rating+' · '+c.driver.trips+' поїздок</div></div>'
+    +'<div class="m-tag d">ВОДІЙ</div></div>';
+  c.passengers.forEach(function(p){
+    mems+=p.isYou
+      ?'<div class="member you"><div class="m-av y">Я</div><div><div class="m-name">👤 '+S.user.name+'</div><div class="m-sub">Це ви</div></div><div class="m-tag y">ВИ</div></div>'
+      :'<div class="member"><div class="m-av p">'+p.name[0]+'</div><div><div class="m-name">👤 '+p.name+'</div><div class="m-sub">⭐ '+p.rating+'</div></div></div>';
+  });
+  for(var i=0;i<c.freeSeats;i++) mems+='<div class="member empty"><div class="m-av e">⬜</div><div><div class="m-name" style="color:var(--w3)">Вільне місце</div></div></div>';
+  var acts=S.role==='driver'
+    ?'<div class="btn btn-p" onclick="_st()">🚀&nbsp; Поїхали!</div>'
+     +'<div class="btn-row"><div class="btn btn-g" onclick="_os(\'shChat\')">💬 Чат</div><div class="btn btn-g" onclick="go(\'ic\')">🔄 Оновити</div></div>'
+    :'<div class="btn btn-g" onclick="_os(\'shChat\')">💬 Чат екіпажу</div>'
+     +'<div class="btn btn-d" onclick="_lhs()">↩ Покинути резервацію</div>';
+  return '<div class="hero" style="padding-bottom:12px;background:linear-gradient(160deg,rgba(200,255,87,.06),transparent 50%)">'
+    +'<span class="h-em">🚗</span>'
+    +'<div class="h-tag">Екіпаж #'+c.id+'</div>'
+    +'<div class="h-ttl" style="font-size:19px">'+c.dirTitle+'</div>'
+    +'<div class="radar-line" style="margin-top:12px"><div class="r-dot"></div><div class="r-txt">Радар: <span class="r-cnt">3</span> кандидати</div></div>'
+    +'</div>'
+    +'<div class="body"><div class="sec-lbl">Склад екіпажу</div><div class="member-list">'+mems+'</div></div>'
+    +'<div class="acts">'+acts+'</div>';
+}};
+
+SCENES.it={label:'В дорозі',flow:'crew',stage:4,total:4,render:function(){
+  var c=S.crew;
+  var now=new Date();
+  var t=now.getHours()+':'+String(now.getMinutes()).padStart(2,'0');
+  var mems=c.passengers.map(function(p){
+    return p.isYou
+      ?'<div class="member you"><div class="m-av y">Я</div><div><div class="m-name">'+S.user.name+'</div></div><div class="m-tag y">ВИ</div></div>'
+      :'<div class="member"><div class="m-av p">'+p.name[0]+'</div><div><div class="m-name">'+p.name+'</div></div></div>';
+  }).join('');
+  return '<div class="hero" style="background:linear-gradient(160deg,rgba(200,255,87,.09),transparent 45%)">'
+    +'<div class="live-badge"><div class="live-dot"></div>В ДОРОЗІ</div>'
+    +'<div class="h-ttl" style="font-size:21px">'+c.dirTitle+'</div>'
+    +'<div class="h-sub">Екіпаж #'+c.id+' · Старт '+t+'</div>'
+    +'</div>'
+    +'<div class="body">'
+    +'<div class="stat-row">'
+    +'<div class="stat-cell"><div class="stat-label">Учасників</div><div class="stat-val g">'+(c.passengers.length+1)+'/'+c.totalSeats+'</div></div>'
+    +'<div class="stat-cell"><div class="stat-label">Водій</div><div class="stat-val" style="font-size:13px;margin-top:3px">'+c.driver.name+'</div></div>'
+    +'</div>'
+    +'<div class="member-list">'
+    +'<div class="member drv"><div class="m-av d">'+c.driver.name[0]+'</div><div><div class="m-name">🚗 '+c.driver.name+'</div><div class="m-sub">⭐ '+c.driver.rating+'</div></div><div class="m-tag d">ВОДІЙ</div></div>'
+    +mems+'</div></div>'
+    +'<div class="acts">'
+    +'<div class="btn-row"><div class="btn btn-g" onclick="toast(\'📍 Геолокація відкрита\',\'ok\')">📍 Локація</div><div class="btn btn-g" onclick="toast(\'📞 Контакт розблоковано\',\'ok\')">📞 Контакт</div></div>'
+    +'<div class="btn btn-g" onclick="_os(\'shChat\')">💬 Чат</div>'
+    +'<div class="btn btn-d" onclick="_ft()">🏁&nbsp; Завершити поїздку</div>'
+    +'</div>';
+}};
+
+SCENES.rating={label:'Оцінка',flow:'crew',stage:4,total:4,render:function(){
+  var st=[1,2,3,4,5].map(function(n){return '<div class="star'+(n<=S.rating?' on':'')+'" onclick="_sr('+n+')">⭐</div>';}).join('');
+  return '<div class="hero" style="text-align:center;padding-bottom:18px">'
+    +'<span class="h-em">🏁</span>'
+    +'<div class="h-tag">Поїздка завершена!</div>'
+    +'<div class="h-ttl">Як пройшло?</div>'
+    +'<div class="h-sub">Оцініть '+(S.role==='passenger'?'водія '+S.crew.driver.name:'попутників')+'</div>'
+    +'</div>'
+    +'<div class="body" style="display:flex;flex-direction:column;align-items:center">'
+    +'<div class="stars">'+st+'</div>'
+    +'<div style="font-size:26px;font-family:\'Syne\',sans-serif;font-weight:800;color:var(--g1)">'+S.rating+' / 5</div>'
+    +'</div>'
+    +'<div class="acts"><div class="btn btn-p" onclick="_snr()">✅&nbsp; Відправити оцінку</div></div>';
+}};
+
+SCENES.mt={label:'Мої поїздки',flow:'trips',stage:1,total:1,render:function(){
+  var h=S.history.map(function(x){
+    return '<div class="hist-item"><div class="h-ico">🗺️</div>'
+      +'<div class="h-info"><div class="h-dir">'+x.dir+'</div>'
+      +'<div class="h-meta">'+x.date+' · '+x.role+'</div>'
+      +'<div class="h-stars">'+'⭐'.repeat(x.stars)+'</div></div>'
+      +'<div style="flex-shrink:0;font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;background:var(--s3);color:var(--w3)">Завершено</div>'
+      +'</div>';
+  }).join('');
+  return '<div class="hero" style="padding-bottom:14px">'
+    +'<span class="h-em">📋</span>'
+    +'<div class="h-tag">Ваш журнал</div>'
+    +'<div class="h-ttl">Мої<br><em style="color:var(--g1)">подорожі</em></div>'
+    +'</div>'
+    +'<div class="body">'
+    +'<div class="stat-row" style="margin-bottom:14px">'
+    +'<div class="stat-cell"><div class="stat-label">Всього</div><div class="stat-val g">'+S.history.length+'</div></div>'
+    +'<div class="stat-cell"><div class="stat-label">Рейтинг</div><div class="stat-val">⭐ 4.9</div></div>'
+    +'</div>'
+    +'<div class="hist-list">'+h+'</div>'
+    +'</div>'
+    +'<div class="acts"><div class="btn btn-p" onclick="_gh()">🌍&nbsp; До дошки маршрутів</div></div>';
+}};
+
+var curScene='role';
+
+function go(id,dir){
+  if(!dir)dir='right';
+  if(!SCENES[id])return;
+  var area=document.getElementById('ca');
+  var old=area.querySelector('.card');
+  var card=document.createElement('div');
+  card.className='card '+(dir==='right'?'er':'el');
+  card.innerHTML=SCENES[id].render();
+  area.appendChild(card);
+  if(old){old.classList.add(dir==='right'?'xl':'xr');setTimeout(function(){if(old.parentNode)old.parentNode.removeChild(old);},420);}
+  requestAnimationFrame(function(){requestAnimationFrame(function(){card.classList.remove('er','el');card.classList.add('in');});});
+  curScene=id;
+  _updateSbar();_updateNav();_updateAmbient();_updateModeBadge();
+}
+
+function _updateSbar(){
+  var sc=SCENES[curScene];
+  var d=document.getElementById('sdots');
+  var l=document.getElementById('slbl');
+  l.textContent=sc.label;
+  var h='';
+  for(var i=1;i<=sc.total;i++){
+    if(i<sc.stage)h+='<div class="sd d"></div>';
+    else if(i===sc.stage)h+='<div class="sd a"></div>';
+    else h+='<div class="sd t"></div>';
+  }
+  d.innerHTML=h;
+}
+function _updateNav(){
+  var fm={home:0,board:1,crew:2,trips:3};
+  var idx=fm[SCENES[curScene].flow]||0;
+  document.querySelectorAll('.nv').forEach(function(n,i){n.classList.toggle('on',i===idx);});
+}
+function _updateAmbient(){
+  var c={home:'rgba(200,255,87,.07)',board:'rgba(200,255,87,.05)',crew:'rgba(87,209,255,.07)',trips:'rgba(87,209,255,.05)'};
+  document.getElementById('a1').style.background=c[SCENES[curScene].flow]||c.home;
+  document.getElementById('a3').style.opacity=['rating','it'].indexOf(curScene)>=0?'1':'0';
+}
+function _updateModeBadge(){
+  var b=document.getElementById('modeBadge');
+  if(!S.role){b.style.display='none';return;}
+  b.style.display='';
+  b.className='mode-badge '+(S.role==='driver'?'mode-g':'mode-b');
+  b.textContent=S.role==='driver'?'🚗 Мандрівник':'👤 Попутник';
+}
+
+function navTo(i){
+  var m={0:S.role?'role_'+S.role:'role',1:'bm',2:S._cf==='idle'?'hsi':S._cf,3:'mt'};
+  if(m[i]&&SCENES[m[i]])go(m[i]);
+}
+
+function _ob(){
+  S.board.parentId=null;S.board.page=0;S.board.expandedId=null;
+  go('bm');
+}
+function _bsm(m){
+  S.board.mode=m;S.board.parentId=null;S.board.page=0;S.board.expandedId=null;
+  if(m==='global')go('bg');
+  else if(m==='groups')go('bgg');
+  else go('bp');
+}
+function _bdi(parentId){
+  S.board.parentId=parentId;S.board.page=0;S.board.expandedId=null;
+  go('bg');
+  toast('📁 Відкрито підрозділи','');
+}
+function _bdb(){
+  
+  if(S.board.parentId!==null){
+    var cur=S.dirs.find(function(d){return d.id===S.board.parentId;});
+    S.board.parentId=cur?cur.parent_id:null;
+  }
+  S.board.page=0;S.board.expandedId=null;
+  go('bg','left');
+}
+function _bog(gid){
+  S.board.groupId=gid;go('bgv');
+}
+function _be(id){
+  S.board.expandedId=S.board.expandedId===id?null:id;
+  
+  var area=document.getElementById('ca');
+  var card=area.querySelector('.card');
+  if(card){
+    var scrollY=card.querySelector('.body')?card.querySelector('.body').scrollTop:0;
+    card.innerHTML=SCENES[curScene].render();
+    var b=card.querySelector('.body');
+    if(b)b.scrollTop=scrollY;
+  }
+}
+function _bs(s){
+  S.board.sort=s;S.board.page=0;S.board.expandedId=null;
+  var area=document.getElementById('ca');
+  var card=area.querySelector('.card');
+  if(card){card.innerHTML=SCENES[curScene].render();}
+}
+function _bp(d){
+  S.board.page=Math.max(0,S.board.page+d);
+  S.board.expandedId=null;
+  var area=document.getElementById('ca');
+  var card=area.querySelector('.card');
+  if(card){card.innerHTML=SCENES[curScene].render();}
+}
+function _bod(id){
+  
+  var d=S.dirs.find(function(x){return x.id===id;});
+  if(!d)return;
+  S.board.mode='global';
+  S.board.parentId=d.parent_id;
+  S.board.expandedId=id;
+  S.board.page=0;
+  go('bg');
+}
+function _bsu(id){
+  var d=S.dirs.find(function(x){return x.id===id;});
+  if(!d)return;
+  d.sub=true;
+  if(S.role==='driver')d.drivers++;else d.passengers++;
+  toast('✅ Підписано: '+d.title,'ok');
+  S.board.expandedId=null;
+  var area=document.getElementById('ca');
+  var card=area.querySelector('.card');
+  if(card)card.innerHTML=SCENES[curScene].render();
+}
+function _bun(id){
+  var d=S.dirs.find(function(x){return x.id===id;});
+  if(!d)return;
+  d.sub=false;
+  if(S.role==='driver')d.drivers=Math.max(0,d.drivers-1);else d.passengers=Math.max(0,d.passengers-1);
+  toast('📤 Відписано','');
+  S.board.expandedId=null;
+  var area=document.getElementById('ca');
+  var card=area.querySelector('.card');
+  if(card)card.innerHTML=SCENES[curScene].render();
+}
+
+function _pr(r){S.role=r;go('role_'+r);}
+function _gh(){go(S.role?'role_'+S.role:'role');}
+function _ss(n){S.seats=n;go('rd');toast('🚘 Місць: '+n,'ok');}
+
+function _shs(id){
+  S._sd=S.dirs.find(function(d){return d.id===id;});
+  S._cf='waiting';go('waiting');
+}
+function _cw(){S._cf='idle';_gh();toast('🚫 Запит скасовано','');}
+function _ahs(){
+  S._cf='ic';
+  var b=document.getElementById('crewBadge');if(b)b.classList.remove('show');
+  go('ic');toast('✅ Марію додано до екіпажу','ok');
+  if(!S.crew.passengers.find(function(p){return p.name==='Марія Т.';})){
+    S.crew.passengers.push({name:'Марія Т.',rating:4.9});
+    S.crew.freeSeats=Math.max(0,S.crew.freeSeats-1);
+  }
+}
+function _dhs(){
+  S._cf='idle';
+  var b=document.getElementById('crewBadge');if(b)b.classList.remove('show');
+  go('rd','left');toast('❌ Запит відхилено','');
+}
+function _lhs(){S._cf='idle';go('rp','left');toast('↩ Покинуто резервацію','');}
+function _st(){S._cf='it';go('it');toast('🚀 Гарної дороги!','ok');}
+function _ft(){S._cf='rating';S.rating=4;go('rating');toast('🏁 Поїздку завершено','ok');}
+function _sr(n){S.rating=n;var c=document.getElementById('ca').querySelector('.card');if(c)c.innerHTML=SCENES.rating.render();}
+function _snr(){
+  S._cf='idle';
+  S.history.unshift({dir:S.crew.dirTitle,date:'Сьогодні',role:S.role==='driver'?'Мандрівник':'Попутник',stars:S.rating});
+  toast('⭐ Оцінку '+S.rating+'/5 надіслано!','ok');
+  if(tg)tg.sendData(JSON.stringify({action:'rating',value:S.rating,crew:S.crew.id}));
+  setTimeout(function(){go(S.role?'role_'+S.role:'role');},500);
+}
+function _cd(){
+  var v=document.getElementById('ndInput').value.trim();
+  if(v.length<3){toast('⚠️ Мінімум 3 символи','err');return;}
+  var meet=document.getElementById('ndMeet').value.trim()||null;
+  var pid=S.board.parentId;var gid=S.board.mode==='groups'?S.board.groupId:null;
+  S.dirs.unshift({id:Date.now(),title:v,parent_id:pid,group_id:gid,drivers:1,passengers:0,has_kids:false,sub:true,kind:'custom',meeting_point:meet||null});
+  _cs('shNewDir');
+  document.getElementById('ndInput').value='';document.getElementById('ndMeet').value='';
+  toast('✅ "'+v+'" додано!','ok');
+  var c=document.getElementById('ca').querySelector('.card');if(c)c.innerHTML=SCENES[curScene].render();
+}
+function _sm(){
+  var i=document.getElementById('chatIn');var v=i.value.trim();if(!v)return;
+  var log=document.getElementById('chatLog');
+  log.innerHTML+=(log.innerHTML?'<br>':'')+'👤 <b style="color:var(--b1)">'+S.user.name.split(' ')[0]+'</b>: '+v;
+  i.value='';log.scrollTop=log.scrollHeight;
+}
+
+function _os(id){document.getElementById(id).classList.add('open');}
+function _cs(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.sheet-ov').forEach(function(el){
+  el.addEventListener('click',function(e){if(e.target===el)el.classList.remove('open');});
+});
+
+var _tt;
+function toast(m,t){
+  var el=document.getElementById('toast');
+  el.textContent=m;el.className='toast show '+(t||'');
+  clearTimeout(_tt);_tt=setTimeout(function(){el.className='toast';},2600);
+}
+
+function init(){
+  var n=S.user.name;
+  document.getElementById('hdAv').textContent=n[0]?n[0].toUpperCase():'?';
+  document.getElementById('hdName').textContent=n.split(' ')[0];
+  
+  document.getElementById('chatLog').innerHTML='🚗 <b style="color:var(--g1)">Олег</b>: Виїжджаю о 9:00<br>👤 <b style="color:var(--b1)">Ви</b>: Буду на місці!';
+  
+  setTimeout(function(){var b=document.getElementById('crewBadge');if(b)b.classList.add('show');},2200);
+  go('role');
+  if(tg){tg.MainButton.setText('🌍 Дошка маршрутів');tg.MainButton.show();tg.MainButton.onClick(function(){navTo(1);});}
+}
+init();
+document.querySelectorAll('.nv[data-nav]').forEach(function(el){
+  el.addEventListener('click',function(){navTo(parseInt(el.dataset.nav));});
+});
+</script>
+</body>
+</html>
