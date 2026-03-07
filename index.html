@@ -376,40 +376,46 @@ async function loadBoardData() {
   var data = await apiFetch('/api/v3/board', params);
   if (data) {
     S.dirs = data;
-    // 🌐 v24.6.17: Force full scene re-render
-    var area = document.getElementById('ca');
-    var card = area.querySelector('.card');
-    if (card && SCENES[curScene]) card.innerHTML = SCENES[curScene].render();
+    renderCurrent();
   }
+}
+
+async function loadGroupsData() {
+  var data = await apiFetch('/api/v3/groups');
+  if (data) {
+    S.groups = data;
+    renderCurrent();
+  }
+}
+
+async function loadHistoryData() {
+  var uid = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id) || 0;
+  var data = await apiFetch('/api/v3/history', { user_id: uid });
+  if (data) {
+    S.history = data;
+    renderCurrent();
+  }
+}
+
+function renderCurrent() {
+  var area = document.getElementById('ca');
+  var card = area.querySelector('.card');
+  if (card && SCENES[curScene]) card.innerHTML = SCENES[curScene].render();
 }
 
 var S = {
   user:{ name:(tg&&tg.initDataUnsafe&&tg.initDataUnsafe.user&&tg.initDataUnsafe.user.first_name)||'Дмитро' },
   role:null, seats:3,
   
-  dirs:[], // 🛡 v24.6.17: Clear placeholders
-  groups:[
-    {id:1,name:'Прага Осінь 2024',  status:'open',  members:14,emoji:'🏰'},
-    {id:2,name:'Відень Зима 2025',  status:'open',  members:6, emoji:'🎶'},
-    {id:3,name:'Берлін Літо 2024',  status:'closed',members:22,emoji:'🎸'},
-  ],
-  privateDirs:[
-    {id:60,title:'Запрошення: Олена→Берлін',parent_id:null,group_id:null,drivers:1,passengers:0,has_kids:false,sub:false,kind:'custom',access_policy:'private'},
-  ],
+  dirs:[], // 🛡 v24.7.1: Clean Slate
+  groups:[],
+  privateDirs:[],
   
   board:{ mode:null, parentId:null, groupId:null, page:0, sort:'popularity', expandedId:null },
   
   _cf:'idle',
-  crew:{id:1042,dirTitle:'Харків → Полтава',
-    driver:{name:'Олег В.',rating:4.9,trips:87},
-    passengers:[{name:'Ваш слот',isYou:true},{name:'Іванна К.',rating:4.7}],
-    freeSeats:1,totalSeats:4},
-  _phs:{user:'Марія Т.',rating:4.9,trips:12,dir:'Харків → Полтава'},
-  history:[
-    {dir:'Київ → Варшава',date:'2 берез.',role:'Попутник',stars:5},
-    {dir:'Одеса → Київ',  date:'3 лют.',role:'Мандрівник',stars:4},
-    {dir:'Львів → Краків',date:'15 січ.',role:'Попутник',stars:5},
-  ],
+  crew:null,
+  history:[],
   rating:4,
   _sd:null,
 };
