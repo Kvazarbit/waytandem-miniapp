@@ -1,367 +1,320 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
-<title>WayTandem Client</title>
-<style>
-body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f2f2f2; }
-header { background: #333; padding: 10px; color: white; display: flex; align-items: center; }
-header button { background: #555; color: white; border: none; padding: 10px 15px; margin-right: 5px; cursor: pointer; }
-header button.active { background: #007BFF; }
-.tabcontent { display: none; padding: 20px; }
-.list-item { background: white; padding: 10px; margin-bottom: 8px; border-radius: 4px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
-.list-item:hover { background: #e6e6e6; }
-.list-item .title { font-weight: bold; flex: 1; }
-.form-group { margin-bottom: 10px; }
-.form-group label { display: block; margin-bottom: 5px; }
-.form-group input, .form-group textarea, .form-group select { width: 100%; padding: 8px; box-sizing: border-box; }
-button { cursor: pointer; }
-.chat-box { border: 1px solid #ccc; padding: 10px; height: 200px; overflow-y: auto; background: white; margin-bottom: 10px; }
-.chat-message { margin-bottom: 5px; }
-.chat-message span { font-weight: bold; }
-</style>
+    <meta charset="utf-8"/>
+    <title>Поездки (MiniApp)</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; background-color: #f0f0f0; }
+        .screen { display: none; width: 100%; max-width: 400px; padding: 20px; box-sizing: border-box; }
+        #login-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+        h1, h2 { margin: 10px 0; text-align: center; color: #333; }
+        input[type="text"] { padding: 10px; margin: 10px 0; width: 100%; box-sizing: border-box; }
+        button { padding: 10px 20px; margin: 5px; border: none; border-radius: 5px; background-color: #4CAF50; color: #fff; font-size: 1em; cursor: pointer; }
+        button:hover { background-color: #45a049; }
+        #role-buttons { display: flex; gap: 10px; }
+        .mission { background: #fff; padding: 10px; margin: 10px 0; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .mission h3 { margin: 5px 0; font-size: 1em; }
+        .mission p { margin: 5px 0; font-size: 0.9em; }
+        .crew-list { list-style: none; padding: 0; }
+        .crew-list li { background: #fff; padding: 8px; margin: 5px 0; border-radius: 5px; }
+        #finish-trip { background-color: #d9534f; }
+        #finish-trip:hover { background-color: #c9302c; }
+        #logout-button { background-color: #888; }
+        #logout-button:hover { background-color: #666; }
+        .star { font-size: 2em; color: #ccc; cursor: pointer; }
+        .star.selected { color: gold; }
+        #thankyou { font-size: 1.2em; color: #4CAF50; margin-top: 10px; }
+    </style>
 </head>
 <body>
-<header>
-  <button id="discoverBtn">Discover</button>
-  <button id="createBtn">Create</button>
-  <button id="myBtn">My Missions</button>
-  <button id="profileBtn">Profile</button>
-</header>
 
-<div id="discoverTab" class="tabcontent">
-  <h2>Discover Missions</h2>
-  <div id="missionsList">Loading missions...</div>
+<div id="login-screen" class="screen">
+    <h1>Каршеринг MiniApp</h1>
+    <input type="text" id="username" placeholder="Ваше имя" />
+    <div id="role-buttons">
+        <button id="role-driver">Водитель</button>
+        <button id="role-passenger">Пассажир</button>
+    </div>
 </div>
 
-<div id="createTab" class="tabcontent">
-  <h2>Create New Mission</h2>
-  <div class="form-group">
-    <label for="titleInput">Title:</label>
-    <input type="text" id="titleInput">
-  </div>
-  <div class="form-group">
-    <label for="routeSelect">Route (Category):</label>
-    <select id="routeSelect"><option value="">No route</option></select>
-  </div>
-  <div class="form-group">
-    <label for="descInput">Description:</label>
-    <textarea id="descInput" rows="3"></textarea>
-  </div>
-  <button id="createBtnAction">Create Mission</button>
-  <div id="createStatus"></div>
+<div id="board-screen" class="screen">
+    <h2 id="board-title"></h2>
+    <div id="mission-list"></div>
+    <button id="logout-button">Выйти</button>
 </div>
 
-<div id="myTab" class="tabcontent">
-  <h2>My Missions</h2>
-  <div id="myMissionsList">You haven't joined any missions.</div>
+<div id="crew-screen" class="screen">
+    <h2>Экипаж</h2>
+    <ul id="crew-members" class="crew-list"></ul>
+    <button id="start-trip">🚀 Поехали!</button>
+    <button id="finish-trip" style="display:none">🏁 Финиш</button>
 </div>
 
-<div id="profileTab" class="tabcontent">
-  <h2>Profile</h2>
-  <div class="form-group">
-    <label for="usernameInput">Username:</label>
-    <input type="text" id="usernameInput">
-  </div>
-  <button id="saveUserBtn">Save Username</button>
-  <div id="profileStatus"></div>
-</div>
-
-<div id="missionDetailTab" class="tabcontent">
-  <button id="backBtn">← Back</button>
-  <h2 id="detailTitle">Mission Detail</h2>
-  <p><strong>Route:</strong> <span id="detailRoute"></span></p>
-  <p><strong>Description:</strong> <span id="detailDesc"></span></p>
-  <p><strong>Crew:</strong> <span id="detailCrew"></span></p>
-  <button id="joinBtn">Join</button>
-  <button id="leaveBtn">Leave</button>
-  <h3>Chat</h3>
-  <div class="chat-box" id="chatBox"></div>
-  <div>
-    <input type="text" id="chatInput" placeholder="Type a message..." style="width: 80%;">
-    <button id="sendBtn">Send</button>
-  </div>
+<div id="rating-screen" class="screen">
+    <h2>Оцените поездку</h2>
+    <div id="stars">
+        <span class="star" data-value="1">&#9733;</span>
+        <span class="star" data-value="2">&#9733;</span>
+        <span class="star" data-value="3">&#9733;</span>
+        <span class="star" data-value="4">&#9733;</span>
+        <span class="star" data-value="5">&#9733;</span>
+    </div>
+    <button id="submit-rating">Оценить</button>
+    <p id="thankyou" style="display:none">Спасибо!</p>
 </div>
 
 <script>
-var API_URL = 'http://localhost:8020';
+document.addEventListener('DOMContentLoaded', function() {
+    const loginScreen = document.getElementById('login-screen');
+    const boardScreen = document.getElementById('board-screen');
+    const crewScreen = document.getElementById('crew-screen');
+    const ratingScreen = document.getElementById('rating-screen');
+    const usernameInput = document.getElementById('username');
+    const roleDriverBtn = document.getElementById('role-driver');
+    const rolePassengerBtn = document.getElementById('role-passenger');
+    const boardTitle = document.getElementById('board-title');
+    const missionList = document.getElementById('mission-list');
+    const crewMembersList = document.getElementById('crew-members');
+    const startTripBtn = document.getElementById('start-trip');
+    const finishTripBtn = document.getElementById('finish-trip');
+    const stars = document.querySelectorAll('.star');
+    const submitRatingBtn = document.getElementById('submit-rating');
+    const thankyouText = document.getElementById('thankyou');
+    const logoutBtn = document.getElementById('logout-button');
 
-// State
-var username = '';
-var joinedMissions = []; // list of mission objects {id, title, drivers, passengers}
-var currentMission = null;
-var chats = {}; // missionId -> messages array
-var lastTab = 'discover';
+    let currentUser = localStorage.getItem('username') || '';
+    let currentRole = localStorage.getItem('role') || '';
+    let currentCrew = null;
+    let selectedRating = 0;
 
-// Show a particular tab
-function openTab(tabName) {
-    lastTab = tabName;
-    document.querySelectorAll('.tabcontent').forEach(function(el) {
-        el.style.display = 'none';
-    });
-    document.getElementById(tabName + 'Tab').style.display = 'block';
-    document.querySelectorAll('header button').forEach(function(btn) {
-        btn.classList.remove('active');
-    });
-    document.getElementById(tabName + 'Btn').classList.add('active');
-}
-
-// Load username from localStorage
-function loadUsername() {
-    var stored = localStorage.getItem('username');
-    if (stored) {
-        username = stored;
-        document.getElementById('usernameInput').value = username;
-        return true;
-    } else {
-        openTab('profile');
-        return false;
+    function showScreen(screen) {
+        [loginScreen, boardScreen, crewScreen, ratingScreen].forEach(s => s.style.display = 'none');
+        screen.style.display = 'block';
     }
-}
 
-// Save username
-function saveUsername() {
-    var val = document.getElementById('usernameInput').value.trim();
-    if (val) {
-        localStorage.setItem('username', val);
-        username = val;
-        document.getElementById('profileStatus').textContent = 'Username saved!';
-    } else {
-        document.getElementById('profileStatus').textContent = 'Username cannot be empty.';
-    }
-}
-
-// Load joined missions from localStorage
-function loadJoinedMissions() {
-    var stored = localStorage.getItem('joinedMissions');
-    if (stored) {
-        try {
-            joinedMissions = JSON.parse(stored);
-        } catch(e) {
-            joinedMissions = [];
+    function init() {
+        if (currentUser && currentRole) {
+            showBoardScreen();
+        } else {
+            showScreen(loginScreen);
         }
-    } else {
-        joinedMissions = [];
     }
-}
 
-// Save joined missions
-function saveJoinedMissions() {
-    localStorage.setItem('joinedMissions', JSON.stringify(joinedMissions));
-}
+    function showBoardScreen() {
+        currentCrew = null;
+        boardTitle.textContent = 'Привет, ' + currentUser + '! Вы ' + (currentRole === 'driver' ? 'водитель' : 'пассажир') + '.';
+        missionList.innerHTML = '';
+        showScreen(boardScreen);
+        if (currentRole === 'passenger') {
+            loadMissions();
+        } else if (currentRole === 'driver') {
+            loadRequests();
+        }
+    }
 
-// Fetch and display missions in Discover
-async function loadMissions() {
-    var listEl = document.getElementById('missionsList');
-    listEl.innerHTML = 'Loading missions...';
-    try {
-        var res = await fetch(API_URL + '/api/v3/board');
-        if (!res.ok) { listEl.textContent = 'Failed to load missions.'; return; }
-        var data = await res.json();
-        if (!data || data.length === 0) {
-            listEl.innerHTML = 'No missions found.';
+    function loadMissions() {
+        // Fetch missions from API
+        fetch('/api/v3/missions')
+        .then(response => response.json())
+        .then(data => {
+            populateMissions(data);
+        })
+        .catch(error => {
+            console.error('Ошибка загрузки миссий, использую тестовые данные.', error);
+            // Test data if API fails
+            const dummyMissions = [
+                { id: 1, driver: 'Иван', route: 'Москва → Тула', seats: 3 },
+                { id: 2, driver: 'Пётр', route: 'Санкт-Петербург → Москва', seats: 2 }
+            ];
+            populateMissions(dummyMissions);
+        });
+    }
+
+    function populateMissions(missions) {
+        missions.forEach(mission => {
+            const div = document.createElement('div');
+            div.className = 'mission';
+            const title = document.createElement('h3');
+            title.textContent = mission.route;
+            const info = document.createElement('p');
+            info.textContent = 'Водитель: ' + mission.driver + ' | Мест: ' + mission.seats;
+            const btn = document.createElement('button');
+            btn.textContent = '✋ Подать заявку';
+            btn.onclick = function() {
+                joinMission(mission);
+            };
+            div.appendChild(title);
+            div.appendChild(info);
+            div.appendChild(btn);
+            missionList.appendChild(div);
+        });
+    }
+
+    function joinMission(mission) {
+        // Send join request to API
+        fetch('/api/v3/mission/' + mission.id + '/join', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ passenger: currentUser })
+        }).then(response => {
+            currentCrew = { id: mission.id, driver: mission.driver, passengers: [currentUser] };
+            showCrewScreen();
+        }).catch(error => {
+            console.error('Ошибка при подаче заявки.', error);
+            // Fallback: simulate acceptance
+            currentCrew = { id: mission.id, driver: mission.driver, passengers: [currentUser] };
+            showCrewScreen();
+        });
+    }
+
+    function loadRequests() {
+        // Fetch requests for this driver's missions
+        fetch('/api/v3/requests?driver=' + encodeURIComponent(currentUser))
+        .then(response => response.json())
+        .then(data => {
+            populateRequests(data);
+        })
+        .catch(error => {
+            console.error('Ошибка загрузки заявок, использую тестовые данные.', error);
+            const dummyRequests = [
+                { id: 1, passenger: 'Ольга', missionId: 1 },
+                { id: 2, passenger: 'Михаил', missionId: 1 }
+            ];
+            populateRequests(dummyRequests);
+        });
+    }
+
+    function populateRequests(requests) {
+        missionList.innerHTML = '';
+        if (requests.length === 0) {
+            missionList.textContent = 'Нет новых заявок.';
             return;
         }
-        var html = '';
-        data.forEach(function(m) {
-            html += '<div class="list-item" data-id="' + m.id + '">' +
-                    '<div class="title">' + m.title + '</div>' +
-                    '<div>🚗 ' + m.drivers + '</div>' +
-                    '<div>👤 ' + m.passengers + '</div>' +
-                    '</div>';
+        requests.forEach(req => {
+            const div = document.createElement('div');
+            div.className = 'mission';
+            const info = document.createElement('p');
+            info.textContent = 'Пассажир: ' + req.passenger + ' хочет присоединиться к вашей поездке.';
+            const btn = document.createElement('button');
+            btn.textContent = 'Принять';
+            btn.onclick = function() {
+                acceptRequest(req);
+            };
+            div.appendChild(info);
+            div.appendChild(btn);
+            missionList.appendChild(div);
         });
-        listEl.innerHTML = html;
-        document.querySelectorAll('#missionsList .list-item').forEach(function(item) {
-            item.addEventListener('click', function() {
-                var id = this.dataset.id;
-                var mission = data.find(function(x){ return x.id == id; });
-                if (mission) {
-                    openMissionDetail(mission);
-                }
+    }
+
+    function acceptRequest(req) {
+        // Accept request via API and create crew
+        fetch('/api/v3/crew', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ missionId: req.missionId, passenger: req.passenger })
+        }).then(response => {
+            currentCrew = { id: req.missionId, driver: currentUser, passengers: [req.passenger] };
+            showCrewScreen();
+        }).catch(error => {
+            console.error('Ошибка при принятии заявки.', error);
+            currentCrew = { id: req.missionId, driver: currentUser, passengers: [req.passenger] };
+            showCrewScreen();
+        });
+    }
+
+    function showCrewScreen() {
+        crewMembersList.innerHTML = '';
+        if (currentCrew) {
+            // Add driver
+            const liDriver = document.createElement('li');
+            liDriver.textContent = currentCrew.driver + ' (водитель)';
+            crewMembersList.appendChild(liDriver);
+            // Add passengers
+            currentCrew.passengers.forEach(p => {
+                const li = document.createElement('li');
+                li.textContent = p + ' (пассажир)';
+                crewMembersList.appendChild(li);
+            });
+        }
+        startTripBtn.style.display = 'inline-block';
+        finishTripBtn.style.display = 'none';
+        showScreen(crewScreen);
+    }
+
+    startTripBtn.onclick = function() {
+        // Notify server that trip started (optional)
+        fetch('/api/v3/crew/start', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ crewId: currentCrew.id })
+        }).catch(e => {});
+        startTripBtn.style.display = 'none';
+        finishTripBtn.style.display = 'inline-block';
+    };
+
+    finishTripBtn.onclick = function() {
+        // Notify server trip finished (optional)
+        fetch('/api/v3/crew/finish', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ crewId: currentCrew.id })
+        }).catch(e => {});
+        showScreen(ratingScreen);
+    };
+
+    stars.forEach(star => {
+        star.addEventListener('click', function() {
+            selectedRating = parseInt(this.getAttribute('data-value'));
+            stars.forEach(s => {
+                s.classList.toggle('selected', parseInt(s.getAttribute('data-value')) <= selectedRating);
             });
         });
-    } catch (e) {
-        listEl.textContent = 'Error loading missions.';
-    }
-}
-
-// Populate route select (using top-level board items as categories)
-async function loadRoutes() {
-    var sel = document.getElementById('routeSelect');
-    sel.innerHTML = '<option value="">No route</option>';
-    try {
-        var res = await fetch(API_URL + '/api/v3/board');
-        if (!res.ok) return;
-        var data = await res.json();
-        data.forEach(function(m) {
-            sel.innerHTML += '<option value="' + m.id + '">' + m.title + '</option>';
-        });
-    } catch (e) {}
-}
-
-// Create mission via API
-async function createMission() {
-    var title = document.getElementById('titleInput').value.trim();
-    var route = document.getElementById('routeSelect').value;
-    var desc = document.getElementById('descInput').value.trim();
-    if (!title) {
-        document.getElementById('createStatus').textContent = 'Title required.';
-        return;
-    }
-    var body = { title: title };
-    if (route) body.parent_id = Number(route);
-    try {
-        var res = await fetch(API_URL + '/api/v3/board', {
-            method: 'POST',
-            headers: {'Content-Type':'application/json'},
-            body: JSON.stringify(body)
-        });
-        if (!res.ok) {
-            document.getElementById('createStatus').textContent = 'Failed to create.';
-            return;
-        }
-        var result = await res.json();
-        if (result && result.status === 'ok') {
-            document.getElementById('createStatus').textContent = 'Mission created!';
-            loadMissions();
-            var created;
-            if (route) {
-                var res2 = await fetch(API_URL + '/api/v3/board?parent_id=' + route);
-                var children = await res2.json();
-                created = children.find(x => x.title === title);
-            } else {
-                var all = await (await fetch(API_URL + '/api/v3/board')).json();
-                created = all.find(x => x.title === title);
-            }
-            if (created) {
-                localStorage.setItem('desc_' + created.id, desc);
-                joinedMissions.push({
-                    id: created.id,
-                    title: created.title,
-                    drivers: created.drivers || 0,
-                    passengers: created.passengers || 0
-                });
-                saveJoinedMissions();
-                document.getElementById('titleInput').value = '';
-                document.getElementById('descInput').value = '';
-            }
-        } else {
-            document.getElementById('createStatus').textContent = 'Error creating.';
-        }
-    } catch(e) {
-        document.getElementById('createStatus').textContent = 'Error connecting.';
-    }
-}
-
-// Open mission detail view
-function openMissionDetail(mission) {
-    currentMission = mission;
-    document.getElementById('detailTitle').textContent = mission.title;
-    document.getElementById('detailDesc').textContent = localStorage.getItem('desc_' + mission.id) || '';
-    document.getElementById('detailRoute').textContent = mission.parent_id ? 'Category ' + mission.parent_id : '';
-    var isJoined = joinedMissions.some(m => m.id == mission.id);
-    var drivers = mission.drivers || 0;
-    var passengers = mission.passengers || 0;
-    if (isJoined) passengers += 1;
-    document.getElementById('detailCrew').textContent = '🚗 ' + drivers + ' · 👤 ' + passengers;
-    if (isJoined) {
-        document.getElementById('joinBtn').style.display = 'none';
-        document.getElementById('leaveBtn').style.display = 'inline';
-    } else {
-        document.getElementById('joinBtn').style.display = 'inline';
-        document.getElementById('leaveBtn').style.display = 'none';
-    }
-    document.getElementById('chatBox').innerHTML = '';
-    openTab('missionDetail');
-}
-
-// Join mission (as passenger)
-function joinCurrentMission() {
-    if (!currentMission) return;
-    if (!joinedMissions.some(m => m.id == currentMission.id)) {
-        joinedMissions.push({
-            id: currentMission.id,
-            title: currentMission.title,
-            drivers: currentMission.drivers || 0,
-            passengers: currentMission.passengers || 0
-        });
-        saveJoinedMissions();
-    }
-    openMissionDetail(currentMission);
-    renderMyMissions();
-}
-
-// Leave mission
-function leaveCurrentMission() {
-    if (!currentMission) return;
-    joinedMissions = joinedMissions.filter(m => m.id != currentMission.id);
-    saveJoinedMissions();
-    openMissionDetail(currentMission);
-    renderMyMissions();
-}
-
-// Render My Missions list
-function renderMyMissions() {
-    var listEl = document.getElementById('myMissionsList');
-    if (joinedMissions.length === 0) {
-        listEl.textContent = 'You haven\\'t joined any missions.';
-        return;
-    }
-    var html = '';
-    joinedMissions.forEach(function(m) {
-        html += '<div class="list-item" data-id="' + m.id + '">' +
-                '<div class="title">' + m.title + '</div>' +
-                '<div>🚗 ' + (m.drivers||0) + '</div>' +
-                '<div>👤 ' + (m.passengers||0) + '</div>' +
-                '</div>';
     });
-    listEl.innerHTML = html;
-    document.querySelectorAll('#myMissionsList .list-item').forEach(function(item) {
-        item.addEventListener('click', function() {
-            var id = this.dataset.id;
-            var mission = joinedMissions.find(function(x){ return x.id == id; });
-            if (mission) {
-                openMissionDetail(mission);
-            }
-        });
-    });
-}
 
-// Chat send message
-function sendMessage() {
-    var text = document.getElementById('chatInput').value.trim();
-    if (!text || !currentMission) return;
-    var msg = { user: username, text: text, time: new Date().toLocaleTimeString() };
-    if (!chats[currentMission.id]) chats[currentMission.id] = [];
-    chats[currentMission.id].push(msg);
-    var box = document.getElementById('chatBox');
-    var div = document.createElement('div');
-    div.className = 'chat-message';
-    div.innerHTML = '<span>' + msg.user + ':</span> ' + msg.text;
-    box.appendChild(div);
-    document.getElementById('chatInput').value = '';
-    box.scrollTop = box.scrollHeight;
-}
+    submitRatingBtn.onclick = function() {
+        if (selectedRating > 0) {
+            // Send rating to server
+            fetch('/api/v3/crew/rate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ crewId: currentCrew.id, rating: selectedRating })
+            }).catch(e => {});
+            submitRatingBtn.style.display = 'none';
+            document.getElementById('stars').style.display = 'none';
+            thankyouText.style.display = 'block';
+        }
+    };
 
-document.getElementById('backBtn').addEventListener('click', function() {
-    openTab(lastTab);
+    roleDriverBtn.onclick = function() {
+        const name = usernameInput.value.trim();
+        if (!name) { alert('Пожалуйста, введите имя.'); return; }
+        currentUser = name;
+        currentRole = 'driver';
+        localStorage.setItem('username', currentUser);
+        localStorage.setItem('role', currentRole);
+        showBoardScreen();
+    };
+
+    rolePassengerBtn.onclick = function() {
+        const name = usernameInput.value.trim();
+        if (!name) { alert('Пожалуйста, введите имя.'); return; }
+        currentUser = name;
+        currentRole = 'passenger';
+        localStorage.setItem('username', currentUser);
+        localStorage.setItem('role', currentRole);
+        showBoardScreen();
+    };
+
+    logoutBtn.onclick = function() {
+        localStorage.removeItem('username');
+        localStorage.removeItem('role');
+        currentUser = '';
+        currentRole = '';
+        currentCrew = null;
+        showScreen(loginScreen);
+    };
+
+    init();
 });
-document.getElementById('discoverBtn').addEventListener('click', function(){ openTab('discover'); loadMissions(); });
-document.getElementById('createBtn').addEventListener('click', function(){ openTab('create'); loadRoutes(); });
-document.getElementById('myBtn').addEventListener('click', function(){ openTab('my'); renderMyMissions(); });
-document.getElementById('profileBtn').addEventListener('click', function(){ openTab('profile'); });
-document.getElementById('saveUserBtn').addEventListener('click', saveUsername);
-document.getElementById('createBtnAction').addEventListener('click', createMission);
-document.getElementById('joinBtn').addEventListener('click', joinCurrentMission);
-document.getElementById('leaveBtn').addEventListener('click', leaveCurrentMission);
-document.getElementById('sendBtn').addEventListener('click', sendMessage);
-
-// Init
-loadJoinedMissions();
-if (loadUsername()) {
-    openTab('discover');
-    loadMissions();
-}
 </script>
+
 </body>
 </html>
