@@ -1713,7 +1713,6 @@
           </div>
         </div>
         <div class="s-foot">
-          <div class="btn btn-lime" id="homeBoardBtn" onclick="openBoard()">Переглянути дошку маршрутів</div>
           <div class="btn btn-ghost" style="margin-top:8px" onclick="showScreen('sc-role','left')">← Змінити роль</div>
         </div>
       </div>
@@ -1790,7 +1789,6 @@
         </div>
         <div class="s-foot">
           <div class="btn btn-sky" onclick="_history.push('sc-trips');showScreen('sc-active-trip');renderTrip()">Поточна поїздка</div>
-          <div class="btn btn-ghost" style="margin-top:8px" onclick="openBoard()">До дошки маршрутів</div>
         </div>
       </div>
 
@@ -1883,7 +1881,7 @@
         <div class="hero-banner" style="--clr:rgba(255,154,60,.08)">
           <div class="hb-tag" id="mcTag">Пошук попутника</div>
           <div class="hb-title">Знайомства<br><span style="color:var(--orange)">поруч</span></div>
-          <div class="hb-sub" id="mcSub">Свайпайте картки — знаходьте попутників</div>
+          <div class="hb-sub" id="mcSub">Перегляньте картки — натисніть ✅ щоб запросити</div>
         </div>
         <div class="s-body s-pad">
           <div id="mcDeck" class="mc-deck">
@@ -1891,24 +1889,27 @@
               <div class="mc-empty-ico">
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1"><circle cx="12" cy="12" r="10"/><path d="M8 15s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
               </div>
-              <div class="mc-empty-txt">Поки немає мечів</div>
-              <div class="mc-empty-sub">Підпишіться на напрямок — і мечі з'являться тут</div>
+              <div class="mc-empty-txt">Поки немає матчів</div>
+              <div class="mc-empty-sub">Підпишіться на напрямок — і матчі з'являться тут</div>
             </div>
           </div>
           <!-- Pending handshakes -->
-          <div class="sec-title" style="margin-top:20px" id="mcPendTitle" style="display:none">Очікують відповіді</div>
+          <div class="sec-title" style="margin-top:20px" id="mcPendTitle" style="display:none">📩 Вас запрошують</div>
           <div id="mcPendList" class="mc-pend-list"></div>
         </div>
         <div class="s-foot" id="mcFoot" style="display:none">
           <div class="mc-actions">
-            <button class="mc-btn mc-decline" onclick="matchRespond('decline')" title="Відхилити">
+            <button class="mc-btn mc-decline" onclick="matchRespond('decline')" title="Пропустити">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              <span style="font-size:11px;display:block;margin-top:4px">Пропустити</span>
             </button>
             <button class="mc-btn mc-tired" onclick="matchTired()" title="Втомився чекати">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+              <span style="font-size:11px;display:block;margin-top:4px">Не шукати</span>
             </button>
-            <button class="mc-btn mc-accept" onclick="matchRespond('accept')" title="Прийняти">
+            <button class="mc-btn mc-accept" onclick="matchRespond('accept')" title="Запросити">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              <span style="font-size:11px;display:block;margin-top:4px;font-weight:600">Запросити</span>
             </button>
           </div>
         </div>
@@ -2322,7 +2323,7 @@
         ? 'Оберіть напрямок і станьте видимими на дошці'
         : 'Оберіть напрямок і підпишіться — вас знайдуть';
 
-      document.getElementById('homeBoardBtn').className = 'btn ' + (isDriver ? 'btn-lime' : 'btn-sky');
+
 
       // Role-aware subBtn text
       var subBtn = document.getElementById('subBtn');
@@ -2837,8 +2838,8 @@
             '<div><div class="mc-pend-name">' + (h.target_name || 'ID:' + h.target_id) + '</div>' +
             '<div class="mc-pend-dir">' + (h.direction || '?') + '</div></div>' +
             '<div class="mc-pend-btns">' +
-            '<button class="mc-pend-btn ok" onclick="respondPending('+h.target_id+','+h.direction_id+',true)">Так</button>' +
-            '<button class="mc-pend-btn no" onclick="respondPending('+h.target_id+','+h.direction_id+',false)">Ні</button>' +
+            '<button class="mc-pend-btn ok" onclick="respondPending('+h.target_id+','+h.direction_id+',true)">✅ Прийняти</button>' +
+            '<button class="mc-pend-btn no" onclick="respondPending('+h.target_id+','+h.direction_id+',false)">❌ Відхилити</button>' +
             '</div></div>';
         }).join('');
       } else {
@@ -2850,8 +2851,8 @@
     function renderMatchCard() {
       var deck = document.getElementById('mcDeck');
       if (_matchIdx >= _matchCards.length) {
-        deck.innerHTML = '<div class="mc-empty"><div class="mc-empty-txt">Більше немає карток</div>' +
-          '<div class="mc-empty-sub">Поверніться пізніше</div></div>';
+        deck.innerHTML = '<div class="mc-empty"><div class="mc-empty-txt">Картки закінчились</div>' +
+          '<div class="mc-empty-sub">Підпишіться на більше напрямків або поверніться пізніше</div></div>';
         document.getElementById('mcFoot').style.display = 'none';
         return;
       }
@@ -2863,7 +2864,7 @@
         '<div class="mc-card-info">' +
           (m.car ? '<div class="mc-card-field"><div class="mc-card-fl">Авто</div><div class="mc-card-fv">' + m.car + '</div></div>' : '') +
           (m.seats ? '<div class="mc-card-field"><div class="mc-card-fl">Місця</div><div class="mc-card-fv">' + m.seats + '</div></div>' : '') +
-          (m.phone ? '<div class="mc-card-field"><div class="mc-card-fl">Телефон</div><div class="mc-card-fv">' + m.phone + '</div></div>' : '') +
+
           (m.rating ? '<div class="mc-card-field"><div class="mc-card-fl">Рейтинг</div><div class="mc-card-fv">' + m.rating + ' ★</div></div>' : '') +
         '</div>' +
         '<div class="mc-card-dir">' + (m.direction || '?') + '</div>' +
@@ -2893,7 +2894,7 @@
           }, 600);
           return;
         } else {
-          toast('Запрошення надіслано!', 'ok');
+          toast('Запрошення надіслано! Чекаємо відповіді іншої сторони', 'ok');
         }
       } else {
         // decline = просто skip картки, без API виклику
