@@ -2279,6 +2279,23 @@
       ST.role = r;
       try { localStorage.setItem('wt_role', r); } catch(e){}
       var isDriver = r === 'driver';
+      var dbRole = isDriver ? 'driver' : 'client';
+
+      // 🔗 Register user in DB (required for match/find)
+      if (ST.user && ST.user.id) {
+        api('/api/v3/user/register', {}, {
+          method: 'POST',
+          body: JSON.stringify({ user_id: ST.user.id, name: ST.user.first_name || '', role: dbRole })
+        }).then(function(reg) {
+          // If user already exists, update role
+          if (reg && reg.status === 'exists') {
+            api('/api/v3/user/role', {}, {
+              method: 'POST',
+              body: JSON.stringify({ user_id: ST.user.id, role: dbRole })
+            });
+          }
+        });
+      }
 
       // update header chip
       var chip = document.getElementById('roleChip');
@@ -2511,12 +2528,19 @@
         method: 'POST',
         body: JSON.stringify({ direction_id: id, user_id: ST.user.id, role: role })
       });
-      if (r && r.status === 'ok') {
-        toast('Підписку оновлено', 'ok');
+      if (r && (r.status === 'ok' || r.status === 'already_subscribed')) {
+        toast(r.status === 'ok' ? 'Підписку оновлено' : 'Ви вже підписані', 'ok');
         loadDirs(ST.curParentId || ST.curCatId);
-      } else if (r && r.status === 'already_subscribed') {
-        toast('Ви вже підписані на цей напрямок', 'ok');
-        loadDirs(ST.curParentId || ST.curCatId);
+        // 🔗 Auto-match: search for match immediately after subscribe
+        var dm = await api('/api/v3/match/find', { user_id: ST.user.id, direction_id: id });
+        if (dm && dm.match && dm.match.user_id) {
+          toast('Знайдено попутника! 🎉', 'ok');
+          setTimeout(function() {
+            _history.push('sc-board');
+            showScreen('sc-match');
+            renderMatch();
+          }, 800);
+        }
       } else {
         toast('Помилка підписки', 'err');
       }
