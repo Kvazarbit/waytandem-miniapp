@@ -2215,12 +2215,25 @@
 
     // ══ NAVIGATION ════════════════════════════════════════════════
     var _history = [];   // screen stack for back
+    var _matchPollTimer = null; // Авто-оновлення екрану మ్యాచ్ів
 
     function showScreen(id, dir) {
       var next = document.getElementById(id);
       if (!next) return;
       var cur = document.querySelector('.screen.active');
       if (cur === next) return;
+
+      // Toggle match poll timer
+      if (id === 'sc-match') {
+        if (!_matchPollTimer) {
+          _matchPollTimer = setInterval(renderMatch, 7000);
+        }
+      } else {
+        if (_matchPollTimer) {
+          clearInterval(_matchPollTimer);
+          _matchPollTimer = null;
+        }
+      }
 
       // Підготувати новий екран з потрібного боку
       var comingFromRight = (dir !== 'left');
@@ -2939,7 +2952,15 @@
       });
       if (r && r.status === 'ok') {
         toast(accept ? 'Прийнято! Поїздку створено.' : 'Відхилено', accept ? 'ok' : '');
-        renderMatch();
+        if (accept && r.mutual) {
+          setTimeout(function () {
+            _history.push('sc-match');
+            showScreen('sc-trips');
+            renderHistory();
+          }, 600);
+        } else {
+          renderMatch();
+        }
       } else {
         toast('Помилка', 'err');
       }
