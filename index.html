@@ -2516,6 +2516,7 @@
         loadDirs(ST.curParentId || ST.curCatId);
       } else if (r && r.status === 'already_subscribed') {
         toast('Ви вже підписані на цей напрямок', 'ok');
+        loadDirs(ST.curParentId || ST.curCatId);
       } else {
         toast('Помилка підписки', 'err');
       }
