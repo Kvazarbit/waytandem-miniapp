@@ -1439,35 +1439,36 @@
     .mc-actions {
       display: flex;
       justify-content: center;
-      gap: 16px;
+      gap: 10px;
       padding: 4px 0;
     }
     .mc-btn {
-      width: 56px;
-      height: 56px;
-      border-radius: 50%;
+      border-radius: 20px;
       border: 2px solid;
       background: transparent;
       display: flex;
       align-items: center;
       justify-content: center;
+      gap: 6px;
       cursor: pointer;
       transition: all .2s;
+      padding: 10px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
     }
+    .mc-btn svg { flex-shrink: 0; }
     .mc-decline {
       border-color: var(--red);
       color: var(--red);
     }
     .mc-decline:active {
       background: rgba(255,77,77,.2);
-      transform: scale(1.1);
+      transform: scale(1.05);
     }
     .mc-tired {
       border-color: var(--muted);
       color: var(--muted);
-      width: 44px;
-      height: 44px;
-      align-self: center;
     }
     .mc-tired:active {
       background: rgba(255,255,255,.1);
@@ -1478,7 +1479,7 @@
     }
     .mc-accept:active {
       background: rgba(201,255,71,.2);
-      transform: scale(1.1);
+      transform: scale(1.05);
     }
     .mc-pend-list {
       display: flex;
@@ -1899,17 +1900,17 @@
         </div>
         <div class="s-foot" id="mcFoot" style="display:none">
           <div class="mc-actions">
-            <button class="mc-btn mc-decline" onclick="matchRespond('decline')" title="Пропустити">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              <span style="font-size:11px;display:block;margin-top:4px">Пропустити</span>
+            <button class="mc-btn mc-decline" onclick="matchRespond('decline')">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              Ні
             </button>
-            <button class="mc-btn mc-tired" onclick="matchTired()" title="Втомився чекати">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-              <span style="font-size:11px;display:block;margin-top:4px">Не шукати</span>
+            <button class="mc-btn mc-tired" onclick="matchTired()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+              Стоп
             </button>
-            <button class="mc-btn mc-accept" onclick="matchRespond('accept')" title="Запросити">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-              <span style="font-size:11px;display:block;margin-top:4px;font-weight:600">Запросити</span>
+            <button class="mc-btn mc-accept" onclick="matchRespond('accept')">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              Запросити
             </button>
           </div>
         </div>
