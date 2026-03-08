@@ -2796,6 +2796,7 @@
     // ══ MATCH ══════════════════════════════════════════════════════
     var _matchCards = [];
     var _matchIdx = 0;
+    var _matchPollTimer = null;
 
     async function renderMatch() {
       var deck = document.getElementById('mcDeck');
@@ -2846,6 +2847,12 @@
       } else {
         pendTitle.style.display = 'none';
         pendList.innerHTML = '';
+      }
+
+      // Schedule next refresh if still on match screen
+      if (_matchPollTimer) clearTimeout(_matchPollTimer);
+      if (document.getElementById('sc-match').classList.contains('active')) {
+        _matchPollTimer = setTimeout(renderMatch, 7000);
       }
     }
 
