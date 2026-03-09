@@ -678,14 +678,14 @@ html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(
       <div style="background:var(--card2);border:1.5px solid rgba(201,255,71,.2);border-radius:var(--r);padding:18px 20px;margin-bottom:16px">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
           <div style="width:10px;height:10px;border-radius:50%;background:var(--lime);box-shadow:0 0 10px var(--lime);flex-shrink:0"></div>
-          <div style="font-size:14px;font-weight:700;color:var(--white);flex:1">?????? #<span id="tripCrewNum">1</span> ? <span id="tripStageText">????????</span></div>
-          <div id="tripStatusBadge" style="font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;background:rgba(201,255,71,.1);color:var(--lime)">? ??????</div>
+          <div style="font-size:14px;font-weight:700;color:var(--white);flex:1">Екіпаж #<span id="tripCrewNum">1</span> · <span id="tripStageText">Активний</span></div>
+          <div id="tripStatusBadge" style="font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;background:rgba(201,255,71,.1);color:var(--lime)">В дорозі</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:6px">
-          <div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted)">???????????</span><span id="tripOrganizerName" style="font-size:12px;font-weight:600;color:var(--white)">????? ?.</span></div>
-          <div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted)">???????</span><span id="tripRouteName" style="font-size:12px;font-weight:600;color:var(--white)">????? ? ????????</span></div>
-          <div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted)">??? ????</span><span id="tripViewerRole" style="font-size:12px;font-weight:600;color:var(--white)">????????</span></div>
-          <div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted)">????</span><span id="tripPickupName" style="font-size:12px;font-weight:600;color:var(--white)">????? ???????????</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted)">Організатор</span><span id="tripOrganizerName" style="font-size:12px;font-weight:600;color:var(--white)">Тарас Г.</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted)">Маршрут</span><span id="tripRouteName" style="font-size:12px;font-weight:600;color:var(--white)">Львів → Буковель</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted)">Моя роль</span><span id="tripViewerRole" style="font-size:12px;font-weight:600;color:var(--white)">попутник</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted)">Збір</span><span id="tripPickupName" style="font-size:12px;font-weight:600;color:var(--white)">Місце уточнюється</span></div>
         </div>
       </div>
       <div style="display:flex;gap:8px">
@@ -791,7 +791,7 @@ html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(
     <div class="sh-title">🚗 Відкрити екіпаж</div>
     <div style="background:var(--card2);border:1px solid var(--border);border-radius:var(--r2);padding:12px 14px;margin-bottom:12px">
       <div style="font-size:11px;color:var(--muted);margin-bottom:3px">Виїзд</div>
-      <div id="createCrewDirectionLabel" style="font-size:13px;font-weight:600;color:var(--white)">??????? ???????? ?? ?????</div>
+      <div id="createCrewDirectionLabel" style="font-size:13px;font-weight:600;color:var(--white)">Оберіть напрямок на дошці</div>
     </div>
     <div style="margin-bottom:14px">
       <label style="display:block;font-size:10px;font-weight:700;color:var(--muted);margin-bottom:5px;letter-spacing:.5px;text-transform:uppercase">Місце збору</label>
@@ -814,12 +814,12 @@ var IS_TG_AUTH=!!(tg&&tg.initData&&tgUser.id);
 var READ_ONLY_DEMO=!IS_TG_AUTH;
 function requireLiveIdentity(actionText){
   if(IS_TG_AUTH&&ST.user.id)return true;
-  toast(actionText||'?? ??? ???????? ???? ? Telegram Mini App','err');
+  toast(actionText||'Увійдіть через Telegram Mini App','err');
   return false;
 }
 function requireProfileRole(actionText){
   if(ST.role)return true;
-  toast(actionText||'???????? ??????? ????????? ? ????? ????','err');
+  toast(actionText||'Спочатку завершіть реєстрацію і виберіть роль','err');
   return false;
 }
 
@@ -873,13 +873,13 @@ function setTripPanelVisible(active){
   if(nw)nw.style.display=active?'none':'';
 }
 function formatTripStatus(status){
-  var map={pending:'?????? ?????????????',pending_confirm:'?????????????',active:'????????',pickup:'????',driving:'? ??????'};
-  return map[status]||'????????';
+  var map={pending:'Очікує підтвердження',pending_confirm:'Підтвердження',active:'Активний',pickup:'Збір',driving:'В дорозі'};
+  return map[status]||'Активний';
 }
-function formatViewerRole(role){return role==='driver'?'???????????':'????????';}
+function formatViewerRole(role){return role==='driver'?'Організатор':'Попутник';}
 function openCreateCrewSheet(){
   var label=document.getElementById('createCrewDirectionLabel');
-  if(label)label.textContent=FX.dirTitle||'??????? ???????? ?? ?????';
+  if(label)label.textContent=FX.dirTitle||'Напрямок збору чи місто';
   openSheet('ovCreateCrew');
 }
 async function hydrateTrip(){
@@ -897,11 +897,11 @@ async function hydrateTrip(){
     badge.style.color=(data.status==='pending'||data.status==='pending_confirm')?'var(--sky)':'var(--lime)';
   }
   var org=document.getElementById('tripOrganizerName');if(org)org.textContent=data.organizer_name||'?';
-  var route=document.getElementById('tripRouteName');if(route)route.textContent=data.route_label||data.direction_title||data.destination||'??????? ???????????';
+  var route=document.getElementById('tripRouteName');if(route)route.textContent=data.route_label||data.direction_title||data.destination||'Напрямок невідомий';
   var role=document.getElementById('tripViewerRole');if(role)role.textContent=formatViewerRole(data.viewer_role);
-  var pickup=document.getElementById('tripPickupName');if(pickup)pickup.textContent=data.pickup||'????? ???????????';
-  var lbl=document.getElementById('composeLbl');if(lbl)lbl.textContent='??? ????? ??????? #'+String(data.crew_display_id||data.crew_id||data.id||'');
-  var inp=document.getElementById('composeInput');if(inp&&document.getElementById('chatList').style.display==='none')inp.placeholder='???????? ??? ??????? #'+String(data.crew_display_id||data.crew_id||data.id||'...');
+  var pickup=document.getElementById('tripPickupName');if(pickup)pickup.textContent=data.pickup||'Місце збору';
+  var lbl=document.getElementById('composeLbl');if(lbl)lbl.textContent='ВІД ІМЕНІ ЕКІПАЖУ #'+String(data.crew_display_id||data.crew_id||data.id||'');
+  var inp=document.getElementById('composeInput');if(inp&&document.getElementById('chatList').style.display==='none')inp.placeholder='Написати від екіпажу #'+String(data.crew_display_id||data.crew_id||data.id||'...');
   setTripPanelVisible(true);
 }
 
@@ -1022,12 +1022,12 @@ function renderBoard(interests, userStatus){
 }
 
 async function subscribeDir(dirId, dirTitle){
-  if(!requireLiveIdentity('???????? ???????? ???? ? Telegram Mini App'))return;
+  if(!requireLiveIdentity('Підписка доступна тільки в Telegram Mini App'))return;
   if(!requireProfileRole())return;
   var webRole=(ST.role==='traveler'||ST.role==='organizer')?'driver':'passenger';
   var res=await api('/api/v3/board/subscribe',{},{method:'POST',body:JSON.stringify({direction_id:dirId,user_id:ST.user.id,role:webRole})});
-  if(!res){toast('?? ??????? ???????????','err');return;}
-  toast(res.status==='already_subscribed'?'?? ??? ?????????? ?? ?'+dirTitle+'?':'?? ??????????? ?? ?'+dirTitle+'?');
+  if(!res){toast('Не вдалося підписатись','err');return;}
+  toast(res.status==='already_subscribed'?'Ви вже підписані на '+dirTitle:'Підписано на '+dirTitle);
   setTimeout(loadBoard,500);
 }
 
@@ -1149,7 +1149,7 @@ function renderCrews(crews, userStatus){
   var list=document.getElementById('crewsList');
   if(!list)return;
   if(!crews||crews.length===0){
-    list.innerHTML='<div style="padding:28px;text-align:center;color:var(--muted);font-size:13px">???? ????? ????????<br><span style="color:var(--dim);font-size:11px">??????? ?????? ??????!</span></div>';
+    list.innerHTML='<div style="padding:28px;text-align:center;color:var(--muted);font-size:13px">Поки немає екіпажів<br><span style="color:var(--dim);font-size:11px">Відкрий перший екіпаж!</span></div>';
     return;
   }
   var joinedId=(userStatus.status&&userStatus.status!=='pending'&&userStatus.status!=='pending_confirm')?(userStatus.joined_crew_id||ST.joinedCrew):ST.joinedCrew;
@@ -1174,29 +1174,29 @@ function renderCrews(crews, userStatus){
     seats.forEach(function(s){html+='<div class="seat '+s.type+'"></div>';});
     html+='</div></div>';
     html+='<div class="crew-detail"><div class="cd-inner">';
-    if(crew.pickup)html+='<div class="cd-row"><span class="cd-lbl">????? ?????</span><span class="cd-val">'+escHtml(crew.pickup)+'</span></div>';
+    if(crew.pickup)html+='<div class="cd-row"><span class="cd-lbl">Місце збору</span><span class="cd-val">'+escHtml(crew.pickup)+'</span></div>';
     if(crew.members&&crew.members.length>0){
       html+='<div class="cd-members">';
       crew.members.forEach(function(m,mi){
         var mgrad=_AV_GRADIENTS[mi%_AV_GRADIENTS.length];
         var mletter=(m.name||'?')[0].toUpperCase();
-        html+='<div class="cd-member"><div class="cd-av" style="background:'+mgrad+'">'+mletter+'</div><div class="cd-role">'+(m.role==='driver'?'?????':'????????')+'</div></div>';
+        html+='<div class="cd-member"><div class="cd-av" style="background:'+mgrad+'">'+mletter+'</div><div class="cd-role">'+(m.role==='driver'?'Водій':'Попутник')+'</div></div>';
       });
       for(var fi=0;fi<crew.seats_free;fi++){
-        html+='<div class="cd-member"><div class="cd-empty">?</div><div class="cd-role">??????</div></div>';
+        html+='<div class="cd-member"><div class="cd-empty">+</div><div class="cd-role">Вільно</div></div>';
       }
       html+='</div>';
     }
     if(isOwnCrew){
-      html+='<button class="join-btn" style="background:rgba(77,207,255,.08);color:var(--sky);border:1px solid rgba(77,207,255,.24);width:100%;padding:11px;border-radius:10px;font-family:Manrope,sans-serif;font-size:13px;font-weight:800;cursor:default;text-align:center">?? ??? ??????</button>';
+      html+='<button class="join-btn" style="background:rgba(77,207,255,.08);color:var(--sky);border:1px solid rgba(77,207,255,.24);width:100%;padding:11px;border-radius:10px;font-family:Manrope,sans-serif;font-size:13px;font-weight:800;cursor:default;text-align:center">Це мій екіпаж</button>';
     } else if(isJoined){
-      html+='<button class="join-btn" style="background:rgba(201,255,71,.1);color:var(--lime);border:1px solid rgba(201,255,71,.2);width:100%;padding:11px;border-radius:10px;font-family:Manrope,sans-serif;font-size:13px;font-weight:800;cursor:default;text-align:center">? ?? ??? ? ????? ???????</button>';
+      html+='<button class="join-btn" style="background:rgba(201,255,71,.1);color:var(--lime);border:1px solid rgba(201,255,71,.2);width:100%;padding:11px;border-radius:10px;font-family:Manrope,sans-serif;font-size:13px;font-weight:800;cursor:default;text-align:center">Я вже тут в цьому екіпажі</button>';
     } else if(isPending){
-      html+='<button class="join-btn" style="background:rgba(77,207,255,.08);color:var(--sky);border:1px solid rgba(77,207,255,.24);width:100%;padding:11px;border-radius:10px;font-family:Manrope,sans-serif;font-size:13px;font-weight:800;cursor:default;text-align:center">? ????? ?????? ?????????????</button>';
+      html+='<button class="join-btn" style="background:rgba(77,207,255,.08);color:var(--sky);border:1px solid rgba(77,207,255,.24);width:100%;padding:11px;border-radius:10px;font-family:Manrope,sans-serif;font-size:13px;font-weight:800;cursor:default;text-align:center">Я чекаю підтвердження</button>';
     } else if(hasFree){
-      html+='<button class="join-btn join-lime" onclick="event.stopPropagation();joinCrewById('+JSON.stringify(crewLabel)+','+n+','+JSON.stringify(crewLabel)+')">?? ??????????? ?? ??????? #'+crewLabel+'</button>';
+      html+='<button class="join-btn join-lime" onclick="event.stopPropagation();joinCrewById('+JSON.stringify(crewLabel)+','+n+','+JSON.stringify(crewLabel)+')">🚀 Приєднатись до екіпажу #'+crewLabel+'</button>';
     } else {
-      html+='<button class="join-btn join-ask" onclick="event.stopPropagation();toast('+JSON.stringify("????? ????? ?????, ??? ?????? ?? ???? ???????? ????????? ?????")+')">? ????? ?? ?????</button>';
+      html+='<button class="join-btn join-ask" onclick="event.stopPropagation();toast('+JSON.stringify("Екіпаж зараз повний, але можете написати повідомлення у загальний чат.")+')">В екіпажі немає місць</button>';
     }
     html+='</div></div></div>';
   });
@@ -1205,31 +1205,31 @@ function renderCrews(crews, userStatus){
 
 async function joinCrewById(crewId, cardIndex, crewLabel){
   var crewKey=String(crewId);
-  if(String(ST.joinedCrew||'')===crewKey){toast('?? ??? ? ??????? #'+crewLabel);return;}
-  if(String(ST.pendingCrew||'')===crewKey){toast('????? ??? ?????? ?????????????');return;}
-  if(!requireLiveIdentity('?????????? ???????? ?????? ? Telegram Mini App'))return;
+  if(String(ST.joinedCrew||'')===crewKey){toast('Ви вже в екіпажі #'+crewLabel);return;}
+  if(String(ST.pendingCrew||'')===crewKey){toast('Запит уже очікує підтвердження');return;}
+  if(!requireLiveIdentity('Приєднання доступне тільки в Telegram Mini App'))return;
   if(!requireProfileRole())return;
-  if(!FX.dirId||!FX.orgId){toast('?????? ??????? ????????? ???????? ? ??????','err');return;}
+  if(!FX.dirId||!FX.orgId){toast('Спершу відкрий потрібний напрямок і екіпаж','err');return;}
   var res=await api('/api/v3/handshake',{},{method:'POST',body:JSON.stringify({
     user_id:ST.user.id,
     crew_id:crewId,
     direction_id:FX.dirId,
     organizer_id:FX.orgId
   })});
-  if(!res){toast('?? ??????? ????????? ?????','err');return;}
+  if(!res){toast('Не вдалося надіслати запит','err');return;}
   var card=document.getElementById('crew'+cardIndex);
   var btn=card&&card.querySelector('.join-lime');
   if(res.mutual){
     ST.pendingCrew=null;
     ST.joinedCrew=res.crew_id||crewId;
-    toast('?????? #'+crewLabel+' ????????????');
-    if(btn){btn.innerHTML='? ?? ??? ? ????? ???????';btn.style.cssText='background:rgba(201,255,71,.1);color:var(--lime);box-shadow:none;border:1px solid rgba(201,255,71,.2);width:100%;padding:11px;border-radius:10px;font-family:Manrope,sans-serif;font-size:13px;font-weight:800;cursor:default;text-align:center;';}
+    toast('Екіпаж #'+crewLabel+' підтверджено');
+    if(btn){btn.innerHTML='✓ Ви вже в цьому екіпажі';btn.style.cssText='background:rgba(201,255,71,.1);color:var(--lime);box-shadow:none;border:1px solid rgba(201,255,71,.2);width:100%;padding:11px;border-radius:10px;font-family:Manrope,sans-serif;font-size:13px;font-weight:800;cursor:default;text-align:center;';}
     setTimeout(function(){hydrateTrip();navTo(2);},900);
     return;
   }
   ST.pendingCrew=crewId;
-  toast('????? ????????? ????????????');
-  if(btn){btn.innerHTML='? ????? ?????? ?????????????';btn.style.cssText='background:rgba(77,207,255,.08);color:var(--sky);box-shadow:none;border:1px solid rgba(77,207,255,.24);width:100%;padding:11px;border-radius:10px;font-family:Manrope,sans-serif;font-size:13px;font-weight:800;cursor:default;text-align:center;';}
+  toast('Запит надіслано організатору');
+  if(btn){btn.innerHTML='⏳ Запит очікує підтвердження';btn.style.cssText='background:rgba(77,207,255,.08);color:var(--sky);box-shadow:none;border:1px solid rgba(77,207,255,.24);width:100%;padding:11px;border-radius:10px;font-family:Manrope,sans-serif;font-size:13px;font-weight:800;cursor:default;text-align:center;';}
 }
 function joinCrew(n){
   var card=document.getElementById('crew'+n);
@@ -1249,7 +1249,7 @@ function selectRegRole(role){
 }
 function completeReg(){
   var name=(document.getElementById('regName').value||'').trim();
-  if(!name){toast("????? ???? ??'?",'err');return;}
+  if(!name){toast("Вкажіть своє ім’я",'err');return;}
   ST.user.name=name;ST.city=document.getElementById('regCity').value;ST.onboarded=true;saveState();enterApp();
   if(IS_TG_AUTH&&ST.user.id){
     api('/api/v3/user/register',{},{method:'POST',body:JSON.stringify({user_id:ST.user.id,name:name,role:(ST.role==='traveler'||ST.role==='organizer')?'driver':'client'})});
@@ -1261,8 +1261,8 @@ function enterApp(){
   document.getElementById('appHdr').style.display='';
   document.getElementById('appNav').style.display='';
   updateAvatar();showScreen('sc-board');updateNav(1);
-  if(API_URL){loadBoard();hydrateTrip();}else{setTimeout(function(){toast('?? ???????? ?????? ??? ????? ?????');},800);}
-  if(READ_ONLY_DEMO){setTimeout(function(){toast('????-?????: ???? ??? ???????? ???? ? Telegram Mini App');},1200);}
+  if(API_URL){loadBoard();hydrateTrip();}else{setTimeout(function(){toast('Спочатку підключіть сервер через меню');},800);}
+  if(READ_ONLY_DEMO){setTimeout(function(){toast('Демо-режим: поза Telegram Mini App доступний лише перегляд');},1200);}
 }
 
 function updateAvatar(){
@@ -1306,29 +1306,29 @@ function toggleCrew(n){
 // legacy joinCrew block removed; wrapper above is canonical
 
 function leaveCrew(){
-  if(!confirm('??????? ????? ? ????????'))return;
+  if(!confirm('Справді вийти з екіпажу?'))return;
   ST.joinedCrew=null;ST.pendingCrew=null;
   setTripPanelVisible(false);
-  toast('?? ?????? ? ???????');
+  toast('Ви вийшли з екіпажу');
 }
 function createCrew(){
   var p=(document.getElementById('crewPickup').value||'').trim();
-  if(!p){toast('??????? ????? ?????','err');return;}
-  if(!requireLiveIdentity('????????? ??????? ???????? ?????? ? Telegram Mini App'))return;
+  if(!p){toast('Вкажіть місце збору','err');return;}
+  if(!requireLiveIdentity('Створення екіпажу доступне тільки в Telegram Mini App'))return;
   if(!requireProfileRole())return;
-  if(!FX.dirId){toast('?????? ??????? ????????? ????????','err');return;}
-  if(!isDriverLikeRole()){toast('???????? ?????? ?????? ??????????? ??? ????????????','err');return;}
+  if(!FX.dirId){toast('Спершу відкрий потрібний напрямок','err');return;}
+  if(!isDriverLikeRole()){toast('Відкрити екіпаж можуть мандрівники або організатори','err');return;}
   api('/api/v3/crews/open',{},{method:'POST',body:JSON.stringify({
     user_id:ST.user.id,
     direction_id:FX.dirId,
     pickup:p
   })}).then(async function(res){
-    if(!res){toast('?? ??????? ???????? ??????','err');return;}
+    if(!res){toast('Не вдалося відкрити екіпаж','err');return;}
     document.getElementById('crewPickup').value='';
     closeSheet('ovCreateCrew');
     FX.orgId=ST.user.id;
     FX.orgName=ST.user.name||'?';
-    toast('?????? #'+String(res.crew_id||'?')+' ????????','ok');
+    toast('Екіпаж #'+String(res.crew_id||'?')+' відкрито','ok');
     showScreen('sc-crews');
     await loadCrews(FX.orgId, FX.dirId);
     hydrateTrip();
