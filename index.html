@@ -1138,11 +1138,82 @@ async function loadCrews(orgId, dirId){
   var ef=document.getElementById('chipFree');if(ef)ef.textContent=(sum.total_free||0)+' вільних місць';
   var em=document.getElementById('chipMembers');if(em)em.textContent=(sum.total_members||0)+' людей';
   var lv=document.getElementById('crewsLvLabel');if(lv)lv.textContent='Всі екіпажі'+(data.organizer&&data.organizer.direction?' · '+data.organizer.direction:'');
-  // Update ST.joinedCrew from real data
-  if(data.user_status&&data.user_status.joined_crew_id){
-    ST.joinedCrew=data.user_status.joined_crew_id;
+  var userStatus=data.user_status||{};
+  if(userStatus.joined_crew_id&&(userStatus.status==='pending'||userStatus.status==='pending_confirm')){
+    ST.joinedCrew=null;
+    ST.pendingCrew=userStatus.joined_crew_id;
+  } else if(userStatus.joined_crew_id){
+    ST.joinedCrew=userStatus.joined_crew_id;
+    ST.pendingCrew=null;
+  } else {
+    ST.pendingCrew=null;
   }
-  renderCrews(data.crews||[], data.user_status||{});
+  renderCrews(data.crews||[], userStatus);
+  await loadCrewInbox(orgId, dirId);
+}
+
+async function loadCrewInbox(orgId, dirId){
+  var wrap=document.getElementById('crewsBotCards');
+  if(!wrap)return;
+  wrap.innerHTML='';
+  if(!API_URL||!IS_TG_AUTH||!ST.user.id||!orgId||!dirId)return;
+  if(Number(ST.user.id)!==Number(orgId))return;
+  var items=await api('/api/v3/match/pending',{user_id:ST.user.id,scope:'incoming',direction_id:dirId});
+  if(!items||!Array.isArray(items)||!items.length)return;
+  renderCrewInbox(items);
+}
+
+function renderCrewInbox(items){
+  var wrap=document.getElementById('crewsBotCards');
+  if(!wrap)return;
+  if(!items||!items.length){wrap.innerHTML='';return;}
+  var html='';
+  html+='<div style="background:rgba(77,207,255,.07);border:1px solid rgba(77,207,255,.18);border-radius:14px;padding:14px 14px 10px;margin-bottom:12px">';
+  html+='<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px">';
+  html+='<div><div style="font-size:13px;font-weight:800;color:var(--white)">Нові запити до екіпажу</div><div style="font-size:11px;color:var(--muted);margin-top:2px">Організатор підтверджує пасажирів прямо тут</div></div>';
+  html+='<div style="font-size:10px;font-weight:800;color:var(--sky);padding:4px 8px;border-radius:999px;background:rgba(77,207,255,.12)">'+String(items.length)+'</div>';
+  html+='</div>';
+  items.forEach(function(item){
+    var name=escHtml(item.partner_name||item.sender_name||'Попутник');
+    var direction=escHtml(item.direction||FX.dirTitle||'Напрямок');
+    html+='<div style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px">';
+    html+='<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">';
+    html+='<div><div style="font-size:13px;font-weight:700;color:var(--white)">'+name+'</div><div style="font-size:11px;color:var(--muted);margin-top:2px">Хоче приєднатись до виїзду · '+direction+'</div></div>';
+    html+='<div style="font-size:10px;color:var(--sky);font-weight:700">Очікує</div>';
+    html+='</div>';
+    html+='<div style="display:flex;gap:8px">';
+    html+='<button class="btn btn-lime" style="flex:1;font-size:12px;padding:10px 12px" onclick="event.stopPropagation();respondCrewInvite('+Number(item.partner_id||item.sender_id||0)+',true)">✅ Прийняти</button>';
+    html+='<button class="btn btn-ghost" style="flex:1;font-size:12px;padding:10px 12px" onclick="event.stopPropagation();respondCrewInvite('+Number(item.partner_id||item.sender_id||0)+',false)">Відхилити</button>';
+    html+='</div></div>';
+  });
+  wrap.innerHTML=html;
+}
+
+async function respondCrewInvite(partnerId, accept){
+  if(!requireLiveIdentity('Підтвердження доступне тільки в Telegram Mini App'))return;
+  if(!FX.dirId||!FX.orgId){toast('Спершу відкрий потрібний екіпаж','err');return;}
+  if(Number(ST.user.id)!==Number(FX.orgId)){toast('Підтверджувати може тільки організатор цього екіпажу','err');return;}
+  var res=await api('/api/v3/match/respond',{},{method:'POST',body:JSON.stringify({
+    user_id:ST.user.id,
+    target_id:partnerId,
+    direction_id:FX.dirId,
+    accept:!!accept
+  })});
+  if(!res){toast(accept?'Не вдалося підтвердити запит':'Не вдалося відхилити запит','err');return;}
+  if(accept&&res.mutual){
+    ST.joinedCrew=res.crew_id||ST.joinedCrew;
+    ST.pendingCrew=null;
+    toast('Попутника додано до екіпажу #'+String(res.crew_id||'?'),'ok');
+  } else if(accept){
+    toast('Запит підтверджено','ok');
+  } else {
+    toast('Запит відхилено');
+  }
+  await loadCrews(FX.orgId, FX.dirId);
+  if(accept&&res.mutual){
+    await hydrateTrip();
+    navTo(2);
+  }
 }
 
 function renderCrews(crews, userStatus){
