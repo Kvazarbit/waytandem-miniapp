@@ -355,7 +355,7 @@ export async function joinCrewLive(crewIdRaw) {
     return;
   }
 
-  await api('/api/v3/handshake', {
+  const res = await api('/api/v3/handshake', {
     method: 'POST',
     body: JSON.stringify({
       user_id: state.userId,
@@ -364,6 +364,11 @@ export async function joinCrewLive(crewIdRaw) {
       crew_id: Number(crewId),
     }),
   });
+
+  if (!res) {
+    showToast('Потрібно відкрити Mini App у Telegram');
+    return;
+  }
 
   showToast('🎉 Запит надіслано! Чекай підтвердження водія');
 }
