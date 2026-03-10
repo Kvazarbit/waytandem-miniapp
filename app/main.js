@@ -44,6 +44,7 @@ bindGlobals();
 window.addEventListener('DOMContentLoaded', () => {
   initTelegramUI();
   restoreApiUrl();
+  showView('home');
 });
 
 document.addEventListener('keydown', e => {
