@@ -15,6 +15,7 @@ export function saveApiUrl(val) {
     status.style.color = '';
   }
   if (apiBase) checkApiHealth();
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('wt-api-changed'));
 }
 
 export async function checkApiHealth() {
@@ -57,4 +58,5 @@ export function restoreApiUrl() {
   if (input) input.value = saved;
   apiBase = saved;
   checkApiHealth();
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('wt-api-changed'));
 }

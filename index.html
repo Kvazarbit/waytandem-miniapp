@@ -988,6 +988,7 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
         <div class="lv-line"></div>
       </div>
 
+      <div id="rootList">
       <!-- ROOT 1 -->
       <div class="int-card" style="--glow:rgba(201,255,71,.08)" onclick="showView(0)">
         <div class="ic-top" style="position:relative; z-index:2">
@@ -1056,6 +1057,7 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
         <div class="lv-line"></div>
       </div>
 
+      <div id="v0List">
       <!-- INTEREST 1 -->
       <div class="int-card" id="int1" style="--glow:rgba(201,255,71,.08)" onclick="drillToSubcat(1)">
         <div class="ic-top" style="position:relative; z-index:2">
@@ -1098,6 +1100,8 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
         </div>
       </div>
 
+      </div>
+
       <!-- BOT CARD -->
       <div class="bot-card ok" style="margin-top:4px">
         <div class="bc-ico" style="background:rgba(201,255,71,.1)">🤖</div>
@@ -1124,17 +1128,17 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
   <!-- ════════════ VIEW 0.5: ЛОКАЦІЇ (ПІДКАТЕГОРІЇ) ════════════ -->
   <div class="view" id="v05">
     <div class="crumb-bar" id="crumb05">
-      <span class="crumb-seg" onclick="goBack('root')">Головна</span>
+      <span class="crumb-seg" id="crumb05-root" onclick="goBack('root')">Головна</span>
       <span class="crumb-arr">›</span>
-      <span class="crumb-seg" onclick="goBack(0)">Відпочинок</span>
+      <span class="crumb-seg" id="crumb05-parent" onclick="goBack(0)">Відпочинок</span>
       <span class="crumb-arr">›</span>
-      <span class="crumb-seg active">Карпати</span>
+      <span class="crumb-seg active" id="crumb05-current">Карпати</span>
     </div>
     <div style="padding:10px 16px 8px;flex-shrink:0">
-      <div style="font-family:'Unbounded',sans-serif;font-size:17px;font-weight:700;color:var(--white)">
+      <div id="subTitle" style="font-family:'Unbounded',sans-serif;font-size:17px;font-weight:700;color:var(--white)">
         🏔️ Карпати й гори
       </div>
-      <div style="font-size:12px;color:var(--muted);margin-top:4px">
+      <div id="subDesc" style="font-size:12px;color:var(--muted);margin-top:4px">
         Обери локацію, щоб побачити організаторів
       </div>
     </div>
@@ -1146,6 +1150,7 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
         <div class="lv-line"></div>
       </div>
       
+      <div id="subList">
       <!-- SUB 1 -->
       <div class="org-card" onclick="drillToOrg()">
         <div class="org-head">
@@ -1197,23 +1202,24 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
         <div style="font-size:11px;color:var(--dim);margin-top:3px">Якщо її немає у списку</div>
       </div>
 
+      </div>
     </div>
   </div>
 
   <!-- ════════════ VIEW 1: ОРГАНІЗАТОРИ ════════════ -->
   <div class="view" id="v1">
     <div class="crumb-bar" id="crumb1">
-      <span class="crumb-seg" onclick="goBack(0)">Відпочинок</span>
+      <span class="crumb-seg" id="crumb1-root" onclick="goBack(0)">Відпочинок</span>
       <span class="crumb-arr">›</span>
-      <span class="crumb-seg" onclick="goBack('05')">Карпати</span>
+      <span class="crumb-seg" id="crumb1-parent" onclick="goBack('05')">Карпати</span>
       <span class="crumb-arr">›</span>
-      <span class="crumb-seg active">Буковель</span>
+      <span class="crumb-seg active" id="crumb1-current">Буковель</span>
     </div>
     <div style="padding:10px 16px 8px;flex-shrink:0">
-      <div style="font-family:'Unbounded',sans-serif;font-size:17px;font-weight:700;color:var(--white)">
+      <div id="orgTitle" style="font-family:'Unbounded',sans-serif;font-size:17px;font-weight:700;color:var(--white)">
         📍 Буковель
       </div>
-      <div style="font-size:12px;color:var(--muted);margin-top:4px">
+      <div id="orgMeta" style="font-size:12px;color:var(--muted);margin-top:4px">
         12 організаторів · 847 людей зацікавлені
       </div>
     </div>
@@ -1225,6 +1231,7 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
         <div class="lv-line"></div>
       </div>
 
+      <div id="orgList">
       <!-- ORG 1 — highlighted -->
       <div class="org-card open" id="org1">
         <div class="org-head" onclick="toggleOrg(1, event)">
@@ -1317,32 +1324,33 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
         <div style="font-size:11px;color:var(--dim);margin-top:3px">Дата, маршрут, збір учасників</div>
       </div>
 
+      </div>
     </div>
   </div>
 
   <!-- ════════════ VIEW 2: ЕКІПАЖІ ════════════ -->
   <div class="view" id="v2">
-    <div class="crumb-bar">
-      <span class="crumb-seg" onclick="goBack('05')">Карпати</span>
+    <div class="crumb-bar" id="crumb2">
+      <span class="crumb-seg" id="crumb2-parent" onclick="goBack('05')">Карпати</span>
       <span class="crumb-arr">›</span>
-      <span class="crumb-seg" onclick="goBack(1)">Буковель</span>
+      <span class="crumb-seg" id="crumb2-direction" onclick="goBack(1)">Буковель</span>
       <span class="crumb-arr">›</span>
-      <span class="crumb-seg active">Тарас Г.</span>
+      <span class="crumb-seg active" id="crumb2-organizer">Тарас Г.</span>
     </div>
     <div style="padding:10px 16px 8px;flex-shrink:0">
-      <div style="font-family:'Unbounded',sans-serif;font-size:16px;font-weight:700;color:var(--white)">
+      <div id="crewTitle" style="font-family:'Unbounded',sans-serif;font-size:16px;font-weight:700;color:var(--white)">
         Екіпажі виїзду
       </div>
       <div style="display:flex;gap:8px;margin-top:8px">
-        <div style="background:rgba(201,255,71,.08);border:1px solid rgba(201,255,71,.15);
+        <div id="crewCount" style="background:rgba(201,255,71,.08);border:1px solid rgba(201,255,71,.15);
                     border-radius:8px;padding:5px 10px;font-size:11px;font-weight:600;color:var(--lime)">
           14 екіпажів
         </div>
-        <div style="background:rgba(255,184,48,.08);border:1px solid rgba(255,184,48,.15);
+        <div id="seatCount" style="background:rgba(255,184,48,.08);border:1px solid rgba(255,184,48,.15);
                     border-radius:8px;padding:5px 10px;font-size:11px;font-weight:600;color:var(--gold)">
           38 вільних місць
         </div>
-        <div style="background:var(--card3);border-radius:8px;padding:5px 10px;
+        <div id="memberCount" style="background:var(--card3);border-radius:8px;padding:5px 10px;
                     font-size:11px;font-weight:600;color:var(--muted)">
           67 людей
         </div>
@@ -1356,6 +1364,7 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
         <div class="lv-line"></div>
       </div>
 
+      <div id="crewList">
       <!-- CREW 1 — 1 free -->
       <div class="crew-card" id="crew1" onclick="toggleCrew(1)">
         <div class="crew-head">
@@ -1516,6 +1525,8 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
             </div>
           </div>
         </div>
+      </div>
+
       </div>
 
       <!-- INVITE BANNER -->

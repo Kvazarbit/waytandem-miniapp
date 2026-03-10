@@ -85,14 +85,14 @@ export function drillToCrews() { showView(2); }
 
 export function goBack(target) {
   showView(target, 'back');
-  [1, 2, 3, 4].forEach(i => document.getElementById('crew' + i)?.classList.remove('open'));
+  document.querySelectorAll('.crew-card').forEach(el => el.classList.remove('open'));
 }
 
 export function toggleOrg(n) {
   const card = document.getElementById('org' + n);
   if (!card) return;
   const wasOpen = card.classList.contains('open');
-  [1, 2, 3].forEach(i => document.getElementById('org' + i)?.classList.remove('open'));
+  document.querySelectorAll('.org-card').forEach(el => el.classList.remove('open'));
   if (!wasOpen) card.classList.add('open');
 }
 
@@ -100,7 +100,7 @@ export function toggleCrew(n) {
   const card = document.getElementById('crew' + n);
   if (!card) return;
   const wasOpen = card.classList.contains('open');
-  [1, 2, 3, 4].forEach(i => document.getElementById('crew' + i)?.classList.remove('open'));
+  document.querySelectorAll('.crew-card').forEach(el => el.classList.remove('open'));
   if (!wasOpen) card.classList.add('open');
 }
 

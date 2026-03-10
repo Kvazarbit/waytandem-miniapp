@@ -1,12 +1,20 @@
 import { initTelegramUI } from './telegram.js';
-import { saveApiUrl, restoreApiUrl } from './api.js';
+import { getApiBase, saveApiUrl, restoreApiUrl } from './api.js';
+import {
+  initFractal,
+  openRoot,
+  drillToSubcat as drillToSubcatLive,
+  drillToOrg as drillToOrgLive,
+  drillToCrews as drillToCrewsLive,
+  joinCrewLive,
+} from './fractal.js';
 import {
   selectRole,
   toggleRegRole,
   showView,
-  drillToSubcat,
-  drillToOrg,
-  drillToCrews,
+  drillToSubcat as drillToSubcatStatic,
+  drillToOrg as drillToOrgStatic,
+  drillToCrews as drillToCrewsStatic,
   goBack,
   toggleOrg,
   toggleCrew,
@@ -23,13 +31,30 @@ function bindGlobals() {
   window.selectRole = selectRole;
   window.toggleRegRole = toggleRegRole;
   window.showView = showView;
-  window.drillToSubcat = drillToSubcat;
-  window.drillToOrg = drillToOrg;
-  window.drillToCrews = drillToCrews;
+
+  window.openRoot = openRoot;
+
+  window.drillToSubcat = id => {
+    if (getApiBase() && id !== undefined && id !== null) return drillToSubcatLive(id);
+    return drillToSubcatStatic();
+  };
+  window.drillToOrg = id => {
+    if (getApiBase() && id !== undefined && id !== null) return drillToOrgLive(id);
+    return drillToOrgStatic();
+  };
+  window.drillToCrews = id => {
+    if (getApiBase() && id !== undefined && id !== null) return drillToCrewsLive(id);
+    return drillToCrewsStatic();
+  };
+
   window.goBack = goBack;
   window.toggleOrg = toggleOrg;
   window.toggleCrew = toggleCrew;
+
+  // Demo join uses old UI-only behavior; live join is used by API-rendered cards.
   window.joinCrew = joinCrew;
+  window.joinCrewLive = joinCrewLive;
+
   window.openShare = openShare;
   window.closeShare = closeShare;
   window.copyLink = copyLink;
@@ -44,11 +69,16 @@ bindGlobals();
 window.addEventListener('DOMContentLoaded', () => {
   initTelegramUI();
   restoreApiUrl();
+  initFractal();
   showView('home');
+});
+
+window.addEventListener('wt-api-changed', () => {
+  initFractal();
 });
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && document.activeElement?.id === 'composeInput') sendFeedMsg();
 });
 
-setTimeout(() => showToast('👆 Натисни на Карпати й гори'), 800);
+setTimeout(() => showToast('👆 Натисни на Дошка'), 800);
