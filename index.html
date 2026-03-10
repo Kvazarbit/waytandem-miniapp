@@ -7,35 +7,61 @@
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-/* ══ DESIGN TOKENS (§CANON T.1) ══ */
-:root{
-  --bg:#07090E;--card:#0D1017;--card2:#131720;--card3:#1A2030;--card4:#1f2638;
-  --border:rgba(255,255,255,.07);--b2:rgba(255,255,255,.12);
-  --lime:#C9FF47;--sky:#4DCFFF;--gold:#FFB830;--rose:#FF6B8A;--red:#FF4D4D;
-  --white:#F0F3FF;--muted:#7A82A0;--dim:#353D55;
-  --r:18px;--r2:12px;
-  --safe:env(safe-area-inset-bottom,0px);--hdr:56px;--nav:68px;
+/* ══ DESIGN TOKENS — fractal-mockup palette (light, clean) ══ */
+:root {
+  --bg:     #F7F9FC;
+  --card:   #FFFFFF;
+  --card2:  #FFFFFF;
+  --card3:  #F1F5F9;
+  --card4:  #E2E8F0;
+  --border: rgba(0,0,0,.08);
+  --b2:     rgba(0,0,0,.12);
+  --lime:   #8ac926;
+  --sky:    #00b4d8;
+  --gold:   #f59e0b;
+  --rose:   #ef476f;
+  --red:    #ef476f;
+  --white:  #0F172A;
+  --muted:  #64748B;
+  --dim:    #94A3B8;
+  --r:18px; --r2:12px;
+  --safe:env(safe-area-inset-bottom,0px);
+  --hdr:56px; --nav:68px;
 }
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(--white);font-family:'Manrope',sans-serif;-webkit-font-smoothing:antialiased}
-#root{height:100dvh;display:flex;flex-direction:column;overflow:hidden;position:relative}
+html,body{height:100%;width:100%;overflow:hidden;background:#E2E8F0;
+  font-family:'Manrope',sans-serif;-webkit-font-smoothing:antialiased;
+  display:flex;align-items:center;justify-content:center}
+#root{
+  width:390px;height:780px;max-height:100dvh;
+  background:var(--bg);border-radius:46px;overflow:hidden;
+  position:relative;display:flex;flex-direction:column;
+  box-shadow:0 0 0 1px rgba(255,255,255,.07),0 48px 96px rgba(0,0,0,.4);
+}
+@media(max-width:430px){
+  html,body{align-items:flex-start;background:var(--bg);}
+  #root{width:100%;height:100dvh;border-radius:0;box-shadow:none;}
+}
 
 /* ── HEADER ── */
 .hdr{height:var(--hdr);display:flex;align-items:center;justify-content:space-between;
-  padding:0 18px;background:rgba(7,9,14,.96);backdrop-filter:blur(20px);
-  border-bottom:1px solid var(--border);flex-shrink:0;position:relative;z-index:20}
+  padding:0 20px;flex-shrink:0;position:relative;z-index:20;
+  background:rgba(255,255,255,.96);backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);
+  box-shadow:0 1px 3px rgba(0,0,0,.02)}
 .logo{font-family:'Unbounded',sans-serif;font-weight:900;font-size:14px;
   background:linear-gradient(120deg,var(--lime),var(--sky));
-  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-.3px}
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  letter-spacing:-.3px;cursor:pointer}
 .hdr-right{display:flex;align-items:center;gap:8px}
-.city-pill{font-size:11px;font-weight:600;color:var(--sky);
-  background:rgba(77,207,255,.08);border:1px solid rgba(77,207,255,.15);
+.city-pill{font-size:11px;font-weight:700;color:var(--sky);
+  background:rgba(0,180,216,.08);border:1px solid rgba(0,180,216,.15);
   padding:4px 10px;border-radius:20px;cursor:pointer;transition:all .2s}
-.city-pill:active{background:rgba(77,207,255,.15)}
+.city-pill:active{background:rgba(0,180,216,.15)}
 .av-btn{width:32px;height:32px;border-radius:50%;
   background:linear-gradient(135deg,var(--lime),var(--sky));
   display:flex;align-items:center;justify-content:center;
-  font-size:12px;font-weight:800;color:#07090E;cursor:pointer;transition:transform .15s}
+  font-size:12px;font-weight:800;color:#FFFFFF;cursor:pointer;transition:transform .15s}
 .av-btn:active{transform:scale(.92)}
 
 /* ── SCREENS ── */
@@ -49,16 +75,30 @@ html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(
 .s-body::-webkit-scrollbar{display:none}
 .s-pad{padding:14px 16px 24px}
 
-/* ── ONBOARDING WELCOME ── */
+/* ── BREADCRUMB ── */
+.crumb-bar{display:flex;align-items:center;padding:10px 16px 0;flex-shrink:0;
+  overflow-x:auto;scrollbar-width:none}
+.crumb-bar::-webkit-scrollbar{display:none}
+.crumb-seg{font-size:11px;font-weight:600;color:var(--muted);
+  padding:5px 10px;border-radius:8px;cursor:pointer;transition:all .18s;white-space:nowrap;flex-shrink:0}
+.crumb-seg:active,.crumb-seg:hover{color:var(--white);background:var(--card2)}
+.crumb-seg.active{color:var(--white);background:var(--card2)}
+.crumb-arr{color:var(--dim);font-size:13px;flex-shrink:0;padding:0 2px}
+
+/* ── LEVEL LABEL ── */
+.lv-row{display:flex;align-items:center;gap:8px;margin-bottom:12px;margin-top:4px}
+.lv-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.lv-text{font-size:10px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted)}
+.lv-line{flex:1;height:1px;background:var(--border)}
+
+/* ── ONBOARDING ── */
 .ob-wrap{flex:1;display:flex;flex-direction:column;align-items:center;
   justify-content:center;padding:28px 24px;text-align:center}
 .ob-logo{font-family:'Unbounded',sans-serif;font-weight:900;
   font-size:clamp(26px,7vw,36px);letter-spacing:-1px;
   background:linear-gradient(120deg,var(--lime),var(--sky));
-  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
-  margin-bottom:6px}
-.ob-tagline{font-size:12px;color:var(--sky);font-weight:700;letter-spacing:1.2px;
-  margin-bottom:22px}
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px}
+.ob-tagline{font-size:12px;color:var(--sky);font-weight:700;letter-spacing:1.2px;margin-bottom:22px}
 .ob-how{width:100%;max-width:310px;margin-bottom:24px;
   background:var(--card2);border:1px solid var(--border);border-radius:16px;padding:14px 16px}
 .ob-how-title{font-size:10px;font-weight:700;letter-spacing:1.2px;
@@ -75,20 +115,20 @@ html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(
   padding:14px 16px;display:flex;align-items:center;gap:12px;
   cursor:pointer;transition:all .16s;text-align:left;user-select:none}
 .ob-card:active{transform:scale(.97)}
-.ob-card.lime{border-color:rgba(201,255,71,.2);background:rgba(201,255,71,.04)}
-.ob-card.sky{border-color:rgba(77,207,255,.2);background:rgba(77,207,255,.04)}
-.ob-card.gold{border-color:rgba(255,184,48,.2);background:rgba(255,184,48,.04)}
+.ob-card.lime{border-color:rgba(138,201,38,.3);background:rgba(138,201,38,.04)}
+.ob-card.sky{border-color:rgba(0,180,216,.3);background:rgba(0,180,216,.04)}
+.ob-card.gold{border-color:rgba(245,158,11,.3);background:rgba(245,158,11,.04)}
 .obc-ico{font-size:28px;flex-shrink:0;line-height:1}
 .obc-body{flex:1;min-width:0}
 .obc-title{font-family:'Unbounded',sans-serif;font-weight:700;font-size:12px;margin-bottom:2px}
 .obc-sub{font-size:11px;color:var(--muted);line-height:1.4}
 .obc-arr{font-size:16px;color:var(--dim);flex-shrink:0}
-.ob-skip{font-size:12px;color:var(--dim);cursor:pointer;padding:8px}
-.ob-skip:active{color:var(--muted)}
+.ob-skip{font-size:12px;color:var(--muted);cursor:pointer;padding:8px;font-weight:600}
+.ob-skip:active{color:var(--white)}
 
 /* ── REGISTRATION ── */
 .reg-hdr{padding:24px 18px 16px;
-  background:radial-gradient(ellipse 80% 50% at 60% 0%,rgba(201,255,71,.06),transparent 70%);
+  background:radial-gradient(ellipse 80% 50% at 60% 0%,rgba(138,201,38,.08),transparent 70%);
   flex-shrink:0}
 .reg-step{font-size:10px;font-weight:700;letter-spacing:1.8px;
   text-transform:uppercase;color:var(--muted);margin-bottom:8px}
@@ -104,50 +144,32 @@ html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(
   -webkit-appearance:none;appearance:none}
 .field input:focus,.field select:focus{border-color:var(--lime)}
 .field input::placeholder{color:var(--dim)}
-.field select{background-image:url("data:image/svg+xml,%3Csvg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%237A82A0' stroke-width='2' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px}
-.field select option{background:var(--card2)}
+.field select{background-image:url("data:image/svg+xml,%3Csvg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px}
 .role-sel{display:flex;gap:8px}
 .role-btn{flex:1;padding:10px 6px;background:var(--card2);border:1.5px solid var(--border);
   border-radius:var(--r2);text-align:center;cursor:pointer;transition:all .16s;
   font-size:11px;font-weight:700;color:var(--muted);
   display:flex;flex-direction:column;align-items:center;gap:4px}
 .role-btn:active{transform:scale(.97)}
-.role-btn.on{border-color:var(--lime);color:var(--lime);background:rgba(201,255,71,.06)}
+.role-btn.on{border-color:var(--lime);color:var(--lime);background:rgba(138,201,38,.06)}
 .rb-ico{font-size:20px}
 
-/* ── FRACTAL BOARD ── */
-.board-hdr{padding:14px 16px 8px;flex-shrink:0}
-.bh-title{font-family:'Unbounded',sans-serif;font-weight:700;font-size:18px;color:var(--white)}
-.bh-title span{color:var(--lime)}
-.bh-sub{font-size:12px;color:var(--muted);margin-top:5px}
-.crumb-bar{display:flex;align-items:center;padding:10px 16px 0;flex-shrink:0;
-  overflow-x:auto;scrollbar-width:none}
-.crumb-bar::-webkit-scrollbar{display:none}
-.crumb-seg{font-size:11px;font-weight:600;color:var(--muted);
-  padding:5px 10px;border-radius:8px;cursor:pointer;transition:all .18s;white-space:nowrap;flex-shrink:0}
-.crumb-seg:active,.crumb-seg:hover{color:var(--white);background:var(--card2)}
-.crumb-seg.active{color:var(--white);background:var(--card2)}
-.crumb-arr{color:var(--dim);font-size:13px;flex-shrink:0;padding:0 2px}
-.lv-row{display:flex;align-items:center;gap:8px;margin-bottom:12px;margin-top:4px}
-.lv-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
-.lv-text{font-size:10px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted)}
-.lv-line{flex:1;height:1px;background:var(--border)}
-
-/* INTEREST CARD */
+/* ── INTEREST CARD (Level 0) ── */
 .int-card{background:var(--card2);border:1px solid var(--border);border-radius:20px;
-  padding:18px 18px 18px;margin-bottom:12px;cursor:pointer;transition:all .2s;
+  padding:18px;margin-bottom:12px;cursor:pointer;transition:all .2s;
   position:relative;overflow:hidden}
 .int-card::before{content:'';position:absolute;inset:0;
-  background:radial-gradient(ellipse 70% 50% at 90% 0%,var(--glow,rgba(201,255,71,.07)),transparent 70%);pointer-events:none}
+  background:radial-gradient(ellipse 70% 50% at 90% 0%,var(--glow,rgba(138,201,38,.07)),transparent 70%);
+  pointer-events:none}
 .int-card:active{transform:scale(.98)}
-.int-card.open{border-color:rgba(201,255,71,.2)}
+.int-card.open{border-color:rgba(138,201,38,.3);background:rgba(138,201,38,.02)}
 .ic-top{display:flex;align-items:flex-start;gap:12px;position:relative;z-index:1}
 .ic-emoji{font-size:32px;line-height:1;flex-shrink:0}
 .ic-body{flex:1}
 .ic-name{font-family:'Unbounded',sans-serif;font-weight:700;font-size:15px;color:var(--white);margin-bottom:3px}
 .ic-desc{font-size:11px;color:var(--muted);line-height:1.5}
 .ic-arrow{width:26px;height:26px;border-radius:8px;
-  background:rgba(201,255,71,.08);border:1px solid rgba(201,255,71,.15);
+  background:rgba(138,201,38,.08);border:1px solid rgba(138,201,38,.15);
   display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
 .ic-arrow svg{transition:transform .25s cubic-bezier(.4,0,.2,1)}
 .int-card.open .ic-arrow svg{transform:rotate(90deg)}
@@ -155,23 +177,23 @@ html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(
   transition:max-height .3s cubic-bezier(.4,0,.2,1),opacity .25s,margin .3s;
   margin-top:0;display:flex;gap:8px}
 .int-card.open .ic-stats{max-height:80px;opacity:1;margin-top:12px}
-.ic-stat{flex:1;background:rgba(255,255,255,.04);border-radius:10px;padding:9px 8px;text-align:center}
+.ic-stat{flex:1;background:rgba(0,0,0,.03);border-radius:10px;padding:9px 8px;text-align:center}
 .ic-stat-val{font-family:'Unbounded',sans-serif;font-size:15px;font-weight:900}
 .ic-stat-lbl{font-size:9px;color:var(--muted);margin-top:2px;letter-spacing:.5px;text-transform:uppercase}
 .ic-drill{max-height:0;overflow:hidden;opacity:0;pointer-events:none;position:relative;z-index:1;
   transition:max-height .28s cubic-bezier(.4,0,.2,1),opacity .2s}
 .int-card.open .ic-drill{max-height:80px;opacity:1;pointer-events:auto}
 .ic-drill-btn{width:100%;margin-top:8px;padding:10px;
-  background:rgba(201,255,71,.1);border:1px solid rgba(201,255,71,.2);
+  background:rgba(138,201,38,.1);border:1px solid rgba(138,201,38,.2);
   border-radius:10px;font-size:12px;font-weight:700;color:var(--lime);
   text-align:center;cursor:pointer;transition:all .15s;font-family:'Manrope',sans-serif}
-.ic-drill-btn:active{background:rgba(201,255,71,.2)}
+.ic-drill-btn:active{background:rgba(138,201,38,.2)}
 
-/* ORGANIZER CARD */
+/* ── ORGANIZER CARD (Level 1) ── */
 .org-card{background:var(--card2);border:1px solid var(--border);
   border-radius:18px;margin-bottom:10px;overflow:hidden;cursor:pointer;transition:all .2s}
 .org-card:active{transform:scale(.98)}
-.org-card.open{border-color:rgba(77,207,255,.25)}
+.org-card.open{border-color:rgba(0,180,216,.3)}
 .org-head{padding:14px 16px;display:flex;align-items:center;gap:12px}
 .org-av{width:44px;height:44px;border-radius:14px;flex-shrink:0;
   display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#07090E}
@@ -182,13 +204,13 @@ html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(
   letter-spacing:.4px;text-transform:uppercase;flex-shrink:0}
 .org-chev{width:22px;height:22px;border-radius:7px;background:var(--card3);
   display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .22s}
-.org-card.open .org-chev{background:rgba(77,207,255,.12)}
+.org-card.open .org-chev{background:rgba(0,180,216,.1)}
 .org-chev svg{transition:transform .25s cubic-bezier(.4,0,.2,1)}
 .org-card.open .org-chev svg{transform:rotate(180deg)}
 .org-info{max-height:0;overflow:hidden;opacity:0;
   transition:max-height .3s cubic-bezier(.4,0,.2,1),opacity .22s,padding .3s;padding:0 16px}
-.org-card.open .org-info{max-height:50px;opacity:1;padding-bottom:0}
-.org-chips{display:flex;gap:8px;padding-bottom:8px}
+.org-card.open .org-info{max-height:60px;opacity:1;padding-bottom:0}
+.org-chips{display:flex;gap:8px;padding-bottom:8px;flex-wrap:wrap}
 .oi-chip{display:flex;align-items:center;gap:5px;background:var(--card3);
   border-radius:8px;padding:6px 10px;font-size:11px;color:var(--muted);font-weight:600}
 .org-acts{max-height:0;overflow:hidden;opacity:0;
@@ -199,29 +221,29 @@ html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(
   font-size:12px;font-weight:700;cursor:pointer;text-align:center;transition:all .15s}
 .oa-btn:active{transform:scale(.97)}
 .oa-ghost{background:var(--card3);color:var(--muted);border:1px solid var(--border)}
-.oa-sky{background:rgba(77,207,255,.12);color:var(--sky);border:1px solid rgba(77,207,255,.2)}
+.oa-sky{background:rgba(0,180,216,.1);color:var(--sky);border:1px solid rgba(0,180,216,.2)}
 
-/* CREW CARD */
+/* ── CREW CARD (Level 2) ── */
 .crew-card{background:var(--card2);border:1px solid var(--border);
   border-radius:16px;margin-bottom:8px;overflow:hidden;cursor:pointer;transition:all .2s}
 .crew-card:active{transform:scale(.98)}
-.crew-card.open{border-color:rgba(201,255,71,.25)}
+.crew-card.open{border-color:rgba(138,201,38,.3)}
 .crew-head{padding:12px 14px;display:flex;align-items:center;gap:10px}
 .crew-num{width:32px;height:32px;border-radius:10px;background:var(--card3);
   display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:var(--muted);flex-shrink:0}
-.crew-num.has-space{background:rgba(201,255,71,.08);color:var(--lime)}
+.crew-num.has-space{background:rgba(138,201,38,.1);color:var(--lime)}
 .crew-body{flex:1}
 .crew-driver{font-size:13px;font-weight:700;color:var(--white)}
 .crew-car{font-size:11px;color:var(--muted);margin-top:1px}
 .crew-seats{display:flex;gap:4px;align-items:center;flex-shrink:0}
 .seat{width:12px;height:16px;border-radius:3px;border:1px solid var(--dim);transition:all .2s}
-.seat.taken{background:var(--lime);border-color:var(--lime);box-shadow:0 0 4px rgba(201,255,71,.4)}
+.seat.taken{background:var(--lime);border-color:var(--lime);box-shadow:0 0 4px rgba(138,201,38,.4)}
 .seat.driver{background:var(--sky);border-color:var(--sky)}
 .seat.free{background:transparent}
-@keyframes pulse-lime{0%,100%{box-shadow:0 0 4px rgba(201,255,71,.4)}50%{box-shadow:0 0 10px rgba(201,255,71,.8)}}
-.seat.free-pulse{border-color:rgba(201,255,71,.4);animation:pulse-lime 2s infinite}
+@keyframes pulse-lime{0%,100%{box-shadow:0 0 4px rgba(138,201,38,.4)}50%{box-shadow:0 0 10px rgba(138,201,38,.8)}}
+.seat.free-pulse{border-color:rgba(138,201,38,.5);animation:pulse-lime 2s infinite}
 .crew-detail{max-height:0;overflow:hidden;transition:max-height .3s cubic-bezier(.4,0,.2,1)}
-.crew-card.open .crew-detail{max-height:220px}
+.crew-card.open .crew-detail{max-height:240px}
 .cd-inner{padding:12px 14px 14px;border-top:1px solid var(--border)}
 .cd-row{display:flex;justify-content:space-between;margin-bottom:6px}
 .cd-lbl{font-size:11px;color:var(--muted)}
@@ -237,10 +259,10 @@ html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(
   font-size:13px;font-weight:800;cursor:pointer;display:flex;align-items:center;
   justify-content:center;gap:8px;transition:all .15s;margin-top:10px}
 .join-btn:active{transform:scale(.97)}
-.join-lime{background:linear-gradient(135deg,var(--lime),#A8E030);color:#07090E;box-shadow:0 4px 16px rgba(201,255,71,.25)}
-.join-ask{background:rgba(201,255,71,.08);color:var(--lime);border:1px solid rgba(201,255,71,.2)}
+.join-lime{background:linear-gradient(135deg,var(--lime),#a8e030);color:#07090E;box-shadow:0 4px 16px rgba(138,201,38,.25)}
+.join-ask{background:rgba(138,201,38,.08);color:var(--lime);border:1px solid rgba(138,201,38,.2)}
 
-/* BOT CARD */
+/* ── BOT NOTIFICATION CARD ── */
 .bot-card{display:flex;gap:10px;align-items:flex-start;background:var(--card2);
   border:1px solid var(--border);border-radius:14px;padding:12px 14px;
   margin-bottom:8px;position:relative;overflow:hidden}
@@ -255,26 +277,26 @@ html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(
 .bc-text{font-size:11px;color:var(--muted);margin-top:2px;line-height:1.5}
 .bc-time{font-size:10px;color:var(--dim);margin-top:4px}
 
-/* INVITE BANNER */
+/* ── INVITE BANNER ── */
 .invite-banner{display:flex;align-items:center;gap:10px;
-  background:rgba(201,255,71,.04);border:1px dashed rgba(201,255,71,.2);
+  background:rgba(138,201,38,.04);border:1px dashed rgba(138,201,38,.25);
   border-radius:14px;padding:11px 14px;margin-bottom:12px;cursor:pointer;transition:all .2s}
-.invite-banner:active{background:rgba(201,255,71,.08);transform:scale(.98)}
-.ib-ico{width:32px;height:32px;border-radius:10px;background:rgba(201,255,71,.1);
+.invite-banner:active{background:rgba(138,201,38,.08);transform:scale(.98)}
+.ib-ico{width:32px;height:32px;border-radius:10px;background:rgba(138,201,38,.1);
   display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .ib-body{flex:1}
 .ib-title{font-size:12px;font-weight:700;color:var(--lime)}
 .ib-url{font-size:10px;color:var(--muted);margin-top:2px;font-family:monospace}
 .ib-copy{font-size:10px;font-weight:700;color:var(--lime);
-  background:rgba(201,255,71,.1);border:1px solid rgba(201,255,71,.2);
+  background:rgba(138,201,38,.1);border:1px solid rgba(138,201,38,.2);
   padding:4px 10px;border-radius:8px;flex-shrink:0}
 
-/* ADD CARD */
+/* ── ADD CARD ── */
 .add-card{background:transparent;border:1.5px dashed var(--dim);border-radius:16px;
   padding:16px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:10px}
-.add-card:active{border-color:var(--lime);background:rgba(201,255,71,.03)}
+.add-card:active{border-color:var(--lime);background:rgba(138,201,38,.03)}
 
-/* FEED */
+/* ── FEED ── */
 .feed-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;padding:0 16px}
 .feed-tab{flex:1;padding:10px 0;font-size:12px;font-weight:700;text-align:center;
   cursor:pointer;transition:all .2s;border-bottom:2px solid transparent;color:var(--muted)}
@@ -293,11 +315,11 @@ html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(
 .fi-msg{font-size:13px;color:var(--white);line-height:1.5}
 .fi-meta{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
 .fi-tag{font-size:10px;font-weight:600;padding:2px 8px;border-radius:6px;background:var(--card3);color:var(--muted)}
-.fi-tag.loc{background:rgba(77,207,255,.1);color:var(--sky)}
-.fi-tag.ok{background:rgba(201,255,71,.1);color:var(--lime)}
-.fi-tag.warn{background:rgba(255,184,48,.1);color:var(--gold)}
+.fi-tag.loc{background:rgba(0,180,216,.1);color:var(--sky)}
+.fi-tag.ok{background:rgba(138,201,38,.1);color:var(--lime)}
+.fi-tag.warn{background:rgba(245,158,11,.1);color:var(--gold)}
 .compose-bar{flex-shrink:0;padding:10px 14px calc(10px + var(--safe));
-  background:rgba(7,9,14,.96);backdrop-filter:blur(16px);
+  background:rgba(255,255,255,.96);backdrop-filter:blur(16px);
   border-top:1px solid var(--border);display:flex;gap:8px;align-items:center}
 .compose-wrap{flex:1;display:flex;flex-direction:column;gap:2px}
 .compose-lbl{font-size:9px;color:var(--lime);font-weight:700;letter-spacing:.4px;padding-left:4px}
@@ -305,42 +327,46 @@ html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(
   border-radius:20px;padding:9px 14px;font-size:13px;color:var(--white);
   font-family:'Manrope',sans-serif;outline:none;transition:border-color .2s}
 .compose-inp:focus{border-color:var(--lime)}
-.compose-send{width:36px;height:36px;border-radius:50%;border:none;background:var(--lime);
+.compose-send{width:36px;height:36px;border-radius:50%;border:none;
+  background:linear-gradient(135deg,var(--lime),#a8e030);
   display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;
-  transition:transform .15s,box-shadow .15s;box-shadow:0 2px 12px rgba(201,255,71,.3)}
+  transition:transform .15s;box-shadow:0 2px 12px rgba(138,201,38,.3)}
 .compose-send:active{transform:scale(.92)}
 
-/* BOTTOM NAV */
-.nav{height:calc(var(--nav) + var(--safe));background:rgba(7,9,14,.97);
-  backdrop-filter:blur(24px);border-top:1px solid var(--border);
-  display:flex;flex-shrink:0;padding-bottom:var(--safe);position:relative;z-index:20}
+/* ── BOTTOM NAV ── */
+.nav{position:absolute;bottom:0;left:0;right:0;
+  height:calc(var(--nav) + var(--safe));
+  background:rgba(255,255,255,.97);backdrop-filter:blur(24px);
+  border-top:1px solid var(--border);display:flex;
+  padding-bottom:var(--safe);z-index:20}
 .nv{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
   gap:4px;cursor:pointer;color:var(--dim);transition:all .2s;padding:8px 0;user-select:none}
 .nv.on{color:var(--lime)}
 .nv-ico{width:24px;height:24px;display:flex;align-items:center;justify-content:center}
 .nv-lbl{font-size:9px;font-weight:700;letter-spacing:.6px;text-transform:uppercase}
-.nv.on .nv-ico svg{filter:drop-shadow(0 0 5px rgba(201,255,71,.45))}
+.nv.on .nv-ico svg{filter:drop-shadow(0 0 5px rgba(138,201,38,.5))}
 
-/* BUTTONS */
-.btn{width:100%;padding:14px 18px;border-radius:var(--r2);border:none;font-family:'Manrope',sans-serif;
-  font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;
-  justify-content:center;gap:8px;transition:transform .12s;user-select:none}
+/* ── BUTTONS ── */
+.btn{width:100%;padding:14px 18px;border-radius:var(--r2);border:none;
+  font-family:'Manrope',sans-serif;font-size:14px;font-weight:700;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:transform .12s;user-select:none}
 .btn:active{transform:scale(.97)}
 .btn+.btn{margin-top:8px}
-.btn-lime{background:linear-gradient(135deg,var(--lime),#A8E030);color:#07090E;box-shadow:0 4px 20px rgba(201,255,71,.22)}
-.btn-sky{background:linear-gradient(135deg,var(--sky),#28B0E8);color:#07090E}
+.btn-lime{background:linear-gradient(135deg,var(--lime),#a8e030);color:#07090E;box-shadow:0 4px 20px rgba(138,201,38,.22)}
+.btn-sky{background:linear-gradient(135deg,var(--sky),#28b0e8);color:#fff}
 .btn-ghost{background:var(--card2);border:1px solid var(--b2);color:var(--muted)}
 .btn-ghost:active{background:var(--card3)}
 
-/* OVERLAYS */
-.overlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.65);
+/* ── OVERLAYS / SHEETS ── */
+.overlay{position:absolute;inset:0;z-index:100;background:rgba(0,0,0,.5);
   backdrop-filter:blur(8px);display:none;align-items:flex-end}
 .overlay.open{display:flex}
 .sheet{background:var(--card);border:1px solid var(--b2);border-radius:22px 22px 0 0;
   padding:16px 18px calc(24px + var(--safe));width:100%;animation:shup .28s cubic-bezier(.4,0,.2,1)}
 @keyframes shup{from{transform:translateY(100%)}to{transform:translateY(0)}}
 .sh-handle{width:32px;height:3px;background:var(--dim);border-radius:2px;margin:0 auto 18px}
-.sh-title{font-family:'Unbounded',sans-serif;font-weight:700;font-size:15px;margin-bottom:16px}
+.sh-title{font-family:'Unbounded',sans-serif;font-weight:700;font-size:15px;margin-bottom:16px;color:var(--white)}
 .ss-url{background:var(--card2);border:1px solid var(--border);border-radius:10px;
   padding:10px 12px;font-size:12px;color:var(--muted);font-family:monospace;
   margin-bottom:12px;word-break:break-all;line-height:1.5}
@@ -351,8 +377,8 @@ html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(
 .ss-lime{background:var(--lime);color:#07090E}
 .ss-ghost{background:var(--card2);color:var(--muted);border:1px solid var(--border)}
 
-/* API STATUS */
-.api-panel{background:var(--card2);border:1px solid rgba(255,154,60,.2);border-radius:var(--r2);
+/* ── API STATUS ── */
+.api-panel{background:var(--card2);border:1px solid rgba(245,158,11,.2);border-radius:var(--r2);
   padding:10px 14px;display:flex;align-items:center;gap:10px;margin-bottom:12px}
 .ap-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;transition:background .3s}
 .ap-dot.ok{background:var(--lime);box-shadow:0 0 8px var(--lime)}
@@ -362,30 +388,31 @@ html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(
 .ap-text{flex:1;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ap-btn{font-size:11px;font-weight:700;color:var(--gold);cursor:pointer;flex-shrink:0}
 
-/* LOADING / EMPTY */
+/* ── LOADING / EMPTY ── */
 .loading-wrap{display:flex;flex-direction:column;align-items:center;
   justify-content:center;gap:12px;padding:48px 20px}
 .spin{width:24px;height:24px;border:2.5px solid var(--dim);border-top-color:var(--lime);
   border-radius:50%;animation:sp .65s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
 .empty-wrap{text-align:center;padding:40px 20px}
-.empty-ico{font-size:40px;margin-bottom:12px;opacity:.5}
 .empty-msg{font-size:13px;color:var(--muted);line-height:1.6}
 
-/* SECTION TITLE */
-.sec-title{font-size:10px;font-weight:700;letter-spacing:1.4px;
-  text-transform:uppercase;color:var(--muted);margin-bottom:10px}
-
-/* TOAST */
-#toast{position:fixed;bottom:calc(var(--nav) + var(--safe) + 10px);left:50%;
+/* ── TOAST ── */
+#toast{position:absolute;bottom:calc(var(--nav) + var(--safe) + 10px);left:50%;
   transform:translateX(-50%) translateY(8px);
-  background:var(--card3);border:1px solid rgba(201,255,71,.25);
+  background:var(--card3);border:1px solid rgba(138,201,38,.3);
   padding:8px 18px;border-radius:30px;font-size:12px;font-weight:700;color:var(--lime);
   white-space:nowrap;opacity:0;pointer-events:none;z-index:999;
   transition:all .25s cubic-bezier(.34,1.3,.64,1)}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-#toast.err{border-color:rgba(255,77,77,.4);color:var(--red)}
-#toast.ok{border-color:rgba(201,255,71,.4);color:var(--lime)}
+#toast.err{border-color:rgba(239,71,111,.4);color:var(--red)}
+#toast.ok{border-color:rgba(138,201,38,.4);color:var(--lime)}
+
+/* board header */
+.board-hdr{padding:14px 16px 8px;flex-shrink:0}
+.bh-title{font-family:'Unbounded',sans-serif;font-weight:700;font-size:18px;color:var(--white)}
+.bh-title span{color:var(--lime)}
+.bh-sub{font-size:12px;color:var(--muted);margin-top:5px}
 </style>
 </head>
 <body>
@@ -393,9 +420,9 @@ html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(
 
 <!-- HEADER -->
 <header class="hdr" id="appHdr" style="display:none">
-  <div class="logo">WayTandem</div>
+  <div class="logo" onclick="navTo(0)">WayTandem</div>
   <div class="hdr-right">
-    <div class="city-pill" id="cityPill" onclick="toast('📍 Зміна міста...')">📍 Львів</div>
+    <div class="city-pill" id="cityPill">📍 Львів</div>
     <div class="av-btn" id="avBtn" onclick="navTo(3)">?</div>
   </div>
 </header>
@@ -410,17 +437,17 @@ html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(
     <div class="ob-how">
       <div class="ob-how-title">Як це працює</div>
       <div class="ob-step">
-        <div class="ob-step-ico" style="background:rgba(201,255,71,.1)">🏔️</div>
+        <div class="ob-step-ico" style="background:rgba(138,201,38,.15)">🏔️</div>
         <div class="ob-step-txt">Обираєш <b style="color:var(--lime)">напрямок</b></div>
       </div>
       <div class="ob-step-line"></div>
       <div class="ob-step">
-        <div class="ob-step-ico" style="background:rgba(77,207,255,.1)">📋</div>
+        <div class="ob-step-ico" style="background:rgba(0,180,216,.1)">📋</div>
         <div class="ob-step-txt">Дивишся <b style="color:var(--sky)">організаторів</b></div>
       </div>
       <div class="ob-step-line"></div>
       <div class="ob-step">
-        <div class="ob-step-ico" style="background:rgba(255,184,48,.1)">🚗</div>
+        <div class="ob-step-ico" style="background:rgba(245,158,11,.15)">🚗</div>
         <div class="ob-step-txt">Приєднуєшся до <b style="color:var(--gold)">екіпажу</b></div>
       </div>
     </div>
@@ -480,7 +507,7 @@ html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(
         </select>
       </div>
       <div>
-        <div class="sec-title">Ким будеш?</div>
+        <div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:8px;letter-spacing:.5px;text-transform:uppercase">Ким будеш?</div>
         <div class="role-sel">
           <div class="role-btn on" id="rb-traveler" onclick="selectRegRole('traveler')">
             <div class="rb-ico">🚗</div>Мандрівник
@@ -505,119 +532,94 @@ html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(
   </div>
 </div>
 
-<!-- ══ SCREEN: BOARD — View 0: Інтереси ══ -->
+<!-- ══ SCREEN: BOARD — Level 0: Інтереси ══ -->
 <div class="screen" id="sc-board">
   <div class="board-hdr">
     <div class="bh-title">Організовані<br><span>виїзди</span></div>
-    <div class="bh-sub">Обери напрямок — побачиш організаторів і вільні місця</div>
+    <div class="bh-sub" id="boardSubtitle">Обери напрямок — побачиш організаторів і вільні місця</div>
   </div>
-  <div class="s-body s-pad">
+  <div class="s-body s-pad" style="padding-bottom:calc(80px + var(--safe))">
     <div class="api-panel" id="apiStatus" style="display:none">
       <div class="ap-dot wait" id="apiDot"></div>
       <div class="ap-text" id="apiTxt">Підключення...</div>
       <div class="ap-btn" onclick="openSheet('ovApi')">⚙</div>
-    </div>    <div class="lv-row">
+    </div>
+    <div class="lv-row">
       <div class="lv-dot" style="background:var(--lime)"></div>
-      <div class="lv-text" id="boardCityLabel">Організовані виїзди · Львів</div>
+      <div class="lv-text" id="boardCityLabel">Активні напрямки · Львів</div>
       <div class="lv-line"></div>
     </div>
     <div id="boardBackRow" style="display:none;margin:8px 0 12px">
-      <button class="btn btn-ghost" style="padding:8px 12px;font-size:12px" onclick="boardGoBack()">← Назад</button>
+      <button class="btn btn-ghost" style="padding:8px 12px;font-size:12px;width:auto" onclick="boardGoBack()">← Назад</button>
     </div>
-    <!-- ── DYNAMIC INTERESTS (renderBoard) ── -->
     <div id="boardList">
       <!-- skeleton -->
-      <div class="int-card skel" style="height:72px;opacity:.4;pointer-events:none"><div class="ic-top"><div class="ic-emoji" style="background:var(--card3);border-radius:8px;width:36px;height:36px"></div><div class="ic-body"><div style="background:var(--card3);height:13px;width:70%;border-radius:4px;margin-bottom:6px"></div><div style="background:var(--card3);height:10px;width:50%;border-radius:4px"></div></div></div></div>
-      <div class="int-card skel" style="height:72px;opacity:.25;pointer-events:none"><div class="ic-top"><div class="ic-emoji" style="background:var(--card3);border-radius:8px;width:36px;height:36px"></div><div class="ic-body"><div style="background:var(--card3);height:13px;width:55%;border-radius:4px;margin-bottom:6px"></div><div style="background:var(--card3);height:10px;width:40%;border-radius:4px"></div></div></div></div>
+      <div style="background:var(--card2);border:1px solid var(--border);border-radius:20px;padding:18px;margin-bottom:12px;opacity:.5">
+        <div style="display:flex;gap:12px">
+          <div style="background:var(--card3);border-radius:8px;width:36px;height:36px;flex-shrink:0"></div>
+          <div style="flex:1">
+            <div style="background:var(--card3);height:13px;width:70%;border-radius:4px;margin-bottom:8px"></div>
+            <div style="background:var(--card3);height:10px;width:50%;border-radius:4px"></div>
+          </div>
+        </div>
+      </div>
+      <div style="background:var(--card2);border:1px solid var(--border);border-radius:20px;padding:18px;margin-bottom:12px;opacity:.25">
+        <div style="display:flex;gap:12px">
+          <div style="background:var(--card3);border-radius:8px;width:36px;height:36px;flex-shrink:0"></div>
+          <div style="flex:1">
+            <div style="background:var(--card3);height:13px;width:55%;border-radius:4px;margin-bottom:8px"></div>
+            <div style="background:var(--card3);height:10px;width:40%;border-radius:4px"></div>
+          </div>
+        </div>
+      </div>
     </div>
     <div class="add-card" onclick="toast('✦ Запропонувати напрямок...')">
       <div style="font-size:22px;margin-bottom:5px">＋</div>
       <div style="font-size:13px;font-weight:700;color:var(--muted)">Запропонувати свій напрямок</div>
       <div style="font-size:11px;color:var(--dim);margin-top:2px">Стань координатором</div>
     </div>
-  </div>
-  <div class="invite-banner" style="margin:0 16px 12px" onclick="openShare('coord')">
-    <div class="ib-ico">👋</div>
-    <div class="ib-body"><div class="ib-title">Запросити координаторів</div><div class="ib-url">waytandem.app/i/carpaty</div></div>
-    <div class="ib-copy">Копіювати</div>
+    <div class="invite-banner" onclick="openShare('coord')">
+      <div class="ib-ico">👋</div>
+      <div class="ib-body"><div class="ib-title">Запросити координаторів</div><div class="ib-url">waytandem.app/i/carpaty</div></div>
+      <div class="ib-copy">Копіювати</div>
+    </div>
   </div>
 </div>
 
-<!-- ══ SCREEN: ORGANIZERS — View 1 ══ -->
+<!-- ══ SCREEN: ORGANIZERS — Level 1 ══ -->
 <div class="screen" id="sc-orgs">
   <div class="crumb-bar">
-    <span class="crumb-seg" onclick="showScreen('sc-board','back')">Інтереси</span>
+    <span class="crumb-seg" onclick="showScreen('sc-board','back')">Напрямки</span>
     <span class="crumb-arr">›</span>
     <span class="crumb-seg active" id="orgsDirTitle">Карпати й гори</span>
   </div>
   <div style="padding:10px 16px 8px;flex-shrink:0">
     <div style="font-family:'Unbounded',sans-serif;font-size:17px;font-weight:700;color:var(--white)" id="orgsDirName">🏔️ Карпати й гори</div>
-    <div style="font-size:12px;color:var(--muted);margin-top:4px" id="orgsDirMeta">12 організаторів · 847 людей зацікавлені</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:4px" id="orgsDirMeta">Завантаження...</div>
   </div>
-  <div class="s-body s-pad">
+  <div class="s-body s-pad" style="padding-bottom:calc(80px + var(--safe))">
     <div class="lv-row"><div class="lv-dot" style="background:var(--sky)"></div><div class="lv-text">Організатори та виїзди</div><div class="lv-line"></div></div>
     <div id="orgsList">
-    <!-- ORG 1 open -->
-    <div class="org-card open" id="org1" onclick="toggleOrg(1)">
-      <div class="org-head">
-        <div class="org-av" style="background:linear-gradient(135deg,var(--lime),var(--sky))">Т</div>
-        <div class="org-body"><div class="org-name">Тарас Г. — Буковель</div><div class="org-date">🗓 14–17 липня · старт о 7:00 Львів</div></div>
-        <div class="org-badge" style="background:rgba(201,255,71,.1);color:var(--lime)">38 місць</div>
-        <div class="org-chev"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--sky)" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>
-      </div>
-      <div class="org-info"><div class="org-chips"><div class="oi-chip">👥 67</div><div class="oi-chip">🚗 14 екіпажів</div><div class="oi-chip">⭐ 4.9</div></div></div>
-      <div class="org-acts"><div class="org-acts-inner">
-        <div class="oa-btn oa-ghost" onclick="event.stopPropagation();toast('💬 Чат відкрито...')">✉️ Написати</div>
-        <div class="oa-btn oa-sky" onclick="event.stopPropagation();goToCrews()">🚗 Екіпажі →</div>
-      </div></div>
-    </div>
-    <!-- ORG 2 -->
-    <div class="org-card" id="org2" onclick="toggleOrg(2)">
-      <div class="org-head">
-        <div class="org-av" style="background:linear-gradient(135deg,var(--sky),#a78bfa)">М</div>
-        <div class="org-body"><div class="org-name">Марія К. — Синевир</div><div class="org-date">🗓 21–24 липня · старт о 8:30 Київ</div></div>
-        <div class="org-badge" style="background:rgba(77,207,255,.1);color:var(--sky)">12 місць</div>
-        <div class="org-chev"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>
-      </div>
-      <div class="org-info"><div class="org-chips"><div class="oi-chip">👥 28</div><div class="oi-chip">🚗 6 екіпажів</div><div class="oi-chip">⭐ 4.7</div></div></div>
-      <div class="org-acts"><div class="org-acts-inner">
-        <div class="oa-btn oa-ghost" onclick="event.stopPropagation();toast('💬 Чат...')">✉️ Написати</div>
-        <div class="oa-btn oa-sky" onclick="event.stopPropagation();toast('🚗 Екіпажі Марії...')">🚗 Екіпажі →</div>
-      </div></div>
-    </div>
-    <!-- ORG 3 -->
-    <div class="org-card" id="org3" onclick="toggleOrg(3)">
-      <div class="org-head">
-        <div class="org-av" style="background:linear-gradient(135deg,var(--gold),#f97316)">В</div>
-        <div class="org-body"><div class="org-name">Василь Б. — Говерла</div><div class="org-date">🗓 3–5 серпня · старт о 6:00 Ів-Франківськ</div></div>
-        <div class="org-badge" style="background:rgba(255,184,48,.1);color:var(--gold)">5 місць</div>
-        <div class="org-chev"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>
-      </div>
-      <div class="org-info"><div class="org-chips"><div class="oi-chip">👥 15</div><div class="oi-chip">🚗 4 екіпажі</div><div class="oi-chip">⭐ 5.0</div></div></div>
-      <div class="org-acts"><div class="org-acts-inner">
-        <div class="oa-btn oa-ghost" onclick="event.stopPropagation();toast('💬 Чат...')">✉️ Написати</div>
-        <div class="oa-btn oa-sky" onclick="event.stopPropagation();toast('🚗 Майже немає місць...')">🚗 Екіпажі →</div>
-      </div></div>
-    </div>
-    </div>
-    </div>
-    </div>
-    <div class="invite-banner" onclick="openShare('coord')">
-      <div class="ib-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--lime)" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
-      <div class="ib-body"><div class="ib-title">Запросити організаторів</div><div class="ib-url" id="orgsInviteUrl">waytandem.app/i/carpaty</div></div>
-      <div class="ib-copy">Копіювати</div>
+      <div class="loading-wrap"><div class="spin"></div></div>
     </div>
     <div class="add-card" onclick="toast('🎯 Організувати виїзд...')">
       <div style="font-size:13px;font-weight:700;color:var(--muted)">＋ Організувати свій виїзд</div>
       <div style="font-size:11px;color:var(--dim);margin-top:2px">Дата, маршрут, збір учасників</div>
     </div>
+    <div class="invite-banner" onclick="openShare('coord')">
+      <div class="ib-ico">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--lime)" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      </div>
+      <div class="ib-body"><div class="ib-title">Запросити організаторів</div><div class="ib-url" id="orgsInviteUrl">waytandem.app/i/carpaty</div></div>
+      <div class="ib-copy">Копіювати</div>
+    </div>
   </div>
 </div>
 
-<!-- ══ SCREEN: CREWS — View 2 ══ -->
+<!-- ══ SCREEN: CREWS — Level 2 ══ -->
 <div class="screen" id="sc-crews">
   <div class="crumb-bar">
-    <span class="crumb-seg" onclick="showScreen('sc-board','back')">Інтереси</span>
+    <span class="crumb-seg" onclick="showScreen('sc-board','back')">Напрямки</span>
     <span class="crumb-arr">›</span>
     <span class="crumb-seg" onclick="showScreen('sc-orgs','back')" id="crewsCrumbDir">Карпати</span>
     <span class="crumb-arr">›</span>
@@ -625,79 +627,27 @@ html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(
   </div>
   <div style="padding:10px 16px 8px;flex-shrink:0">
     <div style="font-family:'Unbounded',sans-serif;font-size:16px;font-weight:700;color:var(--white)">Екіпажі виїзду</div>
-    <div style="display:flex;gap:8px;margin-top:8px" id="crewsSummaryChips">
-      <div style="background:rgba(201,255,71,.08);border:1px solid rgba(201,255,71,.15);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:600;color:var(--lime)" id="chipCrews">14 екіпажів</div>
-      <div style="background:rgba(255,184,48,.08);border:1px solid rgba(255,184,48,.15);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:600;color:var(--gold)" id="chipFree">38 вільних місць</div>
-      <div style="background:var(--card3);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:600;color:var(--muted)" id="chipMembers">67 людей</div>
+    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+      <div style="background:rgba(138,201,38,.08);border:1px solid rgba(138,201,38,.15);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:600;color:var(--lime)" id="chipCrews">—</div>
+      <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.15);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:600;color:var(--gold)" id="chipFree">—</div>
+      <div style="background:var(--card3);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:600;color:var(--muted)" id="chipMembers">—</div>
     </div>
   </div>
-  <div class="s-body s-pad">
-    <div id="crewsBotCards">
-      <div class="bot-card info">
-      <div class="bc-ico" style="background:rgba(77,207,255,.1)">🤖</div>
-      <div class="bc-body"><div class="bc-title">Стан збору</div><div class="bc-text">43 з 67 підтверджені. Ще <b style="color:var(--sky)">24 місця</b> чекають підтвердження водіїв.</div><div class="bc-time">5 хв тому</div></div>
+  <div class="s-body s-pad" style="padding-bottom:calc(80px + var(--safe))">
+    <div id="crewsBotCards"></div>
+    <div class="lv-row" style="margin-top:8px">
+      <div class="lv-dot" style="background:var(--gold)"></div>
+      <div class="lv-text" id="crewsLvLabel">Всі екіпажі</div>
+      <div class="lv-line"></div>
     </div>
-      <div class="bot-card warn">
-      <div class="bc-ico" style="background:rgba(255,184,48,.1)">⚠️</div>
-      <div class="bc-body"><div class="bc-title">Екіпаж #5 розпався</div><div class="bc-text">Водій скасував виїзд. <b style="color:var(--gold)">3 попутники</b> шукають новий екіпаж.</div><div class="bc-time">15 хв тому</div></div>
-    </div>
-    </div>
-    <div class="lv-row" style="margin-top:8px"><div class="lv-dot" style="background:var(--lime)"></div><div class="lv-text" id="crewsLvLabel">Всі екіпажі · 14 липня</div><div class="lv-line"></div></div>
     <div id="crewsList">
-    <!-- CREW 1 -->
-    <div class="crew-card open" id="crew1" onclick="toggleCrew(1)">
-      <div class="crew-head">
-        <div class="crew-num has-space">#1</div>
-        <div class="crew-body"><div class="crew-driver">Олексій М.</div><div class="crew-car">Toyota Camry · Срібна</div></div>
-        <div class="crew-seats">
-          <div class="seat driver"></div><div class="seat taken"></div><div class="seat taken"></div><div class="seat free-pulse"></div>
-        </div>
-      </div>
-      <div class="crew-detail"><div class="cd-inner">
-        <div class="cd-row"><span class="cd-lbl">Виїзд</span><span class="cd-val">14 лип, 7:00 · вул. Городоцька</span></div>
-        <div class="cd-row"><span class="cd-lbl">Маршрут</span><span class="cd-val">Львів → Буковель (~3 год)</span></div>
-        <div class="cd-members">
-          <div class="cd-member"><div class="cd-av" style="background:linear-gradient(135deg,var(--sky),#4f46e5)">О</div><div class="cd-role">водій</div></div>
-          <div class="cd-member"><div class="cd-av" style="background:linear-gradient(135deg,var(--rose),#a78bfa)">М</div><div class="cd-role">попутник</div></div>
-          <div class="cd-member"><div class="cd-av" style="background:linear-gradient(135deg,var(--gold),#f97316)">І</div><div class="cd-role">попутник</div></div>
-          <div class="cd-member"><div class="cd-empty">＋</div><div class="cd-role">вільно</div></div>
-        </div>
-        <button class="join-btn join-lime" onclick="event.stopPropagation();joinCrew(1)">🚗 Приєднатись до екіпажу #1</button>
-      </div></div>
-    </div>
-    <!-- CREW 2 -->
-    <div class="crew-card" id="crew2" onclick="toggleCrew(2)">
-      <div class="crew-head">
-        <div class="crew-num">#2</div>
-        <div class="crew-body"><div class="crew-driver">Наталія В.</div><div class="crew-car">VW Golf · Чорна</div></div>
-        <div class="crew-seats">
-          <div class="seat driver"></div><div class="seat taken"></div><div class="seat taken"></div><div class="seat taken"></div>
-        </div>
-      </div>
-      <div class="crew-detail"><div class="cd-inner">
-        <div class="cd-row"><span class="cd-lbl">Статус</span><span class="cd-val" style="color:var(--muted)">Екіпаж повний</span></div>
-        <button class="join-btn join-ask" onclick="event.stopPropagation();toast('📬 Запит у чергу...')">📬 Стати в чергу</button>
-      </div></div>
-    </div>
-    <!-- CREW 3 -->
-    <div class="crew-card" id="crew3" onclick="toggleCrew(3)">
-      <div class="crew-head">
-        <div class="crew-num has-space">#3</div>
-        <div class="crew-body"><div class="crew-driver">Дмитро К.</div><div class="crew-car">Honda CR-V · Синя</div></div>
-        <div class="crew-seats">
-          <div class="seat driver"></div><div class="seat taken"></div><div class="seat free-pulse"></div><div class="seat free-pulse"></div>
-        </div>
-      </div>
-      <div class="crew-detail"><div class="cd-inner">
-        <div class="cd-row"><span class="cd-lbl">Виїзд</span><span class="cd-val">14 лип, 6:30 · пр. Шевченка</span></div>
-        <button class="join-btn join-lime" onclick="event.stopPropagation();joinCrew(3)">🚗 Приєднатись до екіпажу #3</button>
-      </div></div>
-    </div>
-    </div>
+      <div class="loading-wrap"><div class="spin"></div></div>
     </div>
     <div class="invite-banner" onclick="openShare('org')">
-      <div class="ib-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--lime)" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
-      <div class="ib-body"><div class="ib-title">Запросити мандрівників і попутників</div><div class="ib-url" id="crewsInviteUrl">waytandem.app/i/bukovel-july14</div></div>
+      <div class="ib-ico">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--lime)" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      </div>
+      <div class="ib-body"><div class="ib-title">Запросити мандрівників і попутників</div><div class="ib-url" id="crewsInviteUrl">waytandem.app/i/bukovel</div></div>
       <div class="ib-copy">Копіювати</div>
     </div>
     <div class="add-card" onclick="openSheet('ovCreateCrew')">
@@ -708,103 +658,10 @@ html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(
   </div>
 </div>
 
-<!-- ══ SCREEN: CREWS — View 2 ══ -->
-<div class="screen" id="sc-crews">
-  <div class="crumb-bar">
-    <span class="crumb-seg" onclick="showScreen('sc-board','back')">Інтереси</span>
-    <span class="crumb-arr">›</span>
-    <span class="crumb-seg" onclick="showScreen('sc-orgs','back')" id="crewsCrumbDir">Карпати</span>
-    <span class="crumb-arr">›</span>
-    <span class="crumb-seg active" id="crewsCrumbOrg">Тарас · Буковель</span>
-  </div>
-  <div style="padding:10px 16px 8px;flex-shrink:0">
-    <div style="font-family:'Unbounded',sans-serif;font-size:16px;font-weight:700;color:var(--white)">Екіпажі виїзду</div>
-    <div style="display:flex;gap:8px;margin-top:8px" id="crewsSummaryChips">
-      <div style="background:rgba(201,255,71,.08);border:1px solid rgba(201,255,71,.15);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:600;color:var(--lime)" id="chipCrews">14 екіпажів</div>
-      <div style="background:rgba(255,184,48,.08);border:1px solid rgba(255,184,48,.15);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:600;color:var(--gold)" id="chipFree">38 вільних місць</div>
-      <div style="background:var(--card3);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:600;color:var(--muted)" id="chipMembers">67 людей</div>
-    </div>
-  </div>
-  <div class="s-body s-pad">
-    <div id="crewsBotCards">
-      <div class="bot-card info">
-      <div class="bc-ico" style="background:rgba(77,207,255,.1)">🤖</div>
-      <div class="bc-body"><div class="bc-title">Стан збору</div><div class="bc-text">43 з 67 підтверджені. Ще <b style="color:var(--sky)">24 місця</b> чекають підтвердження водіїв.</div><div class="bc-time">5 хв тому</div></div>
-    </div>
-      <div class="bot-card warn">
-      <div class="bc-ico" style="background:rgba(255,184,48,.1)">⚠️</div>
-      <div class="bc-body"><div class="bc-title">Екіпаж #5 розпався</div><div class="bc-text">Водій скасував виїзд. <b style="color:var(--gold)">3 попутники</b> шукають новий екіпаж.</div><div class="bc-time">15 хв тому</div></div>
-    </div>
-    </div>
-    <div class="lv-row" style="margin-top:8px"><div class="lv-dot" style="background:var(--lime)"></div><div class="lv-text" id="crewsLvLabel">Всі екіпажі · 14 липня</div><div class="lv-line"></div></div>
-    <!-- CREW 1 -->
-    <div class="crew-card open" id="crew1" onclick="toggleCrew(1)">
-      <div class="crew-head">
-        <div class="crew-num has-space">#1</div>
-        <div class="crew-body"><div class="crew-driver">Олексій М.</div><div class="crew-car">Toyota Camry · Срібна</div></div>
-        <div class="crew-seats">
-          <div class="seat driver"></div><div class="seat taken"></div><div class="seat taken"></div><div class="seat free-pulse"></div>
-        </div>
-      </div>
-      <div class="crew-detail"><div class="cd-inner">
-        <div class="cd-row"><span class="cd-lbl">Виїзд</span><span class="cd-val">14 лип, 7:00 · вул. Городоцька</span></div>
-        <div class="cd-row"><span class="cd-lbl">Маршрут</span><span class="cd-val">Львів → Буковель (~3 год)</span></div>
-        <div class="cd-members">
-          <div class="cd-member"><div class="cd-av" style="background:linear-gradient(135deg,var(--sky),#4f46e5)">О</div><div class="cd-role">водій</div></div>
-          <div class="cd-member"><div class="cd-av" style="background:linear-gradient(135deg,var(--rose),#a78bfa)">М</div><div class="cd-role">попутник</div></div>
-          <div class="cd-member"><div class="cd-av" style="background:linear-gradient(135deg,var(--gold),#f97316)">І</div><div class="cd-role">попутник</div></div>
-          <div class="cd-member"><div class="cd-empty">＋</div><div class="cd-role">вільно</div></div>
-        </div>
-        <button class="join-btn join-lime" onclick="event.stopPropagation();joinCrew(1)">🚗 Приєднатись до екіпажу #1</button>
-      </div></div>
-    </div>
-    <!-- CREW 2 -->
-    <div class="crew-card" id="crew2" onclick="toggleCrew(2)">
-      <div class="crew-head">
-        <div class="crew-num">#2</div>
-        <div class="crew-body"><div class="crew-driver">Наталія В.</div><div class="crew-car">VW Golf · Чорна</div></div>
-        <div class="crew-seats">
-          <div class="seat driver"></div><div class="seat taken"></div><div class="seat taken"></div><div class="seat taken"></div>
-        </div>
-      </div>
-      <div class="crew-detail"><div class="cd-inner">
-        <div class="cd-row"><span class="cd-lbl">Статус</span><span class="cd-val" style="color:var(--muted)">Екіпаж повний</span></div>
-        <button class="join-btn join-ask" onclick="event.stopPropagation();toast('📬 Запит у чергу...')">📬 Стати в чергу</button>
-      </div></div>
-    </div>
-    <!-- CREW 3 -->
-    <div class="crew-card" id="crew3" onclick="toggleCrew(3)">
-      <div class="crew-head">
-        <div class="crew-num has-space">#3</div>
-        <div class="crew-body"><div class="crew-driver">Дмитро К.</div><div class="crew-car">Honda CR-V · Синя</div></div>
-        <div class="crew-seats">
-          <div class="seat driver"></div><div class="seat taken"></div><div class="seat free-pulse"></div><div class="seat free-pulse"></div>
-        </div>
-      </div>
-      <div class="crew-detail"><div class="cd-inner">
-        <div class="cd-row"><span class="cd-lbl">Виїзд</span><span class="cd-val">14 лип, 6:30 · пр. Шевченка</span></div>
-        <button class="join-btn join-lime" onclick="event.stopPropagation();joinCrew(3)">🚗 Приєднатись до екіпажу #3</button>
-      </div></div>
-    </div>
-    </div>
-    </div>
-    <div class="invite-banner" onclick="openShare('org')">
-      <div class="ib-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--lime)" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
-      <div class="ib-body"><div class="ib-title">Запросити мандрівників і попутників</div><div class="ib-url" id="crewsInviteUrl">waytandem.app/i/bukovel-july14</div></div>
-      <div class="ib-copy">Копіювати</div>
-    </div>
-    <div class="add-card" onclick="openSheet('ovCreateCrew')">
-      <div style="font-size:20px;margin-bottom:4px">🚗</div>
-      <div style="font-size:13px;font-weight:700;color:var(--muted)">Відкрити свій екіпаж</div>
-      <div style="font-size:11px;color:var(--dim);margin-top:2px">Стань мандрівником — збери попутників</div>
-    </div>
-  </div>
-</div>
-
-<!-- ══ SCREEN: FEED — View 3 ══ -->
+<!-- ══ SCREEN: FEED — Level 3 ══ -->
 <div class="screen" id="sc-feed">
   <div class="crumb-bar">
-    <span class="crumb-seg" onclick="showScreen('sc-board','back')">Організовані виїзди</span>
+    <span class="crumb-seg" onclick="showScreen('sc-board','back')">Напрямки</span>
     <span class="crumb-arr">›</span>
     <span class="crumb-seg" onclick="showScreen('sc-orgs','back')">Карпати</span>
     <span class="crumb-arr">›</span>
@@ -818,72 +675,79 @@ html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(
   </div>
   <div class="s-body" style="padding:0 16px 90px">
     <div id="feedList">
+      <!-- static seed — replaced by live data when available -->
       <div class="feed-item">
         <div class="fi-av" style="background:linear-gradient(135deg,var(--lime),var(--sky))">О</div>
-        <div class="fi-body"><div class="fi-header"><span class="fi-crew">#1</span><span class="fi-driver">Олексій М.</span><span class="fi-time">щойно</span></div><div class="fi-msg">Всі зібрались, виїжджаємо! Хто ще на Городоцькій — чекаємо 5 хв 🚗</div><div class="fi-meta"><span class="fi-tag loc">📍 вул. Городоцька</span><span class="fi-tag ok">● Виїжджає</span></div></div>
+        <div class="fi-body">
+          <div class="fi-header"><span class="fi-crew">#1</span><span class="fi-driver">Олексій М.</span><span class="fi-time">щойно</span></div>
+          <div class="fi-msg">Всі зібрались, виїжджаємо! 🚗</div>
+          <div class="fi-meta"><span class="fi-tag ok">● Виїжджає</span></div>
+        </div>
       </div>
       <div class="feed-item">
         <div class="fi-av" style="background:linear-gradient(135deg,var(--rose),#a78bfa)">М</div>
-        <div class="fi-body"><div class="fi-header"><span class="fi-crew">#2</span><span class="fi-driver">Марія П.</span><span class="fi-time">3 хв</span></div><div class="fi-msg">Зупинка на АЗС Shell — якщо хтось хоче приєднатись по дорозі</div><div class="fi-meta"><span class="fi-tag loc">📍 АЗС Shell, Рясне</span></div></div>
-      </div>
-      <div class="feed-item">
-        <div class="fi-av" style="background:linear-gradient(135deg,var(--gold),#f97316)">В</div>
-        <div class="fi-body"><div class="fi-header"><span class="fi-crew">#4</span><span class="fi-driver">Василь Т.</span><span class="fi-time">7 хв</span></div><div class="fi-msg">У нас 1 вільне місце звільнилось — хтось відмовився. Хто хоче?</div><div class="fi-meta"><span class="fi-tag warn">⚑ 1 місце вільне</span></div></div>
+        <div class="fi-body">
+          <div class="fi-header"><span class="fi-crew">#2</span><span class="fi-driver">Марія П.</span><span class="fi-time">3 хв</span></div>
+          <div class="fi-msg">Зупинка на АЗС Shell — якщо хтось хоче по дорозі</div>
+          <div class="fi-meta"><span class="fi-tag loc">📍 АЗС Shell, Рясне</span></div>
+        </div>
       </div>
     </div>
     <div id="chatList" style="display:none">
       <div class="feed-item">
         <div class="fi-av" style="background:linear-gradient(135deg,var(--lime),var(--sky))">Т</div>
-        <div class="fi-body"><div class="fi-header"><span style="font-size:11px;font-weight:800;color:var(--white)">Тарас (організатор)</span><span class="fi-time">10 хв</span></div><div class="fi-msg">Всім доброго ранку! 🌄 Зустрічаємось на головному паркінгу Буковеля о 13:00.</div></div>
-      </div>
-      <div class="feed-item">
-        <div class="fi-av" style="background:var(--card3);color:var(--muted)">К</div>
-        <div class="fi-body"><div class="fi-header"><span style="font-size:11px;font-weight:700;color:var(--white)">Катерина</span><span class="fi-time">8 хв</span></div><div class="fi-msg">Чи є хтось з Франківська? Можемо підібрати по дорозі 🙋</div></div>
+        <div class="fi-body">
+          <div class="fi-header"><span style="font-size:11px;font-weight:800;color:var(--white)">Тарас (організатор)</span><span class="fi-time">10 хв</span></div>
+          <div class="fi-msg">Всім доброго ранку! 🌄 Зустрічаємось на головному паркінгу Буковеля о 13:00.</div>
+        </div>
       </div>
     </div>
   </div>
   <div class="compose-bar">
     <div class="compose-wrap">
-      <div class="compose-lbl" id="composeLbl">ВІД ІМЕНІ ЕКІПАЖУ #1</div>
-      <input class="compose-inp" id="composeInput" placeholder="Написати від екіпажу #1...">
+      <div class="compose-lbl" id="composeLbl">ВІД ІМЕНІ ЕКІПАЖУ</div>
+      <input class="compose-inp" id="composeInput" placeholder="Написати від екіпажу...">
     </div>
     <button class="compose-send" onclick="sendFeedMsg()">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#07090E" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#07090E" stroke-width="2.5">
+        <line x1="22" y1="2" x2="11" y2="13"/>
+        <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+      </svg>
     </button>
   </div>
 </div>
 
 <!-- ══ SCREEN: MY TRIP ══ -->
 <div class="screen" id="sc-trip">
-  <div style="padding:24px 16px 8px;flex-shrink:0;background:radial-gradient(ellipse 80% 50% at 60% 0%,rgba(201,255,71,.06),transparent 70%)">
+  <div style="padding:24px 16px 8px;flex-shrink:0;background:radial-gradient(ellipse 80% 50% at 60% 0%,rgba(138,201,38,.06),transparent 70%)">
     <div style="font-size:10px;font-weight:700;letter-spacing:1.8px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Поточна поїздка</div>
     <div style="font-family:'Unbounded',sans-serif;font-weight:700;font-size:20px;color:var(--white)">Мій екіпаж</div>
   </div>
-  <div class="s-body s-pad" id="tripContent">
+  <div class="s-body s-pad" id="tripContent" style="padding-bottom:calc(80px + var(--safe))">
     <div id="noTripWrap">
       <div class="empty-wrap">
-        <div class="empty-ico">🚗</div>
+        <div style="font-size:40px;margin-bottom:12px;opacity:.5">🚗</div>
         <div style="font-size:14px;font-weight:700;color:var(--white);margin-bottom:6px">Ще немає поїздки</div>
         <div class="empty-msg">Обери напрямок на дошці і приєднайся до екіпажу</div>
       </div>
       <button class="btn btn-lime" onclick="navTo(1)">Перейти до дошки →</button>
     </div>
     <div id="myTripWrap" style="display:none">
-      <div style="background:var(--card2);border:1.5px solid rgba(201,255,71,.2);border-radius:var(--r);padding:18px 20px;margin-bottom:16px">
+      <div style="background:var(--card2);border:1.5px solid rgba(138,201,38,.2);border-radius:var(--r);padding:18px 20px;margin-bottom:16px">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
           <div style="width:10px;height:10px;border-radius:50%;background:var(--lime);box-shadow:0 0 10px var(--lime);flex-shrink:0"></div>
-          <div style="font-size:14px;font-weight:700;color:var(--white);flex:1">Екіпаж #<span id="tripCrewNum">1</span> · Активний</div>
-          <div style="font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;background:rgba(201,255,71,.1);color:var(--lime)">В дорозі</div>
+          <div style="font-size:14px;font-weight:700;color:var(--white);flex:1">Екіпаж #<span id="tripCrewNum">1</span></div>
+          <div id="tripStatusBadge" style="font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;background:rgba(138,201,38,.1);color:var(--lime)">Активний</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:6px">
-          <div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted)">Організатор</span><span style="font-size:12px;font-weight:600;color:var(--white)">Тарас Г. (Буковель)</span></div>
-          <div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted)">Маршрут</span><span style="font-size:12px;font-weight:600;color:var(--white)">Львів → Буковель</span></div>
-          <div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted)">Дата</span><span style="font-size:12px;font-weight:600;color:var(--white)">14 липня, 7:00</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted)">Організатор</span><span style="font-size:12px;font-weight:600;color:var(--white)" id="tripOrganizerName">—</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted)">Маршрут</span><span style="font-size:12px;font-weight:600;color:var(--white)" id="tripRouteName">—</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted)">Збір</span><span style="font-size:12px;font-weight:600;color:var(--white)" id="tripPickupName">—</span></div>
         </div>
       </div>
       <div style="display:flex;gap:8px">
         <button class="btn btn-sky" style="font-size:12px" onclick="showScreen('sc-feed')">💬 Стрічка</button>
-        <button class="btn btn-ghost" style="font-size:12px;color:var(--red);border-color:rgba(255,77,77,.2)" onclick="leaveCrew()">Вийти</button>
+        <button class="btn btn-ghost" style="font-size:12px;color:var(--red);border-color:rgba(239,71,111,.2)" onclick="leaveCrew()">Вийти</button>
       </div>
     </div>
   </div>
@@ -891,35 +755,35 @@ html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(
 
 <!-- ══ SCREEN: PROFILE ══ -->
 <div class="screen" id="sc-profile">
-  <div style="padding:24px 16px 12px;flex-shrink:0;background:radial-gradient(ellipse 80% 50% at 60% 0%,rgba(201,255,71,.05),transparent 70%)">
+  <div style="padding:24px 16px 12px;flex-shrink:0;background:radial-gradient(ellipse 80% 50% at 60% 0%,rgba(138,201,38,.05),transparent 70%)">
     <div style="font-size:10px;font-weight:700;letter-spacing:1.8px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Профіль</div>
     <div style="font-family:'Unbounded',sans-serif;font-weight:700;font-size:20px;color:var(--white)" id="profName">Учасник</div>
     <div style="font-size:12px;color:var(--muted);margin-top:4px" id="profRoleLabel">👤 WayTandem</div>
   </div>
-  <div class="s-body s-pad">
+  <div class="s-body s-pad" style="padding-bottom:calc(80px + var(--safe))">
     <div style="display:flex;gap:8px;margin-bottom:16px">
-      <div style="flex:1;background:var(--card2);border-radius:var(--r2);padding:14px 8px;text-align:center">
-        <div style="font-size:22px;font-weight:800;color:var(--lime)">7</div><div style="font-size:11px;color:var(--muted);margin-top:2px">Поїздок</div>
+      <div style="flex:1;background:var(--card2);border:1px solid var(--border);border-radius:var(--r2);padding:14px 8px;text-align:center">
+        <div style="font-size:22px;font-weight:800;color:var(--lime)">7</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">Поїздок</div>
       </div>
-      <div style="flex:1;background:var(--card2);border-radius:var(--r2);padding:14px 8px;text-align:center">
-        <div style="font-size:22px;font-weight:800;color:var(--gold)">4.9</div><div style="font-size:11px;color:var(--muted);margin-top:2px">Рейтинг</div>
+      <div style="flex:1;background:var(--card2);border:1px solid var(--border);border-radius:var(--r2);padding:14px 8px;text-align:center">
+        <div style="font-size:22px;font-weight:800;color:var(--gold)">4.9</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">Рейтинг</div>
       </div>
-      <div style="flex:1;background:var(--card2);border-radius:var(--r2);padding:14px 8px;text-align:center">
-        <div style="font-size:22px;font-weight:800;color:var(--sky)">3</div><div style="font-size:11px;color:var(--muted);margin-top:2px">Екіпажів</div>
+      <div style="flex:1;background:var(--card2);border:1px solid var(--border);border-radius:var(--r2);padding:14px 8px;text-align:center">
+        <div style="font-size:22px;font-weight:800;color:var(--sky)">3</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">Екіпажів</div>
       </div>
     </div>
     <div style="display:flex;flex-direction:column;gap:8px">
-      <div style="background:var(--card2);border:1px solid var(--border);border-radius:var(--r2);padding:12px 16px;display:flex;align-items:center;gap:12px;cursor:pointer" onclick="toast('⭐ Рейтинг...')">
-        <div style="font-size:18px">⭐</div><div style="flex:1"><div style="font-size:13px;font-weight:600">Мій рейтинг</div><div style="font-size:11px;color:var(--muted)">Оцінки від учасників</div></div><div style="font-size:16px;color:var(--dim)">›</div>
-      </div>
-      <div style="background:var(--card2);border:1px solid var(--border);border-radius:var(--r2);padding:12px 16px;display:flex;align-items:center;gap:12px;cursor:pointer" onclick="toast('🚗 Мої виїзди...')">
-        <div style="font-size:18px">🚗</div><div style="flex:1"><div style="font-size:13px;font-weight:600">Мої виїзди</div><div style="font-size:11px;color:var(--muted)">Активні та минулі</div></div><div style="font-size:16px;color:var(--dim)">›</div>
-      </div>
       <div style="background:var(--card2);border:1px solid var(--border);border-radius:var(--r2);padding:12px 16px;display:flex;align-items:center;gap:12px;cursor:pointer" onclick="openSheet('ovApi')">
-        <div style="font-size:18px">⚙️</div><div style="flex:1"><div style="font-size:13px;font-weight:600">Налаштування</div><div style="font-size:11px;color:var(--muted)">Сервер, роль, місто</div></div><div style="font-size:16px;color:var(--dim)">›</div>
+        <div style="font-size:18px">⚙️</div>
+        <div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--white)">Налаштування сервера</div><div style="font-size:11px;color:var(--muted)" id="apiUrlDisplay">Не підключено</div></div>
+        <div style="font-size:16px;color:var(--dim)">›</div>
       </div>
       <div style="background:var(--card2);border:1px solid var(--border);border-radius:var(--r2);padding:12px 16px;display:flex;align-items:center;gap:12px;cursor:pointer" onclick="resetOnboarding()">
-        <div style="font-size:18px">🔄</div><div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--muted)">Вийти / змінити роль</div></div>
+        <div style="font-size:18px">🔄</div>
+        <div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--muted)">Вийти / змінити роль</div></div>
       </div>
     </div>
   </div>
@@ -942,12 +806,14 @@ html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(
     <div class="nv-lbl">Поїздка</div>
   </div>
   <div class="nv" id="nv3" onclick="navTo(3)">
-    <div class="nv-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg></div>
+    <div class="nv-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg></div>
     <div class="nv-lbl">Профіль</div>
   </div>
 </nav>
 
 </div><!-- /root -->
+
+<!-- ══ OVERLAYS ══ -->
 
 <!-- SHARE SHEET -->
 <div class="overlay" id="ovShare">
@@ -999,297 +865,143 @@ html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(
 
 <script>
 'use strict';
-// ── TELEGRAM ────────────────────────────────────────────
-var tg=window.Telegram&&window.Telegram.WebApp;
-if(tg){tg.ready();tg.expand();try{tg.setHeaderColor('#07090E');tg.setBackgroundColor('#07090E');}catch(e){}}
-var tgUser=(tg&&tg.initDataUnsafe&&tg.initDataUnsafe.user)||{};
-var IS_TG_AUTH=!!(tg&&tg.initData&&tgUser.id);
-var READ_ONLY_DEMO=!IS_TG_AUTH;
-function requireLiveIdentity(actionText){
-  if(IS_TG_AUTH&&ST.user.id)return true;
-  toast(actionText||'Увійдіть через Telegram Mini App','err');
-  return false;
+
+// ══ TELEGRAM ══════════════════════════════════════════════
+var tg = window.Telegram && window.Telegram.WebApp;
+if (tg) { tg.ready(); tg.expand(); try { tg.setHeaderColor('#F7F9FC'); tg.setBackgroundColor('#F7F9FC'); } catch(e) {} }
+var tgUser = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) || {};
+var IS_TG_AUTH = !!(tg && tg.initData && tgUser.id);
+var READ_ONLY_DEMO = !IS_TG_AUTH;
+
+function requireLiveIdentity(txt) {
+  if (IS_TG_AUTH && ST.user.id) return true;
+  toast(txt || 'Увійдіть через Telegram Mini App', 'err'); return false;
 }
-function requireProfileRole(actionText){
-  if(ST.role)return true;
-  toast(actionText||'Спочатку завершіть реєстрацію і виберіть роль','err');
-  return false;
+function requireProfileRole(txt) {
+  if (ST.role) return true;
+  toast(txt || 'Спочатку завершіть реєстрацію і виберіть роль', 'err'); return false;
 }
 
-var API_URL=(function(){
-  var p=new URLSearchParams(location.search).get('api');
-  if(p){try{localStorage.setItem('wt_api',p);}catch(e){}return p.replace(/\/$/,'');}
-  try{var s=localStorage.getItem('wt_api');if(s)return s.replace(/\/$/,'');}catch(e){}
+// ══ API URL ════════════════════════════════════════════════
+var API_URL = (function() {
+  var p = new URLSearchParams(location.search).get('api');
+  if (p) { try { localStorage.setItem('wt_api', p); } catch(e) {} return p.replace(/\/$/, ''); }
+  try { var s = localStorage.getItem('wt_api'); if (s) return s.replace(/\/$/, ''); } catch(e) {}
   return '';
 })();
-async function api(ep,params,opts){
-  if(!API_URL){openSheet('ovApi');return null;}
-  params=params||{};opts=opts||{};
-  var url=new URL(API_URL+ep);
-  if(!opts.body)Object.keys(params).forEach(function(k){if(params[k]!=null)url.searchParams.append(k,params[k]);});
-  try{
-    var hdrs={'bypass-tunnel-reminder':'true'};
-    if(opts.body)hdrs['Content-Type']='application/json';
-    if(tg&&tg.initData)hdrs['Authorization']='tma '+tg.initData;
-    var r=await fetch(url.toString(),Object.assign({headers:hdrs},opts));
-    if(r.status===401){toast('Авторизація не пройшла','err');return null;}
-    if(!r.ok)return null;
-    setApiStatus('ok');return await r.json();
-  }catch(e){setApiStatus('err');return null;}
-}
-function setApiStatus(s){
-  var dot=document.getElementById('apiDot'),txt=document.getElementById('apiTxt'),panel=document.getElementById('apiStatus');
-  if(!dot)return;
-  dot.className='ap-dot '+s;
-  if(s==='ok'){txt.textContent=API_URL.replace('https://','');panel.style.display='none';}
-  else if(s==='err'){txt.textContent='Сервер недоступний';panel.style.display='flex';}
-  else{txt.textContent='Підключення...';panel.style.display='flex';}
-}
-async function saveApi(){
-  var v=(document.getElementById('apiInput').value||'').trim().replace(/\/$/,'');
-  if(!v){toast('Введіть URL','err');return;}
-  try{localStorage.setItem('wt_api',v);}catch(e){}
-  API_URL=v;closeSheet('ovApi');setApiStatus('wait');
-  var d=await api('/api/health');
-  if(d){toast('Сервер підключено ✓','ok');setApiStatus('ok');}
-  else{toast('Не вдалось підключитись','err');setApiStatus('err');}
+
+async function api(ep, params, opts) {
+  if (!API_URL) { openSheet('ovApi'); return null; }
+  params = params || {}; opts = opts || {};
+  var url = new URL(API_URL + ep);
+  if (!opts.body) Object.keys(params).forEach(function(k) { if (params[k] != null) url.searchParams.append(k, params[k]); });
+  try {
+    var hdrs = { 'bypass-tunnel-reminder': 'true' };
+    if (opts.body) hdrs['Content-Type'] = 'application/json';
+    if (tg && tg.initData) hdrs['Authorization'] = 'tma ' + tg.initData;
+    var r = await fetch(url.toString(), Object.assign({ headers: hdrs }, opts));
+    if (r.status === 401) { toast('Авторизація не пройшла', 'err'); return null; }
+    if (!r.ok) return null;
+    setApiStatus('ok'); return await r.json();
+  } catch(e) { setApiStatus('err'); return null; }
 }
 
-// ── STATE (§CANON ST.1) ──────────────────────────────────
-var ST={user:{name:tgUser.first_name||'',id:tgUser.id||0},role:null,city:'lviv',onboarded:false,joinedCrew:null,pendingCrew:null};
-try{var _s=JSON.parse(localStorage.getItem('wt_state')||'null');if(_s){if(_s.role)ST.role=_s.role;if(_s.city)ST.city=_s.city;if(_s.name)ST.user.name=_s.name;if(_s.onboarded)ST.onboarded=_s.onboarded;}}catch(e){}
-function saveState(){try{localStorage.setItem('wt_state',JSON.stringify({role:ST.role,city:ST.city,name:ST.user.name,onboarded:ST.onboarded}));}catch(e){}}
-function isDriverLikeRole(){return ST.role==='traveler'||ST.role==='organizer';}
-function setTripPanelVisible(active){
-  var tw=document.getElementById('myTripWrap'),nw=document.getElementById('noTripWrap');
-  if(tw)tw.style.display=active?'':'none';
-  if(nw)nw.style.display=active?'none':'';
-}
-function formatTripStatus(status){
-  var map={pending:'Очікує підтвердження',pending_confirm:'Підтвердження',active:'Активний',pickup:'Збір',driving:'В дорозі'};
-  return map[status]||'Активний';
-}
-function formatViewerRole(role){return role==='driver'?'Організатор':'Попутник';}
-function openCreateCrewSheet(){
-  var label=document.getElementById('createCrewDirectionLabel');
-  if(label)label.textContent=FX.dirTitle||'Напрямок збору чи місто';
-  openSheet('ovCreateCrew');
-}
-async function hydrateTrip(){
-  if(!API_URL||!IS_TG_AUTH||!ST.user.id){setTripPanelVisible(false);return;}
-  var data=await api('/api/v3/trip/active',{user_id:ST.user.id});
-  if(!data||!data.active){setTripPanelVisible(false);return;}
-  ST.joinedCrew=data.crew_id||data.id;
-  ST.pendingCrew=null;
-  var crewNum=document.getElementById('tripCrewNum');if(crewNum)crewNum.textContent=String(data.crew_display_id||data.crew_id||data.id||'');
-  var stage=document.getElementById('tripStageText');if(stage)stage.textContent=formatTripStatus(data.status);
-  var badge=document.getElementById('tripStatusBadge');
-  if(badge){
-    badge.textContent=formatTripStatus(data.status);
-    badge.style.background=(data.status==='pending'||data.status==='pending_confirm')?'rgba(77,207,255,.1)':'rgba(201,255,71,.1)';
-    badge.style.color=(data.status==='pending'||data.status==='pending_confirm')?'var(--sky)':'var(--lime)';
+function setApiStatus(s) {
+  var dot = document.getElementById('apiDot'),
+      txt = document.getElementById('apiTxt'),
+      panel = document.getElementById('apiStatus'),
+      disp = document.getElementById('apiUrlDisplay');
+  if (!dot) return;
+  dot.className = 'ap-dot ' + s;
+  if (s === 'ok') {
+    if (txt) txt.textContent = API_URL.replace('https://', '');
+    if (panel) panel.style.display = 'none';
+    if (disp) disp.textContent = API_URL.replace('https://', '');
+  } else if (s === 'err') {
+    if (txt) txt.textContent = 'Сервер недоступний';
+    if (panel) panel.style.display = 'flex';
+    if (disp) disp.textContent = 'Недоступний';
+  } else {
+    if (txt) txt.textContent = 'Підключення...';
+    if (panel) panel.style.display = 'flex';
   }
-  var org=document.getElementById('tripOrganizerName');if(org)org.textContent=data.organizer_name||'?';
-  var route=document.getElementById('tripRouteName');if(route)route.textContent=data.route_label||data.direction_title||data.destination||'Напрямок невідомий';
-  var role=document.getElementById('tripViewerRole');if(role)role.textContent=formatViewerRole(data.viewer_role);
-  var pickup=document.getElementById('tripPickupName');if(pickup)pickup.textContent=data.pickup||'Місце збору';
-  var lbl=document.getElementById('composeLbl');if(lbl)lbl.textContent='ВІД ІМЕНІ ЕКІПАЖУ #'+String(data.crew_display_id||data.crew_id||data.id||'');
-  var inp=document.getElementById('composeInput');if(inp&&document.getElementById('chatList').style.display==='none')inp.placeholder='Написати від екіпажу #'+String(data.crew_display_id||data.crew_id||data.id||'...');
+}
+
+async function saveApi() {
+  var v = (document.getElementById('apiInput').value || '').trim().replace(/\/$/, '');
+  if (!v) { toast('Введіть URL', 'err'); return; }
+  try { localStorage.setItem('wt_api', v); } catch(e) {}
+  API_URL = v; closeSheet('ovApi'); setApiStatus('wait');
+  var d = await api('/api/health');
+  if (d) { toast('Сервер підключено ✓', 'ok'); setApiStatus('ok'); }
+  else { toast('Не вдалось підключитись', 'err'); setApiStatus('err'); }
+}
+
+// ══ STATE ══════════════════════════════════════════════════
+var ST = { user: { name: tgUser.first_name || '', id: tgUser.id || 0 }, role: null, city: 'lviv', onboarded: false, joinedCrew: null, pendingCrew: null, cityName: 'Львів' };
+try {
+  var _s = JSON.parse(localStorage.getItem('wt_state') || 'null');
+  if (_s) { if (_s.role) ST.role = _s.role; if (_s.city) ST.city = _s.city; if (_s.name) ST.user.name = _s.name; if (_s.onboarded) ST.onboarded = _s.onboarded; }
+} catch(e) {}
+
+function saveState() { try { localStorage.setItem('wt_state', JSON.stringify({ role: ST.role, city: ST.city, name: ST.user.name, onboarded: ST.onboarded })); } catch(e) {} }
+function isDriverLikeRole() { return ST.role === 'traveler' || ST.role === 'organizer'; }
+function setTripPanelVisible(active) {
+  var tw = document.getElementById('myTripWrap'), nw = document.getElementById('noTripWrap');
+  if (tw) tw.style.display = active ? '' : 'none';
+  if (nw) nw.style.display = active ? 'none' : '';
+}
+function formatTripStatus(status) {
+  return { pending: 'Очікує підтвердження', pending_confirm: 'Підтвердження', active: 'Активний', pickup: 'Збір', driving: 'В дорозі' }[status] || 'Активний';
+}
+
+async function hydrateTrip() {
+  if (!API_URL || !IS_TG_AUTH || !ST.user.id) { setTripPanelVisible(false); return; }
+  var data = await api('/api/v3/trip/active', { user_id: ST.user.id });
+  if (!data || !data.active) { setTripPanelVisible(false); return; }
+  ST.joinedCrew = data.crew_id || data.id; ST.pendingCrew = null;
+  var crewNum = document.getElementById('tripCrewNum'); if (crewNum) crewNum.textContent = String(data.crew_display_id || data.crew_id || data.id || '');
+  var badge = document.getElementById('tripStatusBadge');
+  if (badge) {
+    badge.textContent = formatTripStatus(data.status);
+    var isPending = data.status === 'pending' || data.status === 'pending_confirm';
+    badge.style.background = isPending ? 'rgba(0,180,216,.1)' : 'rgba(138,201,38,.1)';
+    badge.style.color = isPending ? 'var(--sky)' : 'var(--lime)';
+  }
+  var org = document.getElementById('tripOrganizerName'); if (org) org.textContent = data.organizer_name || '?';
+  var route = document.getElementById('tripRouteName'); if (route) route.textContent = data.route_label || data.direction_title || data.destination || 'Напрямок';
+  var pickup = document.getElementById('tripPickupName'); if (pickup) pickup.textContent = data.pickup || 'Місце збору';
+  var lbl = document.getElementById('composeLbl'); if (lbl) lbl.textContent = 'ВІД ІМЕНІ ЕКІПАЖУ #' + String(data.crew_display_id || data.crew_id || data.id || '');
   setTripPanelVisible(true);
 }
 
-// ── NAVIGATION (§CANON NAV.1) ────────────────────────────
-function showScreen(id,dir){
-  var next=document.getElementById(id);if(!next)return;
-  var cur=document.querySelector('.screen.active');if(cur===next)return;
-  var fwd=dir!=='back';
-  document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active','out');s.style.transform='';s.style.opacity='';s.style.transition='';});
-  if(fwd){if(cur){cur.classList.add('out');setTimeout(function(){if(cur)cur.classList.remove('out');},350);}}
-  else{next.style.transition='none';next.style.transform='translateX(-28%)';next.style.opacity='0';next.getBoundingClientRect();next.style.transition='';next.style.transform='';next.style.opacity='';}
+// ══ NAVIGATION ═════════════════════════════════════════════
+function showScreen(id, dir) {
+  var next = document.getElementById(id); if (!next) return;
+  var cur = document.querySelector('.screen.active'); if (cur === next) return;
+  var fwd = dir !== 'back';
+  document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active', 'out'); s.style.transform = ''; s.style.opacity = ''; s.style.transition = ''; });
+  if (fwd) { if (cur) { cur.classList.add('out'); setTimeout(function() { if (cur) cur.classList.remove('out'); }, 350); } }
+  else { next.style.transition = 'none'; next.style.transform = 'translateX(-28%)'; next.style.opacity = '0'; next.getBoundingClientRect(); next.style.transition = ''; next.style.transform = ''; next.style.opacity = ''; }
   next.classList.add('active');
 }
-function navTo(i){
-  var map=['sc-board','sc-board','sc-trip','sc-profile'];
-  showScreen(map[i]);updateNav(i);
-  if(i===2&&API_URL&&IS_TG_AUTH&&ST.user.id)hydrateTrip();
-}
-function updateNav(i){document.querySelectorAll('.nv').forEach(function(n,idx){n.classList.toggle('on',idx===i);});}
 
-// ── FRACTAL STATE ─────────────────────────────────────────────────────────
-// Зберігає контекст переходів між рівнями
-var BOARD_PATH=[];
+function navTo(i) {
+  var map = ['sc-board', 'sc-board', 'sc-trip', 'sc-profile'];
+  showScreen(map[i]); updateNav(i);
+  if (i === 2 && API_URL && IS_TG_AUTH && ST.user.id) hydrateTrip();
+}
+function updateNav(i) { document.querySelectorAll('.nv').forEach(function(n, idx) { n.classList.toggle('on', idx === i); }); }
 
-var FX={
-  dirId:null,      // поточний direction_id
-  dirTitle:'',     // назва напрямку
-  dirEmoji:'🏔️',
-  orgId:null,      // поточний organizer user_id
-  orgName:''       // ім'я організатора
-};
+// ══ FRACTAL STATE ══════════════════════════════════════════
+var BOARD_PATH = [];
+var FX = { dirId: null, dirTitle: '', dirEmoji: '🏔️', orgId: null, orgName: '' };
 
-// ── FRACTAL EMOJI MAP ─────────────────────────────────────────────────────
-var KIND_EMOJI={'cat_mountains':'🏔️','cat_sea':'🌊','cat_abroad':'🌍','cat_vacation':'✈️','cat_city':'🏙️','cat_work':'💼','cat_service':'🔧','cat_custom':'📍'};
-var KIND_COLOR={'cat_mountains':'var(--lime)','cat_sea':'var(--sky)','cat_abroad':'var(--rose)','cat_vacation':'var(--sky)','cat_city':'var(--muted)','cat_work':'var(--gold)','cat_service':'var(--dim)','cat_custom':'var(--lime)'};
-var KIND_GLOW={'cat_mountains':'rgba(201,255,71,.08)','cat_sea':'rgba(77,207,255,.07)','cat_abroad':'rgba(255,107,138,.06)','cat_vacation':'rgba(77,207,255,.07)','cat_custom':'rgba(201,255,71,.06)'};
+var KIND_EMOJI = { cat_mountains: '🏔️', cat_sea: '🌊', cat_abroad: '🌍', cat_vacation: '✈️', cat_city: '🏙️', cat_work: '💼', cat_service: '🔧', cat_custom: '📍' };
+var KIND_COLOR = { cat_mountains: 'var(--lime)', cat_sea: 'var(--sky)', cat_abroad: 'var(--rose)', cat_vacation: 'var(--sky)', cat_city: 'var(--muted)', cat_work: 'var(--gold)', cat_service: 'var(--dim)', cat_custom: 'var(--lime)' };
+var KIND_GLOW  = { cat_mountains: 'rgba(138,201,38,.08)', cat_sea: 'rgba(0,180,216,.07)', cat_abroad: 'rgba(239,71,111,.06)', cat_vacation: 'rgba(0,180,216,.07)', cat_custom: 'rgba(138,201,38,.06)' };
 
-function _kindEmoji(kind,title){
-  if(KIND_EMOJI[kind])return KIND_EMOJI[kind];
-  var t=(title||'').toLowerCase();
-  if(t.includes('гор')||t.includes('буковель')||t.includes('синевир'))return '🏔️';
-  if(t.includes('море')||t.includes('пляж'))return '🌊';
-  if(t.includes('кордон')||t.includes('польщ'))return '🌍';
-  return '📍';
-}
-function _kindColor(kind){return KIND_COLOR[kind]||'var(--lime)';}
-function _kindGlow(kind){return KIND_GLOW[kind]||'rgba(201,255,71,.06)';}
-function _numWord(n,one,few,many){
-  n=Math.abs(n)%100;var n1=n%10;
-  if(n>10&&n<20)return many;
-  if(n1>1&&n1<5)return few;
-  if(n1===1)return one;
-  return many;
-}
-
-// ── RENDER: BOARD (FRAC-0) ────────────────────────────────────────────────
-function updateBoardHeader(){
-  var lbl=document.getElementById('boardCityLabel');
-  var back=document.getElementById('boardBackRow');
-  var city=(ST.cityName||'\u0412\u0430\u0448\u0435 \u043c\u0456\u0441\u0442\u043e');
-  if(BOARD_PATH.length===0){
-    if(lbl)lbl.textContent='\u041e\u0440\u0433\u0430\u043d\u0456\u0437\u043e\u0432\u0430\u043d\u0456 \u0432\u0438\u0457\u0437\u0434\u0438 \u00b7 '+city;
-    if(back)back.style.display='none';
-  } else {
-    var trail=BOARD_PATH.map(function(p){return p.title;}).join(' \u203a ');
-    if(lbl)lbl.textContent='\u041e\u0440\u0433\u0430\u043d\u0456\u0437\u043e\u0432\u0430\u043d\u0456 \u0432\u0438\u0457\u0437\u0434\u0438 \u00b7 '+trail;
-    if(back)back.style.display='';
-  }
-}
-function boardGoBack(){
-  if(!BOARD_PATH.length)return;
-  BOARD_PATH.pop();
-  var parentId=BOARD_PATH.length?BOARD_PATH[BOARD_PATH.length-1].id:null;
-  loadBoardLevel(parentId);
-}
-function openBoardChild(dirId, dirTitle){
-  BOARD_PATH.push({id:dirId,title:dirTitle||'\u041d\u0430\u043f\u0440\u044f\u043c\u043e\u043a'});
-  loadBoardLevel(dirId);
-}
-async function loadBoardLevel(parentId){
-  var lang='uk';
-  var params={lang:lang};
-  if(ST.user&&ST.user.id)params.user_id=ST.user.id;
-  if(parentId!=null)params.parent_id=parentId;
-  var data=await api('/api/v3/board',params);
-  if(!data)return;
-  renderBoardFallback(data);
-  updateBoardHeader();
-}
-
-async function loadBoard(){
-  BOARD_PATH=[];
-  await loadBoardLevel(null);
-}
-
-function renderBoardFallback(items){
-  // Якщо /api/v3/fractal ще не задеплоєний — рендеримо з /api/v3/board
-  var subs=[];
-  renderBoard(items.map(function(d){
-    return {id:d.id,title:d.title,kind:d.kind||'cat_custom',
-            drivers:d.drivers||0,passengers:d.passengers||0,
-            free_seats:0,has_kids:d.has_kids};
-  }),{subscriptions:subs});
-}
-
-function renderBoard(interests, userStatus){
-  var list=document.getElementById('boardList');
-  if(!list)return;
-  if(!interests||interests.length===0){
-    list.innerHTML='<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">Немає активних напрямків</div>';
-    return;
-  }
-  var subs=(userStatus.subscriptions||[]).map(function(s){return s.direction_id;});
-  var html='';
-  interests.forEach(function(d,idx){
-    var emoji=_kindEmoji(d.kind,d.title);
-    var color=_kindColor(d.kind);
-    var glow=_kindGlow(d.kind);
-    var n=idx+1;
-    var isSub=subs.indexOf(d.id)>=0;
-    html+='<div class="int-card" id="int'+n+'" style="--glow:'+glow+'" onclick="toggleInt('+n+')" data-dir-id="'+d.id+'" data-dir-title="'+escHtml(d.title)+'" data-dir-emoji="'+emoji+'" data-dir-kind="'+d.kind+'">';
-    html+='<div class="ic-top">';
-    html+='<div class="ic-emoji">'+emoji+'</div>';
-    html+='<div class="ic-body">';
-    html+='<div class="ic-name">'+escHtml(d.title)+(isSub?' <span style="color:var(--lime);font-size:10px">✓</span>':'')+'</div>';
-    var desc=d.drivers>0?d.drivers+' '+_numWord(d.drivers,'водій','водії','водіїв')+' · '+d.passengers+' '+_numWord(d.passengers,'попутник','попутники','попутників'):'Першим підпишись на цей напрямок';
-    html+='<div class="ic-desc">'+desc+'</div>';
-    html+='</div>';
-    html+='<div class="ic-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="'+color+'" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>';
-    html+='</div>';
-    // stats
-    html+='<div class="ic-stats">';
-    html+='<div class="ic-stat"><div class="ic-stat-val" style="color:'+color+'">'+(d.passengers||0)+'</div><div class="ic-stat-lbl">людей</div></div>';
-    html+='<div class="ic-stat"><div class="ic-stat-val" style="color:var(--sky)">'+(d.drivers||0)+'</div><div class="ic-stat-lbl">організаторів</div></div>';
-    html+='<div class="ic-stat"><div class="ic-stat-val" style="color:var(--gold)">'+(d.free_seats||0)+'</div><div class="ic-stat-lbl">вільних місць</div></div>';
-    html+='</div>';
-    // drill
-    html+='<div class="ic-drill">';
-    if(d.has_kids){
-      html+='<button class="ic-drill-btn" style="background:'+color.replace('var(','rgba(').replace(')','')+'.1);border:1px solid '+color.replace('var(','rgba(').replace(')','')+'.2);color:'+color+'" onclick="event.stopPropagation();openBoardChild('+d.id+',\''+escHtml(d.title)+'\')">\u0412\u0456\u0434\u043a\u0440\u0438\u0442\u0438 \u043f\u0456\u0434\u0440\u0456\u0432\u0435\u043d\u044c \u2192</button>';
-    } else if(d.drivers>0){
-      html+='<button class="ic-drill-btn" style="background:'+color.replace('var(','rgba(').replace(')','')+'.1);border:1px solid '+color.replace('var(','rgba(').replace(')','')+'.2);color:'+color+'" onclick="event.stopPropagation();goToOrgs('+d.id+',\''+escHtml(d.title)+'\',\''+emoji+'\')">\u041e\u0440\u0433\u0430\u043d\u0456\u0437\u0430\u0442\u043e\u0440\u0438 \u0442\u0430 \u0432\u0438\u0457\u0437\u0434\u0438 \u2192</button>';
-    } else {
-      html+='<button class="ic-drill-btn" style="opacity:.5" onclick="event.stopPropagation();subscribeDir('+d.id+',\''+escHtml(d.title)+'\')">\ud83d\udccc \u041f\u0456\u0434\u043f\u0438\u0441\u0430\u0442\u0438\u0441\u044c \u043d\u0430 \u043d\u0430\u043f\u0440\u044f\u043c\u043e\u043a</button>';
-    }
-    html+='</div></div>';
-  });
-  list.innerHTML=html;
-}
-
-async function subscribeDir(dirId, dirTitle){
-  if(!requireLiveIdentity('Підписка доступна тільки в Telegram Mini App'))return;
-  if(!requireProfileRole())return;
-  var webRole=(ST.role==='traveler'||ST.role==='organizer')?'driver':'passenger';
-  var res=await api('/api/v3/board/subscribe',{},{method:'POST',body:JSON.stringify({direction_id:dirId,user_id:ST.user.id,role:webRole})});
-  if(!res){toast('Не вдалося підписатись','err');return;}
-  toast(res.status==='already_subscribed'?'Ви вже підписані на '+dirTitle:'Підписано на '+dirTitle);
-  setTimeout(loadBoard,500);
-}
-
-async function goToOrgs(dirId, dirTitle, dirEmoji){
-  FX.dirId=dirId; FX.dirTitle=dirTitle||'Напрямок'; FX.dirEmoji=dirEmoji||'📍';
-  showScreen('sc-orgs');
-  // Update headers immediately
-  var tEl=document.getElementById('orgsDirTitle');
-  var nEl=document.getElementById('orgsDirName');
-  var mEl=document.getElementById('orgsDirMeta');
-  if(tEl)tEl.textContent=FX.dirTitle;
-  if(nEl)nEl.textContent=FX.dirEmoji+' '+FX.dirTitle;
-  if(mEl)mEl.textContent='Завантаження…';
-  await loadOrgs(dirId);
-}
-
-async function loadOrgs(dirId){
-  var data=await api('/api/v3/fractal/organizers',{direction_id:dirId,lang:'uk',user_id:ST.user.id||''});
-  if(!data){
-    // fallback: /api/v3/groups
-    var groups=await api('/api/v3/groups');
-    if(groups)renderOrgsFallback(groups);
-    return;
-  }
-  var mEl=document.getElementById('orgsDirMeta');
-  if(mEl&&data.direction)mEl.textContent=(data.direction.drivers||0)+' організаторів · '+(data.direction.passengers||0)+' людей зацікавлені';
-  renderOrgs(data.organizers||[], data.direction||{});
-}
-
-function renderOrgsFallback(groups){
-  var orgs=groups.map(function(g){
-    return {user_id:0,name:g.name,car:'',seats_total:4,seats_free:g.members?4-g.members:4,
-            rating:0,trips:0,group_id:g.id,group_name:g.name,departure:g.date||'',members:g.members||0,crews_count:0};
-  });
-  renderOrgs(orgs,{});
-}
-
-var _AV_GRADIENTS=[
+var _AV_GRADIENTS = [
   'linear-gradient(135deg,var(--lime),var(--sky))',
   'linear-gradient(135deg,var(--sky),#4f46e5)',
   'linear-gradient(135deg,var(--gold),#f97316)',
@@ -1297,408 +1009,501 @@ var _AV_GRADIENTS=[
   'linear-gradient(135deg,#06b6d4,#3b82f6)'
 ];
 
-function renderOrgs(orgs, direction){
-  var list=document.getElementById('orgsList');
-  if(!list)return;
-  if(!orgs||orgs.length===0){
-    list.innerHTML='<div style="padding:28px;text-align:center;color:var(--muted);font-size:13px">Поки немає організаторів<br><span style="color:var(--dim);font-size:11px">Стань першим організатором цього напрямку</span></div>';
-    return;
-  }
-  var html='';
-  orgs.forEach(function(org,idx){
-    var n=idx+1;
-    var letter=(org.name||'?')[0].toUpperCase();
-    var grad=_AV_GRADIENTS[idx%_AV_GRADIENTS.length];
-    var freeColor=org.seats_free>0?'var(--lime)':'var(--muted)';
-    var freeTxt=org.seats_free>0?org.seats_free+' місць':'повний';
-    var badgeBg=org.seats_free>0?'rgba(201,255,71,.1)':'var(--card3)';
-    html+='<div class="org-card'+(idx===0?' open':'')+'" id="org'+n+'" onclick="toggleOrg('+n+')">';
-    html+='<div class="org-head">';
-    html+='<div class="org-av" style="background:'+grad+'">'+letter+'</div>';
-    html+='<div class="org-body"><div class="org-name">'+escHtml(org.name)+(org.group_name?' — '+escHtml(org.group_name):'')+'</div>';
-    html+='<div class="org-date">'+(org.departure?'🗓 '+escHtml(org.departure):'🗓 Дата уточнюється')+'</div></div>';
-    html+='<div class="org-badge" style="background:'+badgeBg+';color:'+freeColor+'">'+freeTxt+'</div>';
-    html+='<div class="org-chev"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--sky)" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>';
-    html+='</div>';
-    html+='<div class="org-info"><div class="org-chips">';
-    html+='<div class="oi-chip">👥 '+(org.members||0)+'</div>';
-    if(org.crews_count>0)html+='<div class="oi-chip">🚗 '+org.crews_count+' екіпажів</div>';
-    if(org.rating>0)html+='<div class="oi-chip">⭐ '+org.rating.toFixed(1)+'</div>';
-    if(org.car)html+='<div class="oi-chip">🚘 '+escHtml(org.car)+'</div>';
-    html+='</div></div>';
-    html+='<div class="org-acts"><div class="org-acts-inner">';
-    html+='<div class="oa-btn oa-ghost" onclick="event.stopPropagation();toast(\'💬 Незабаром...\')">✉️ Написати</div>';
-    if(org.seats_free>0||org.crews_count>0){
-      html+='<div class="oa-btn oa-sky" onclick="event.stopPropagation();goToCrews('+org.user_id+',\''+escHtml(org.name)+'\')">🚗 Екіпажі →</div>';
-    } else {
-      html+='<div class="oa-btn" style="background:var(--card3);color:var(--muted);cursor:not-allowed">Місць немає</div>';
-    }
-    html+='</div></div></div>';
-  });
-  list.innerHTML=html;
+function _kindEmoji(kind, title) {
+  if (KIND_EMOJI[kind]) return KIND_EMOJI[kind];
+  var t = (title || '').toLowerCase();
+  if (t.includes('гор') || t.includes('буковель') || t.includes('синевир')) return '🏔️';
+  if (t.includes('море') || t.includes('пляж')) return '🌊';
+  if (t.includes('кордон') || t.includes('польщ')) return '🌍';
+  return '📍';
+}
+function _kindColor(kind) { return KIND_COLOR[kind] || 'var(--lime)'; }
+function _kindGlow(kind) { return KIND_GLOW[kind] || 'rgba(138,201,38,.06)'; }
+function _numWord(n, one, few, many) {
+  n = Math.abs(n) % 100; var n1 = n % 10;
+  if (n > 10 && n < 20) return many;
+  if (n1 > 1 && n1 < 5) return few;
+  if (n1 === 1) return one;
+  return many;
 }
 
-// ── RENDER: CREWS (FRAC-2) ────────────────────────────────────────────────
-async function goToCrews(orgId, orgName){
-  FX.orgId=orgId; FX.orgName=orgName||'Організатор';
-  // Update breadcrumbs
-  var crumbDir=document.getElementById('crewsCrumbDir');
-  var crumbOrg=document.getElementById('crewsCrumbOrg');
-  if(crumbDir)crumbDir.textContent=FX.dirTitle||'Карпати';
-  if(crumbOrg)crumbOrg.textContent=FX.orgName;
+function updateBoardHeader() {
+  var lbl = document.getElementById('boardCityLabel');
+  var back = document.getElementById('boardBackRow');
+  var city = ST.cityName || 'Ваше місто';
+  if (BOARD_PATH.length === 0) {
+    if (lbl) lbl.textContent = 'Активні напрямки · ' + city;
+    if (back) back.style.display = 'none';
+  } else {
+    var trail = BOARD_PATH.map(function(p) { return p.title; }).join(' › ');
+    if (lbl) lbl.textContent = trail + ' · ' + city;
+    if (back) back.style.display = '';
+  }
+}
+function boardGoBack() {
+  if (!BOARD_PATH.length) return;
+  BOARD_PATH.pop();
+  var parentId = BOARD_PATH.length ? BOARD_PATH[BOARD_PATH.length - 1].id : null;
+  loadBoardLevel(parentId);
+}
+function openBoardChild(dirId, dirTitle) {
+  BOARD_PATH.push({ id: dirId, title: dirTitle || 'Напрямок' });
+  loadBoardLevel(dirId);
+}
+async function loadBoardLevel(parentId) {
+  var params = { lang: 'uk' };
+  if (ST.user && ST.user.id) params.user_id = ST.user.id;
+  if (parentId != null) params.parent_id = parentId;
+  var data = await api('/api/v3/board', params);
+  if (!data) return;
+  renderBoard(data.map(function(d) {
+    return { id: d.id, title: d.title, kind: d.kind || 'cat_custom', drivers: d.drivers || 0, passengers: d.passengers || 0, free_seats: 0, has_kids: d.has_kids };
+  }), { subscriptions: [] });
+  updateBoardHeader();
+}
+async function loadBoard() { BOARD_PATH = []; await loadBoardLevel(null); }
+
+function renderBoard(interests, userStatus) {
+  var list = document.getElementById('boardList'); if (!list) return;
+  if (!interests || !interests.length) {
+    list.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">Немає активних напрямків</div>'; return;
+  }
+  var subs = (userStatus.subscriptions || []).map(function(s) { return s.direction_id; });
+  var html = '';
+  interests.forEach(function(d, idx) {
+    var emoji = _kindEmoji(d.kind, d.title);
+    var color = _kindColor(d.kind);
+    var glow  = _kindGlow(d.kind);
+    var n = idx + 1;
+    var isSub = subs.indexOf(d.id) >= 0;
+    html += '<div class="int-card" id="int' + n + '" style="--glow:' + glow + '" onclick="toggleInt(' + n + ')" data-dir-id="' + d.id + '" data-dir-title="' + escHtml(d.title) + '" data-dir-emoji="' + emoji + '">';
+    html += '<div class="ic-top">';
+    html += '<div class="ic-emoji">' + emoji + '</div>';
+    html += '<div class="ic-body">';
+    html += '<div class="ic-name">' + escHtml(d.title) + (isSub ? ' <span style="color:var(--lime);font-size:10px">✓</span>' : '') + '</div>';
+    var desc = d.drivers > 0 ? d.drivers + ' ' + _numWord(d.drivers, 'водій', 'водії', 'водіїв') + ' · ' + d.passengers + ' ' + _numWord(d.passengers, 'попутник', 'попутники', 'попутників') : 'Першим підпишись на цей напрямок';
+    html += '<div class="ic-desc">' + desc + '</div>';
+    html += '</div>';
+    html += '<div class="ic-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + color + '" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>';
+    html += '</div>';
+    html += '<div class="ic-stats">';
+    html += '<div class="ic-stat"><div class="ic-stat-val" style="color:' + color + '">' + (d.passengers || 0) + '</div><div class="ic-stat-lbl">людей</div></div>';
+    html += '<div class="ic-stat"><div class="ic-stat-val" style="color:var(--sky)">' + (d.drivers || 0) + '</div><div class="ic-stat-lbl">організаторів</div></div>';
+    html += '<div class="ic-stat"><div class="ic-stat-val" style="color:var(--gold)">' + (d.free_seats || 0) + '</div><div class="ic-stat-lbl">вільних місць</div></div>';
+    html += '</div>';
+    html += '<div class="ic-drill">';
+    if (d.has_kids) {
+      html += '<div class="ic-drill-btn" onclick="event.stopPropagation();openBoardChild(' + d.id + ',\'' + escHtml(d.title) + '\')">Відкрити підрівень →</div>';
+    } else if (d.drivers > 0) {
+      html += '<div class="ic-drill-btn" onclick="event.stopPropagation();goToOrgs(' + d.id + ',\'' + escHtml(d.title) + '\',\'' + emoji + '\')">Організатори та виїзди →</div>';
+    } else {
+      html += '<div class="ic-drill-btn" style="opacity:.5" onclick="event.stopPropagation();subscribeDir(' + d.id + ',\'' + escHtml(d.title) + '\')">📌 Підписатись на напрямок</div>';
+    }
+    html += '</div></div>';
+  });
+  list.innerHTML = html;
+}
+
+async function subscribeDir(dirId, dirTitle) {
+  if (!requireLiveIdentity('Підписка доступна тільки в Telegram Mini App')) return;
+  if (!requireProfileRole()) return;
+  var webRole = isDriverLikeRole() ? 'driver' : 'passenger';
+  var res = await api('/api/v3/board/subscribe', {}, { method: 'POST', body: JSON.stringify({ direction_id: dirId, user_id: ST.user.id, role: webRole }) });
+  if (!res) { toast('Не вдалося підписатись', 'err'); return; }
+  toast(res.status === 'already_subscribed' ? 'Вже підписані на ' + dirTitle : 'Підписано на ' + dirTitle);
+  setTimeout(loadBoard, 500);
+}
+
+async function goToOrgs(dirId, dirTitle, dirEmoji) {
+  FX.dirId = dirId; FX.dirTitle = dirTitle || 'Напрямок'; FX.dirEmoji = dirEmoji || '📍';
+  var tEl = document.getElementById('orgsDirTitle'); if (tEl) tEl.textContent = FX.dirTitle;
+  var nEl = document.getElementById('orgsDirName'); if (nEl) nEl.textContent = FX.dirEmoji + ' ' + FX.dirTitle;
+  var mEl = document.getElementById('orgsDirMeta'); if (mEl) mEl.textContent = 'Завантаження…';
+  document.getElementById('orgsList').innerHTML = '<div class="loading-wrap"><div class="spin"></div></div>';
+  showScreen('sc-orgs');
+  await loadOrgs(dirId);
+}
+
+async function loadOrgs(dirId) {
+  var data = await api('/api/v3/fractal/organizers', { direction_id: dirId, lang: 'uk', user_id: ST.user.id || '' });
+  if (!data) {
+    var groups = await api('/api/v3/groups');
+    if (groups) renderOrgsFallback(groups); return;
+  }
+  var mEl = document.getElementById('orgsDirMeta');
+  if (mEl && data.direction) mEl.textContent = (data.direction.drivers || 0) + ' організаторів · ' + (data.direction.passengers || 0) + ' людей';
+  renderOrgs(data.organizers || [], data.direction || {});
+}
+
+function renderOrgsFallback(groups) {
+  renderOrgs(groups.map(function(g) {
+    return { user_id: 0, name: g.name, car: '', seats_total: 4, seats_free: g.members ? 4 - g.members : 4, rating: 0, trips: 0, group_id: g.id, group_name: g.name, departure: g.date || '', members: g.members || 0, crews_count: 0 };
+  }), {});
+}
+
+function renderOrgs(orgs, direction) {
+  var list = document.getElementById('orgsList'); if (!list) return;
+  if (!orgs || !orgs.length) {
+    list.innerHTML = '<div style="padding:28px;text-align:center;color:var(--muted);font-size:13px">Поки немає організаторів<br><span style="color:var(--dim);font-size:11px">Стань першим!</span></div>'; return;
+  }
+  var html = '';
+  orgs.forEach(function(org, idx) {
+    var n = idx + 1;
+    var letter = (org.name || '?')[0].toUpperCase();
+    var grad = _AV_GRADIENTS[idx % _AV_GRADIENTS.length];
+    var freeColor = org.seats_free > 0 ? 'var(--lime)' : 'var(--muted)';
+    var freeTxt = org.seats_free > 0 ? org.seats_free + ' місць' : 'повний';
+    var badgeBg = org.seats_free > 0 ? 'rgba(138,201,38,.1)' : 'var(--card3)';
+    html += '<div class="org-card' + (idx === 0 ? ' open' : '') + '" id="org' + n + '" onclick="toggleOrg(' + n + ')">';
+    html += '<div class="org-head">';
+    html += '<div class="org-av" style="background:' + grad + '">' + letter + '</div>';
+    html += '<div class="org-body"><div class="org-name">' + escHtml(org.name) + (org.group_name ? ' — ' + escHtml(org.group_name) : '') + '</div>';
+    html += '<div class="org-date">' + (org.departure ? '🗓 ' + escHtml(org.departure) : '🗓 Дата уточнюється') + '</div></div>';
+    html += '<div class="org-badge" style="background:' + badgeBg + ';color:' + freeColor + '">' + freeTxt + '</div>';
+    html += '<div class="org-chev"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--sky)" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>';
+    html += '</div>';
+    html += '<div class="org-info"><div class="org-chips">';
+    html += '<div class="oi-chip">👥 ' + (org.members || 0) + '</div>';
+    if (org.crews_count > 0) html += '<div class="oi-chip">🚗 ' + org.crews_count + ' екіпажів</div>';
+    if (org.rating > 0) html += '<div class="oi-chip">⭐ ' + org.rating.toFixed(1) + '</div>';
+    if (org.car) html += '<div class="oi-chip">🚘 ' + escHtml(org.car) + '</div>';
+    html += '</div></div>';
+    html += '<div class="org-acts"><div class="org-acts-inner">';
+    html += '<div class="oa-btn oa-ghost" onclick="event.stopPropagation();toast(\'💬 Незабаром...\')">✉️ Написати</div>';
+    if (org.seats_free > 0 || org.crews_count > 0) {
+      html += '<div class="oa-btn oa-sky" onclick="event.stopPropagation();goToCrews(' + org.user_id + ',\'' + escHtml(org.name) + '\')">🚗 Екіпажі →</div>';
+    } else {
+      html += '<div class="oa-btn" style="background:var(--card3);color:var(--muted);cursor:not-allowed">Місць немає</div>';
+    }
+    html += '</div></div></div>';
+  });
+  list.innerHTML = html;
+}
+
+// ══ CREWS ══════════════════════════════════════════════════
+async function goToCrews(orgId, orgName) {
+  FX.orgId = orgId; FX.orgName = orgName || 'Організатор';
+  var crumbDir = document.getElementById('crewsCrumbDir'); if (crumbDir) crumbDir.textContent = FX.dirTitle || 'Напрямок';
+  var crumbOrg = document.getElementById('crewsCrumbOrg'); if (crumbOrg) crumbOrg.textContent = FX.orgName;
+  var lbl = document.getElementById('createCrewDirectionLabel'); if (lbl) lbl.textContent = FX.dirTitle || 'Напрямок';
+  document.getElementById('crewsList').innerHTML = '<div class="loading-wrap"><div class="spin"></div></div>';
   showScreen('sc-crews');
   await loadCrews(orgId, FX.dirId);
 }
 
-async function loadCrews(orgId, dirId){
-  var data=await api('/api/v3/fractal/crews',{organizer_id:orgId,direction_id:dirId||0,user_id:ST.user.id||''});
-  if(!data){
-    document.getElementById('crewsList').innerHTML='<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">Не вдалось завантажити екіпажі</div>';
-    return;
-  }
-  // Update summary chips
-  var sum=data.summary||{};
-  var el=document.getElementById('chipCrews');if(el)el.textContent=(sum.crews_count||0)+' екіпажів';
-  var ef=document.getElementById('chipFree');if(ef)ef.textContent=(sum.total_free||0)+' вільних місць';
-  var em=document.getElementById('chipMembers');if(em)em.textContent=(sum.total_members||0)+' людей';
-  var lv=document.getElementById('crewsLvLabel');if(lv)lv.textContent='Всі екіпажі'+(data.organizer&&data.organizer.direction?' · '+data.organizer.direction:'');
-  var userStatus=data.user_status||{};
-  if(userStatus.joined_crew_id&&(userStatus.status==='pending'||userStatus.status==='pending_confirm')){
-    ST.joinedCrew=null;
-    ST.pendingCrew=userStatus.joined_crew_id;
-  } else if(userStatus.joined_crew_id){
-    ST.joinedCrew=userStatus.joined_crew_id;
-    ST.pendingCrew=null;
-  } else {
-    ST.pendingCrew=null;
-  }
-  renderCrews(data.crews||[], userStatus);
+async function loadCrews(orgId, dirId) {
+  var data = await api('/api/v3/fractal/crews', { organizer_id: orgId, direction_id: dirId || 0, user_id: ST.user.id || '' });
+  if (!data) { document.getElementById('crewsList').innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">Не вдалось завантажити екіпажі</div>'; return; }
+  var sum = data.summary || {};
+  var el = document.getElementById('chipCrews'); if (el) el.textContent = (sum.crews_count || 0) + ' екіпажів';
+  var ef = document.getElementById('chipFree'); if (ef) ef.textContent = (sum.total_free || 0) + ' вільних місць';
+  var em = document.getElementById('chipMembers'); if (em) em.textContent = (sum.total_members || 0) + ' людей';
+  var lv = document.getElementById('crewsLvLabel'); if (lv) lv.textContent = 'Всі екіпажі' + (data.organizer && data.organizer.direction ? ' · ' + data.organizer.direction : '');
+  var userStatus = data.user_status || {};
+  if (userStatus.joined_crew_id && (userStatus.status === 'pending' || userStatus.status === 'pending_confirm')) {
+    ST.joinedCrew = null; ST.pendingCrew = userStatus.joined_crew_id;
+  } else if (userStatus.joined_crew_id) {
+    ST.joinedCrew = userStatus.joined_crew_id; ST.pendingCrew = null;
+  } else { ST.pendingCrew = null; }
+  renderCrews(data.crews || [], userStatus);
   await loadCrewInbox(orgId, dirId);
 }
 
-async function loadCrewInbox(orgId, dirId){
-  var wrap=document.getElementById('crewsBotCards');
-  if(!wrap)return;
-  wrap.innerHTML='';
-  if(!API_URL||!IS_TG_AUTH||!ST.user.id||!orgId||!dirId)return;
-  if(Number(ST.user.id)!==Number(orgId))return;
-  var items=await api('/api/v3/match/pending',{user_id:ST.user.id,scope:'incoming',direction_id:dirId});
-  if(!items||!Array.isArray(items)||!items.length)return;
+async function loadCrewInbox(orgId, dirId) {
+  var wrap = document.getElementById('crewsBotCards'); if (!wrap) return;
+  wrap.innerHTML = '';
+  if (!API_URL || !IS_TG_AUTH || !ST.user.id || !orgId || !dirId) return;
+  if (Number(ST.user.id) !== Number(orgId)) return;
+  var items = await api('/api/v3/match/pending', { user_id: ST.user.id, scope: 'incoming', direction_id: dirId });
+  if (!items || !Array.isArray(items) || !items.length) return;
   renderCrewInbox(items);
 }
 
-function renderCrewInbox(items){
-  var wrap=document.getElementById('crewsBotCards');
-  if(!wrap)return;
-  if(!items||!items.length){wrap.innerHTML='';return;}
-  var html='';
-  html+='<div style="background:rgba(77,207,255,.07);border:1px solid rgba(77,207,255,.18);border-radius:14px;padding:14px 14px 10px;margin-bottom:12px">';
-  html+='<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px">';
-  html+='<div><div style="font-size:13px;font-weight:800;color:var(--white)">Нові запити до екіпажу</div><div style="font-size:11px;color:var(--muted);margin-top:2px">Організатор підтверджує пасажирів прямо тут</div></div>';
-  html+='<div style="font-size:10px;font-weight:800;color:var(--sky);padding:4px 8px;border-radius:999px;background:rgba(77,207,255,.12)">'+String(items.length)+'</div>';
-  html+='</div>';
-  items.forEach(function(item){
-    var name=escHtml(item.partner_name||item.sender_name||'Попутник');
-    var direction=escHtml(item.direction||FX.dirTitle||'Напрямок');
-    html+='<div style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px">';
-    html+='<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">';
-    html+='<div><div style="font-size:13px;font-weight:700;color:var(--white)">'+name+'</div><div style="font-size:11px;color:var(--muted);margin-top:2px">Хоче приєднатись до виїзду · '+direction+'</div></div>';
-    html+='<div style="font-size:10px;color:var(--sky);font-weight:700">Очікує</div>';
-    html+='</div>';
-    html+='<div style="display:flex;gap:8px">';
-    html+='<button class="btn btn-lime" style="flex:1;font-size:12px;padding:10px 12px" onclick="event.stopPropagation();respondCrewInvite('+Number(item.partner_id||item.sender_id||0)+',true)">✅ Прийняти</button>';
-    html+='<button class="btn btn-ghost" style="flex:1;font-size:12px;padding:10px 12px" onclick="event.stopPropagation();respondCrewInvite('+Number(item.partner_id||item.sender_id||0)+',false)">Відхилити</button>';
-    html+='</div></div>';
+function renderCrewInbox(items) {
+  var wrap = document.getElementById('crewsBotCards'); if (!wrap) return;
+  var html = '<div class="bot-card info"><div class="bc-ico" style="background:rgba(0,180,216,.1)">📥</div><div class="bc-body"><div class="bc-title">Нові запити до екіпажу (' + items.length + ')</div><div class="bc-text">Підтвердіть або відхиліть кожного учасника</div></div></div>';
+  items.forEach(function(item) {
+    var name = escHtml(item.partner_name || item.sender_name || 'Попутник');
+    html += '<div class="bot-card"><div class="bc-ico" style="background:var(--card3)">🙋</div><div class="bc-body"><div class="bc-title">' + name + '</div><div class="bc-text">Хоче приєднатись · ' + escHtml(item.direction || FX.dirTitle || '') + '</div>';
+    html += '<div style="display:flex;gap:8px;margin-top:8px">';
+    html += '<button style="flex:1;padding:8px;border-radius:8px;border:none;background:linear-gradient(135deg,var(--lime),#a8e030);color:#07090E;font-family:Manrope,sans-serif;font-size:11px;font-weight:700;cursor:pointer" onclick="respondCrewInvite(' + Number(item.partner_id || item.sender_id || 0) + ',true)">✅ Прийняти</button>';
+    html += '<button style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card3);color:var(--muted);font-family:Manrope,sans-serif;font-size:11px;font-weight:700;cursor:pointer" onclick="respondCrewInvite(' + Number(item.partner_id || item.sender_id || 0) + ',false)">Відхилити</button>';
+    html += '</div></div></div>';
   });
-  wrap.innerHTML=html;
+  wrap.innerHTML = html;
 }
 
-async function respondCrewInvite(partnerId, accept){
-  if(!requireLiveIdentity('Підтвердження доступне тільки в Telegram Mini App'))return;
-  if(!FX.dirId||!FX.orgId){toast('Спершу відкрий потрібний екіпаж','err');return;}
-  if(Number(ST.user.id)!==Number(FX.orgId)){toast('Підтверджувати може тільки організатор цього екіпажу','err');return;}
-  var res=await api('/api/v3/match/respond',{},{method:'POST',body:JSON.stringify({
-    user_id:ST.user.id,
-    target_id:partnerId,
-    direction_id:FX.dirId,
-    accept:!!accept
-  })});
-  if(!res){toast(accept?'Не вдалося підтвердити запит':'Не вдалося відхилити запит','err');return;}
-  if(accept&&res.mutual){
-    ST.joinedCrew=res.crew_id||ST.joinedCrew;
-    ST.pendingCrew=null;
-    toast('Попутника додано до екіпажу #'+String(res.crew_id||'?'),'ok');
-  } else if(accept){
-    toast('Запит підтверджено','ok');
-  } else {
-    toast('Запит відхилено');
-  }
+async function respondCrewInvite(partnerId, accept) {
+  if (!requireLiveIdentity('Підтвердження доступне тільки в Telegram Mini App')) return;
+  if (!FX.dirId || !FX.orgId) { toast('Спершу відкрий потрібний екіпаж', 'err'); return; }
+  if (Number(ST.user.id) !== Number(FX.orgId)) { toast('Підтверджувати може тільки організатор', 'err'); return; }
+  var res = await api('/api/v3/match/respond', {}, { method: 'POST', body: JSON.stringify({ user_id: ST.user.id, target_id: partnerId, direction_id: FX.dirId, accept: !!accept }) });
+  if (!res) { toast(accept ? 'Не вдалося підтвердити' : 'Не вдалося відхилити', 'err'); return; }
+  if (accept && res.mutual) { ST.joinedCrew = res.crew_id || ST.joinedCrew; ST.pendingCrew = null; toast('Попутника додано до екіпажу #' + String(res.crew_id || '?'), 'ok'); }
+  else if (accept) { toast('Запит підтверджено', 'ok'); }
+  else { toast('Запит відхилено'); }
   await loadCrews(FX.orgId, FX.dirId);
-  if(accept&&res.mutual){
-    await hydrateTrip();
-    navTo(2);
-  }
+  if (accept && res.mutual) { await hydrateTrip(); navTo(2); }
 }
 
-function renderCrews(crews, userStatus){
-  var list=document.getElementById('crewsList');
-  if(!list)return;
-  if(!crews||crews.length===0){
-    list.innerHTML='<div style="padding:28px;text-align:center;color:var(--muted);font-size:13px">Поки немає екіпажів<br><span style="color:var(--dim);font-size:11px">Відкрий перший екіпаж!</span></div>';
-    return;
+function renderCrews(crews, userStatus) {
+  var list = document.getElementById('crewsList'); if (!list) return;
+  if (!crews || !crews.length) {
+    list.innerHTML = '<div style="padding:28px;text-align:center;color:var(--muted);font-size:13px">Поки немає екіпажів<br><span style="color:var(--dim);font-size:11px">Відкрий перший!</span></div>'; return;
   }
-  var joinedId=(userStatus.status&&userStatus.status!=='pending'&&userStatus.status!=='pending_confirm')?(userStatus.joined_crew_id||ST.joinedCrew):ST.joinedCrew;
-  var pendingId=(userStatus.status==='pending'||userStatus.status==='pending_confirm')?(userStatus.joined_crew_id||ST.pendingCrew):ST.pendingCrew;
-  var joinedKey=joinedId!=null?String(joinedId):'';
-  var pendingKey=pendingId!=null?String(pendingId):'';
-  var html='';
-  crews.forEach(function(crew,idx){
-    var n=idx+1;
-    var crewKey=crew.crew_id!=null?String(crew.crew_id):'';
-    var crewLabel=crewKey||String(n);
-    var hasFree=crew.seats_free>0;
-    var isOwnCrew=!!(ST.user.id&&crew.driver_id&&Number(crew.driver_id)===Number(ST.user.id));
-    var isJoined=crewKey&&crewKey===joinedKey;
-    var isPending=crewKey&&crewKey===pendingKey;
-    html+='<div class="crew-card'+(idx===0?' open':'')+'" id="crew'+n+'" onclick="toggleCrew('+n+')" data-crew-id="'+crewLabel+'">';
-    html+='<div class="crew-head">';
-    html+='<div class="crew-num'+(hasFree?' has-space':'')+'">#'+crewLabel+'</div>';
-    html+='<div class="crew-body"><div class="crew-driver">'+escHtml(crew.driver_name||'?')+'</div><div class="crew-car">'+escHtml(crew.car||'')+'</div></div>';
-    html+='<div class="crew-seats">';
-    var seats=crew.seat_list||[{type:'driver'}];
-    seats.forEach(function(s){html+='<div class="seat '+s.type+'"></div>';});
-    html+='</div></div>';
-    html+='<div class="crew-detail"><div class="cd-inner">';
-    if(crew.pickup)html+='<div class="cd-row"><span class="cd-lbl">Місце збору</span><span class="cd-val">'+escHtml(crew.pickup)+'</span></div>';
-    if(crew.members&&crew.members.length>0){
-      html+='<div class="cd-members">';
-      crew.members.forEach(function(m,mi){
-        var mgrad=_AV_GRADIENTS[mi%_AV_GRADIENTS.length];
-        var mletter=(m.name||'?')[0].toUpperCase();
-        html+='<div class="cd-member"><div class="cd-av" style="background:'+mgrad+'">'+mletter+'</div><div class="cd-role">'+(m.role==='driver'?'Водій':'Попутник')+'</div></div>';
+  var joinedKey = (userStatus.status && userStatus.status !== 'pending' && userStatus.status !== 'pending_confirm') ? String(userStatus.joined_crew_id || ST.joinedCrew || '') : String(ST.joinedCrew || '');
+  var pendingKey = (userStatus.status === 'pending' || userStatus.status === 'pending_confirm') ? String(userStatus.joined_crew_id || ST.pendingCrew || '') : String(ST.pendingCrew || '');
+  var html = '';
+  crews.forEach(function(crew, idx) {
+    var n = idx + 1;
+    var crewKey = crew.crew_id != null ? String(crew.crew_id) : '';
+    var crewLabel = crewKey || String(n);
+    var hasFree = crew.seats_free > 0;
+    var isOwnCrew = !!(ST.user.id && crew.driver_id && Number(crew.driver_id) === Number(ST.user.id));
+    var isJoined = crewKey && crewKey === joinedKey;
+    var isPending = crewKey && crewKey === pendingKey;
+    html += '<div class="crew-card' + (idx === 0 ? ' open' : '') + '" id="crew' + n + '" onclick="toggleCrew(' + n + ')" data-crew-id="' + crewLabel + '">';
+    html += '<div class="crew-head">';
+    html += '<div class="crew-num' + (hasFree ? ' has-space' : '') + '">#' + crewLabel + '</div>';
+    html += '<div class="crew-body"><div class="crew-driver">' + escHtml(crew.driver_name || '?') + '</div><div class="crew-car">' + escHtml(crew.car || '') + '</div></div>';
+    html += '<div class="crew-seats">';
+    var seats = crew.seat_list || [{ type: 'driver' }];
+    seats.forEach(function(s) { html += '<div class="seat ' + s.type + (s.type === 'free' && hasFree ? ' free-pulse' : '') + '"></div>'; });
+    html += '</div></div>';
+    html += '<div class="crew-detail"><div class="cd-inner">';
+    if (crew.pickup) html += '<div class="cd-row"><span class="cd-lbl">Місце збору</span><span class="cd-val">' + escHtml(crew.pickup) + '</span></div>';
+    if (crew.members && crew.members.length > 0) {
+      html += '<div class="cd-members">';
+      crew.members.forEach(function(m, mi) {
+        var mg = _AV_GRADIENTS[mi % _AV_GRADIENTS.length];
+        html += '<div class="cd-member"><div class="cd-av" style="background:' + mg + '">' + (m.name || '?')[0].toUpperCase() + '</div><div class="cd-role">' + (m.role === 'driver' ? 'Водій' : 'Попутник') + '</div></div>';
       });
-      for(var fi=0;fi<crew.seats_free;fi++){
-        html+='<div class="cd-member"><div class="cd-empty">+</div><div class="cd-role">Вільно</div></div>';
+      for (var fi = 0; fi < crew.seats_free; fi++) {
+        html += '<div class="cd-member"><div class="cd-empty"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--dim)" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></div><div class="cd-role" style="color:var(--lime)">Вільно</div></div>';
       }
-      html+='</div>';
+      html += '</div>';
     }
-    if(isOwnCrew){
-      html+='<button class="join-btn" style="background:rgba(77,207,255,.08);color:var(--sky);border:1px solid rgba(77,207,255,.24);width:100%;padding:11px;border-radius:10px;font-family:Manrope,sans-serif;font-size:13px;font-weight:800;cursor:default;text-align:center">Це мій екіпаж</button>';
-    } else if(isJoined){
-      html+='<button class="join-btn" style="background:rgba(201,255,71,.1);color:var(--lime);border:1px solid rgba(201,255,71,.2);width:100%;padding:11px;border-radius:10px;font-family:Manrope,sans-serif;font-size:13px;font-weight:800;cursor:default;text-align:center">Я вже тут в цьому екіпажі</button>';
-    } else if(isPending){
-      html+='<button class="join-btn" style="background:rgba(77,207,255,.08);color:var(--sky);border:1px solid rgba(77,207,255,.24);width:100%;padding:11px;border-radius:10px;font-family:Manrope,sans-serif;font-size:13px;font-weight:800;cursor:default;text-align:center">Я чекаю підтвердження</button>';
-    } else if(hasFree){
-      html+='<button class="join-btn join-lime" onclick="event.stopPropagation();joinCrewById('+JSON.stringify(crewLabel)+','+n+','+JSON.stringify(crewLabel)+')">🚀 Приєднатись до екіпажу #'+crewLabel+'</button>';
+    if (isOwnCrew) {
+      html += '<button class="join-btn" style="background:rgba(0,180,216,.08);color:var(--sky);border:1px solid rgba(0,180,216,.24);cursor:default">Це мій екіпаж</button>';
+    } else if (isJoined) {
+      html += '<button class="join-btn" style="background:rgba(138,201,38,.1);color:var(--lime);border:1px solid rgba(138,201,38,.2);cursor:default">✓ Я вже в цьому екіпажі</button>';
+    } else if (isPending) {
+      html += '<button class="join-btn" style="background:rgba(0,180,216,.08);color:var(--sky);border:1px solid rgba(0,180,216,.24);cursor:default">⏳ Чекаю підтвердження</button>';
+    } else if (hasFree) {
+      html += '<button class="join-btn join-lime" onclick="event.stopPropagation();joinCrewById(\'' + crewLabel + '\',' + n + ',\'' + crewLabel + '\')">🚀 Приєднатись до екіпажу #' + crewLabel + '</button>';
     } else {
-      html+='<button class="join-btn join-ask" onclick="event.stopPropagation();toast('+JSON.stringify("Екіпаж зараз повний, але можете написати повідомлення у загальний чат.")+')">В екіпажі немає місць</button>';
+      html += '<button class="join-btn join-ask" onclick="event.stopPropagation();toast(\'Екіпаж повний, але можна написати в загальний чат.\')">В екіпажі немає місць</button>';
     }
-    html+='</div></div></div>';
+    html += '</div></div></div>';
   });
-  list.innerHTML=html;
+  list.innerHTML = html;
 }
 
-async function joinCrewById(crewId, cardIndex, crewLabel){
-  var crewKey=String(crewId);
-  if(String(ST.joinedCrew||'')===crewKey){toast('Ви вже в екіпажі #'+crewLabel);return;}
-  if(String(ST.pendingCrew||'')===crewKey){toast('Запит уже очікує підтвердження');return;}
-  if(!requireLiveIdentity('Приєднання доступне тільки в Telegram Mini App'))return;
-  if(!requireProfileRole())return;
-  if(!FX.dirId||!FX.orgId){toast('Спершу відкрий потрібний напрямок і екіпаж','err');return;}
-  var res=await api('/api/v3/handshake',{},{method:'POST',body:JSON.stringify({
-    user_id:ST.user.id,
-    crew_id:crewId,
-    direction_id:FX.dirId,
-    organizer_id:FX.orgId
-  })});
-  if(!res){toast('Не вдалося надіслати запит','err');return;}
-  var card=document.getElementById('crew'+cardIndex);
-  var btn=card&&card.querySelector('.join-lime');
-  if(res.mutual){
-    ST.pendingCrew=null;
-    ST.joinedCrew=res.crew_id||crewId;
-    toast('Екіпаж #'+crewLabel+' підтверджено');
-    if(btn){btn.innerHTML='✓ Ви вже в цьому екіпажі';btn.style.cssText='background:rgba(201,255,71,.1);color:var(--lime);box-shadow:none;border:1px solid rgba(201,255,71,.2);width:100%;padding:11px;border-radius:10px;font-family:Manrope,sans-serif;font-size:13px;font-weight:800;cursor:default;text-align:center;';}
-    setTimeout(function(){hydrateTrip();navTo(2);},900);
-    return;
+async function joinCrewById(crewId, cardIndex, crewLabel) {
+  if (String(ST.joinedCrew || '') === String(crewId)) { toast('Ви вже в екіпажі #' + crewLabel); return; }
+  if (String(ST.pendingCrew || '') === String(crewId)) { toast('Запит уже очікує підтвердження'); return; }
+  if (!requireLiveIdentity('Приєднання доступне тільки в Telegram Mini App')) return;
+  if (!requireProfileRole()) return;
+  if (!FX.dirId || !FX.orgId) { toast('Спершу відкрий потрібний напрямок', 'err'); return; }
+  var res = await api('/api/v3/handshake', {}, { method: 'POST', body: JSON.stringify({ user_id: ST.user.id, crew_id: crewId, direction_id: FX.dirId, organizer_id: FX.orgId }) });
+  if (!res) { toast('Не вдалося надіслати запит', 'err'); return; }
+  var card = document.getElementById('crew' + cardIndex);
+  var btn = card && card.querySelector('.join-lime');
+  if (res.mutual) {
+    ST.pendingCrew = null; ST.joinedCrew = res.crew_id || crewId;
+    toast('Екіпаж #' + crewLabel + ' підтверджено', 'ok');
+    if (btn) { btn.innerHTML = '✓ Ви вже в цьому екіпажі'; btn.style.cssText = 'background:rgba(138,201,38,.1);color:var(--lime);box-shadow:none;border:1px solid rgba(138,201,38,.2);width:100%;padding:11px;border-radius:10px;font-family:Manrope,sans-serif;font-size:13px;font-weight:800;cursor:default;text-align:center;display:flex;align-items:center;justify-content:center;'; }
+    setTimeout(function() { hydrateTrip(); navTo(2); }, 900); return;
   }
-  ST.pendingCrew=crewId;
+  ST.pendingCrew = crewId;
   toast('Запит надіслано організатору');
-  if(btn){btn.innerHTML='⏳ Запит очікує підтвердження';btn.style.cssText='background:rgba(77,207,255,.08);color:var(--sky);box-shadow:none;border:1px solid rgba(77,207,255,.24);width:100%;padding:11px;border-radius:10px;font-family:Manrope,sans-serif;font-size:13px;font-weight:800;cursor:default;text-align:center;';}
+  if (btn) { btn.innerHTML = '⏳ Запит очікує підтвердження'; btn.style.cssText = 'background:rgba(0,180,216,.08);color:var(--sky);box-shadow:none;border:1px solid rgba(0,180,216,.24);width:100%;padding:11px;border-radius:10px;font-family:Manrope,sans-serif;font-size:13px;font-weight:800;cursor:default;text-align:center;display:flex;align-items:center;justify-content:center;'; }
 }
-function joinCrew(n){
-  var card=document.getElementById('crew'+n);
-  if(card){var cid=card.getAttribute('data-crew-id');if(cid){joinCrewById(cid,n,cid);return;}}
-  joinCrewById(n,n,n);
+function joinCrew(n) {
+  var card = document.getElementById('crew' + n);
+  if (card) { var cid = card.getAttribute('data-crew-id'); if (cid) { joinCrewById(cid, n, cid); return; } }
+  joinCrewById(n, n, n);
 }
 
-function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
-
-function goToOrgs_legacy(){goToOrgs(FX.dirId||1,FX.dirTitle||'Карпати',FX.dirEmoji||'🏔️');}
-
-function startReg(role){ST.role=role;selectRegRole(role);showScreen('sc-reg');var n=tgUser.first_name;if(n){var el=document.getElementById('regName');if(el)el.value=n;}}
-function selectRegRole(role){
-  ST.role=role;
-  ['traveler','companion','organizer'].forEach(function(r){var b=document.getElementById('rb-'+r);if(b)b.classList.toggle('on',r===role);});
-  var cf=document.getElementById('carField');if(cf)cf.style.display=role==='traveler'?'':'none';
+// ══ CREW ACTIONS ═══════════════════════════════════════════
+function leaveCrew() {
+  if (!confirm('Справді вийти з екіпажу?')) return;
+  ST.joinedCrew = null; ST.pendingCrew = null;
+  setTripPanelVisible(false); toast('Ви вийшли з екіпажу');
 }
-function completeReg(){
-  var name=(document.getElementById('regName').value||'').trim();
-  if(!name){toast("Вкажіть своє ім’я",'err');return;}
-  ST.user.name=name;ST.city=document.getElementById('regCity').value;ST.onboarded=true;saveState();enterApp();
-  if(IS_TG_AUTH&&ST.user.id){
-    api('/api/v3/user/register',{},{method:'POST',body:JSON.stringify({user_id:ST.user.id,name:name,role:(ST.role==='traveler'||ST.role==='organizer')?'driver':'client'})});
+
+function createCrew() {
+  var p = (document.getElementById('crewPickup').value || '').trim();
+  if (!p) { toast('Вкажіть місце збору', 'err'); return; }
+  if (!requireLiveIdentity('Створення екіпажу доступне тільки в Telegram Mini App')) return;
+  if (!requireProfileRole()) return;
+  if (!FX.dirId) { toast('Спершу відкрий потрібний напрямок', 'err'); return; }
+  if (!isDriverLikeRole()) { toast('Відкрити екіпаж можуть мандрівники або організатори', 'err'); return; }
+  api('/api/v3/crews/open', {}, { method: 'POST', body: JSON.stringify({ user_id: ST.user.id, direction_id: FX.dirId, pickup: p }) })
+    .then(async function(res) {
+      if (!res) { toast('Не вдалося відкрити екіпаж', 'err'); return; }
+      document.getElementById('crewPickup').value = '';
+      closeSheet('ovCreateCrew');
+      FX.orgId = ST.user.id; FX.orgName = ST.user.name || '?';
+      toast('Екіпаж #' + String(res.crew_id || '?') + ' відкрито', 'ok');
+      showScreen('sc-crews');
+      await loadCrews(FX.orgId, FX.dirId);
+      hydrateTrip();
+    });
+}
+
+// ══ ACCORDION TOGGLES ══════════════════════════════════════
+function toggleInt(n) {
+  var c = document.getElementById('int' + n); if (!c) return;
+  var was = c.classList.contains('open');
+  for (var i = 1; i <= 20; i++) { var x = document.getElementById('int' + i); if (x) x.classList.remove('open'); }
+  if (!was) c.classList.add('open');
+}
+function toggleOrg(n) {
+  var c = document.getElementById('org' + n); if (!c) return;
+  var was = c.classList.contains('open');
+  for (var i = 1; i <= 20; i++) { var x = document.getElementById('org' + i); if (x) x.classList.remove('open'); }
+  if (!was) c.classList.add('open');
+}
+function toggleCrew(n) {
+  var c = document.getElementById('crew' + n); if (!c) return;
+  var was = c.classList.contains('open');
+  for (var i = 1; i <= 20; i++) { var x = document.getElementById('crew' + i); if (x) x.classList.remove('open'); }
+  if (!was) c.classList.add('open');
+}
+
+// ══ FEED ═══════════════════════════════════════════════════
+function switchFeedTab(tab) {
+  var isFeed = tab === 'feed';
+  document.getElementById('feedList').style.display = isFeed ? '' : 'none';
+  document.getElementById('chatList').style.display = isFeed ? 'none' : '';
+  var tf = document.getElementById('tab-feed'), tc = document.getElementById('tab-chat');
+  tf.className = isFeed ? 'feed-tab on' : 'feed-tab';
+  tc.className = isFeed ? 'feed-tab' : 'feed-tab on-sky';
+  var lbl = document.getElementById('composeLbl'), inp = document.getElementById('composeInput');
+  if (lbl) lbl.textContent = isFeed ? 'ВІД ІМЕНІ ЕКІПАЖУ' : 'ЗАГАЛЬНИЙ ЧАТ';
+  if (inp) inp.placeholder = isFeed ? 'Написати від екіпажу...' : 'Написати всім учасникам...';
+}
+
+function sendFeedMsg() {
+  var inp = document.getElementById('composeInput');
+  var msg = inp && inp.value.trim(); if (!msg) return;
+  var isChat = document.getElementById('chatList').style.display !== 'none';
+  var list = document.getElementById(isChat ? 'chatList' : 'feedList');
+  var item = document.createElement('div'); item.className = 'feed-item';
+  var u = ST.user.name || 'Ви', ui = u[0].toUpperCase();
+  if (isChat) {
+    item.innerHTML = '<div class="fi-av" style="background:linear-gradient(135deg,var(--lime),var(--sky))">' + ui + '</div><div class="fi-body"><div class="fi-header"><span style="font-size:11px;font-weight:800;color:var(--white)">' + u + ' (Ви)</span><span class="fi-time">щойно</span></div><div class="fi-msg">' + escHtml(msg) + '</div></div>';
+  } else {
+    item.innerHTML = '<div class="fi-av" style="background:linear-gradient(135deg,var(--lime),var(--sky))">' + ui + '</div><div class="fi-body"><div class="fi-header"><span class="fi-crew">#мій</span><span class="fi-driver">' + u + '</span><span class="fi-time">щойно</span></div><div class="fi-msg">' + escHtml(msg) + '</div><div class="fi-meta"><span class="fi-tag ok">● Мій екіпаж</span></div></div>';
+  }
+  list.prepend(item); inp.value = ''; toast('✓ Повідомлення надіслано');
+}
+document.addEventListener('keydown', function(e) { if (e.key === 'Enter' && document.activeElement && document.activeElement.id === 'composeInput') sendFeedMsg(); });
+
+// ══ SHARE ══════════════════════════════════════════════════
+var SHARE_DATA = {
+  coord: { title: '🔗 Запросити організаторів', url: 'waytandem.app/i/carpaty', desc: 'Координаторський рівень — людина побачить напрямок і зможе створити виїзд.' },
+  org:   { title: '🚗 Запросити мандрівників і попутників', url: 'waytandem.app/i/bukovel', desc: 'Рівень організатора — людина побачить виїзд та вільні місця.' }
+};
+function openShare(type) {
+  var d = SHARE_DATA[type] || SHARE_DATA.coord;
+  document.getElementById('ssTitle').textContent = d.title;
+  document.getElementById('ssUrl').textContent = d.url;
+  document.getElementById('ssDesc').textContent = d.desc;
+  openSheet('ovShare');
+}
+function copyShareLink() {
+  var url = document.getElementById('ssUrl').textContent;
+  if (navigator.clipboard) navigator.clipboard.writeText('https://' + url).catch(function() {});
+  toast('✓ Посилання скопійовано!'); closeSheet('ovShare');
+}
+
+// ══ OVERLAYS ═══════════════════════════════════════════════
+function openSheet(id) { document.getElementById(id).classList.add('open'); }
+function closeSheet(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.overlay').forEach(function(el) {
+  el.addEventListener('click', function(e) { if (e.target === el) el.classList.remove('open'); });
+});
+
+// ══ TOAST ══════════════════════════════════════════════════
+var _tT;
+function toast(msg, type) {
+  var el = document.getElementById('toast');
+  el.textContent = msg; el.className = 'show ' + (type || '');
+  clearTimeout(_tT); _tT = setTimeout(function() { el.className = ''; }, 2800);
+}
+
+// ══ REGISTRATION ═══════════════════════════════════════════
+function startReg(role) { ST.role = role; selectRegRole(role); showScreen('sc-reg'); var n = tgUser.first_name; if (n) { var el = document.getElementById('regName'); if (el) el.value = n; } }
+function selectRegRole(role) {
+  ST.role = role;
+  ['traveler', 'companion', 'organizer'].forEach(function(r) { var b = document.getElementById('rb-' + r); if (b) b.classList.toggle('on', r === role); });
+  var cf = document.getElementById('carField'); if (cf) cf.style.display = role === 'traveler' ? '' : 'none';
+}
+function completeReg() {
+  var name = (document.getElementById('regName').value || '').trim();
+  if (!name) { toast("Вкажіть своє ім'я", 'err'); return; }
+  ST.user.name = name; ST.city = document.getElementById('regCity').value; ST.onboarded = true; saveState(); enterApp();
+  if (IS_TG_AUTH && ST.user.id) {
+    api('/api/v3/user/register', {}, { method: 'POST', body: JSON.stringify({ user_id: ST.user.id, name: name, role: isDriverLikeRole() ? 'driver' : 'client' }) });
   }
 }
 
-function enterApp(){
-  ST.onboarded=true;saveState();
-  document.getElementById('appHdr').style.display='';
-  document.getElementById('appNav').style.display='';
-  updateAvatar();showScreen('sc-board');updateNav(1);
-  if(API_URL){loadBoard();hydrateTrip();}else{setTimeout(function(){toast('Спочатку підключіть сервер через меню');},800);}
-  if(READ_ONLY_DEMO){setTimeout(function(){toast('Демо-режим: поза Telegram Mini App доступний лише перегляд');},1200);}
+// ══ ENTER / AVATAR ═════════════════════════════════════════
+function enterApp() {
+  ST.onboarded = true; saveState();
+  document.getElementById('appHdr').style.display = '';
+  document.getElementById('appNav').style.display = '';
+  updateAvatar(); showScreen('sc-board'); updateNav(0);
+  if (API_URL) { loadBoard(); hydrateTrip(); }
+  else { setTimeout(function() { toast('Підключіть сервер в Налаштуваннях'); }, 800); }
+  if (READ_ONLY_DEMO) { setTimeout(function() { toast('Демо-режим: перегляд без Telegram Mini App'); }, 1200); }
 }
 
-function updateAvatar(){
-  var av=document.getElementById('avBtn');if(av&&ST.user.name)av.textContent=ST.user.name[0].toUpperCase();
-  var pn=document.getElementById('profName');if(pn)pn.textContent=ST.user.name||'Учасник';
-  var pl=document.getElementById('profRoleLabel');
-  var cities={lviv:'Львів',kyiv:'Київ',kharkiv:'Харків',dnipro:'Дніпро',odesa:'Одеса',ivfrank:'Івано-Франківськ',other:'Ваше місто'};
-  var roles={traveler:'🚗 Мандрівник',companion:'🎒 Попутник',organizer:'🎯 Організатор'};
-  if(pl)pl.textContent=(roles[ST.role]||'👤 Учасник')+' · '+(cities[ST.city]||ST.city);
-  var cp=document.getElementById('cityPill');if(cp)cp.textContent='📍'+(cities[ST.city]||ST.city);
-  ST.cityName=cities[ST.city]||ST.city||'\u0412\u0430\u0448\u0435 \u043c\u0456\u0441\u0442\u043e';
+function updateAvatar() {
+  var av = document.getElementById('avBtn'); if (av && ST.user.name) av.textContent = ST.user.name[0].toUpperCase();
+  var pn = document.getElementById('profName'); if (pn) pn.textContent = ST.user.name || 'Учасник';
+  var pl = document.getElementById('profRoleLabel');
+  var cities = { lviv: 'Львів', kyiv: 'Київ', kharkiv: 'Харків', dnipro: 'Дніпро', odesa: 'Одеса', ivfrank: 'Івано-Франківськ', other: 'Ваше місто' };
+  var roles  = { traveler: '🚗 Мандрівник', companion: '🎒 Попутник', organizer: '🎯 Організатор' };
+  if (pl) pl.textContent = (roles[ST.role] || '👤 Учасник') + ' · ' + (cities[ST.city] || ST.city);
+  var cp = document.getElementById('cityPill'); if (cp) cp.textContent = '📍 ' + (cities[ST.city] || ST.city);
+  ST.cityName = cities[ST.city] || ST.city || 'Ваше місто';
   updateBoardHeader();
+  var apiDisp = document.getElementById('apiUrlDisplay'); if (apiDisp) apiDisp.textContent = API_URL ? API_URL.replace('https://', '') : 'Не підключено';
 }
-function resetOnboarding(){
-  ST.onboarded=false;ST.role=null;ST.joinedCrew=null;ST.pendingCrew=null;saveState();
-  document.getElementById('appHdr').style.display='none';
-  document.getElementById('appNav').style.display='none';
+
+function resetOnboarding() {
+  ST.onboarded = false; ST.role = null; ST.joinedCrew = null; ST.pendingCrew = null; saveState();
+  document.getElementById('appHdr').style.display = 'none';
+  document.getElementById('appNav').style.display = 'none';
   showScreen('sc-welcome');
 }
 
-// ── FRACTAL ACCORDION (§CANON FRAC-0,1,2) ───────────────
-function toggleInt(n){
-  var c=document.getElementById('int'+n);if(!c)return;
-  var was=c.classList.contains('open');
-  [1,2,3].forEach(function(i){var x=document.getElementById('int'+i);if(x)x.classList.remove('open');});
-  if(!was)c.classList.add('open');
-}
-function toggleOrg(n){
-  var c=document.getElementById('org'+n);if(!c)return;
-  var was=c.classList.contains('open');
-  [1,2,3].forEach(function(i){var x=document.getElementById('org'+i);if(x)x.classList.remove('open');});
-  if(!was)c.classList.add('open');
-}
-function toggleCrew(n){
-  var c=document.getElementById('crew'+n);if(!c)return;
-  var was=c.classList.contains('open');
-  [1,2,3,4].forEach(function(i){var x=document.getElementById('crew'+i);if(x)x.classList.remove('open');});
-  if(!was)c.classList.add('open');
-}
+// ══ UTILS ══════════════════════════════════════════════════
+function escHtml(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
-// ── JOIN CREW (§FLOWS §1.3 Handshake Intent) ─────────────
-// legacy joinCrew block removed; wrapper above is canonical
-
-function leaveCrew(){
-  if(!confirm('Справді вийти з екіпажу?'))return;
-  ST.joinedCrew=null;ST.pendingCrew=null;
-  setTripPanelVisible(false);
-  toast('Ви вийшли з екіпажу');
-}
-function createCrew(){
-  var p=(document.getElementById('crewPickup').value||'').trim();
-  if(!p){toast('Вкажіть місце збору','err');return;}
-  if(!requireLiveIdentity('Створення екіпажу доступне тільки в Telegram Mini App'))return;
-  if(!requireProfileRole())return;
-  if(!FX.dirId){toast('Спершу відкрий потрібний напрямок','err');return;}
-  if(!isDriverLikeRole()){toast('Відкрити екіпаж можуть мандрівники або організатори','err');return;}
-  api('/api/v3/crews/open',{},{method:'POST',body:JSON.stringify({
-    user_id:ST.user.id,
-    direction_id:FX.dirId,
-    pickup:p
-  })}).then(async function(res){
-    if(!res){toast('Не вдалося відкрити екіпаж','err');return;}
-    document.getElementById('crewPickup').value='';
-    closeSheet('ovCreateCrew');
-    FX.orgId=ST.user.id;
-    FX.orgName=ST.user.name||'?';
-    toast('Екіпаж #'+String(res.crew_id||'?')+' відкрито','ok');
-    showScreen('sc-crews');
-    await loadCrews(FX.orgId, FX.dirId);
-    hydrateTrip();
-  });
-}
-
-function switchFeedTab(tab){
-  var isFeed=tab==='feed';
-  document.getElementById('feedList').style.display=isFeed?'':'none';
-  document.getElementById('chatList').style.display=isFeed?'none':'';
-  document.getElementById('tab-feed').className=isFeed?'feed-tab on':'feed-tab';
-  document.getElementById('tab-chat').className=isFeed?'feed-tab':'feed-tab on-sky';
-  var lbl=document.getElementById('composeLbl');var inp=document.getElementById('composeInput');
-  if(lbl)lbl.textContent=isFeed?'ВІД ІМЕНІ ЕКІПАЖУ #1':'ЗАГАЛЬНИЙ ЧАТ';
-  if(inp)inp.placeholder=isFeed?'Написати від екіпажу #1...':'Написати всім учасникам...';
-}
-function sendFeedMsg(){
-  var inp=document.getElementById('composeInput');
-  var msg=inp&&inp.value.trim();if(!msg)return;
-  var isChat=document.getElementById('chatList').style.display!=='none';
-  var list=document.getElementById(isChat?'chatList':'feedList');
-  var item=document.createElement('div');item.className='feed-item';
-  var u=ST.user.name||'Ви',ui=u[0].toUpperCase();
-  if(isChat){item.innerHTML='<div class="fi-av" style="background:linear-gradient(135deg,var(--lime),var(--sky))">'+ui+'</div><div class="fi-body"><div class="fi-header"><span style="font-size:11px;font-weight:800;color:var(--white)">'+u+' (Ви)</span><span class="fi-time">щойно</span></div><div class="fi-msg">'+msg+'</div></div>';}
-  else{item.innerHTML='<div class="fi-av" style="background:linear-gradient(135deg,var(--lime),var(--sky))">'+ui+'</div><div class="fi-body"><div class="fi-header"><span class="fi-crew">#1</span><span class="fi-driver">'+u+'</span><span class="fi-time">щойно</span></div><div class="fi-msg">'+msg+'</div><div class="fi-meta"><span class="fi-tag ok">● Мій екіпаж</span></div></div>';}
-  list.prepend(item);inp.value='';toast('✓ Повідомлення надіслано');
-}
-document.addEventListener('keydown',function(e){if(e.key==='Enter'&&document.activeElement&&document.activeElement.id==='composeInput')sendFeedMsg();});
-
-// ── SHARE ────────────────────────────────────────────────
-var SHARE={
-  coord:{title:'🔗 Запросити організаторів',url:'waytandem.app/i/carpaty',desc:'Координаторський рівень — людина побачить напрямок і зможе створити виїзд.'},
-  org:{title:'🚗 Запросити мандрівників і попутників',url:'waytandem.app/i/bukovel-july14',desc:'Рівень організатора — людина побачить виїзд 14 липня та вільні місця.'}
-};
-function openShare(type){
-  var d=SHARE[type]||SHARE.coord;
-  document.getElementById('ssTitle').textContent=d.title;
-  document.getElementById('ssUrl').textContent=d.url;
-  document.getElementById('ssDesc').textContent=d.desc;
-  openSheet('ovShare');
-}
-function copyShareLink(){
-  var url=document.getElementById('ssUrl').textContent;
-  if(navigator.clipboard)navigator.clipboard.writeText('https://'+url).catch(function(){});
-  toast('✓ Посилання скопійовано!');closeSheet('ovShare');
-}
-
-// ── UTILS ────────────────────────────────────────────────
-function openSheet(id){document.getElementById(id).classList.add('open');}
-function closeSheet(id){document.getElementById(id).classList.remove('open');}
-document.querySelectorAll('.overlay').forEach(function(el){el.addEventListener('click',function(e){if(e.target===el)el.classList.remove('open');});});
-var _tT;
-function toast(msg,type){
-  var el=document.getElementById('toast');el.textContent=msg;el.className='show '+(type||'');
-  clearTimeout(_tT);_tT=setTimeout(function(){el.className='';},2800);
-}
-
-// ── INIT (§CANON INIT.1) ─────────────────────────────────
-(function init(){
-  if(tgUser.first_name&&!ST.user.name)ST.user.name=tgUser.first_name;
-  if(ST.onboarded){
-    document.getElementById('appHdr').style.display='';
-    document.getElementById('appNav').style.display='';
-    updateAvatar();showScreen('sc-board');updateNav(1);
-    if(API_URL){
-      api('/api/health').then(function(d){
-        if(d){setApiStatus('ok');loadBoard();hydrateTrip();}
+// ══ INIT ═══════════════════════════════════════════════════
+(function init() {
+  if (tgUser.first_name && !ST.user.name) ST.user.name = tgUser.first_name;
+  if (ST.onboarded) {
+    document.getElementById('appHdr').style.display = '';
+    document.getElementById('appNav').style.display = '';
+    updateAvatar(); showScreen('sc-board'); updateNav(0);
+    if (API_URL) {
+      api('/api/health').then(function(d) {
+        if (d) { setApiStatus('ok'); loadBoard(); hydrateTrip(); }
         else setApiStatus('err');
       });
+    } else {
+      // Demo: show static skeleton
     }
   } else {
     showScreen('sc-welcome');
   }
-  var ni=document.getElementById('regName');if(ni&&tgUser.first_name)ni.value=tgUser.first_name;
+  var ni = document.getElementById('regName'); if (ni && tgUser.first_name) ni.value = tgUser.first_name;
+  var ai = document.getElementById('apiInput'); if (ai && API_URL) ai.value = API_URL;
 })();
 </script>
 </body>
