@@ -37,6 +37,12 @@ html,body { height:100%;background:#E2E8F0;display:flex;align-items:center;
               0 0 160px rgba(201,255,71,.03);
 }
 
+
+
+@media (max-width: 520px) {
+  body { padding:0; align-items:stretch; justify-content:stretch; background:var(--bg); }
+  .phone { width:100vw; height:100vh; border-radius:0; box-shadow:none; }
+}
 /* ── HEADER ── */
 .hdr {
   height:56px; display:flex; align-items:center; justify-content:space-between;
@@ -778,7 +784,7 @@ html,body { height:100%;background:#E2E8F0;display:flex;align-items:center;
 <div class="phone">
 
   <!-- HEADER -->
-  <header class="hdr" id="appHdr" style="display:none;">
+  <header class="hdr" id="appHdr">
     <div class="logo" onclick="showView('welcome')" style="cursor:pointer;">WayTandem</div>
     <div class="hdr-right">
       <div class="city-pill" id="cityPill" onclick="showToast('📍 Зміна міста...')">📍 Львів</div>
