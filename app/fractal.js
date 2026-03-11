@@ -66,16 +66,6 @@ function esc(value) {
     .replace(/'/g, '&#39;');
 }
 
-function emptyHtml(icon, title, subtitle) {
-  return (
-    '<div class=empty>'
-    + '<div class=empty-ico>' + esc(icon) + '</div>'
-    + '<div class=empty-txt>' + esc(title) + '</div>'
-    + '<div class=empty-sub>' + esc(subtitle) + '</div>'
-    + '</div>'
-  );
-}
-
 function pickPalette(title, idx) {
   const lower = (title || '').toLowerCase();
   if (lower.includes('відпоч') || lower.includes('карпат') || lower.includes('гори')) return PALETTES[0];
@@ -218,20 +208,12 @@ function crewCardHtml(item, idx) {
 function renderRoot(items) {
   const list = document.getElementById('rootList');
   if (!list) return;
-  if (!Array.isArray(items) || !items.length) {
-    list.innerHTML = emptyHtml('🧭', 'Немає напрямків', 'Поки що тут порожньо.');
-    return;
-  }
   list.innerHTML = items.map(rootCardHtml).join('');
 }
 
 function renderV0(items) {
   const list = document.getElementById('v0List');
   if (!list) return;
-  if (!Array.isArray(items) || !items.length) {
-    list.innerHTML = emptyHtml('🗂️', 'Поки що порожньо', 'У цьому напрямку немає піднапрямків.');
-    return;
-  }
   list.innerHTML = items.map(childCardHtml).join('');
 }
 
@@ -239,10 +221,6 @@ function renderSub(items) {
   const list = document.getElementById('subList');
   if (!list) return;
   if (subFooterHtml === null) subFooterHtml = _captureFooterHtml(list, 'org-card');
-  if (!Array.isArray(items) || !items.length) {
-    list.innerHTML = emptyHtml('📍', 'Немає локацій', 'Поки що тут немає піднапрямків.') + (subFooterHtml || '');
-    return;
-  }
   list.innerHTML = items.map(locationCardHtml).join('') + (subFooterHtml || '');
 }
 
@@ -250,20 +228,12 @@ function renderOrganizers(items) {
   const list = document.getElementById('orgList');
   if (!list) return;
   if (orgFooterHtml === null) orgFooterHtml = _captureFooterHtml(list, 'org-card');
-  if (!Array.isArray(items) || !items.length) {
-    list.innerHTML = emptyHtml('🚗', 'Немає організаторів', 'Поки що ніхто не відкрив виїзд у цьому напрямку.') + (orgFooterHtml || '');
-    return;
-  }
   list.innerHTML = items.map(organizerCardHtml).join('') + (orgFooterHtml || '');
 }
 
 function renderCrews(items) {
   const list = document.getElementById('crewList');
   if (!list) return;
-  if (!Array.isArray(items) || !items.length) {
-    list.innerHTML = emptyHtml('👥', 'Немає екіпажів', 'Спробуй іншого організатора або напрямок.');
-    return;
-  }
   list.innerHTML = items.map(crewCardHtml).join('');
 }
 
@@ -288,7 +258,7 @@ export async function openRoot(directionId) {
   if (!children) return;
 
   renderV0(children);
-  showView(0);
+  showView(0, 'forward', true);
 }
 
 export async function drillToSubcat(directionId) {
@@ -311,7 +281,8 @@ export async function drillToSubcat(directionId) {
   }
 
   renderSub(children);
-  showView('05');
+  showView('05', 'forward', true);
+  window.currentFractalView = '05';
 }
 
 export async function drillToOrg(directionId) {
@@ -326,7 +297,19 @@ export async function drillToOrg(directionId) {
   state.parentTitle = getDirectionTitle(state.parentId) || state.parentTitle;
 
   updateText('crumb1-root', state.rootTitle || 'Головна');
-  updateText('crumb1-parent', state.parentTitle || 'Напрямок');
+  
+  const crumbParent = document.getElementById('crumb1-parent');
+  if (crumbParent) {
+    if (state.rootTitle === state.parentTitle) {
+      crumbParent.style.display = 'none';
+      crumbParent.previousElementSibling.style.display = 'none';
+    } else {
+      crumbParent.style.display = '';
+      crumbParent.previousElementSibling.style.display = '';
+      updateText('crumb1-parent', state.parentTitle || 'Напрямок');
+    }
+  }
+
   updateText('crumb1-current', state.directionTitle || 'Організатори');
   updateText('orgTitle', `📍 ${state.directionTitle || ''}`.trim());
 
@@ -335,7 +318,8 @@ export async function drillToOrg(directionId) {
   updateText('orgMeta', `${orgCount} організаторів · ${people} людей зацікавлені`);
 
   renderOrganizers(data.organizers);
-  showView(1);
+  showView(1, 'forward', true);
+  window.currentFractalView = 1;
 }
 
 export async function drillToCrews(organizerId) {
@@ -364,7 +348,7 @@ export async function drillToCrews(organizerId) {
   }
 
   renderCrews(data.crews);
-  showView(2);
+  showView(2, 'forward', true);
 }
 
 export async function joinCrewLive(crewIdRaw) {
