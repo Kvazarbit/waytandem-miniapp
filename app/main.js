@@ -66,19 +66,37 @@ function bindGlobals() {
 
 bindGlobals();
 
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
   initTelegramUI();
-  restoreApiUrl();
-  initFractal();
-  showView('home');
+
+  // ── Крок 1: Зчитуємо ?api= з URL (пріоритет — з кнопки бота)
+  const urlParams = new URLSearchParams(window.location.search);
+  const apiFromUrl = urlParams.get('api');
+  if (apiFromUrl) {
+    const cleanApi = apiFromUrl.trim().replace(/\/$/, '');
+    saveApiUrl(cleanApi);          // зберігає в localStorage + встановлює apiBase
+  } else {
+    restoreApiUrl();               // відновлює з localStorage якщо є
+  }
+
+  // ── Крок 2: Завантажуємо дані з API
+  await initFractal();
+
+  // ── Крок 3: Показуємо потрібний view
+  if (getApiBase()) {
+    showView('root');              // Є API → одразу Дошка з реальними даними
+  } else {
+    showView('home');              // Немає API → Demo Home
+  }
 });
 
-window.addEventListener('wt-api-changed', () => {
-  initFractal();
+// Якщо API змінюється через налаштування в профілі — оновлюємо
+window.addEventListener('wt-api-changed', async () => {
+  await initFractal();
+  if (getApiBase()) showView('root');
 });
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && document.activeElement?.id === 'composeInput') sendFeedMsg();
 });
 
-setTimeout(() => showToast('👆 Натисни на Дошка'), 800);
