@@ -69,23 +69,16 @@ bindGlobals();
 window.addEventListener('DOMContentLoaded', () => {
   initTelegramUI();
   restoreApiUrl();
-  // Якщо API вже збережений — одразу відкриваємо Дошку (root)
-  const savedApi = localStorage.getItem('wt_api');
-  if (savedApi) {
-    showView('root');
-    initFractal();
-  } else {
-    showView('home');
-    initFractal();
-  }
+  initFractal();
+  showView('home');
 });
 
 window.addEventListener('wt-api-changed', () => {
   initFractal();
-  // Коли API щойно підключився — автоматично переходимо на Дошку
-  if (typeof showView === 'function') showView('root');
 });
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && document.activeElement?.id === 'composeInput') sendFeedMsg();
 });
+
+setTimeout(() => showToast('👆 Натисни на Дошка'), 800);
