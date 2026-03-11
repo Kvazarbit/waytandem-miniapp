@@ -785,7 +785,7 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
 <div class="phone">
 
   <!-- HEADER -->
-  <header class="hdr" id="appHdr">
+  <header class="hdr" id="appHdr" style="display:none;">
     <div class="logo" onclick="showView('welcome')" style="cursor:pointer;">WayTandem</div>
     <div class="hdr-right">
       <div class="city-pill" id="cityPill" onclick="showToast('📍 Зміна міста...')">📍 Львів</div>
@@ -989,44 +989,17 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
       </div>
 
       <div id="rootList">
-      <!-- ROOT 1 -->
-      <div class="int-card" style="--glow:rgba(201,255,71,.08)" onclick="showView(0)">
+      <!-- Картки завантажуються з API через initFractal() → renderRoot() -->
+      <!-- Fallback Demo: показується лише якщо API недоступний -->
+      <div class="int-card demo-card" style="--glow:rgba(201,255,71,.08)" onclick="showToast('⏳ Завантаження з бази...')">
         <div class="ic-top" style="position:relative; z-index:2">
-          <div class="ic-emoji" style="background:linear-gradient(135deg,var(--lime),#A8E030);color:#07090E">🏕️</div>
+          <div class="ic-emoji" style="background:linear-gradient(135deg,var(--lime),#A8E030);color:#07090E">⏳</div>
           <div class="ic-body">
-            <div class="ic-name">Відпочинок</div>
-            <div class="ic-desc">Карпати, Море, За кордон</div>
+            <div class="ic-name">Завантаження...</div>
+            <div class="ic-desc">Підключення до бота WayTandem</div>
           </div>
           <div class="ic-arrow">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--lime)" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-          </div>
-        </div>
-      </div>
-
-      <!-- ROOT 2 -->
-      <div class="int-card" style="--glow:rgba(77,207,255,.07)" onclick="showToast('🤝 Служіння скоро відкриємо...')">
-        <div class="ic-top" style="position:relative; z-index:2">
-          <div class="ic-emoji" style="background:linear-gradient(135deg,var(--sky),#60A5FA);color:#fff">🤝</div>
-          <div class="ic-body">
-            <div class="ic-name">Служіння</div>
-            <div class="ic-desc">Волонтерські поїздки, соціальні ініціативи</div>
-          </div>
-          <div class="ic-arrow">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--sky)" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-          </div>
-        </div>
-      </div>
-
-      <!-- ROOT 3 -->
-      <div class="int-card" style="--glow:rgba(255,184,48,.07)" onclick="showToast('🚗 Допомога в доїзді скоро...')">
-        <div class="ic-top" style="position:relative; z-index:2">
-          <div class="ic-emoji" style="background:linear-gradient(135deg,var(--gold),#F97316);color:#fff">🚗</div>
-          <div class="ic-body">
-            <div class="ic-name">Допомога в доїзді</div>
-            <div class="ic-desc">Регулярні поїздки на роботу чи навчання</div>
-          </div>
-          <div class="ic-arrow">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
           </div>
         </div>
       </div>
