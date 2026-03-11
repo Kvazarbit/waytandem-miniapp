@@ -207,9 +207,9 @@ export function sendFeedMsg() {
   const item   = document.createElement('div');
   item.className = 'feed-item';
   if (isChat) {
-    item.innerHTML = `<div class=\"fi-av\" style=\"background:linear-gradient(135deg,var(--lime),var(--sky))\">Я</div><div class=\"fi-body\"><div class=\"fi-header\"><span style=\"font-size:11px;font-weight:800;color:var(--white)\">Ви</span><span class=\"fi-time\">щойно</span></div><div class=\"fi-msg\">${msg}</div></div>`;
+    item.innerHTML = `<div class="fi-av" style="background:linear-gradient(135deg,var(--lime),var(--sky))">Я</div><div class="fi-body"><div class="fi-header"><span style="font-size:11px;font-weight:800;color:var(--white)">Ви</span><span class="fi-time">щойно</span></div><div class="fi-msg">${msg}</div></div>`;
   } else {
-    item.innerHTML = `<div class=\"fi-av\" style=\"background:linear-gradient(135deg,var(--lime),var(--sky))\">Я</div><div class=\"fi-body\"><div class=\"fi-header\"><span class=\"fi-crew\">#1</span><span class=\"fi-driver\">Ви</span><span class=\"fi-time\">щойно</span></div><div class=\"fi-msg\">${msg}</div><div class=\"fi-meta\"><span class=\"fi-tag ok\">● Мій екіпаж</span></div></div>`;
+    item.innerHTML = `<div class="fi-av" style="background:linear-gradient(135deg,var(--lime),var(--sky))">Я</div><div class="fi-body"><div class="fi-header"><span class="fi-crew">#1</span><span class="fi-driver">Ви</span><span class="fi-time">щойно</span></div><div class="fi-msg">${msg}</div><div class="fi-meta"><span class="fi-tag ok">● Мій екіпаж</span></div></div>`;
   }
   list.prepend(item);
   inp.value = '';
