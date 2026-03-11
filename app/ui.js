@@ -4,19 +4,6 @@ let currentView = 'welcome';
 let joinedCrew = null;
 let toastTimer;
 
-// ── View-groups: які view-и показують nav/header ─────────────────────────
-// Проблема була тут: view 0, 1, 2, 3, '05' — числа і рядки перемішані.
-// showView порівнює currentView === n, але '0' !== 0.
-// Виправлено: всі id view-ів тепер нормалізуються до рядка.
-
-const NAV_VIEWS   = new Set(['home','root','0','05','1','2','3','trip','map','5']);
-const CLEAN_VIEWS = new Set(['welcome','reg']);
-
-function _normalize(n) {
-  // Приводимо будь-який вхід до рядка: 0→'0', 1→'1', 'home'→'home'
-  return String(n);
-}
-
 export function selectRole(role) {
   toggleRegRole(role);
   showView('reg');
@@ -28,86 +15,79 @@ export function toggleRegRole(role) {
   if (btn) btn.classList.add('on');
   const carField = document.getElementById('carField');
   if (!carField) return;
-  carField.style.display = (role === 'companion' || role === 'organizer') ? 'none' : 'block';
+  if (role === 'companion' || role === 'organizer') {
+    carField.style.display = 'none';
+  } else {
+    carField.style.display = 'block';
+  }
 }
 
-export function showView(n, dir = 'forward') {
-  const id = _normalize(n);
-  const curId = _normalize(currentView);
-
-  const curEl  = document.getElementById('v' + curId);
-  const nextEl = document.getElementById('v' + id);
-  if (!nextEl || curId === id) return;
+export function showView(n, dir = 'forward', force = false) {
+  const curEl = document.getElementById('v' + currentView);
+  const nextEl = document.getElementById('v' + n);
+  if (!nextEl || (currentView === n && !force)) return;
 
   const hdr = document.getElementById('appHdr');
   const nav = document.getElementById('appNav');
 
-  // ── Показуємо/ховаємо header і nav залежно від view ──────────────────
-  if (CLEAN_VIEWS.has(id)) {
+  if (n === 'welcome' || n === 'reg') {
     if (hdr) hdr.style.display = 'none';
     if (nav) nav.style.display = 'none';
   } else {
     if (hdr) hdr.style.display = 'flex';
-    // ВИПРАВЛЕННЯ БАГА: nav завжди flex для всіх робочих view-ів.
-    // Раніше nav ховався при переході на дошку (view 0,1,2) бо
-    // умова перевіряла typeof числа і не збігалась з рядком 'home'.
-    if (nav) nav.style.display = 'flex';
+    if (nav) { nav.style.display = 'flex'; nav.style.removeProperty('display'); nav.style.display = 'flex'; }
   }
 
-  // ── Анімація виходу поточного view ───────────────────────────────────
   if (curEl) {
-    curEl.classList.remove('active');
-    if (dir === 'forward') {
-      curEl.classList.add('out');
-      setTimeout(() => curEl.classList.remove('out'), 350);
+    if (curEl === nextEl) {
+      // Self-refresh: не анімуємо, просто переінсталюємо active
+      curEl.classList.remove('out');
+      curEl.classList.add('active');
     } else {
-      curEl.style.transition = 'transform .3s cubic-bezier(.4,0,.2,1), opacity .25s';
-      curEl.style.transform  = 'translateX(100%)';
-      curEl.style.opacity    = '0';
-      setTimeout(() => {
-        curEl.style.transform  = '';
-        curEl.style.opacity    = '';
-        curEl.style.transition = '';
-      }, 350);
+      curEl.classList.remove('active');
+      if (dir === 'forward') {
+        curEl.classList.add('out');
+        setTimeout(() => curEl.classList.remove('out'), 350);
+      } else {
+        curEl.style.transition = 'transform .3s cubic-bezier(.4,0,.2,1), opacity .25s';
+        curEl.style.transform = 'translateX(100%)';
+        curEl.style.opacity = '0';
+        setTimeout(() => {
+          curEl.style.transform = '';
+          curEl.style.opacity = '';
+          curEl.style.transition = '';
+        }, 350);
+      }
     }
   }
 
-  // ── Анімація входу нового view ────────────────────────────────────────
   if (dir === 'back') {
     nextEl.style.transition = 'none';
-    nextEl.style.transform  = 'translateX(-28%)';
-    nextEl.style.opacity    = '0';
-    nextEl.getBoundingClientRect(); // force reflow
+    nextEl.style.transform = 'translateX(-28%)';
+    nextEl.style.opacity = '0';
+    nextEl.getBoundingClientRect();
     nextEl.style.transition = '';
-    nextEl.style.transform  = '';
-    nextEl.style.opacity    = '';
+    nextEl.style.transform = '';
+    nextEl.style.opacity = '';
   }
   nextEl.classList.add('active');
 
-  // ── Підсвічування активного пункту nav ───────────────────────────────
   if (nav) {
     const nvs = nav.querySelectorAll('.nv');
-    nvs.forEach(el => {
-      el.classList.remove('on');
-      el.style.color = '';
-    });
-    const setNav = (idx, color) => {
-      if (nvs[idx]) { nvs[idx].classList.add('on'); nvs[idx].style.color = color; }
-    };
-    if      (id === 'home')                              setNav(0, 'var(--lime)');
-    else if (['root','0','05','1','2','3'].includes(id)) setNav(1, 'var(--lime)');
-    else if (id === 'trip')                              setNav(2, 'var(--lime)');
-    else if (id === 'map')                               setNav(3, 'var(--sky)');
-    else if (id === '5')                                 setNav(3, 'var(--sky)');
+    nvs.forEach(el => { el.classList.remove('on'); el.style.color = ''; });
+    const setNav = (idx, color) => { if (nvs[idx]) { nvs[idx].classList.add('on'); nvs[idx].style.color = color; } };
+    if (n === 'home') setNav(0, 'var(--lime)');
+    else if (n === 'root' || n === 0 || n === '05' || n === 1 || n === 2 || n === 3) setNav(1, 'var(--lime)');
+    else if (n === 'trip') setNav(2, 'var(--lime)');
+    else if (n === 'map') setNav(3, 'var(--sky)');
   }
 
-  currentView = id;
+  currentView = n;
 }
 
-// ── Static drill-fallbacks (коли немає API) ───────────────────────────────
 export function drillToSubcat() { showView('05'); }
-export function drillToOrg()    { showView('1'); }
-export function drillToCrews()  { showView('2'); }
+export function drillToOrg() { showView(1); }
+export function drillToCrews() { showView(2); }
 
 export function goBack(target) {
   showView(target, 'back');
@@ -143,7 +123,7 @@ export function joinCrew(n) {
   }
   const freeSeat = card.querySelector('.seat.free');
   if (freeSeat) {
-    freeSeat.style.background  = 'rgba(201,255,71,.35)';
+    freeSeat.style.background = 'rgba(201,255,71,.35)';
     freeSeat.style.borderColor = 'var(--lime)';
     freeSeat.classList.remove('free-pulse');
   }
@@ -151,23 +131,15 @@ export function joinCrew(n) {
 }
 
 const SHARE_DATA = {
-  coord: {
-    title: '🔗 Запросити організаторів',
-    url:   'waytandem.app/i/carpaty',
-    desc:  'Координаторський рівень — людина одразу побачить напрямок та зможе створити виїзд.',
-  },
-  org: {
-    title: '🚗 Запросити мандрівників і попутників',
-    url:   'waytandem.app/i/bukovel-july14',
-    desc:  'Рівень організатора — людина побачить виїзд, всі екіпажі та вільні місця.',
-  },
+  coord: { title: '🔗 Запросити організаторів', url: 'waytandem.app/i/carpaty', desc: 'Координаторський рівень — людина одразу побачить напрямок та зможе створити виїзд.' },
+  org: { title: '🚗 Запросити мандрівників і попутників', url: 'waytandem.app/i/bukovel-july14', desc: 'Рівень організатора — людина побачить виїзд 14 липня, всі екіпажі та вільні місця.' },
 };
 
 export function openShare(type) {
   const d = SHARE_DATA[type] || SHARE_DATA.coord;
   document.getElementById('ssTitle').textContent = d.title;
-  document.getElementById('ssUrl').textContent   = d.url;
-  document.getElementById('ssDesc').textContent  = d.desc;
+  document.getElementById('ssUrl').textContent = d.url;
+  document.getElementById('ssDesc').textContent = d.desc;
   document.getElementById('shareSheet').classList.add('open');
   document.getElementById('sheetOverlay').classList.add('open');
 }
@@ -186,13 +158,13 @@ export function copyLink() {
 
 export function switchFeedTab(tab) {
   const isFeed = tab === 'feed';
-  document.getElementById('feedList').style.display  = isFeed ? '' : 'none';
+  document.getElementById('feedList').style.display = isFeed ? '' : 'none';
   document.getElementById('chat-body').style.display = isFeed ? 'none' : '';
   const tabFeed = document.getElementById('tab-feed');
   const tabChat = document.getElementById('tab-chat');
-  tabFeed.style.color        = isFeed ? 'var(--lime)' : 'var(--muted)';
+  tabFeed.style.color = isFeed ? 'var(--lime)' : 'var(--muted)';
   tabFeed.style.borderBottom = isFeed ? '2px solid var(--lime)' : '2px solid transparent';
-  tabChat.style.color        = isFeed ? 'var(--muted)' : 'var(--sky)';
+  tabChat.style.color = isFeed ? 'var(--muted)' : 'var(--sky)';
   tabChat.style.borderBottom = isFeed ? '2px solid transparent' : '2px solid var(--sky)';
   const inp = document.getElementById('composeInput');
   if (inp) inp.placeholder = isFeed ? 'Написати від екіпажу #1...' : 'Написати всім учасникам...';
@@ -203,8 +175,8 @@ export function sendFeedMsg() {
   const msg = inp?.value.trim();
   if (!msg) return;
   const isChat = document.getElementById('chat-body').style.display !== 'none';
-  const list   = document.getElementById(isChat ? 'chat-body' : 'feedList');
-  const item   = document.createElement('div');
+  const list = document.getElementById(isChat ? 'chat-body' : 'feedList');
+  const item = document.createElement('div');
   item.className = 'feed-item';
   if (isChat) {
     item.innerHTML = `<div class="fi-av" style="background:linear-gradient(135deg,var(--lime),var(--sky))">Я</div><div class="fi-body"><div class="fi-header"><span style="font-size:11px;font-weight:800;color:var(--white)">Ви</span><span class="fi-time">щойно</span></div><div class="fi-msg">${msg}</div></div>`;
