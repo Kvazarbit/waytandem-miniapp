@@ -1,4 +1,5 @@
 import { getInitData } from './telegram.js';
+
 // ── Авто-підтягування SERVER_URL через /api/server-url ──────────────────
 // Якщо сервер запущений на відомому порту (8020), але Cloudflare-тунель
 // змінився — читаємо актуальний URL з env через спеціальний ендпоінт.
@@ -10,7 +11,7 @@ const SERVER_URL_KEY = 'wt_api';
 let apiBase = '';
 
 function _saved() {
-  return (localStorage.getItem(SERVER_URL_KEY) || '').trim().replace(/\\/$/, '');
+  return (localStorage.getItem(SERVER_URL_KEY) || '').trim().replace(/\/$/, '');
 }
 
 function _setStatus(text, color = '') {
@@ -23,9 +24,9 @@ function _setStatus(text, color = '') {
 export function getApiBase() { return apiBase; }
 
 export function saveApiUrl(val) {
-  apiBase = (val || '').trim().replace(/\\/$/, '');
+  apiBase = (val || '').trim().replace(/\/$/, '');
   localStorage.setItem(SERVER_URL_KEY, apiBase);
-  _setStatus(apiBase ? \"⏳ Перевірка з'єднання...\" : 'Не підключено — демо-режим');
+  _setStatus(apiBase ? "⏳ Перевірка з'єднання..." : 'Не підключено — демо-режим');
   if (apiBase) checkApiHealth();
   window.dispatchEvent(new CustomEvent('wt-api-changed'));
 }
@@ -92,7 +93,7 @@ function _syncInput() {
 function _getApiFromQuery() {
   try {
     const val = (new URL(window.location.href)).searchParams.get('api') || '';
-    if (val && /^https?:\\/\\//i.test(val)) return val.replace(/\\/$/, '');
+    if (val && /^https?:\/\//i.test(val)) return val.replace(/\/$/, '');
   } catch { /* ignore */ }
   return '';
 }
@@ -129,4 +130,3 @@ export async function api(path, opts = {}) {
     return null;
   }
 }
-"
