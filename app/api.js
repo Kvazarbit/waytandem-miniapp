@@ -98,7 +98,7 @@ function _getApiFromQuery() {
   return '';
 }
 
-export async function restoreApiUrl() {
+export async function restoreApiUrl() 
   // Пріоритет: ?api=... > збережений > авто-discovery
   const fromQuery = _getApiFromQuery();
   if (fromQuery) {
