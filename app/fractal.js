@@ -66,6 +66,16 @@ function esc(value) {
     .replace(/'/g, '&#39;');
 }
 
+function emptyHtml(icon, title, subtitle) {
+  return (
+    '<div class=empty>'
+    + '<div class=empty-ico>' + esc(icon) + '</div>'
+    + '<div class=empty-txt>' + esc(title) + '</div>'
+    + '<div class=empty-sub>' + esc(subtitle) + '</div>'
+    + '</div>'
+  );
+}
+
 function pickPalette(title, idx) {
   const lower = (title || '').toLowerCase();
   if (lower.includes('відпоч') || lower.includes('карпат') || lower.includes('гори')) return PALETTES[0];
@@ -208,12 +218,20 @@ function crewCardHtml(item, idx) {
 function renderRoot(items) {
   const list = document.getElementById('rootList');
   if (!list) return;
+  if (!Array.isArray(items) || !items.length) {
+    list.innerHTML = emptyHtml('🧭', 'Немає напрямків', 'Поки що тут порожньо.');
+    return;
+  }
   list.innerHTML = items.map(rootCardHtml).join('');
 }
 
 function renderV0(items) {
   const list = document.getElementById('v0List');
   if (!list) return;
+  if (!Array.isArray(items) || !items.length) {
+    list.innerHTML = emptyHtml('🗂️', 'Поки що порожньо', 'У цьому напрямку немає піднапрямків.');
+    return;
+  }
   list.innerHTML = items.map(childCardHtml).join('');
 }
 
@@ -221,6 +239,10 @@ function renderSub(items) {
   const list = document.getElementById('subList');
   if (!list) return;
   if (subFooterHtml === null) subFooterHtml = _captureFooterHtml(list, 'org-card');
+  if (!Array.isArray(items) || !items.length) {
+    list.innerHTML = emptyHtml('📍', 'Немає локацій', 'Поки що тут немає піднапрямків.') + (subFooterHtml || '');
+    return;
+  }
   list.innerHTML = items.map(locationCardHtml).join('') + (subFooterHtml || '');
 }
 
@@ -228,12 +250,20 @@ function renderOrganizers(items) {
   const list = document.getElementById('orgList');
   if (!list) return;
   if (orgFooterHtml === null) orgFooterHtml = _captureFooterHtml(list, 'org-card');
+  if (!Array.isArray(items) || !items.length) {
+    list.innerHTML = emptyHtml('🚗', 'Немає організаторів', 'Поки що ніхто не відкрив виїзд у цьому напрямку.') + (orgFooterHtml || '');
+    return;
+  }
   list.innerHTML = items.map(organizerCardHtml).join('') + (orgFooterHtml || '');
 }
 
 function renderCrews(items) {
   const list = document.getElementById('crewList');
   if (!list) return;
+  if (!Array.isArray(items) || !items.length) {
+    list.innerHTML = emptyHtml('👥', 'Немає екіпажів', 'Спробуй іншого організатора або напрямок.');
+    return;
+  }
   list.innerHTML = items.map(crewCardHtml).join('');
 }
 
