@@ -295,6 +295,7 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
   backdrop-filter:blur(24px); border-top:1px solid var(--border);
   display:flex; align-items:center; padding-bottom:8px;
   box-shadow: 0 -1px 3px rgba(0,0,0,.02);
+  z-index:20;
 }
 .nv {
   flex:1; display:flex; flex-direction:column; align-items:center;
@@ -1004,8 +1005,9 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
         </div>
       </div>
 
-    </div>
-  </div>
+      </div> <!-- /rootList -->
+    </div> <!-- /body -->
+  </div> <!-- /vroot -->
 
   <!-- ════════════ VIEW 0: ІНТЕРЕСИ (ВІДПОЧИНОК) ════════════ -->
   <div class="view" id="v0">
@@ -1955,6 +1957,6 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
 
 </div><!-- /phone -->
 
-<script type="module" src="./app/main.js"></script>
+<script type="module" src="./app/main.js?v=3"></script>
 </body>
 </html>
