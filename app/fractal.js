@@ -62,7 +62,7 @@ function esc(value) {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/\"/g, '&quot;')
+    .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }
 
@@ -98,8 +98,8 @@ function resolveUserId() {
   const tgId = tg?.initDataUnsafe?.user?.id;
   if (tgId) return tgId;
 
-  const url = new URL(window.location.href);
-  const qp = url.searchParams.get('user_id');
+  const urlParams = new URLSearchParams(window.location.search);
+  const qp = urlParams.get('user_id');
   if (qp && /^\d+$/.test(qp)) {
     localStorage.setItem('wt_user_id', qp);
     return Number(qp);
@@ -149,19 +149,58 @@ async function loadCrews(organizerId, directionId) {
 
 function rootCardHtml(item, idx) {
   const palette = pickPalette(item.title, idx);
-  return `\n      <div class=\"int-card\" style=\"--glow:${palette.glow}\" onclick=\"openRoot(${item.id})\">\n        <div class=\"ic-top\" style=\"position:relative; z-index:2\">\n          <div class=\"ic-emoji\" style=\"background:${palette.bg};color:#07090E\">${palette.emoji}</div>\n          <div class=\"ic-body\">\n            <div class=\"ic-name\">${esc(item.title)}</div>\n            <div class=\"ic-desc\">${esc(item.has_kids ? 'Обери піднапрямок' : 'Перейти далі')}</div>\n          </div>\n          <div class=\"ic-arrow\">\n            <svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"${palette.stroke}\" stroke-width=\"2.5\"><polyline points=\"9 18 15 12 9 6\"/></svg>\n          </div>\n        </div>\n      </div>\n  `;
+  return `
+      <div class="int-card" style="--glow:${palette.glow}">
+        <div class="ic-top" style="position:relative; z-index:2" onclick="openRoot(${item.id})">
+          <div class="ic-emoji" style="background:${palette.bg};color:#07090E">${palette.emoji}</div>
+          <div class="ic-body">
+            <div class="ic-name">${esc(item.title)}</div>
+            <div class="ic-desc">${esc(item.has_kids ? 'Обери піднапрямок' : 'Перейти далі')}</div>
+          </div>
+          <div class="ic-arrow">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${palette.stroke}" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+        </div>
+      </div>
+  `;
 }
 
 function childCardHtml(item, idx) {
   const palette = pickPalette(item.title, idx);
   const handler = item.has_kids ? `drillToSubcat(${item.id})` : `drillToOrg(${item.id})`;
-  return `\n      <div class=\"int-card\" style=\"--glow:${palette.glow}\" onclick=\"${handler}\">\n        <div class=\"ic-top\" style=\"position:relative; z-index:2\">\n          <div class=\"ic-emoji\">${esc(palette.emoji)}</div>\n          <div class=\"ic-body\">\n            <div class=\"ic-name\">${esc(item.title)}</div>\n            <div class=\"ic-desc\">${esc(item.has_kids ? 'Детальніше →' : 'Організатори та екіпажі')}</div>\n          </div>\n          <div class=\"ic-arrow\">\n            <svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"${palette.stroke}\" stroke-width=\"2.5\"><polyline points=\"9 18 15 12 9 6\"/></svg>\n          </div>\n        </div>\n      </div>\n  `;
+  return `
+      <div class="int-card" style="--glow:${palette.glow}">
+        <div class="ic-top" style="position:relative; z-index:2" onclick="${handler}">
+          <div class="ic-emoji">${esc(palette.emoji)}</div>
+          <div class="ic-body">
+            <div class="ic-name">${esc(item.title)}</div>
+            <div class="ic-desc">${esc(item.has_kids ? 'Детальніше →' : 'Організатори та екіпажі')}</div>
+          </div>
+          <div class="ic-arrow">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${palette.stroke}" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+        </div>
+      </div>
+  `;
 }
 
 function locationCardHtml(item, idx) {
   const palette = pickPalette(item.title, idx);
-  const meta = `${item.drivers || 0} організаторів · ${item.passengers || 0} людей зацікавлені`;
-  return `\n      <div class=\"org-card\" onclick=\"drillToOrg(${item.id})\">\n        <div class=\"org-head\">\n          <div class=\"org-av\" style=\"background:${palette.glow};color:${palette.stroke};font-size:18px\">📍</div>\n          <div class=\"org-body\">\n            <div class=\"org-name\">${esc(item.title)}</div>\n            <div class=\"org-date\">${esc(meta)}</div>\n          </div>\n          <div class=\"org-head-chevron\" style=\"background:transparent\">\n            <svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"var(--muted)\" stroke-width=\"2.5\"><polyline points=\"9 18 15 12 9 6\"/></svg>\n          </div>\n        </div>\n      </div>\n  `;
+  const meta = `${item.drivers || 0} орг. · ${item.passengers || 0} підписані · ${item.seats_total || 0} місць`;
+  return `
+      <div class="org-card">
+        <div class="org-head" onclick="drillToOrg(${item.id})">
+          <div class="org-av" style="background:${palette.glow};color:${palette.stroke};font-size:18px">📍</div>
+          <div class="org-body">
+            <div class="org-name">${esc(item.title)}</div>
+            <div class="org-date">${esc(meta)}</div>
+          </div>
+          <div class="org-head-chevron" style="background:transparent">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+        </div>
+      </div>
+  `;
 }
 
 function organizerCardHtml(item, idx) {
@@ -174,7 +213,30 @@ function organizerCardHtml(item, idx) {
     `⭐ ${item.rating?.toFixed?.(1) || item.rating || 0}`,
   ];
   const initial = (item.name || '?').trim().slice(0, 1) || '?';
-  return `\n      <div class=\"org-card\" id=\"org${idx + 1}\">\n        <div class=\"org-head\" onclick=\"toggleOrg(${idx + 1}, event)\">\n          <div class=\"org-av\" style=\"background:${palette.bg};color:#07090E\">${esc(initial)}</div>\n          <div class=\"org-body\">\n            <div class=\"org-name\">${esc(item.name || '?')} — ${esc(item.group_name || state.directionTitle || '')}</div>\n            <div class=\"org-date\">${dateText}</div>\n          </div>\n          <div class=\"org-badge\" style=\"background:rgba(201,255,71,.1);color:var(--lime)\">${esc(seatsText)}</div>\n          <div class=\"org-head-chevron\">\n            <svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"var(--sky)\" stroke-width=\"2.5\"><polyline points=\"6 9 12 15 18 9\"/></svg>\n          </div>\n        </div>\n        <div class=\"org-info\">\n          <div class=\"oi-chip\">${chips[0]}</div>\n          <div class=\"oi-chip\">${chips[1]}</div>\n          <div class=\"oi-chip\">${chips[2]}</div>\n        </div>\n        <div class=\"org-actions\">\n          <div class=\"oa-btn oa-ghost\" onclick=\"event.stopPropagation(); showToast('💬 Чат відкрито...')\">✉️ Написати</div>\n          <div class=\"oa-btn oa-sky\" onclick=\"event.stopPropagation(); drillToCrews(${item.user_id})\">🚗 Екіпажі →</div>\n        </div>\n      </div>\n  `;
+  return `
+      <div class="org-card" id="org${idx + 1}">
+        <div class="org-head" onclick="toggleOrg(${idx + 1}, event)">
+          <div class="org-av" style="background:${palette.bg};color:#07090E">${esc(initial)}</div>
+          <div class="org-body">
+            <div class="org-name">${esc(item.name || '?')} — ${esc(item.group_name || state.directionTitle || '')}</div>
+            <div class="org-date">${dateText}</div>
+          </div>
+          <div class="org-badge" style="background:rgba(201,255,71,.1);color:var(--lime)">${esc(seatsText)}</div>
+          <div class="org-head-chevron">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--sky)" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>
+        <div class="org-info">
+          <div class="oi-chip">${chips[0]}</div>
+          <div class="oi-chip">${chips[1]}</div>
+          <div class="oi-chip">${chips[2]}</div>
+        </div>
+        <div class="org-actions">
+          <div class="oa-btn oa-ghost" onclick="event.stopPropagation(); showToast('💬 Чат відкрито...')">✉️ Написати</div>
+          <div class="oa-btn oa-sky" onclick="event.stopPropagation(); drillToCrews(${item.user_id})">🚗 Екіпажі →</div>
+        </div>
+      </div>
+  `;
 }
 
 function seatHtml(seat) {
@@ -187,7 +249,12 @@ function memberHtml(member) {
   const name = (member?.name || '?').trim();
   const initial = name.slice(0, 1) || '?';
   const role = member?.role === 'driver' ? 'водій' : 'попутник';
-  return `\n      <div class=\"cd-member\">\n        <div class=\"cd-av\" style=\"background:linear-gradient(135deg,var(--sky),var(--lime))\">${esc(initial)}</div>\n        <div class=\"cd-role\">${role}</div>\n      </div>\n  `;
+  return `
+      <div class="cd-member">
+        <div class="cd-av" style="background:linear-gradient(135deg,var(--sky),var(--lime))">${esc(initial)}</div>
+        <div class="cd-role">${role}</div>
+      </div>
+  `;
 }
 
 function crewCardHtml(item, idx) {
@@ -197,12 +264,54 @@ function crewCardHtml(item, idx) {
   const members = (item.members || []).map(memberHtml).join('');
 
   const freeSlots = Math.max(0, (item.seats_total || 4) - 1 - (item.seats_used || 0));
-  const emptySlots = Array.from({ length: freeSlots }, () => `\n      <div class=\"cd-member\">\n        <div class=\"cd-empty\">\n          <svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"var(--dim)\" stroke-width=\"2\"><line x1=\"12\" y1=\"5\" x2=\"12\" y2=\"19\"/><line x1=\"5\" y1=\"12\" x2=\"19\" y2=\"12\"/></svg>\n        </div>\n        <div class=\"cd-role\" style=\"color:var(--lime)\">вільно</div>\n      </div>\n  `).join('');
+  const emptySlots = Array.from({ length: freeSlots }, () => `
+      <div class="cd-member">
+        <div class="cd-empty">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--dim)" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </div>
+        <div class="cd-role" style="color:var(--lime)">вільно</div>
+      </div>
+  `).join('');
 
-  const joinText = isFree ? `Приєднатись до екіпажу #${esc(crewId)}` : '📩 Постукатись';
-  const joinClass = isFree ? 'join-btn join-lime' : 'join-btn join-ask';
+  // BAN-4: кнопки фільтруються за роллю — Мандрівник НЕ бачить "Зайняти місце"
+  const role = window.userProfile?.role || 'companion';
+  let actionBtns = '';
+  if (role === 'companion') {
+    if (isFree) {
+      actionBtns = `<div class="join-btn join-lime" onclick="event.stopPropagation(); joinCrewLive('${esc(crewId)}')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Зайняти місце в екіпажі #${esc(crewId)}
+      </div>`;
+    } else {
+      actionBtns = `<div class="join-btn join-ask" onclick="event.stopPropagation(); joinCrewLive('${esc(crewId)}')">📩 Постукатись — якщо хтось відмовиться</div>`;
+    }
+  } else {
+    // Мандрівник (traveler) — кнопки join недоступні (BAN-4)
+    actionBtns = `<div class="join-btn" style="background:rgba(77,207,255,.08);color:var(--sky);border:1px solid rgba(77,207,255,.2)" onclick="event.stopPropagation(); showView(3)">💬 Стрічка екіпажу →</div>`;
+  }
 
-  return `\n      <div class=\"crew-card\" id=\"crew${idx + 1}\" onclick=\"toggleCrew(${idx + 1})\">\n        <div class=\"crew-head\">\n          <div class=\"crew-num${isFree ? ' has-space' : ''}\">#${esc(crewId)}</div>\n          <div class=\"crew-body\">\n            <div class=\"crew-driver\">${esc(item.driver_name || '?')}</div>\n            <div class=\"crew-car\">${esc(item.car || '')}</div>\n          </div>\n          <div class=\"crew-seats\">${seats}</div>\n        </div>\n        <div class=\"crew-detail\">\n          <div class=\"cd-inner\">\n            <div class=\"cd-row\">\n              <span class=\"cd-lbl\">Старт</span>\n              <span class=\"cd-val\">${esc(item.pickup || '—')}</span>\n            </div>\n            <div class=\"cd-members\">${members}${emptySlots}</div>\n            <div class=\"${joinClass}\" onclick=\"event.stopPropagation(); joinCrewLive('${esc(crewId)}')\">${joinText}</div>\n          </div>\n        </div>\n      </div>\n  `;
+  return `
+      <div class="crew-card" id="crew${idx + 1}">
+        <div class="crew-head" onclick="toggleCrew(${idx + 1})">
+          <div class="crew-num${isFree ? ' has-space' : ''}">#${esc(crewId)}</div>
+          <div class="crew-body">
+            <div class="crew-driver">${esc(item.driver_name || '?')}</div>
+            <div class="crew-car">${esc(item.car || '')}</div>
+          </div>
+          <div class="crew-seats">${seats}</div>
+        </div>
+        <div class="crew-detail">
+          <div class="cd-inner">
+            <div class="cd-row">
+              <span class="cd-lbl">Старт</span>
+              <span class="cd-val">${esc(item.pickup || '—')}</span>
+            </div>
+            <div class="cd-members">${members}${emptySlots}</div>
+            ${actionBtns}
+          </div>
+        </div>
+      </div>
+  `;
 }
 
 function renderRoot(items) {
@@ -239,6 +348,16 @@ function renderCrews(items) {
 
 export async function initFractal() {
   state.userId = resolveUserId();
+  
+  // Витягуємо мову з URL або Telegram
+  const urlParams = new URLSearchParams(window.location.search);
+  const langFromUrl = urlParams.get('lang');
+  if (langFromUrl) {
+    state.lang = langFromUrl;
+  } else if (tg?.initDataUnsafe?.user?.language_code) {
+    state.lang = tg.initDataUnsafe.user.language_code;
+  }
+
   if (!getApiBase()) return;
 
   const root = await loadRoot();
@@ -297,7 +416,7 @@ export async function drillToOrg(directionId) {
   state.parentTitle = getDirectionTitle(state.parentId) || state.parentTitle;
 
   updateText('crumb1-root', state.rootTitle || 'Головна');
-  
+
   const crumbParent = document.getElementById('crumb1-parent');
   if (crumbParent) {
     if (state.rootTitle === state.parentTitle) {
@@ -317,9 +436,72 @@ export async function drillToOrg(directionId) {
   const people = (data.direction?.drivers || 0) + (data.direction?.passengers || 0);
   updateText('orgMeta', `${orgCount} організаторів · ${people} людей зацікавлені`);
 
+  // Update subscription button state
+  state.isSubscribed = data.user_status?.subscribed || false;
+  _updateSubscriptionUI(state.isSubscribed);
+
   renderOrganizers(data.organizers);
   showView(1, 'forward', true);
   window.currentFractalView = 1;
+}
+
+function _updateSubscriptionUI(isSub) {
+  const btn = document.getElementById('btn-subscribe-dir');
+  const check = document.getElementById('subscribe-dir-check');
+  const title = document.getElementById('subscribe-dir-title');
+  const desc = document.getElementById('subscribe-dir-desc');
+
+  if (!btn) return;
+
+  if (isSub) {
+    btn.style.background = 'rgba(0, 180, 216, 0.12)';
+    btn.style.border = '1px solid var(--sky)';
+    if (check) check.style.display = 'flex';
+    if (title) {
+      title.textContent = 'Ви підписані на цей напрямок';
+      title.style.color = 'var(--white)'; // У світлій темі це темний колір (#0F172A)
+    }
+    if (desc) desc.textContent = 'Ви отримуєте сповіщення про нові екіпажі';
+  } else {
+    btn.style.background = 'rgba(0, 180, 216, 0.05)';
+    btn.style.border = '1px dashed rgba(0, 180, 216, 0.4)';
+    if (check) check.style.display = 'none';
+    if (title) {
+      title.textContent = '🔔 Підписатися на напрямок';
+      title.style.color = 'var(--sky)';
+    }
+    if (desc) desc.textContent = 'Отримуй сповіщення від бота про появу нових екіпажів';
+  }
+}
+
+export async function toggleSubscription() {
+  if (!getApiBase() || !state.directionId || !state.userId) {
+    showToast('Неможливо змінити підписку (помилка авторизації)');
+    return;
+  }
+
+  // Optimistic UI update
+  state.isSubscribed = !state.isSubscribed;
+  _updateSubscriptionUI(state.isSubscribed);
+  showToast(state.isSubscribed ? '🔔 Підписку оформлено!' : '🔕 Підписку скасовано');
+
+  try {
+    const endpoint = state.isSubscribed ? '/api/v3/board/subscribe' : '/api/v3/board/unsubscribe';
+    const role = window.userProfile?.role || 'companion';
+    await api(endpoint, {
+      method: 'POST',
+      body: JSON.stringify({
+        direction_id: state.directionId,
+        user_id: state.userId,
+        role: role === 'companion' ? 'client' : 'driver'
+      })
+    });
+  } catch (err) {
+    // Revert on error
+    state.isSubscribed = !state.isSubscribed;
+    _updateSubscriptionUI(state.isSubscribed);
+    showToast('Помилка сервера. Спробуйте ще раз.');
+  }
 }
 
 export async function drillToCrews(organizerId) {
@@ -384,5 +566,17 @@ export async function joinCrewLive(crewIdRaw) {
     return;
   }
 
-  showToast('🎉 Запит надіслано! Чекай підтвердження водія');
+  // Зберігаємо контекст для переходу на handshake-екран
+  window._pendingCrewId = crewId;
+  window._pendingDir = state.directionTitle;
+
+  // Наповнюємо handshake view даними з відповіді API
+  const driverEl = document.getElementById('hs-driver');
+  const pickupEl = document.getElementById('hs-pickup');
+  const dirEl = document.getElementById('hs-direction');
+  if (driverEl) driverEl.textContent = res.driver_name || `Екіпаж #${crewId}`;
+  if (pickupEl) pickupEl.textContent = res.pickup || '—';
+  if (dirEl) dirEl.textContent = state.directionTitle || '';
+
+  showView('handshake');
 }
