@@ -288,6 +288,16 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
   border:1px solid rgba(201,255,71,.2);
 }
 
+/* ── Trip manifest ── */
+.trip-manifest { background:var(--card2); border:1px solid var(--border); border-radius:16px; padding:16px; }
+.manifest-slot { display:flex; flex-direction:column; align-items:center; gap:6px; }
+.ms-bubble { width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:800; }
+.ms-driver { background:linear-gradient(135deg,var(--lime),#A8E030); color:#07090E; }
+.ms-pax    { background:linear-gradient(135deg,var(--sky),#60A5FA); color:#07090E; }
+.ms-name   { font-size:12px; font-weight:700; color:var(--white); }
+.ms-status { font-size:10px; color:var(--muted); }
+.rating-btn.active { transform:scale(1.08); box-shadow:0 0 18px rgba(201,255,71,.3); }
+
 /* ── BOTTOM NAV ── */
 .nav {
   position:absolute; bottom:0; left:0; right:0;
@@ -789,7 +799,7 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
   <header class="hdr" id="appHdr" style="display:none;">
     <div class="logo" onclick="showView('welcome')" style="cursor:pointer;">WayTandem</div>
     <div class="hdr-right">
-      <div class="city-pill" id="cityPill" onclick="showToast('📍 Зміна міста...')">📍 Львів</div>
+      <div class="city-pill" id="cityPill" onclick="showToast('👤 Твоя роль у системі')">👤 Роль</div>
       <div class="av-btn" id="avBtn" onclick="showView(5)">О</div>
     </div>
   </header>
@@ -833,13 +843,16 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
           </div>
           <div class="obc-arr">›</div>
         </div>
-        <div class="ob-card gold" onclick="selectRole('organizer')">
+        <!-- ORGANIZER CHECKBOX -->
+        <div class="ob-card" id="ob-organizer-card"
+             style="border:1px solid rgba(245,158,11,.2);cursor:pointer"
+             onclick="toggleOrganizerFlag()">
           <div class="obc-ico">🎯</div>
           <div class="obc-body">
-            <div class="obc-title" style="color:var(--gold)">Організатор</div>
-            <div class="obc-sub">Організовую груповий виїзд — збираю команду</div>
+            <div class="obc-title" style="color:var(--gold)">Я також організатор</div>
+            <div class="obc-sub" style="color:var(--muted)">Хочу створювати напрямки та виїзди</div>
           </div>
-          <div class="obc-arr">›</div>
+          <div id="ob-org-check" style="width:22px;height:22px;border-radius:6px;border:2px solid rgba(245,158,11,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s"></div>
         </div>
       </div>
       <div class="ob-skip" onclick="showView('home')">Пропустити реєстрацію →</div>
@@ -880,19 +893,21 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
             <div class="role-btn" id="rb-companion" onclick="toggleRegRole('companion')">
               <div class="rb-ico">🎒</div>Попутник
             </div>
-            <div class="role-btn" id="rb-organizer" onclick="toggleRegRole('organizer')">
-              <div class="rb-ico">🎯</div>Організатор
-            </div>
+
           </div>
         </div>
         <div class="field" id="carField" style="margin-top:10px;">
           <label>Автомобіль (необов'язково)</label>
-          <input id="regCar" placeholder="Toyota Corolla, 4 місця" maxlength="60" autocomplete="off">
+          <input id="regCar" placeholder="Toyota Corolla" maxlength="60" autocomplete="off">
+        </div>
+        <div class="field" id="seatsField" style="margin-top:10px;">
+          <label>Кількість вільних місць</label>
+          <input id="regSeats" type="number" value="4" min="1" max="8">
         </div>
       </div>
     </div>
     <div style="padding:16px;flex-shrink:0;background:var(--bg);box-shadow:0 -4px 10px rgba(0,0,0,.03);z-index:10;display:flex;flex-direction:column;gap:8px;">
-      <div class="btn btn-lime" onclick="showView('home')">Почати →</div>
+      <div class="btn btn-lime" onclick="submitRegistration()">Почати →</div>
       <div class="btn btn-ghost" onclick="showView('welcome', 'back')" style="background:transparent;border:none;">← Назад</div>
     </div>
   </div>
@@ -916,9 +931,9 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
           <div style="font-size:20px;margin-bottom:4px">🔍</div>
           <div style="font-size:11px;font-weight:700;color:var(--lime)">Знайти поїздку</div>
         </div>
-        <div style="flex:1;background:rgba(77,207,255,.1);border:1px solid rgba(77,207,255,.2);border-radius:14px;padding:12px;text-align:center" onclick="showToast('✦ Створення пропозиції...')">
-          <div style="font-size:20px;margin-bottom:4px">🚗</div>
-          <div style="font-size:11px;font-weight:700;color:var(--sky)">Допомогти</div>
+        <div style="flex:1;background:rgba(255,184,48,.1);border:1px solid rgba(255,184,48,.2);border-radius:14px;padding:12px;text-align:center" onclick="showToast('📋 Перехід до моїх груп...')">
+          <div style="font-size:20px;margin-bottom:4px">📋</div>
+          <div style="font-size:11px;font-weight:700;color:var(--gold)">Я організатор</div>
         </div>
       </div>
 
@@ -929,8 +944,8 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
       </div>
 
       <!-- UPCOMING TRIP -->
-      <div class="org-card" style="border:1px solid rgba(255,184,48,.3);" onclick="drillToCrews()">
-        <div class="org-head">
+      <div class="org-card" style="border:1px solid rgba(255,184,48,.3);">
+        <div class="org-head" onclick="drillToCrews()">
           <div class="org-av" style="background:rgba(255,184,48,.15);color:var(--gold);font-size:18px">🏔️</div>
           <div class="org-body">
             <div class="org-name">Буковель</div>
@@ -992,8 +1007,8 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
       <div id="rootList">
       <!-- Картки завантажуються з API через initFractal() → renderRoot() -->
       <!-- Fallback Demo: показується лише якщо API недоступний -->
-      <div class="int-card demo-card" style="--glow:rgba(201,255,71,.08)" onclick="showToast('⏳ Завантаження з бази...')">
-        <div class="ic-top" style="position:relative; z-index:2">
+      <div class="int-card demo-card" style="--glow:rgba(201,255,71,.08)">
+        <div class="ic-top" style="position:relative; z-index:2" onclick="showToast('⏳ Завантаження з бази...')">
           <div class="ic-emoji" style="background:linear-gradient(135deg,var(--lime),#A8E030);color:#07090E">⏳</div>
           <div class="ic-body">
             <div class="ic-name">Завантаження...</div>
@@ -1006,6 +1021,19 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
       </div>
 
       </div> <!-- /rootList -->
+
+      <!-- ORG-ONLY: visible only if isOrganizer=true -->
+      <div id="btn-create-direction" class="org-card"
+           style="border:1px dashed rgba(245,158,11,.4);cursor:pointer;margin-top:16px;display:none"
+           onclick="showToast('🎯 Створити напрямок...')">
+        <div style="display:flex;align-items:center;justify-content:center;gap:12px;padding:8px">
+          <div style="font-size:24px;background:rgba(245,158,11,.1);width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;color:var(--gold)">＋</div>
+          <div style="text-align:left">
+            <div style="font-size:14px;font-weight:800;color:var(--gold)">Створити напрямок</div>
+            <div style="font-size:11px;color:var(--muted)">Новий напрямок на дошці інтересів</div>
+          </div>
+        </div>
+      </div>
     </div> <!-- /body -->
   </div> <!-- /vroot -->
 
@@ -1034,8 +1062,8 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
 
       <div id="v0List">
       <!-- INTEREST 1 -->
-      <div class="int-card" id="int1" style="--glow:rgba(201,255,71,.08)" onclick="drillToSubcat(1)">
-        <div class="ic-top" style="position:relative; z-index:2">
+      <div class="int-card" id="int1" style="--glow:rgba(201,255,71,.08)">
+        <div class="ic-top" style="position:relative; z-index:2" onclick="drillToSubcat(1)">
           <div class="ic-emoji">🏔️</div>
           <div class="ic-body">
             <div class="ic-name">Карпати й гори</div>
@@ -1048,8 +1076,8 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
       </div>
 
       <!-- INTEREST 2 -->
-      <div class="int-card" id="int2" style="--glow:rgba(77,207,255,.07)" onclick="showToast('🌊 Море скоро відкриємо...')">
-        <div class="ic-top" style="position:relative; z-index:2">
+      <div class="int-card" id="int2" style="--glow:rgba(77,207,255,.07)">
+        <div class="ic-top" style="position:relative; z-index:2" onclick="showToast('🌊 Море скоро відкриємо...')">
           <div class="ic-emoji">🌊</div>
           <div class="ic-body">
             <div class="ic-name">Море та пляж</div>
@@ -1062,8 +1090,8 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
       </div>
 
       <!-- INTEREST 3 -->
-      <div class="int-card" id="int3" style="--glow:rgba(255,107,138,.06)" onclick="showToast('🌍 Європа скоро відкриється...')">
-        <div class="ic-top" style="position:relative; z-index:2">
+      <div class="int-card" id="int3" style="--glow:rgba(255,107,138,.06)">
+        <div class="ic-top" style="position:relative; z-index:2" onclick="showToast('🌍 Європа скоро відкриється...')">
           <div class="ic-emoji">🌍</div>
           <div class="ic-body">
             <div class="ic-name">За кордон</div>
@@ -1077,6 +1105,17 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
 
       </div>
 
+      <!-- PROPOSE DIRECTION BUTTON -->
+      <div class="org-card" style="border:1px dashed rgba(201,255,71,.3);cursor:pointer;margin-top:16px" onclick="showToast('✦ Відкриття форми створення напрямку...')">
+        <div style="display:flex;align-items:center;justify-content:center;gap:12px;padding:8px">
+          <div style="font-size:24px;background:rgba(201,255,71,.1);width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center">＋</div>
+          <div style="text-align:left">
+            <div style="font-size:14px;font-weight:800;color:var(--white)">Запропонувати свій напрямок</div>
+            <div style="font-size:11px;color:var(--muted)">Стань організатором виїзду</div>
+          </div>
+        </div>
+      </div>
+
       <!-- BOT CARD -->
       <div class="bot-card ok" style="margin-top:4px">
         <div class="bc-ico" style="background:rgba(201,255,71,.1)">🤖</div>
@@ -1088,15 +1127,7 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
       </div>
 
     </div>
-    <!-- INVITE BANNER -->
-    <div class="invite-banner" onclick="openShare('coord')" style="margin:0 16px 16px">
-      <div class="ib-ico">👋</div>
-      <div class="ib-body">
-        <div class="ib-title">Запросити координаторів</div>
-        <div class="ib-url">waytandem.app/i/carpaty</div>
-      </div>
-      <div class="ib-copy">Копіювати</div>
-    </div>
+
 
   </div>
 
@@ -1127,8 +1158,8 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
       
       <div id="subList">
       <!-- SUB 1 -->
-      <div class="org-card" onclick="drillToOrg()">
-        <div class="org-head">
+      <div class="org-card">
+        <div class="org-head" onclick="drillToOrg()">
           <div class="org-av" style="background:rgba(201,255,71,.15);color:var(--lime);font-size:18px">📍</div>
           <div class="org-body">
             <div class="org-name">Буковель</div>
@@ -1141,8 +1172,8 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
       </div>
       
       <!-- SUB 2 -->
-      <div class="org-card" onclick="showToast('📍 Славське в розробці')">
-         <div class="org-head">
+      <div class="org-card">
+         <div class="org-head" onclick="showToast('📍 Славське в розробці')">
           <div class="org-av" style="background:rgba(77,207,255,.1);color:var(--sky);font-size:18px">📍</div>
           <div class="org-body">
             <div class="org-name">Славське</div>
@@ -1155,8 +1186,8 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
       </div>
       
       <!-- SUB 3 -->
-      <div class="org-card" onclick="showToast('📍 Драгобрат в розробці')">
-         <div class="org-head">
+      <div class="org-card">
+         <div class="org-head" onclick="showToast('📍 Драгобрат в розробці')">
           <div class="org-av" style="background:rgba(255,184,48,.1);color:var(--gold);font-size:18px">📍</div>
           <div class="org-body">
             <div class="org-name">Драгобрат</div>
@@ -1279,24 +1310,25 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
         </div>
       </div>
 
-      <!-- INVITE BANNER -->
-      <div class="invite-banner" onclick="openShare('coord')">
-        <div class="ib-ico">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--lime)" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      <!-- SUBSCRIBE TO DIRECTION -->
+      <div id="btn-subscribe-dir" style="background:rgba(77,207,255,.05);border:1px dashed rgba(77,207,255,.3);border-radius:16px;
+                  padding:16px;text-align:center;cursor:pointer;margin-top:8px;margin-bottom:16px;transition:all 0.2s;"
+           onclick="toggleSubscription()">
+        <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
+          <div id="subscribe-dir-check" style="width:18px;height:18px;border-radius:4px;border:2px solid var(--sky);display:none;align-items:center;justify-content:center;background:var(--sky);color:#fff;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div style="font-size:14px;font-weight:700;color:var(--sky)" id="subscribe-dir-title">🔔 Підписатися на напрямок</div>
         </div>
-        <div class="ib-body">
-          <div class="ib-title">Запросити організаторів</div>
-          <div class="ib-url">waytandem.app/i/carpaty</div>
-        </div>
-        <div class="ib-copy">Копіювати</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:3px" id="subscribe-dir-desc">Отримуй сповіщення від бота про появу нових екіпажів</div>
       </div>
 
-      <!-- BECOME ORG -->
-      <div style="background:transparent;border:1.5px dashed var(--dim);border-radius:16px;
-                  padding:16px;text-align:center;cursor:pointer;margin-top:4px"
+      <!-- BECOME ORG: visible only if isOrganizer=true -->
+      <div id="btn-create-trip" style="background:transparent;border:1.5px dashed rgba(245,158,11,.4);border-radius:16px;
+                  padding:16px;text-align:center;cursor:pointer;margin-top:4px;display:none"
            onclick="showToast('🎯 Створити виїзд...')">
-        <div style="font-size:13px;font-weight:700;color:var(--muted)">＋ Організувати свій виїзд</div>
-        <div style="font-size:11px;color:var(--dim);margin-top:3px">Дата, маршрут, збір учасників</div>
+        <div style="font-size:13px;font-weight:800;color:var(--gold)">＋ Організувати виїзд</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:3px">Дата, маршрут, збір учасників</div>
       </div>
 
       </div>
@@ -1341,8 +1373,8 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
 
       <div id="crewList">
       <!-- CREW 1 — 1 free -->
-      <div class="crew-card" id="crew1" onclick="toggleCrew(1)">
-        <div class="crew-head">
+      <div class="crew-card" id="crew1">
+        <div class="crew-head" onclick="toggleCrew(1)">
           <div class="crew-num has-space">#1</div>
           <div class="crew-body">
             <div class="crew-driver">Олексій М.</div>
@@ -1397,8 +1429,8 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
       </div>
 
       <!-- CREW 2 — 2 free -->
-      <div class="crew-card" id="crew2" onclick="toggleCrew(2)">
-        <div class="crew-head">
+      <div class="crew-card" id="crew2">
+        <div class="crew-head" onclick="toggleCrew(2)">
           <div class="crew-num has-space">#2</div>
           <div class="crew-body">
             <div class="crew-driver">Марія П.</div>
@@ -1444,8 +1476,8 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
       </div>
 
       <!-- CREW 3 — full -->
-      <div class="crew-card" id="crew3" onclick="toggleCrew(3)">
-        <div class="crew-head">
+      <div class="crew-card" id="crew3">
+        <div class="crew-head" onclick="toggleCrew(3)">
           <div class="crew-num" style="background:rgba(255,77,77,.08);color:#FF6B6B">#3</div>
           <div class="crew-body">
             <div class="crew-driver">Іван С.</div>
@@ -1476,8 +1508,8 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
       </div>
 
       <!-- CREW 4 -->
-      <div class="crew-card" id="crew4" onclick="toggleCrew(4)">
-        <div class="crew-head">
+      <div class="crew-card" id="crew4">
+        <div class="crew-head" onclick="toggleCrew(4)">
           <div class="crew-num has-space">#4</div>
           <div class="crew-body">
             <div class="crew-driver">Андрій Л.</div>
@@ -1504,17 +1536,7 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
 
       </div>
 
-      <!-- INVITE BANNER -->
-      <div class="invite-banner" onclick="openShare('org')" style="margin-bottom:8px">
-        <div class="ib-ico">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--lime)" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-        </div>
-        <div class="ib-body">
-          <div class="ib-title">Запросити мандрівників і попутників</div>
-          <div class="ib-url">waytandem.app/i/bukovel-july14</div>
-        </div>
-        <div class="ib-copy">Копіювати</div>
-      </div>
+
 
       <!-- BOT STATUS CARDS -->
       <div class="bot-card info">
@@ -1546,14 +1568,7 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
 
     </div>
 
-    <div class="invite-banner" onclick="openShare('org')" style="margin:0 16px 16px">
-      <div class="ib-ico">👋</div>
-      <div class="ib-body">
-        <div class="ib-title">Запросити мандрівників і попутників</div>
-        <div class="ib-url">waytandem.app/i/bukovel-july14</div>
-      </div>
-      <div class="ib-copy">Копіювати</div>
-    </div>
+
 
   </div>
 
@@ -1817,7 +1832,7 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
         О
       </div>
       <div id="profileName" style="font-family:'Unbounded',sans-serif;font-size:20px;font-weight:700;color:var(--white)">Олексій М.</div>
-      <div id="profilePhone" style="font-size:13px;color:var(--muted);margin-top:4px">+380 99 123 45 67</div>
+      <div id="profileStatus" style="font-size:12px;color:var(--lime);margin-top:2px;font-weight:600">🚗 Мандрівник · <span id="profileSeats">4</span> місця</div>
     </div>
 
     <div class="body">
@@ -1887,6 +1902,38 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
         </div>
 
       </div>
+      
+      <!-- SEATS ADJUSTMENT (Traveler only) -->
+      <div id="profileSeatsControl" style="background:var(--card);border-radius:16px;padding:16px;margin-bottom:24px;display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="font-size:18px">🪑</div>
+            <div>
+              <div style="font-size:14px;font-weight:700;color:var(--white)">Вільних місць у вас</div>
+              <div style="font-size:11px;color:var(--muted)">Скільки людей можете взяти</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;background:var(--card3);padding:4px;border-radius:12px;border:1px solid var(--border)">
+            <div class="stepper-btn" onclick="updateProfileSeats(-1)" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:var(--border);border-radius:8px;font-weight:900;font-size:20px;color:var(--white)">−</div>
+            <div id="settingsSeatsValue" style="width:20px;text-align:center;font-weight:800;color:var(--lime);font-family:'Unbounded',sans-serif">4</div>
+            <div class="stepper-btn" onclick="updateProfileSeats(1)" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:var(--border);border-radius:8px;font-weight:900;font-size:20px;color:var(--white)">＋</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ORGANIZER FLAG in settings -->
+      <div style="background:var(--card);border-radius:16px;padding:16px;margin-bottom:24px;cursor:pointer" onclick="toggleOrganizerFlag()" id="settingsOrgCard">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="font-size:18px">🎯</div>
+            <div>
+              <div style="font-size:14px;font-weight:700;color:var(--white)">Я організатор</div>
+              <div style="font-size:11px;color:var(--muted)">Показує кнопку створення напрямків і виїздів</div>
+            </div>
+          </div>
+          <div id="settingsOrgCheck" style="width:22px;height:22px;border-radius:6px;border:2px solid rgba(245,158,11,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s"></div>
+        </div>
+      </div>
 
       <div class="org-card" style="border:1px dashed rgba(255,77,77,.3);cursor:pointer" onclick="showToast('Видалення акаунту...')">
         <div class="org-head" style="justify-content:center">
@@ -1894,6 +1941,130 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
         </div>
       </div>
 
+    </div>
+  </div>
+
+  <!-- ════════════ VIEW HANDSHAKE: ОЧІКУВАННЯ ПІДТВЕРДЖЕННЯ ════════ -->
+  <div class="view" id="vhandshake">
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center">
+      <div style="font-size:56px;margin-bottom:20px">⏳</div>
+      <div style="font-family:'Unbounded',sans-serif;font-weight:700;font-size:20px;color:var(--white);margin-bottom:8px">
+        Чекаємо водія
+      </div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:32px">
+        Запит надіслано водію.<br>
+        У Telegram прийде сповіщення коли він відповіст.
+      </div>
+      <div style="background:var(--card2);border:1px solid var(--border);border-radius:18px;padding:20px;width:100%;max-width:320px;margin-bottom:28px">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Напрямок</div>
+        <div id="hs-direction" style="font-size:13px;color:var(--sky);margin-bottom:12px;font-weight:600"></div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Водій</div>
+        <div id="hs-driver" style="font-size:16px;font-weight:700;color:var(--white);margin-bottom:8px">—</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:2px">Місце посадки</div>
+        <div id="hs-pickup" style="font-size:13px;color:var(--muted)">—</div>
+      </div>
+      <div style="display:flex;gap:12px;width:100%;max-width:320px">
+        <div class="btn btn-lime" style="flex:1" onclick="showActiveTrip({crewId:window._pendingCrewId, status:'active', members:[{name:'Водій',role:'driver'},{name:'Ти',role:'passenger'}], directionTitle:window._pendingDir||''})">
+          ✅ Готово!
+        </div>
+        <div class="btn btn-ghost" style="flex:1" onclick="goBack(2)">
+          🔄 Інший екіпаж
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════ VIEW TRIP: АКТИВНА ПОЇЗДКА ════════════ -->
+  <div class="view" id="vtrip-active">
+    <div class="crumb-bar">
+      <span class="crumb-seg" onclick="goBack('root')">WayTandem</span>
+      <span class="crumb-arr">›</span>
+      <span class="crumb-seg active">Поїздка</span>
+    </div>
+    <div style="padding:16px 16px 8px;flex-shrink:0">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div style="font-family:'Unbounded',sans-serif;font-size:18px;font-weight:700;color:var(--white)">Екіпаж <span id="trip-crew-id" style="color:var(--sky)">#—</span></div>
+          <div id="trip-direction" style="font-size:13px;color:var(--muted);margin-top:4px">Напрямок</div>
+        </div>
+        <div style="background:rgba(201,255,71,.1);border:1px solid rgba(201,255,71,.2);color:var(--lime);
+                    padding:6px 12px;border-radius:12px;font-size:11px;font-weight:700">● Активно</div>
+      </div>
+    </div>
+    <div class="body">
+      <!-- Маніфест екіпажу -->
+      <div class="trip-manifest" style="margin:0 0 20px">
+        <div id="trip-manifest-inner" style="display:flex;justify-content:space-around;width:100%">
+          <!-- заповнюється через _renderTripManifest() -->
+        </div>
+      </div>
+
+      <!-- Стрічка екіпажу -->
+      <div style="background:var(--card2);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:16px">
+        <div style="font-size:13px;font-weight:700;color:var(--white);margin-bottom:10px">💬 Стрічка екіпажу</div>
+        <div class="feed-item" style="border:none;padding:0">
+          <div class="fi-av" style="background:linear-gradient(135deg,var(--lime),var(--sky))">Я</div>
+          <div class="fi-body">
+            <div class="fi-header">
+              <span class="fi-crew" id="trip-feed-crew">#1</span>
+              <span class="fi-driver">Ви</span>
+              <span class="fi-time">щойно</span>
+            </div>
+            <div class="fi-msg">Поїздка активна! 🚗</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Завершення -->
+      <div style="background:var(--card2);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:16px">
+        <div style="font-size:13px;font-weight:700;color:var(--white);margin-bottom:6px">Поїздка завершена?</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Обидві сторони мають підтвердити завершення.</div>
+        <div id="trip-wait-msg" style="display:none;font-size:12px;color:var(--gold);margin-bottom:10px;font-weight:700"></div>
+        <div id="trip-done-btn" class="btn btn-lime" onclick="confirmTripDone(false)">✅ Підтвердити — доїхав!</div>
+      </div>
+
+      <!-- Скасування -->
+      <div class="btn btn-ghost" onclick="requestCancel()" style="margin-top:4px">⚠️ Скасувати участь</div>
+    </div>
+  </div>
+
+  <!-- ════════════ VIEW RATING ════════════ -->
+  <div class="view" id="vrating">
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center">
+      <div style="font-size:56px;margin-bottom:16px">🎉</div>
+      <div style="font-family:'Unbounded',sans-serif;font-weight:700;font-size:20px;color:var(--white);margin-bottom:6px">Добрались!</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:32px">Як пройшла поїздка?</div>
+      <div style="display:flex;gap:16px;margin-bottom:32px">
+        <div id="rating-good" class="rating-btn" onclick="submitRating('good')"
+             style="width:80px;height:80px;border-radius:20px;background:rgba(201,255,71,.08);border:2px solid rgba(201,255,71,.2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;transition:all .18s">
+          <div style="font-size:28px">👍</div>
+          <div style="font-size:11px;font-weight:700;color:var(--lime)">Чудово</div>
+        </div>
+        <div id="rating-neutral" class="rating-btn" onclick="submitRating('neutral')"
+             style="width:80px;height:80px;border-radius:20px;background:rgba(255,184,48,.08);border:2px solid rgba(255,184,48,.2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;transition:all .18s">
+          <div style="font-size:28px">😐</div>
+          <div style="font-size:11px;font-weight:700;color:var(--gold)">Нейтрально</div>
+        </div>
+        <div id="rating-bad" class="rating-btn" onclick="submitRating('bad')"
+             style="width:80px;height:80px;border-radius:20px;background:rgba(239,71,111,.08);border:2px solid rgba(239,71,111,.2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;transition:all .18s">
+          <div style="font-size:28px">👎</div>
+          <div style="font-size:11px;font-weight:700;color:var(--rose)">Проблеми</div>
+        </div>
+      </div>
+      <div class="btn btn-ghost" onclick="submitRating('skip')">Пропустити →</div>
+    </div>
+  </div>
+
+  <!-- ════════════ VIEW CANCEL ════════════ -->
+  <div class="view" id="vcancel">
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center">
+      <div style="font-size:56px;margin-bottom:16px">⚠️</div>
+      <div style="font-family:'Unbounded',sans-serif;font-weight:700;font-size:20px;color:var(--white);margin-bottom:8px">Скасувати участь?</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:32px">
+        Це повідомить водія.<br>Водій має підтвердити скасування.
+      </div>
+      <div class="btn btn-ghost" onclick="confirmCancel()" style="border-color:rgba(255,77,77,.3);color:#FF6B6B;margin-bottom:8px">Надіслати запит на скасування</div>
+      <div class="btn btn-ghost" onclick="showView('trip-active','back')">Назад — продовжуємо</div>
     </div>
   </div>
 
@@ -1917,7 +2088,7 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
       </div>
       <div class="nv-lbl">Дошка</div>
     </div>
-    <div class="nv" id="nav-trip" onclick="showView('trip')">
+    <div class="nv" id="nav-trip" onclick="showView(window.tripState&&window.tripState.status==='active'?'trip-active':'trip')">
       <div class="nv-ico">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="10"></circle>
@@ -1937,26 +2108,13 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
     </div>
   </nav>
 
-  <!-- SHARE SHEET OVERLAY -->
-  <div class="sheet-overlay" id="sheetOverlay" onclick="closeShare()"></div>
-  <div class="share-sheet" id="shareSheet">
-    <div class="ss-handle"></div>
-    <div class="ss-title" id="ssTitle">🔗 Запросити організаторів</div>
-    <div class="ss-url" id="ssUrl">waytandem.app/i/carpaty</div>
-    <div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.5" id="ssDesc">
-      Поділись цим посиланням — людина одразу потрапить на потрібний рівень, побачить контекст і зможе приєднатись.
-    </div>
-    <div class="ss-btns">
-      <div class="ss-btn ss-lime" onclick="copyLink()">📋 Копіювати посилання</div>
-      <div class="ss-btn ss-ghost" onclick="closeShare()">Закрити</div>
-    </div>
-  </div>
+  <!-- share sheet removed -->
 
   <!-- TOAST -->
   <div class="toast" id="toast"></div>
 
 </div><!-- /phone -->
 
-<script type="module" src="./app/main.js?v=3"></script>
+<script type="module" src="./app/main.js?v=8"></script>
 </body>
 </html>
