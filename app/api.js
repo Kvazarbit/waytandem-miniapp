@@ -6,7 +6,8 @@ export function getApiBase() {
   return apiBase;
 }
 
-export function saveApiUrl(val) {
+// silent=true — не стріляємо wt-api-changed (використовується під час init)
+export function saveApiUrl(val, silent = false) {
   apiBase = (val || '').trim().replace(/\/$/, '');
   localStorage.setItem('wt_api', apiBase);
   const status = document.getElementById('apiStatus');
@@ -15,7 +16,9 @@ export function saveApiUrl(val) {
     status.style.color = '';
   }
   if (apiBase) checkApiHealth();
-  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('wt-api-changed'));
+  if (!silent && typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('wt-api-changed'));
+  }
 }
 
 export async function checkApiHealth() {
@@ -51,7 +54,8 @@ export async function api(path, opts = {}) {
   }
 }
 
-export function restoreApiUrl() {
+// silent=true під час init — не стріляємо зайвий wt-api-changed
+export function restoreApiUrl(silent = false) {
   // 1. Спочатку читаємо ?api= з URL (найвищий пріоритет — з бота)
   const urlParams = new URLSearchParams(window.location.search);
   const apiFromUrl = urlParams.get('api');
@@ -62,17 +66,20 @@ export function restoreApiUrl() {
     const input = document.getElementById('apiUrlInput');
     if (input) input.value = clean;
     checkApiHealth();
-    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('wt-api-changed'));
+    if (!silent && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('wt-api-changed'));
+    }
     return;
   }
 
-  // 2. Fallback: берем з localStorage (попередній сеанс)
+  // 2. Fallback: беремо з localStorage (попередній сеанс)
   const saved = localStorage.getItem('wt_api');
   if (!saved) return;
   const input = document.getElementById('apiUrlInput');
   if (input) input.value = saved;
   apiBase = saved;
   checkApiHealth();
-  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('wt-api-changed'));
+  if (!silent && typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('wt-api-changed'));
+  }
 }
-
