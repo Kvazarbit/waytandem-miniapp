@@ -1,4 +1,4 @@
-import { getInitData } from './telegram.js';
+import { getInitData } from './telegram.js?v=22';
 
 let apiBase = localStorage.getItem('wt_api') || '';
 
@@ -56,7 +56,6 @@ export async function api(path, opts = {}) {
 
 // silent=true під час init — не стріляємо зайвий wt-api-changed
 export function restoreApiUrl(silent = false) {
-  // 1. Спочатку читаємо ?api= з URL (найвищий пріоритет — з бота)
   const urlParams = new URLSearchParams(window.location.search);
   const apiFromUrl = urlParams.get('api');
   if (apiFromUrl) {
@@ -72,7 +71,6 @@ export function restoreApiUrl(silent = false) {
     return;
   }
 
-  // 2. Fallback: беремо з localStorage (попередній сеанс)
   const saved = localStorage.getItem('wt_api');
   if (!saved) return;
   const input = document.getElementById('apiUrlInput');
