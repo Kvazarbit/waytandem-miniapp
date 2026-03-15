@@ -1,5 +1,5 @@
-import { initTelegramUI } from './telegram.js?v=3';
-import { getApiBase, saveApiUrl, restoreApiUrl } from './api.js?v=3';
+import { initTelegramUI } from './telegram.js?v=24';
+import { api, getApiBase, saveApiUrl, restoreApiUrl } from './api.js?v=24';
 import {
   initFractal,
   openRoot,
@@ -8,7 +8,7 @@ import {
   drillToCrews as drillToCrewsLive,
   joinCrewLive,
   toggleSubscription,
-} from './fractal.js?v=3';
+} from './fractal.js?v=24';
 import {
   selectRole,
   toggleRegRole,
@@ -39,7 +39,13 @@ import {
   hydrateProfileFromUrl,
   updateProfileSeats,
   toggleOrganizerFlag,
-} from './ui.js?v=3';
+  respondToRequest,
+  refreshIncomingRequests,
+  openCrewForm,
+  submitOpenCrew,
+  selectionState,
+  toggleTripMap,
+} from './ui.js?v=24';
 
 function bindGlobals() {
   window.selectRole = selectRole;
@@ -103,7 +109,14 @@ function bindGlobals() {
     confirmCancel,
     selectRole,
     submitRegistration,
-    restoreProfile
+    restoreProfile,
+    showActiveTrip,
+    respondToRequest,
+    refreshIncomingRequests,
+    toggleTripMap,
+    openCrewForm,
+    submitOpenCrew,
+    selectionState
   };
 
   window.fractal = {
@@ -112,13 +125,53 @@ function bindGlobals() {
     drillToOrg: window.drillToOrg,
     drillToCrews: window.drillToCrews,
     joinCrew: joinCrewLive,
-    initFractal
+    initFractal,
+    hydrateTrip,
+    toggleSubscription
   };
+}
+
+async function hydrateTrip() {
+  if (!userProfile.userId || !getApiBase()) return;
+  try {
+    const data = await api(`/api/v3/trip/active?user_id=${userProfile.userId}`);
+    if (data && data.active) {
+      console.log('💎 Hydrating active trip:', data.crew_display_id);
+      showActiveTrip(data);
+      return true;
+    } else {
+      // If we were in a trip and it's no longer active, tripState.active will be true
+      if (window.tripState && window.tripState.active) {
+        console.log('🏁 Trip ended, resetting state...');
+        window.tripState.active = false;
+        // Optional: showRoot() or toast
+      }
+    }
+  } catch (e) {
+    console.error('Failed to hydrate trip:', e);
+  }
+  return false;
+}
+
+/**
+ * 🔄 v24.5: Background polling to keep trip state in sync.
+ * Runs every 15 seconds while the app is active.
+ */
+function startPolling() {
+  console.log('🔄 Starting background polling (15s)...');
+  setInterval(async () => {
+    // Only poll if registered and not in a 'blocking' state like registration
+    if (userProfile.userId && getApiBase()) {
+      await hydrateTrip();
+    }
+  }, 15000);
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
   bindGlobals(); // Глобали доступні одразу після DOMContentLoaded
   initTelegramUI();
+
+  // ... (rest of DOMContentLoaded)
 
   // ── Крок 1: Зчитуємо ?api= з URL — викликаємо silent=true щоб не стріляти wt-api-changed двічі
   const urlParams = new URLSearchParams(window.location.search);
@@ -132,8 +185,6 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   // ── Крок 2: Профіль користувача
   let isRegistered = restoreProfile();
-  const urlParamsRegistered = hydrateProfileFromUrl();
-  if (urlParamsRegistered) isRegistered = true;
 
   // ── Крок 3: Завантажуємо дані з API
   await initFractal();
@@ -142,19 +193,19 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (!isRegistered) {
     showView('welcome');           // Новий користувач → реєстрація
   } else if (getApiBase()) {
-    showView('root');              // Є API + зареєстрований → Дошка
+    // Спробуємо відновити активну поїздку
+    const hasTrip = await hydrateTrip();
+    if (!hasTrip) {
+      openRoot();                  // Немає поїздки → Завантажуємо Дошку
+    }
   } else {
     showView('home');              // Демо-режим
   }
-});
 
-// Тільки коли юзер вручну змінює API в налаштуваннях (saveApiUrl без silent)
-window.addEventListener('wt-api-changed', async () => {
-  await initFractal();
-  if (getApiBase()) showView('root', 'forward', true);
+  // 🔄 v24.5: Start background polling for real-time trip updates
+  startPolling();
 });
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && document.activeElement?.id === 'composeInput') sendFeedMsg();
 });
-
