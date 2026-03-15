@@ -6,6 +6,98 @@
 <title>WayTandem</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  window.selectRole = function(r) { window.ui ? window.ui.selectRole(r) : console.warn('UI not ready'); };
+  window.showView = function(v, d) { window.ui ? window.ui.showView(v, d) : console.warn('UI not ready'); };
+  window.toggleRegRole = function() { window.ui ? window.ui.toggleRegRole() : console.warn('UI not ready'); };
+  window.toggleOrganizerFlag = function() { window.ui ? window.ui.toggleOrganizerFlag() : console.warn('UI not ready'); };
+  window.submitRegistration = function() { window.ui ? window.ui.submitRegistration() : console.warn('UI not ready'); };
+  window.goBack = function() { window.ui ? window.ui.goBack() : console.warn('UI not ready'); };
+
+  // Welcome screen: tap on direction row
+  // has_kids=true  -> expand sub-list inline (Telegram folder style)
+  // has_kids=false -> go straight to reg prompt if not logged in
+  var _welcomeSubData = {
+    'Карпати й гори': [
+      {name:'Буковель',seats:'14'},
+      {name:'Синевир',seats:'8'},
+      {name:'Говерла',seats:'5'},
+      {name:'Закарпаття',seats:'11'}
+    ],
+    'Море та пляж': [
+      {name:'Одеса',seats:'6'},
+      {name:'Затока',seats:'4'},
+      {name:'Кирилівка',seats:'4'}
+    ],
+    'За кордон': [
+      {name:'Польща',seats:'9'},
+      {name:'Словаччина',seats:'7'},
+      {name:'Угорщина',seats:'6'}
+    ]
+  };
+
+  window.welcomeDrillIn = function(card, dirName) {
+    var list = document.getElementById('welcomeDirectionList');
+    var allCards = list.querySelectorAll('.wdir-card');
+    var children = _welcomeSubData[dirName];
+
+    // if already open - close it
+    if (card.classList.contains('open')) {
+      card.classList.remove('open');
+      var existing = card.nextElementSibling;
+      if (existing && existing.classList.contains('wdir-children')) existing.remove();
+      return;
+    }
+
+    // close any other open cards
+    allCards.forEach(function(c) {
+      c.classList.remove('open');
+      var sib = c.nextElementSibling;
+      if (sib && sib.classList.contains('wdir-children')) sib.remove();
+    });
+
+    if (!children) {
+      // leaf direction: prompt login
+      window._pendingDir = dirName;
+      window.showView('reg');
+      return;
+    }
+
+    // open sub-list
+    card.classList.add('open');
+    var wrap = document.createElement('div');
+    wrap.className = 'wdir-children';
+    wrap.style.background = 'var(--card3)';
+    wrap.style.borderRadius = '0 0 16px 16px';
+    wrap.style.marginTop = '-8px';
+    wrap.style.marginBottom = '8px';
+    wrap.style.border = '1px solid var(--border)';
+    wrap.style.borderTop = 'none';
+    wrap.style.overflow = 'hidden';
+    children.forEach(function(sub, i) {
+      var item = document.createElement('div');
+      item.className = 'wdir-sub-item';
+      if (i === children.length - 1) item.style.borderBottom = 'none';
+      item.innerHTML =
+        '<span class="wsi-name">' + sub.name + '</span>' +
+        '<span class="wsi-seats">' + sub.seats + ' місць</span>';
+      item.onclick = function() {
+        window._pendingDir = dirName + ' / ' + sub.name;
+        window.showView('reg');
+      };
+      wrap.appendChild(item);
+    });
+    // animate open
+    wrap.style.maxHeight = '0';
+    card.parentNode.insertBefore(wrap, card.nextSibling);
+    requestAnimationFrame(function() {
+      wrap.style.transition = 'max-height .3s cubic-bezier(.4,0,.2,1)';
+      wrap.style.maxHeight = (children.length * 44) + 'px';
+    });
+  };
+</script>
 <style>
 :root {
   --bg:     #F7F9FC;
@@ -94,6 +186,20 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
 }
 .body::-webkit-scrollbar { display:none; }
 
+/* ── FRACTAL CREW UI ── */
+.trip-manifest { display: flex; flex-direction: column; gap: 10px; padding: 4px 0; }
+.manifest-item {
+  display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 14px;
+  background: var(--card3); border: 1px solid var(--border); cursor: pointer; transition: all 0.2s;
+}
+.mi-av { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; color: #07090E; flex-shrink: 0; }
+.mi-name { font-size: 14px; font-weight: 700; color: var(--white); flex: 1; }
+.mi-call-ico { font-size: 16px; opacity: 0.6; }
+.mi-driver { background: rgba(201,255,71,.05); border-color: rgba(201,255,71,.3); width: 100%; }
+.mi-driver .mi-av { background: linear-gradient(135deg, var(--lime), #A8E030); }
+.mi-pax { margin-left: 5%; width: 95%; background: var(--card2); border-color: var(--border); }
+.mi-pax .mi-av { background: linear-gradient(135deg, var(--sky), #60A5FA); }
+
 /* ── LEVEL LABEL ── */
 .level-label {
   display:flex; align-items:center; gap:8px;
@@ -143,6 +249,32 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
 .ic-stats {
   display:flex; gap:10px; margin-top:14px; position:relative;
 }
+.ic-expanded {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-out;
+}
+.int-card.open .ic-expanded {
+  max-height: 500px; /* Достатньо для списку */
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.ic-drill {
+  display: block; width: 100%; margin-top: 12px;
+  background: var(--lime); color: #07090E;
+  padding: 12px; border-radius: 12px;
+  text-align: center; font-weight: 800; font-size: 13px;
+  cursor: pointer; transition: all 0.2s;
+}
+.ic-drill:active { transform: scale(0.97); opacity: 0.9; }
+
+.ic-children-container {
+  border-left: 1.5px solid var(--border);
+  padding-left: 12px;
+  margin-left: 10px;
+}
+
 .ic-stat {
   flex:1; background:rgba(255,255,255,.04); border-radius:10px;
   padding:9px 10px; text-align:center;
@@ -288,12 +420,19 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
   border:1px solid rgba(201,255,71,.2);
 }
 
-/* ── Trip manifest ── */
-.trip-manifest { background:var(--card2); border:1px solid var(--border); border-radius:16px; padding:16px; }
-.manifest-slot { display:flex; flex-direction:column; align-items:center; gap:6px; }
-.ms-bubble { width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:800; }
-.ms-driver { background:linear-gradient(135deg,var(--lime),#A8E030); color:#07090E; }
-.ms-pax    { background:linear-gradient(135deg,var(--sky),#60A5FA); color:#07090E; }
+/* ── FRACTAL CREW UI ── */
+.trip-manifest { display: flex; flex-direction: column; gap: 10px; padding: 4px 0; }
+.manifest-item {
+  display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 14px;
+  background: var(--card3); border: 1px solid var(--border); cursor: pointer; transition: all 0.2s;
+}
+.mi-av { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; color: #07090E; flex-shrink: 0; }
+.mi-name { font-size: 14px; font-weight: 700; color: var(--white); flex: 1; }
+.mi-call-ico { font-size: 16px; opacity: 0.6; }
+.mi-driver { background: rgba(201,255,71,.05); border-color: rgba(201,255,71,.3); width: 100%; }
+.mi-driver .mi-av { background: linear-gradient(135deg, var(--lime), #A8E030); }
+.mi-pax { margin-left: 5%; width: 95%; background: var(--card2); border-color: var(--border); }
+.mi-pax .mi-av { background: linear-gradient(135deg, var(--sky), #60A5FA); }
 .ms-name   { font-size:12px; font-weight:700; color:var(--white); }
 .ms-status { font-size:10px; color:var(--muted); }
 .rating-btn.active { transform:scale(1.08); box-shadow:0 0 18px rgba(201,255,71,.3); }
@@ -562,6 +701,41 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
 .ob-skip { font-size:12px; color:var(--muted); cursor:pointer; padding:8px; font-weight:600; }
 .ob-skip:active { color:var(--white); }
 
+/* ── WELCOME DIRECTION LIST ── */
+.wdir-card {
+  display:flex; align-items:center; justify-content:space-between;
+  background:var(--card2); border:1px solid var(--border);
+  border-radius:16px; padding:14px 16px; margin-bottom:8px;
+  cursor:pointer; transition:all .18s; user-select:none;
+  -webkit-tap-highlight-color:transparent;
+}
+.wdir-card:active { transform:scale(.97); background:var(--card3); }
+.wdir-card.subscribed { border-color:rgba(138,201,38,.4); background:rgba(138,201,38,.04); }
+.wdir-left { display:flex; align-items:center; gap:12px; flex:1; min-width:0; }
+.wdir-emoji { font-size:28px; line-height:1; flex-shrink:0; }
+.wdir-info { flex:1; min-width:0; }
+.wdir-name { font-family:'Unbounded',sans-serif; font-weight:700; font-size:13px; color:var(--white); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.wdir-sub  { font-size:11px; color:var(--muted); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.wdir-right { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+.wdir-seats { font-size:11px; font-weight:700; color:var(--lime); background:rgba(138,201,38,.1); padding:3px 8px; border-radius:8px; white-space:nowrap; }
+.wdir-arr { font-size:18px; color:var(--dim); line-height:1; }
+
+/* expanded sub-directions inside welcome card */
+.wdir-children {
+  max-height:0; overflow:hidden;
+  transition:max-height .3s cubic-bezier(.4,0,.2,1);
+}
+.wdir-card.open + .wdir-children { max-height:300px; }
+.wdir-sub-item {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:11px 16px 11px 52px; border-bottom:1px solid var(--border);
+  background:var(--card3); cursor:pointer; transition:background .15s;
+}
+.wdir-sub-item:last-child { border-bottom:none; border-radius:0 0 16px 16px; }
+.wdir-sub-item:active { background:var(--card4); }
+.wsi-name { font-size:13px; font-weight:600; color:var(--white); }
+.wsi-seats { font-size:11px; font-weight:700; color:var(--lime); }
+
 /* ── REGISTRATION ── */
 .reg-hdr { padding:24px 18px 16px; background:radial-gradient(ellipse 80% 50% at 60% 0%, rgba(138,201,38,.08), transparent 70%); flex-shrink:0; }
 .reg-step { font-size:10px; font-weight:700; letter-spacing:1.8px; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
@@ -804,59 +978,138 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
     </div>
   </header>
 
-  <!-- ════════════ VIEW WELCOME (ONBOARDING) ════════════ -->
-  <div class="view active" id="vwelcome">
-    <div class="ob-wrap">
-      <div class="ob-logo">WayTandem</div>
-      <div class="ob-tagline">РАЗОМ У ДОРОГУ</div>
-      <div class="ob-how">
-        <div class="ob-how-title">Як це працює</div>
-        <div class="ob-step">
-          <div class="ob-step-ico" style="background:rgba(138,201,38,.15)">🏔️</div>
-          <div class="ob-step-txt">Обираєш <b style="color:var(--lime)">напрямок</b></div>
-        </div>
-        <div class="ob-step-line"></div>
-        <div class="ob-step">
-          <div class="ob-step-ico" style="background:rgba(0,180,216,.1)">📋</div>
-          <div class="ob-step-txt">Дивишся <b style="color:var(--sky)">організаторів</b></div>
-        </div>
-        <div class="ob-step-line"></div>
-        <div class="ob-step">
-          <div class="ob-step-ico" style="background:rgba(245,158,11,.15)">🚗</div>
-          <div class="ob-step-txt">Приєднуєшся до <b style="color:var(--gold)">екіпажу</b></div>
-        </div>
+  <!-- ════════════ VIEW WELCOME v2: НАПРЯМКИ ОДРАЗУ ════════════ -->
+  <div class="view active" id="vwelcome" style="top:0">
+
+    <!-- ВЕРХНЯ ЧАСТИНА: логотип + підпис -->
+    <div style="padding:28px 20px 16px;flex-shrink:0;text-align:center">
+      <div style="font-family:'Unbounded',sans-serif;font-weight:900;font-size:28px;letter-spacing:-1px;
+                  background:linear-gradient(120deg,var(--lime),var(--sky));
+                  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+                  margin-bottom:4px">WayTandem</div>
+      <div style="font-size:12px;color:var(--muted);font-weight:500;line-height:1.5">
+        Знайди попутника або місце в машині<br>
+        <span style="color:var(--sky);font-weight:700">у спільному виїзді</span>
       </div>
-      <div class="ob-roles">
-        <div class="ob-card lime" onclick="selectRole('traveler')">
-          <div class="obc-ico">🚗</div>
-          <div class="obc-body">
-            <div class="obc-title" style="color:var(--lime)">Мандрівник</div>
-            <div class="obc-sub">Є машина — хочу взяти попутників або приєднатись до виїзду</div>
-          </div>
-          <div class="obc-arr">›</div>
-        </div>
-        <div class="ob-card sky" onclick="selectRole('companion')">
-          <div class="obc-ico">🎒</div>
-          <div class="obc-body">
-            <div class="obc-title" style="color:var(--sky)">Попутник</div>
-            <div class="obc-sub">Шукаю місце в машині до потрібного напрямку</div>
-          </div>
-          <div class="obc-arr">›</div>
-        </div>
-        <!-- ORGANIZER CHECKBOX -->
-        <div class="ob-card" id="ob-organizer-card"
-             style="border:1px solid rgba(245,158,11,.2);cursor:pointer"
-             onclick="toggleOrganizerFlag()">
-          <div class="obc-ico">🎯</div>
-          <div class="obc-body">
-            <div class="obc-title" style="color:var(--gold)">Я також організатор</div>
-            <div class="obc-sub" style="color:var(--muted)">Хочу створювати напрямки та виїзди</div>
-          </div>
-          <div id="ob-org-check" style="width:22px;height:22px;border-radius:6px;border:2px solid rgba(245,158,11,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s"></div>
-        </div>
-      </div>
-      <div class="ob-skip" onclick="showView('home')">Пропустити реєстрацію →</div>
     </div>
+
+    <!-- НАПРЯМКИ — скролл великим пальцем, по 4 видно одразу -->
+    <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;padding:0 14px 24px">
+
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <div style="width:6px;height:6px;border-radius:50%;background:var(--lime);flex-shrink:0"></div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted)">Куди їдуть люди</div>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+      </div>
+
+      <!-- Напрямки рендеряться з API через welcomeRenderDirections() -->
+      <!-- Fallback: статичні картки поки API не відповів -->
+      <div id="welcomeDirectionList">
+
+        <div class="wdir-card" onclick="welcomeDrillIn(this,'Карпати й гори')">
+          <div class="wdir-left">
+            <div class="wdir-emoji">🏔️</div>
+            <div class="wdir-info">
+              <div class="wdir-name">Карпати й гори</div>
+              <div class="wdir-sub">Буковель · Синевир · Говерла</div>
+            </div>
+          </div>
+          <div class="wdir-right">
+            <div class="wdir-seats">38 місць</div>
+            <div class="wdir-arr">›</div>
+          </div>
+        </div>
+
+        <div class="wdir-card" onclick="welcomeDrillIn(this,'Море та пляж')">
+          <div class="wdir-left">
+            <div class="wdir-emoji">🌊</div>
+            <div class="wdir-info">
+              <div class="wdir-name">Море та пляж</div>
+              <div class="wdir-sub">Одеса · Затока · Кирилівка</div>
+            </div>
+          </div>
+          <div class="wdir-right">
+            <div class="wdir-seats">14 місць</div>
+            <div class="wdir-arr">›</div>
+          </div>
+        </div>
+
+        <div class="wdir-card" onclick="welcomeDrillIn(this,'За кордон')">
+          <div class="wdir-left">
+            <div class="wdir-emoji">🌍</div>
+            <div class="wdir-info">
+              <div class="wdir-name">За кордон</div>
+              <div class="wdir-sub">Польща · Словаччина · Угорщина</div>
+            </div>
+          </div>
+          <div class="wdir-right">
+            <div class="wdir-seats">22 місця</div>
+            <div class="wdir-arr">›</div>
+          </div>
+        </div>
+
+        <div class="wdir-card" onclick="welcomeDrillIn(this,'Волонтерство')">
+          <div class="wdir-left">
+            <div class="wdir-emoji">🤝</div>
+            <div class="wdir-info">
+              <div class="wdir-name">Волонтерство</div>
+              <div class="wdir-sub">Гуманітарна допомога · Збори</div>
+            </div>
+          </div>
+          <div class="wdir-right">
+            <div class="wdir-seats">9 місць</div>
+            <div class="wdir-arr">›</div>
+          </div>
+        </div>
+
+        <div class="wdir-card" onclick="welcomeDrillIn(this,'Робота та доїзд')">
+          <div class="wdir-left">
+            <div class="wdir-emoji">💼</div>
+            <div class="wdir-info">
+              <div class="wdir-name">Робота та доїзд</div>
+              <div class="wdir-sub">Щоденні маршрути · Зміни</div>
+            </div>
+          </div>
+          <div class="wdir-right">
+            <div class="wdir-seats">17 місць</div>
+            <div class="wdir-arr">›</div>
+          </div>
+        </div>
+
+        <div class="wdir-card" onclick="welcomeDrillIn(this,'Культура та події')">
+          <div class="wdir-left">
+            <div class="wdir-emoji">🎭</div>
+            <div class="wdir-info">
+              <div class="wdir-name">Культура та події</div>
+              <div class="wdir-sub">Фестивалі · Концерти · Виставки</div>
+            </div>
+          </div>
+          <div class="wdir-right">
+            <div class="wdir-seats">5 місць</div>
+            <div class="wdir-arr">›</div>
+          </div>
+        </div>
+
+      </div><!-- /welcomeDirectionList -->
+
+      <!-- Підпис внизу списку -->
+      <div style="text-align:center;padding:8px 0 4px">
+        <div style="font-size:11px;color:var(--dim)">Підпишись на напрямок — бот повідомить про нові місця</div>
+      </div>
+
+    </div><!-- /scroll -->
+
+    <!-- НИЖНЯ КНОПКА: увійти щоб діяти -->
+    <div style="padding:12px 16px 20px;flex-shrink:0;background:var(--bg);
+                border-top:1px solid var(--border)">
+      <div class="btn btn-lime" style="margin-bottom:8px" onclick="showView('reg')">
+        Увійти — підписатись або зайняти місце
+      </div>
+      <div style="font-size:11px;color:var(--dim);text-align:center">
+        Вже є акаунт? Telegram відкриє автоматично
+      </div>
+    </div>
+
   </div>
 
   <!-- ════════════ VIEW REGISTRATION ════════════ -->
@@ -931,7 +1184,7 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
           <div style="font-size:20px;margin-bottom:4px">🔍</div>
           <div style="font-size:11px;font-weight:700;color:var(--lime)">Знайти поїздку</div>
         </div>
-        <div style="flex:1;background:rgba(255,184,48,.1);border:1px solid rgba(255,184,48,.2);border-radius:14px;padding:12px;text-align:center" onclick="showToast('📋 Перехід до моїх груп...')">
+        <div id="btn-home-organizer" style="flex:1;background:rgba(255,184,48,.1);border:1px solid rgba(255,184,48,.2);border-radius:14px;padding:12px;text-align:center;display:none" onclick="showToast('📋 Перехід до моїх груп...')">
           <div style="font-size:20px;margin-bottom:4px">📋</div>
           <div style="font-size:11px;font-weight:700;color:var(--gold)">Я організатор</div>
         </div>
@@ -1105,8 +1358,8 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
 
       </div>
 
-      <!-- PROPOSE DIRECTION BUTTON -->
-      <div class="org-card" style="border:1px dashed rgba(201,255,71,.3);cursor:pointer;margin-top:16px" onclick="showToast('✦ Відкриття форми створення напрямку...')">
+      <!-- PROPOSE DIRECTION BUTTON: visible only if isOrganizer=true -->
+      <div id="btn-propose-direction" class="org-card" style="border:1px dashed rgba(201,255,71,.3);cursor:pointer;margin-top:16px;display:none" onclick="showToast('✦ Відкриття форми створення напрямку...')">
         <div style="display:flex;align-items:center;justify-content:center;gap:12px;padding:8px">
           <div style="font-size:24px;background:rgba(201,255,71,.1);width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center">＋</div>
           <div style="text-align:left">
@@ -1726,20 +1979,16 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
 
   <!-- ════════════ VIEW MAP: СПІЛЬНОТА & МАРШРУТИ ════════════ -->
   <div class="view" id="vmap">
-    <div class="map-wrap">
-      <div class="map-route"></div>
-      <div class="map-marker" style="top:30%;left:40%;border-color:var(--sky)"><span style="font-size:16px">🚗</span></div>
-      <div class="map-marker" style="top:60%;left:65%"><span style="font-size:16px">📍</span></div>
+    <div style="width:100%; height:100%; position:relative">
+      <div id="main-map" style="width:100%; height:100%; z-index:1; background:var(--bg)"></div>
       
-      <div class="map-filters">
-        <div class="mf-pill active">🔥 Теплова карта</div>
-        <div class="mf-pill">🚗 Мої екіпажі</div>
-      </div>
-
-      <div class="map-overlay">
-        <div style="font-family:'Unbounded',sans-serif;font-weight:700;font-size:15px;margin-bottom:4px">Маршрут розвозки</div>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.4">Водій Тарас забере вас через 15 хв. <br>Відстань: 2.3 км.</div>
-        <button class="join-btn join-lime" style="margin:0" onclick="showToast('📍 Відкрито навігатор')">🗺️ Відкрити в навігаторі</button>
+      <!-- Пошук та фільтри поверх карти -->
+      <div style="position:absolute; top:12px; left:12px; right:12px; z-index:10; pointer-events:none">
+        <div style="background:rgba(7,9,14,.8); backdrop-filter:blur(12px); border:1px solid var(--border); border-radius:14px; padding:10px 16px; display:flex; align-items:center; gap:10px; pointer-events:auto">
+          <div style="font-size:16px">🔍</div>
+          <div style="flex:1; font-size:13px; color:var(--muted)">Вільні екіпажі поруч</div>
+          <div style="background:var(--card3); padding:6px 10px; border-radius:8px; font-size:11px; color:var(--white); cursor:pointer" onclick="window.ui.refreshMainMap()">🔄 Оновити</div>
+        </div>
       </div>
     </div>
   </div>
@@ -1761,27 +2010,21 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
 
     <div class="body" style="padding-top:0">
       
-      <!-- CREW MANIFEST (Bubble UI) -->
-      <div class="trip-manifest">
-        <div class="manifest-slot">
-          <div class="ms-bubble ms-driver">Т</div>
-          <div class="ms-name">Тарас</div>
-          <div class="ms-status">Водій</div>
+      <!-- CREW MANIFEST (Fractal Button UI) -->
+      <div class="trip-manifest" style="margin-bottom:24px">
+        <div class="manifest-item mi-driver" onclick="showToast('📍 Профіль водія')">
+          <div class="mi-av">Т</div>
+          <div class="mi-name">Тарас</div>
+          <div class="mi-call-ico">📞</div>
         </div>
-        <div class="manifest-slot" style="margin-bottom:20px">
-          <div class="ms-bubble ms-pax">О</div>
-          <div class="ms-name">Оля</div>
-          <div class="ms-status" style="color:var(--lime)">Учасник</div>
+        <div class="manifest-item mi-pax" onclick="showToast('👤 Профіль учасника')">
+          <div class="mi-av">О</div>
+          <div class="mi-name">Оля</div>
+          <div class="mi-call-ico">📞</div>
         </div>
-        <div class="manifest-slot" style="margin-bottom:20px">
-          <div class="ms-bubble ms-pending">А</div>
-          <div class="ms-name">Андрій</div>
-          <div class="ms-status">Очікує</div>
-        </div>
-        <div class="manifest-slot">
-          <div class="ms-bubble ms-empty"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></div>
-          <div class="ms-name" style="color:var(--muted)">Вільне</div>
-          <div class="ms-status">місце</div>
+        <div class="manifest-item mi-pax" style="opacity:0.6; border-style:dashed">
+          <div class="mi-av">+</div>
+          <div class="mi-name" style="color:var(--muted)">Вільне місце</div>
         </div>
       </div>
 
@@ -1944,6 +2187,41 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
     </div>
   </div>
 
+  <!-- ════════════ VIEW OPEN CREW: ВІДКРИТТЯ ЕКІПАЖУ ════════════ -->
+  <div class="view" id="vopen-crew">
+    <div class="crumb-bar">
+      <span class="crumb-seg" onclick="goBack()">Дошка</span>
+      <span class="crumb-arr">›</span>
+      <span class="crumb-seg active">Відкрити набір</span>
+    </div>
+    <div class="body" style="padding-top:10px">
+      <div style="font-family:'Unbounded',sans-serif;font-weight:700;font-size:18px;color:var(--white);margin-bottom:8px">Набір в екіпаж</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:24px">Вкажіть місце зустрічі для пасажирів. Ви можете вписати адресу або ткнути в карту.</div>
+
+      <div class="reg-field">
+        <label>Місце зустрічі (текст)</label>
+        <input type="text" id="open-crew-pickup" placeholder="Наприклад: Головний вхід" style="width:100%; height:52px; background:var(--card2); border:1px solid var(--border); border-radius:16px; color:#fff; padding:0 16px; outline:none">
+      </div>
+
+      <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+        <div style="font-size:12px;font-weight:700;color:var(--white)">Оберіть на карті</div>
+        <div style="font-size:11px;color:var(--sky)" id="pickup-coords-label">координати не обрано</div>
+      </div>
+
+      <div id="selection-map-container" style="height:240px; border-radius:18px; overflow:hidden; border:1px solid var(--border); margin-bottom:24px">
+        <div id="selection-map" style="width:100%; height:100%"></div>
+      </div>
+
+      <div class="reg-field">
+        <label>Вільних місць</label>
+        <div style="display:flex;gap:10px">
+          <input type="number" id="open-crew-seats" value="4" min="1" max="4" style="flex:1; height:52px; background:var(--card2); border:1px solid var(--border); border-radius:16px; color:#fff; padding:0 16px; outline:none">
+          <div class="btn btn-lime" style="flex:2" onclick="window.ui.submitOpenCrew()">🚀 Відкрити набір</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ════════════ VIEW HANDSHAKE: ОЧІКУВАННЯ ПІДТВЕРДЖЕННЯ ════════ -->
   <div class="view" id="vhandshake">
     <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center">
@@ -1955,13 +2233,13 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
         Запит надіслано водію.<br>
         У Telegram прийде сповіщення коли він відповіст.
       </div>
-      <div style="background:var(--card2);border:1px solid var(--border);border-radius:18px;padding:20px;width:100%;max-width:320px;margin-bottom:28px">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Напрямок</div>
-        <div id="hs-direction" style="font-size:13px;color:var(--sky);margin-bottom:12px;font-weight:600"></div>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Водій</div>
-        <div id="hs-driver" style="font-size:16px;font-weight:700;color:var(--white);margin-bottom:8px">—</div>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:2px">Місце посадки</div>
-        <div id="hs-pickup" style="font-size:13px;color:var(--muted)">—</div>
+      <div class="trip-manifest" style="margin-bottom:40px">
+        <div class="manifest-item mi-driver">
+          <div class="mi-av" id="hs-av">?</div>
+          <div class="mi-name" id="hs-driver">Завантаження...</div>
+          <div class="mi-call-ico">⏳</div>
+        </div>
+        <div style="margin-top:12px; font-size:11px; color:var(--muted)">📍 Місце зустрічі: <b id="hs-pickup" style="color:var(--white)">—</b></div>
       </div>
       <div style="display:flex;gap:12px;width:100%;max-width:320px">
         <div class="btn btn-lime" style="flex:1" onclick="showActiveTrip({crewId:window._pendingCrewId, status:'active', members:[{name:'Водій',role:'driver'},{name:'Ти',role:'passenger'}], directionTitle:window._pendingDir||''})">
@@ -1992,26 +2270,42 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
       </div>
     </div>
     <div class="body">
-      <!-- Маніфест екіпажу -->
-      <div class="trip-manifest" style="margin:0 0 20px">
-        <div id="trip-manifest-inner" style="display:flex;justify-content:space-around;width:100%">
-          <!-- заповнюється через _renderTripManifest() -->
+      <!-- Маніфест екіпажу (Fractal Buttons) -->
+      <div class="trip-manifest" id="trip-manifest-inner" style="margin-bottom:24px">
+        <!-- заповнюється через _renderTripManifest() -->
+      </div>
+
+      <!-- Вхідні запити для водія -->
+      <div id="trip-incoming-requests" style="display:none; margin-bottom:24px;">
+        <div style="font-size:13px;font-weight:700;color:var(--white);margin-bottom:12px;display:flex;align-items:center;gap:8px">
+          <span style="background:var(--rose);width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff" id="incoming-badge">0</span>
+          Вхідні запити
+        </div>
+        <div id="incoming-list" style="display:flex;flex-direction:column;gap:10px">
+          <!-- Рендериться динамічно -->
+        </div>
+      </div>
+
+      <!-- Місце зустрічі та Карта -->
+      <div style="background:var(--card2);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:24px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+          <div style="background:var(--card3);width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px">📍</div>
+          <div style="flex:1">
+            <div style="font-size:11px;color:var(--muted)">Місце зустрічі</div>
+            <div style="font-size:14px;font-weight:700;color:var(--white)" id="trip-pickup-text">Чекаємо координати...</div>
+          </div>
+          <div id="btn-toggle-map" style="background:var(--lime);color:#000;font-size:11px;font-weight:700;padding:6px 12px;border-radius:10px;cursor:pointer;display:none" onclick="window.ui.toggleTripMap()">📍 Карта</div>
+        </div>
+        <div id="trip-map-container" style="display:none; height:200px; border-radius:12px; overflow:hidden; border:1px solid var(--border)">
+          <div id="trip-map" style="width:100%; height:100%"></div>
         </div>
       </div>
 
       <!-- Стрічка екіпажу -->
-      <div style="background:var(--card2);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:16px">
-        <div style="font-size:13px;font-weight:700;color:var(--white);margin-bottom:10px">💬 Стрічка екіпажу</div>
-        <div class="feed-item" style="border:none;padding:0">
-          <div class="fi-av" style="background:linear-gradient(135deg,var(--lime),var(--sky))">Я</div>
-          <div class="fi-body">
-            <div class="fi-header">
-              <span class="fi-crew" id="trip-feed-crew">#1</span>
-              <span class="fi-driver">Ви</span>
-              <span class="fi-time">щойно</span>
-            </div>
-            <div class="fi-msg">Поїздка активна! 🚗</div>
-          </div>
+      <div style="margin-bottom:24px">
+        <div style="font-size:13px;font-weight:700;color:var(--white);margin-bottom:12px">💬 Стрічка екіпажу</div>
+        <div id="trip-feed-list" style="display:flex;flex-direction:column;gap:12px;padding-bottom:20px">
+          <!-- Події та чат рендеряться тут -->
         </div>
       </div>
 
@@ -2115,6 +2409,8 @@ body { height:100%;margin:0;background:#E2E8F0;display:flex;align-items:center;
 
 </div><!-- /phone -->
 
-<script type="module" src="./app/main.js?v=8"></script>
+<script type="module" src="./app/main.js?v=24"></script>
+
+
 </body>
 </html>
