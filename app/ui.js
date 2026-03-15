@@ -26,7 +26,8 @@ export const tripState = {
   pickup_lat: null,
   pickup_lng: null,
   driverDone: false,
-  passengerDone: false
+  passengerDone: false,
+  currentChatTab: 'crew' // 'crew' | 'event'
 };
 
 export function showView(viewId, dir = 'forward', force = false) {
@@ -37,20 +38,20 @@ export function showView(viewId, dir = 'forward', force = false) {
   if (viewId === 'root') target = 'vroot';
   if (viewId === 'reg') target = 'vreg';
   if (viewId === 'home') target = 'vhome';
+  if (viewId === 'trip') target = 'vtrip';
   if (viewId === 0) target = 'v0';
   if (viewId === '05') target = 'v05';
   if (viewId === 1) target = 'v1';
   if (viewId === 2) target = 'v2';
   if (viewId === 3) target = 'v3';
   if (viewId === 'handshake') target = 'vhandshake';
-  if (viewId === 'trip') target = 'vtrip';
   if (viewId === 'trip-active') target = 'vtrip-active';
   if (viewId === 'cancel') target = 'vcancel';
+  if (viewId === 'pending') target = 'vpending';
   if (viewId === 'rating') target = 'vrating';
   if (viewId === 'welcome') target = 'vwelcome';
   if (viewId === 'profile' || viewId === 5 || viewId === '5') target = 'v5';
   if (viewId === 'map') target = 'vmap';
-  if (viewId === 'home') target = 'vhome';
 
   const targetView = document.getElementById(target);
   if (!targetView) {
@@ -225,22 +226,32 @@ export function toggleCrew(idx) {
 }
 
 export function joinCrew(crewId) {
+  if (!userProfile.userId) {
+    showToast('Для приєднання потрібен профіль.');
+    showView('reg');
+    return;
+  }
   showToast('✉️ Запит надіслано водію...');
-  showPendingHandshake({ driver_name: 'Олексій', pickup: 'Городоцька, 12' });
+  
+  const parentNameNode = document.getElementById('pending-driver-name');
+  if (parentNameNode) parentNameNode.textContent = 'Водія';
+  showView('pending');
 }
 
 export function showPendingHandshake(data) {
-  const driverEl = document.getElementById('hs-driver');
-  const pickupEl = document.getElementById('hs-pickup');
-  if (driverEl && data) driverEl.textContent = data.driver_name;
-  if (pickupEl && data) pickupEl.textContent = data.pickup;
-  showView('handshake');
+  const nameNode = document.getElementById('pending-driver-name');
+  if (nameNode && data) nameNode.textContent = data.driver_name || 'Організатора';
+  showView('pending');
 }
 
 export async function refreshTripTimeline() {
-  if (!tripState.crew_id) return;
+  const crewId = tripState.crewId || tripState.crew_id;
+  if (!crewId) return;
+  const isEvent = tripState.currentChatTab === 'event';
+  const query = isEvent ? `organizer_id=${tripState.organizer_id || tripState.driver_id}` : `crew_id=${crewId}`;
+  
   try {
-    const messages = await api(`/api/v3/trip/messages?crew_id=${tripState.crew_id}`);
+    const messages = await api(`/api/v3/trip/messages?${query}`);
     if (messages) {
       _renderTripTimeline(messages);
     }
@@ -273,12 +284,29 @@ function _renderTripTimeline(list) {
 
 export async function sendFeedMsg() {
   const input = document.getElementById('composeInput');
-  if (!input || !input.value.trim() || !tripState.crew_id) return;
+  const crewId = tripState.crewId || tripState.crew_id;
+  if (!input || !input.value.trim() || !crewId) return;
   const text = input.value.trim();
+  const isEvent = tripState.currentChatTab === 'event';
+  
   input.value = '';
   input.disabled = true;
   try {
-    const res = await api('/api/v3/trip/message', { method: 'POST', body: JSON.stringify({ crew_id: tripState.crew_id, user_id: userProfile.userId, text: text, kind: 'chat' }) });
+    const payload = { 
+      user_id: userProfile.userId, 
+      text: text, 
+      kind: isEvent ? 'event' : 'chat' 
+    };
+    if (isEvent) {
+      payload.organizer_id = tripState.organizer_id || tripState.driver_id;
+    } else {
+      payload.crew_id = crewId;
+    }
+    
+    const res = await api('/api/v3/trip/message', { 
+      method: 'POST', 
+      body: JSON.stringify(payload) 
+    });
     if (res && res.status === 'ok') refreshTripTimeline();
   } catch (e) { showToast('❌ Помилка відправки'); } finally {
     input.disabled = false;
@@ -447,17 +475,32 @@ export function confirmCancel() {
 }
 
 export function switchFeedTab(tab) {
-  const isFeed = tab === 'feed';
+  tripState.currentChatTab = tab;
+  const isCrew = tab === 'crew';
+  
+  // Update Tabs UI
+  const tCrew = document.getElementById('tab-crew');
+  const tEvent = document.getElementById('tab-event');
+  if (tCrew) tCrew.classList.toggle('active', isCrew);
+  if (tEvent) tEvent.classList.toggle('active', !isCrew);
+  
+  // Legacy view (v3) support
   const feedList = document.getElementById('feedList');
   const chatBody = document.getElementById('chat-body');
-  if (feedList) feedList.style.display = isFeed ? '' : 'none';
-  if (chatBody) chatBody.style.display = isFeed ? 'none' : '';
+  if (feedList) feedList.style.display = isCrew ? '' : 'none';
+  if (chatBody) chatBody.style.display = isCrew ? 'none' : '';
+  
   const tabFeed = document.getElementById('tab-feed');
   const tabChat = document.getElementById('tab-chat');
-  if (tabFeed) { tabFeed.style.color = isFeed ? 'var(--lime)' : 'var(--muted)'; tabFeed.style.borderBottom = isFeed ? '2px solid var(--lime)' : '2px solid transparent'; }
-  if (tabChat) { tabChat.style.color = isFeed ? 'var(--muted)' : 'var(--sky)'; tabChat.style.borderBottom = isFeed ? '2px solid transparent' : '2px solid var(--sky)'; }
+  if (tabFeed) { tabFeed.style.color = isCrew ? 'var(--lime)' : 'var(--muted)'; tabFeed.style.borderBottom = isCrew ? '2px solid var(--lime)' : '2px solid transparent'; }
+  if (tabChat) { tabChat.style.color = isCrew ? 'var(--muted)' : 'var(--sky)'; tabChat.style.borderBottom = isCrew ? '2px solid transparent' : '2px solid var(--sky)'; }
+  
   const inp = document.getElementById('composeInput');
-  if (inp) inp.placeholder = isFeed ? 'Написати від екіпажу...' : 'Написати всім учасникам...';
+  if (inp) {
+    inp.placeholder = isCrew ? 'Написати екіпажу...' : 'Написати організатору...';
+  }
+  
+  refreshTripTimeline();
 }
 
 export function updateProfileSeats(delta) {
@@ -533,7 +576,11 @@ export async function submitOpenCrew() {
 }
 
 export function openCrewForm() {
-  if (!userProfile.userId) return;
+  if (!userProfile.userId) {
+    showToast('Для організації потрібен профіль.');
+    showView('reg');
+    return;
+  }
   const dirId = window.currentDirectionId;
   if (!dirId) { showToast('⚠️ Оберіть напрямок'); return; }
   selectionState.directionId = dirId; showView('vopen-crew'); initSelectionMap();
@@ -545,6 +592,7 @@ let mainMarkers = [];
 export async function refreshMainMap() {
   if (!getApiBase()) return;
   try {
+    // Try both standard fractal/crews and board map scope
     const crews = await api('/api/v3/map/crews');
     if (crews) _renderMainMapMarkers(crews);
   } catch (e) { console.error('Failed to fetch map crews:', e); }
