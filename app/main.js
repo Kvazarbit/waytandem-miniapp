@@ -45,6 +45,8 @@ import {
   submitOpenCrew,
   selectionState,
   toggleTripMap,
+  refreshMainMap,
+  showMapCrewDetails,
 } from './ui.js?v=24';
 
 function bindGlobals() {
@@ -59,8 +61,18 @@ function bindGlobals() {
     if (getApiBase() && id !== undefined && id !== null) return drillToSubcatLive(id);
     return drillToSubcatStatic();
   };
-  window.drillToOrg = id => {
-    if (getApiBase() && id !== undefined && id !== null) return drillToOrgLive(id);
+  window.drillToOrg = (id, orgId) => {
+    if (getApiBase() && id !== undefined && id !== null) {
+      const res = drillToOrgLive(id);
+      if (orgId) {
+        setTimeout(() => {
+          if (window.fractal && window.fractal.drillToCrews) {
+            window.fractal.drillToCrews(orgId);
+          }
+        }, 600);
+      }
+      return res;
+    }
     return drillToOrgStatic();
   };
   window.drillToCrews = id => {
@@ -116,6 +128,8 @@ function bindGlobals() {
     toggleTripMap,
     openCrewForm,
     submitOpenCrew,
+    refreshMainMap,
+    showMapCrewDetails,
     selectionState
   };
 
@@ -163,6 +177,11 @@ function startPolling() {
     // Only poll if registered and not in a 'blocking' state like registration
     if (userProfile.userId && getApiBase()) {
       await hydrateTrip();
+      
+      // 📍 v24.5: Also refresh global map markers
+      if (typeof window.ui !== 'undefined' && window.ui.refreshMainMap) {
+        window.ui.refreshMainMap();
+      }
     }
   }, 15000);
 }
