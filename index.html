@@ -837,6 +837,71 @@
             margin-top: 20px;
         }
 
+        /* Subscribe toggle */
+        .btn-subscribed {
+            background: rgba(38, 166, 154, 0.15);
+            color: #26a69a;
+            border: 1px solid rgba(38, 166, 154, 0.4);
+            border-radius: 20px;
+            padding: 10px 20px;
+            font-weight: 800;
+            font-size: 12px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+        }
+        .btn-unsubscribe {
+            background: rgba(239, 83, 80, 0.1);
+            color: #ef5350;
+            border: 1px solid rgba(239, 83, 80, 0.3);
+            border-radius: 20px;
+            padding: 10px 20px;
+            font-weight: 800;
+            font-size: 12px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+        }
+        /* Direction card subscribed highlight */
+        .trip-card.subscribed-card {
+            border: 1px solid rgba(38, 166, 154, 0.3) !important;
+            background: rgba(38, 166, 154, 0.04) !important;
+        }
+        /* My-location button */
+        .my-location-btn {
+            position: absolute;
+            bottom: 80px;
+            right: 16px;
+            z-index: 1000;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: rgba(17, 20, 28, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1.5px solid rgba(255,255,255,0.12);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+        }
+        .my-location-btn.active {
+            border-color: var(--lime);
+            box-shadow: 0 0 20px rgba(138,201,38,0.3);
+        }
+        .my-location-btn svg {
+            width: 22px;
+            height: 22px;
+            transition: all 0.3s ease;
+        }
+        .my-location-btn.active svg {
+            stroke: var(--lime);
+            fill: rgba(138,201,38,0.15);
+        }
+
         .btn-destructive {
             background: rgba(239, 83, 80, 0.1);
             color: #ef5350;
@@ -1223,6 +1288,18 @@
         };
 
         let liveDiscoveryData = {};
+        let userSubscriptions = new Set(); // direction IDs user is subscribed to
+        let myLocationMarker = null;
+        let myLocationActive = false;
+
+        async function loadUserSubscriptions() {
+            if (!currentUserId || !CONFIG.apiBase) return;
+            const subs = await api('/api/v3/user/subscriptions?user_id=' + currentUserId);
+            userSubscriptions.clear();
+            if (Array.isArray(subs)) {
+                subs.forEach(s => userSubscriptions.add(String(s.direction_id)));
+            }
+        }
 
         function getDiscoverySource() {
             return Object.keys(liveDiscoveryData).length ? liveDiscoveryData : discoveryData;
@@ -1244,11 +1321,13 @@
         }
 
         function mapItem(item) {
+            const kind = String(item.kind || '').toLowerCase();
+            const isFolderKind = item.is_folder === true || kind === 'folder' || kind === 'topic' || kind === 'category';
             return {
                 id: String(item.id),
                 remote_id: item.id,
                 title: item.title,
-                type: item.has_kids ? 'folder' : 'direction',
+                type: isFolderKind ? 'folder' : 'direction',
                 meta: `${item.drivers || 0} водіїв • ${item.passengers || 0} попутників`,
                 desc: item.title || '',
                 pStacks: stacksFor(item),
@@ -1339,7 +1418,7 @@
                 const placeholders = { 'home': 'Повідомлення громаді...', 'board': 'Пошук...', 'trips': 'Коментар...', 'map': 'Пошук на карті...' };
                 input.placeholder = placeholders[tabId] || 'Введіть текст...';
             }
-            if (tabId === 'board') loadRootFromApi();
+            if (tabId === 'board') { loadUserSubscriptions(); loadRootFromApi(); }
             if (tabId === 'trips') hydrateTrips();
             if (tabId === 'map') {
                 mapFilterDirectionId = selectedDirectionId;
@@ -1381,7 +1460,8 @@
                     const action = item.type === 'folder' ? `openDiscoveryLayer(this.dataset.id)` : `openDirectionDetail(this.dataset.id)`;
                     const isOwner = item.creator_id === currentUserId;
                     
-                    html += `<div class="trip-card" data-id="${itemId}" onclick="${action}">
+                    const subClass = userSubscriptions.has(String(item.remote_id || item.id)) ? ' subscribed-card' : '';
+                    html += `<div class="trip-card${subClass}" data-id="${itemId}" onclick="${action}">
                         <div class="trip-content">
                             <div style="display:flex; justify-content:space-between; align-items:flex-start">
                                 <div class="trip-title">${item.title} ${item.type === 'folder' ? '📂' : ''}</div>
@@ -1419,32 +1499,65 @@
 
         async function subscribeDirection(directionId) {
             if (!await ensureRegistered()) return;
-            const role = userSettings.role === 'driver' ? 'driver' : 'client';
-            const res = await api('/api/v3/board/subscribe', {
-                method: 'POST',
-                body: JSON.stringify({ user_id: currentUserId, direction_id: directionId, role: role })
-            });
-            if (res && res.status === 'ok') {
-                showToast('Підписано');
-                const direction = flatDiscoveryMap[String(directionId)];
-                if (direction) await loadOrganizers(direction);
-                renderDirectionUI(direction || { title: 'Напрямок', desc: '', pStacks: [] });
-                return;
+            const dirStr = String(directionId);
+            const isSubscribed = userSubscriptions.has(dirStr);
+
+            if (isSubscribed) {
+                // ── UNSUBSCRIBE ──
+                const res = await api('/api/v3/board/unsubscribe', {
+                    method: 'POST',
+                    body: JSON.stringify({ user_id: currentUserId, direction_id: directionId })
+                });
+                if (res && res.status === 'ok') {
+                    userSubscriptions.delete(dirStr);
+                    showToast('Відписано');
+                    selectedDirectionId = null;
+                    const direction = flatDiscoveryMap[dirStr];
+                    if (direction) await loadOrganizers(direction);
+                    renderDirectionUI(direction || { title: 'Напрямок', desc: '', pStacks: [] });
+                    return;
+                }
+                showToast('Помилка відписки');
+            } else {
+                // ── SUBSCRIBE ──
+                const role = userSettings.role === 'driver' ? 'driver' : 'client';
+                const res = await api('/api/v3/board/subscribe', {
+                    method: 'POST',
+                    body: JSON.stringify({ user_id: currentUserId, direction_id: directionId, role: role })
+                });
+                if (res && res.status === 'ok') {
+                    userSubscriptions.add(dirStr);
+                    selectedDirectionId = directionId;
+                    showToast('Підписано! Дивіться карту 🗺️');
+                    const direction = flatDiscoveryMap[dirStr];
+                    if (direction) await loadOrganizers(direction);
+                    renderDirectionUI(direction || { title: 'Напрямок', desc: '', pStacks: [] });
+                    // Auto-jump to map with goal filter
+                    mapFilterDirectionId = directionId;
+                    const mapBtn = document.querySelector('.nav-item[onclick*="map"]');
+                    if (mapBtn) switchContext('map', mapBtn);
+                    return;
+                }
+                showToast('Не вдалося підписатися');
             }
-            showToast('Не вдалося підписатися');
         }
 
         async function createDirection(parentId) {
             if (!await ensureRegistered()) return;
             const titleEl = document.getElementById('new-direction-title');
             const title = titleEl ? titleEl.value.trim() : '';
+            const parentNum = Number(parentId);
             if (!title) {
                 showToast('Вкажіть назву');
                 return;
             }
+            if (!Number.isInteger(parentNum) || parentNum <= 0) {
+                showToast('Спочатку відкрийте реальну папку з сервера');
+                return;
+            }
             const res = await api('/api/v3/board', {
                 method: 'POST',
-                body: JSON.stringify({ user_id: currentUserId, title: title, parent_id: parentId })
+                body: JSON.stringify({ user_id: currentUserId, title: title, parent_id: parentNum })
             });
             if (res && res.status === 'ok') {
                 showToast('Напрямок створено');
@@ -1482,7 +1595,7 @@
                     <div style="font-size:12px; font-weight:700; margin-bottom:12px;">Ви є організатором цієї теми.</div>
                     <div style="display:flex; gap:10px;">
                         <button class="nav-btn nav-btn-back" style="flex:1; font-size:10px; padding:8px;" onclick="toast('Зміни в назві збережено')">РЕДАГУВАТИ</button>
-                        <button class="btn-destructive" style="flex:1; padding:8px;" onclick="toast('Напрямок видалено'); closeModal();">ВИДАЛИТИ</button>
+                        <button class="btn-destructive" style="flex:1; padding:8px;" onclick="deleteDirection('${direction.remote_id || direction.id}')">ВИДАЛИТИ</button>
                     </div>
                 </div>
                 ` : ''}
@@ -1504,7 +1617,23 @@
             `).join('');
             const emptyOrgs = `<div class="trip-card"><div class="trip-content"><div class="trip-title">Екіпажів поки немає</div><div class="trip-meta">Створіть перший екіпаж у профілі водія.</div></div></div>`;
             content.insertAdjacentHTML('beforeend', orgHeader + (organizers.length ? orgList : emptyOrgs));
-            navAction = { type: 'subscribe', directionId: direction.remote_id || direction.id };
+            const dId = direction.remote_id || direction.id;
+            const isSub = userSubscriptions.has(String(dId));
+            navAction = { type: 'subscribe', directionId: dId };
+            updateNavState('context', isSub ? 'ВІДПИСАТИСЯ' : 'ПІДПИСАТИСЯ');
+            // Highlight the action button color
+            const actionBtn = document.getElementById('nav-main-action');
+            if (actionBtn) {
+                if (isSub) {
+                    actionBtn.style.background = 'rgba(239, 83, 80, 0.15)';
+                    actionBtn.style.color = '#ef5350';
+                    actionBtn.style.borderColor = 'rgba(239, 83, 80, 0.4)';
+                } else {
+                    actionBtn.style.background = '';
+                    actionBtn.style.color = '';
+                    actionBtn.style.borderColor = '';
+                }
+            }
         }
 
         async function openOrganizerCrews(orgId, dirId) {
@@ -1594,6 +1723,74 @@
             showToast('Заявку скасовано');
             pendingInvite = null;
             closeModal();
+        }
+
+        async function deleteDirection(directionId) {
+            if (!currentUserId || !directionId) return;
+            if (!confirm('Видалити напрямок? Ця дія незворотна.')) return;
+            try {
+                const res = await fetch(CONFIG.apiBase + '/api/v3/board/direction', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json', ...Object.fromEntries(Object.entries({
+                        'Origin': 'https://kvazarbit.github.io',
+                        'bypass-tunnel-reminder': 'true'
+                    })) },
+                    body: JSON.stringify({ user_id: currentUserId, direction_id: Number(directionId) })
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    showToast('Напрямок видалено');
+                    delete flatDiscoveryMap[String(directionId)];
+                    closeModal();
+                    loadRootFromApi();
+                    return;
+                }
+                showToast(data.detail || 'Помилка видалення');
+            } catch (e) {
+                showToast('Помилка мережі');
+            }
+        }
+
+        function toggleMyLocation() {
+            const btn = document.getElementById('my-loc-btn');
+            if (!navigator.geolocation) {
+                showToast('Геолокація недоступна');
+                return;
+            }
+            myLocationActive = !myLocationActive;
+            if (btn) btn.classList.toggle('active', myLocationActive);
+
+            if (myLocationActive) {
+                navigator.geolocation.getCurrentPosition(
+                    pos => {
+                        const lat = pos.coords.latitude;
+                        const lng = pos.coords.longitude;
+                        if (mapInstance) {
+                            if (myLocationMarker) mapInstance.removeLayer(myLocationMarker);
+                            myLocationMarker = L.circleMarker([lat, lng], {
+                                radius: 8,
+                                fillColor: '#4285F4',
+                                fillOpacity: 0.9,
+                                color: '#fff',
+                                weight: 3
+                            }).addTo(mapInstance);
+                            myLocationMarker.bindPopup('Я тут');
+                            mapInstance.setView([lat, lng], 13);
+                        }
+                    },
+                    err => {
+                        showToast('Не вдалося визначити місцезнаходження');
+                        myLocationActive = false;
+                        if (btn) btn.classList.remove('active');
+                    },
+                    { timeout: 8000, maximumAge: 30000 }
+                );
+            } else {
+                if (myLocationMarker && mapInstance) {
+                    mapInstance.removeLayer(myLocationMarker);
+                    myLocationMarker = null;
+                }
+            }
         }
 
         function normalizeTrip(trip) {
@@ -1736,9 +1933,9 @@
         }
 
         async function loadTripMessages() {
-            if (!activeTrip || !activeTrip.crew_id) return;
-            const data = await api(`/api/v3/trip/messages?crew_id=${activeTrip.crew_id}`);
-            if (data) tripMessages = data;
+            if (!activeTrip || !activeTrip.id || !currentUserId) return;
+            const data = await api(`/api/v3/trip/messages?request_id=${activeTrip.id}&user_id=${currentUserId}`);
+            if (data) tripMessages = Array.isArray(data) ? data : [];
         }
 
         function renderActiveTripTab() {
@@ -1843,13 +2040,13 @@
         }
 
         async function sendTripMessage() {
-            if (!activeTrip || !activeTrip.crew_id || !currentUserId) return;
+            if (!activeTrip || !activeTrip.id || !currentUserId) return;
             const input = document.getElementById('trip-chat-input');
             const text = input ? input.value.trim() : '';
             if (!text) return;
             await api('/api/v3/trip/message', {
                 method: 'POST',
-                body: JSON.stringify({ crew_id: activeTrip.crew_id, user_id: currentUserId, text: text, kind: 'chat' })
+                body: JSON.stringify({ request_id: activeTrip.id, user_id: currentUserId, text: text })
             });
             if (input) input.value = '';
             refreshTripMessages();
@@ -1990,6 +2187,16 @@
             if (!el || mapInstance) return;
             mapInstance = L.map('map', { zoomControl: false, attributionControl: false }).setView([52.2297, 21.0122], 11);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapInstance);
+            // Add my-location button
+            if (!document.getElementById('my-loc-btn')) {
+                const locBtn = document.createElement('div');
+                locBtn.id = 'my-loc-btn';
+                locBtn.className = 'my-location-btn';
+                locBtn.onclick = toggleMyLocation;
+                locBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4m-10-10h4m12 0h4"/></svg>';
+                el.parentElement.style.position = 'relative';
+                el.parentElement.appendChild(locBtn);
+            }
         }
 
         function showMap() {
@@ -2308,14 +2515,35 @@
             const pickup = (pickupEl && pickupEl.value.trim()) ? pickupEl.value.trim() : 'Місце збору';
             const departure = (depEl && depEl.value.trim()) ? depEl.value.trim() : '';
             const pickupText = departure ? `${pickup} • ${departure}` : pickup;
+
+            // v24.8: Try to get browser geolocation for pickup coordinates
+            let pLat = null, pLng = null;
+            if (navigator.geolocation) {
+                try {
+                    const pos = await new Promise((resolve, reject) =>
+                        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000, maximumAge: 60000 })
+                    );
+                    pLat = pos.coords.latitude;
+                    pLng = pos.coords.longitude;
+                } catch (e) {
+                    console.log('Geolocation unavailable:', e.message);
+                }
+            }
+
+            const body = {
+                user_id: currentUserId,
+                direction_id: dirId,
+                pickup: pickupText,
+                seats: userSettings.seats
+            };
+            if (pLat !== null && pLng !== null) {
+                body.pickup_lat = pLat;
+                body.pickup_lng = pLng;
+            }
+
             const res = await api('/api/v3/crews/open', {
                 method: 'POST',
-                body: JSON.stringify({
-                    user_id: currentUserId,
-                    direction_id: dirId,
-                    pickup: pickupText,
-                    seats: userSettings.seats
-                })
+                body: JSON.stringify(body)a
             });
             if (res && res.status === 'ok') {
                 showToast('Екіпаж створено');
