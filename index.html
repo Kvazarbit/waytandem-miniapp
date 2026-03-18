@@ -902,71 +902,6 @@
             fill: rgba(138,201,38,0.15);
         }
 
-        /* Subscribe toggle */
-        .btn-subscribed {
-            background: rgba(38, 166, 154, 0.15);
-            color: #26a69a;
-            border: 1px solid rgba(38, 166, 154, 0.4);
-            border-radius: 20px;
-            padding: 10px 20px;
-            font-weight: 800;
-            font-size: 12px;
-            cursor: pointer;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            transition: all 0.3s ease;
-        }
-        .btn-unsubscribe {
-            background: rgba(239, 83, 80, 0.1);
-            color: #ef5350;
-            border: 1px solid rgba(239, 83, 80, 0.3);
-            border-radius: 20px;
-            padding: 10px 20px;
-            font-weight: 800;
-            font-size: 12px;
-            cursor: pointer;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            transition: all 0.3s ease;
-        }
-        /* Direction card subscribed highlight */
-        .trip-card.subscribed-card {
-            border: 1px solid rgba(38, 166, 154, 0.3) !important;
-            background: rgba(38, 166, 154, 0.04) !important;
-        }
-        /* My-location button */
-        .my-location-btn {
-            position: absolute;
-            bottom: 80px;
-            right: 16px;
-            z-index: 1000;
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            background: rgba(17, 20, 28, 0.85);
-            backdrop-filter: blur(10px);
-            border: 1.5px solid rgba(255,255,255,0.12);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.4);
-        }
-        .my-location-btn.active {
-            border-color: var(--lime);
-            box-shadow: 0 0 20px rgba(138,201,38,0.3);
-        }
-        .my-location-btn svg {
-            width: 22px;
-            height: 22px;
-            transition: all 0.3s ease;
-        }
-        .my-location-btn.active svg {
-            stroke: var(--lime);
-            fill: rgba(138,201,38,0.15);
-        }
-
         .btn-destructive {
             background: rgba(239, 83, 80, 0.1);
             color: #ef5350;
@@ -1113,14 +1048,14 @@
                 <!-- CONTENT: MAP -->
                 <div data-tab="map">
                     <h3 class="section-header" style="margin-top:30px;">Карта екіпажів</h3>
-                    <div style="display:flex; gap:8px; margin-bottom:12px;">
+                    <div style="flex:1; background: rgba(0,0,0,0.4); border-radius:32px; overflow:hidden;">
+                        <div id="map"></div>
+                    </div>
+                    <div style="display:flex; gap:8px; margin-top:12px; margin-bottom:4px;">
                         <div class="segment-btn active" id="map-filter-all" onclick="setMapFilter('all')">ВСІ</div>
                         <div class="segment-btn" id="map-filter-goal" onclick="setMapFilter('goal')">ЦІЛЬ</div>
                         <div class="user-role-tag" id="map-count-badge" style="margin-left:auto;">Всі • 0</div>
                         <div class="nav-btn nav-btn-back" style="margin-left:auto; width:auto; padding:6px 10px; font-size:10px;" onclick="showMap()">ОНОВИТИ</div>
-                    </div>
-                    <div style="flex:1; background: rgba(0,0,0,0.4); border-radius:32px; overflow:hidden;">
-                        <div id="map"></div>
                     </div>
                 </div>
 
@@ -1202,7 +1137,8 @@
             lang: 'uk',        // 'uk' | 'pl' | 'en'
             seats: 4,
             car: '',
-            status: 'ready'    // 'ready' | 'break'
+            status: 'ready',    // 'ready' | 'break'
+            isOrganizer: false
         };
 
         const CONFIG = {
@@ -1537,7 +1473,12 @@
                     </div>`;
                 });
             }
-            if (data.type === 'folder') {
+            
+            const hasSubfolders = data.items && data.items.some(it => it.type === 'folder');
+            const userHasDirection = data.items && data.items.some(it => it.creator_id === currentUserId);
+            const showBanner = userSettings.isOrganizer && !hasSubfolders && !userHasDirection;
+
+            if (showBanner) {
                 html += `
                     <div class="hero-card" style="margin-top:16px;">
                         <span class="hero-label">Нове направлення</span>
@@ -1788,74 +1729,6 @@
             showToast('Заявку скасовано');
             pendingInvite = null;
             closeModal();
-        }
-
-        async function deleteDirection(directionId) {
-            if (!currentUserId || !directionId) return;
-            if (!confirm('Видалити напрямок? Ця дія незворотна.')) return;
-            try {
-                const res = await fetch(CONFIG.apiBase + '/api/v3/board/direction', {
-                    method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json', ...Object.fromEntries(Object.entries({
-                        'Origin': 'https://kvazarbit.github.io',
-                        'bypass-tunnel-reminder': 'true'
-                    })) },
-                    body: JSON.stringify({ user_id: currentUserId, direction_id: Number(directionId) })
-                });
-                const data = await res.json();
-                if (data.status === 'ok') {
-                    showToast('Напрямок видалено');
-                    delete flatDiscoveryMap[String(directionId)];
-                    closeModal();
-                    loadRootFromApi();
-                    return;
-                }
-                showToast(data.detail || 'Помилка видалення');
-            } catch (e) {
-                showToast('Помилка мережі');
-            }
-        }
-
-        function toggleMyLocation() {
-            const btn = document.getElementById('my-loc-btn');
-            if (!navigator.geolocation) {
-                showToast('Геолокація недоступна');
-                return;
-            }
-            myLocationActive = !myLocationActive;
-            if (btn) btn.classList.toggle('active', myLocationActive);
-
-            if (myLocationActive) {
-                navigator.geolocation.getCurrentPosition(
-                    pos => {
-                        const lat = pos.coords.latitude;
-                        const lng = pos.coords.longitude;
-                        if (mapInstance) {
-                            if (myLocationMarker) mapInstance.removeLayer(myLocationMarker);
-                            myLocationMarker = L.circleMarker([lat, lng], {
-                                radius: 8,
-                                fillColor: '#4285F4',
-                                fillOpacity: 0.9,
-                                color: '#fff',
-                                weight: 3
-                            }).addTo(mapInstance);
-                            myLocationMarker.bindPopup('Я тут');
-                            mapInstance.setView([lat, lng], 13);
-                        }
-                    },
-                    err => {
-                        showToast('Не вдалося визначити місцезнаходження');
-                        myLocationActive = false;
-                        if (btn) btn.classList.remove('active');
-                    },
-                    { timeout: 8000, maximumAge: 30000 }
-                );
-            } else {
-                if (myLocationMarker && mapInstance) {
-                    mapInstance.removeLayer(myLocationMarker);
-                    myLocationMarker = null;
-                }
-            }
         }
 
         async function deleteDirection(directionId) {
@@ -2519,6 +2392,14 @@
                 </div>
 
                 <div class="control-group">
+                    <span class="control-label">Організатор</span>
+                    <div class="segment-control">
+                        <div class="segment-btn ${!userSettings.isOrganizer ? 'active' : ''}" onclick="userSettings.isOrganizer=false; renderProfileContent()">НІ</div>
+                        <div class="segment-btn ${userSettings.isOrganizer ? 'active' : ''}" onclick="userSettings.isOrganizer=true; renderProfileContent()">ТАК</div>
+                    </div>
+                </div>
+
+                <div class="control-group">
                     <span class="control-label">Мова</span>
                     <div class="segment-control">
                         <div class="segment-btn ${userSettings.lang === 'uk' ? 'active' : ''}" onclick="setLang('uk')">UK</div>
@@ -2588,7 +2469,12 @@
             const role = userSettings.role === 'driver' ? 'driver' : 'client';
             const res = await api('/api/v3/user/register', {
                 method: 'POST',
-                body: JSON.stringify({ user_id: currentUserId, name: userSettings.name, role: role })
+                body: JSON.stringify({ 
+                    user_id: currentUserId, 
+                    name: userSettings.name, 
+                    role: role,
+                    is_organizer: userSettings.isOrganizer
+                })
             });
             if (res && (res.status === 'ok' || res.status === 'updated')) {
                 if (userSettings.role === 'driver') {
