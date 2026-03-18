@@ -1540,7 +1540,7 @@
                     html += `<div class="trip-card${subClass}" data-id="${itemId}" onclick="${action}">
                         <div class="trip-content">
                             <div style="display:flex; justify-content:space-between; align-items:flex-start">
-                                <div class="trip-title">${item.title} ${item.type === 'folder' ? '📂' : ''}</div>
+                                <div class="trip-title">${item.title} ${item.type === 'folder' ? '📂' : ''} ${userSubscriptions.has(String(item.remote_id || item.id)) ? '<span style="font-size:8px; color:var(--lime); background:rgba(138,201,38,0.1); padding:2px 6px; border-radius:6px; border:0.5px solid var(--lime); margin-left:8px;">ВІДСТЕЖУЄТЬСЯ</span>' : ''}</div>
                                 ${isOwner ? '<div style="font-size:10px; background:rgba(38,166,154,0.1); padding:2px 6px; border-radius:4px; font-weight:800; color:var(--lime)">МОЄ</div>' : ''}
                             </div>
                             <div class="trip-meta">${item.meta} <div class="av-stack" style="margin-left:auto">${item.pStacks.map(c => `<div class="av-item" style="background:${c}"></div>`).join('')}</div></div>
@@ -1680,6 +1680,14 @@
                     </div>
                 </div>
                 ` : ''}
+                ${isSub ? `
+                <div class="hero-card" style="margin-bottom:20px; border: 1px solid var(--lime); background: rgba(38,166,154,0.05); padding: 16px;">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <div style="color:var(--lime)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></div>
+                        <div style="font-size:12px; font-weight:800; color:#fff;">ВИ ПІДПИСАНІ НА ЦЕЙ НАПРЯМОК</div>
+                    </div>
+                </div>
+                ` : ''}
                 <div class="trip-card" style="background:none; border:none; padding:0; margin-bottom:30px;"><div class="trip-desc">${direction.desc}</div></div>
                 <h3 class="section-header">Вже підписані (${stacks.length})</h3>
                 <div style="display:flex; gap:12px; margin-bottom:30px;">${stacks.map(c => `<div class="user-av" style="background:${c}"></div>`).join('')}</div>`;
@@ -1701,18 +1709,20 @@
             const dId = direction.remote_id || direction.id;
             const isSub = userSubscriptions.has(String(dId));
             navAction = { type: 'subscribe', directionId: dId };
-            updateNavState('context', isSub ? 'ВІДПИСАТИСЯ' : 'ПІДПИСАТИСЯ');
+            updateNavState('context', isSub ? 'ДО ПАРАМЕТРІВ' : 'ПІДПИСАТИСЯ');
             // Highlight the action button color
             const actionBtn = document.getElementById('nav-main-action');
             if (actionBtn) {
                 if (isSub) {
-                    actionBtn.style.background = 'rgba(239, 83, 80, 0.15)';
-                    actionBtn.style.color = '#ef5350';
-                    actionBtn.style.borderColor = 'rgba(239, 83, 80, 0.4)';
+                    actionBtn.style.background = 'rgba(255, 255, 255, 0.05)';
+                    actionBtn.style.color = 'var(--text-muted)';
+                    actionBtn.style.borderColor = 'var(--glass-border)';
+                    actionBtn.style.boxShadow = 'none';
                 } else {
                     actionBtn.style.background = '';
                     actionBtn.style.color = '';
                     actionBtn.style.borderColor = '';
+                    actionBtn.style.boxShadow = '';
                 }
             }
         }
