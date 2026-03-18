@@ -1014,28 +1014,13 @@
                 <!-- CONTENT: HOME -->
                 <div data-tab="home" class="active-content">
                     <div class="map-placeholder" data-map-context="home_community" style="position:relative; flex:1; margin-top:-8px; background:rgba(0,0,0,0.4); border-radius:0 0 32px 32px; overflow:hidden; margin-bottom:12px;"></div>
-                    <h3 class="section-header" style="margin-bottom:12px;">Громада WayTandem</h3>
-                    <div class="feed-scroll" style="max-height: 50vh;">
-                        <div class="trip-card"
-                            onclick="openTripDetails('СЕРФІНГ', 'Одеса', 'Ранковий виїзд на море. Беремо дошки та гарний настій.')">
-                            <div class="token-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                                </svg></div>
-                            <div class="trip-content">
-                                <div class="trip-title">СЕРФІНГ</div>
-                                <div class="trip-meta"><span>4/6 місць</span> • <span>Одеса</span></div>
-                                <div class="trip-desc">Ранковий виїзд на море. Беремо дошки та гарний настій.</div>
-                            </div>
-                        </div>
-                        <div class="trip-card"
-                            onclick="openTripDetails('ПРОГУЛЯНКА', 'Центр', 'Досліджуємо приховані дворики міста.')">
-                            <div class="token-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                                </svg></div>
-                            <div class="trip-content">
-                                <div class="trip-title">ПРОГУЛЯНКА</div>
-                                <div class="trip-meta"><span>2/4 місця</span> • <span>Центр</span></div>
-                                <div class="trip-desc">Досліджуємо приховані дворики міста та старі кав'ярні.</div>
+                    <div id="home-news-section">
+                        <h3 class="section-header" style="margin-bottom:12px;">Останні новини</h3>
+                        <div id="home-news-container" class="feed-scroll" style="max-height: 50vh;">
+                            <!-- Dynamic news will be rendered here -->
+                            <div class="empty-state">
+                                <div class="empty-icon">📢</div>
+                                <div>Завантаження новин...</div>
                             </div>
                         </div>
                     </div>
@@ -1300,71 +1285,51 @@
             renderProfileContent();
         }
 
-        const discoveryData = {
-            'vacation': {
-                id: 'vacation', title: 'ВІДПОЧИНОК', type: 'folder',
-                meta: '9 екіпажів • 32 попутники',
-                drivers: 9, passengers: 32, organizers: 3,
-                desc: 'Гори, море, пікніки та спільне дозвілля.',
-                items: [
-                    {
-                        id: 'гори', title: 'ГОРИ', meta: '5 екіпажів • 12 попутників', type: 'folder',
-                        drivers: 5, passengers: 12, organizers: 1,
-                        desc: 'Виїзди в Карпати та гірський релакс.',
-                        items: [
-                            { id: 'goverla', title: 'ГОВЕРЛА', meta: '2 екіпажі • 8 попутників', drivers: 2, passengers: 8, organizers: 1, desc: 'Маршрут на найвищу точку України.', simulate: true, creator_id: 42 },
-                            { id: 'dragobrat', title: 'ДРАГОБРАТ', meta: '3 екіпажі • 15 попутників', drivers: 3, passengers: 15, organizers: 1, desc: 'Гірськолижний курорт.' }
-                        ]
-                    },
-                    {
-                        id: 'море', title: 'МОРЕ', meta: '4 екіпажі • 20 попутників', type: 'folder',
-                        drivers: 4, passengers: 20, organizers: 2,
-                        desc: 'Серфінг та морські подорожі.',
-                        items: [
-                            { id: 'odessa', title: 'ОДЕСА', meta: '4 екіпажі • 20 попутників', drivers: 4, passengers: 20, organizers: 2, desc: 'Серфінг на Аркадії.' }
-                        ]
-                    }
-                ]
-            },
-            'theocracy': {
-                id: 'theocracy', title: 'ТЕОКРАТІЯ', type: 'folder',
-                meta: '8 екіпажів • 30 попутників',
-                drivers: 8, passengers: 30, organizers: 3,
-                desc: 'Спільні події громади.',
-                items: [
-                    {
-                        id: 'служіння', title: 'СЛУЖІННЯ', meta: '8 екіпажів • 30 попутників', type: 'folder',
-                        drivers: 8, passengers: 30, organizers: 3,
-                        desc: 'Допомога людям та соціальні ініціативи.',
-                        items: [
-                            { id: 'elderly', title: 'ДОПОМОГА ЛІТНІМ', meta: '5 екіпажів • 25 попутників', drivers: 5, passengers: 25, organizers: 1, desc: 'Доставка продуктів.', creator_id: 42 }
-                        ]
-                    }
-                ]
-            },
-            'commute': {
-                id: 'commute', title: 'ДОЇЗДИ', type: 'folder',
-                meta: '15 екіпажів • 10 попутників',
-                drivers: 15, passengers: 10, organizers: 1,
-                desc: 'Щоденна логістика.',
-                items: [
-                    {
-                        id: 'робота', title: 'РОБОТА', meta: '15 екіпажів • 10 попутників', type: 'folder',
-                        drivers: 15, passengers: 10, organizers: 1,
-                        desc: 'Поїздки до офісів.',
-                        items: [
-                            { id: 'center', title: 'ЦЕНТР', meta: '10 екіпажів • 8 попутників', drivers: 10, passengers: 8, organizers: 1, desc: 'Поїздки до центру.' }
-                        ]
-                    }
-                ]
-            }
-        };
+        let discoveryData = {}; // Now empty by default, loaded from demo_data.json or API
 
         let liveDiscoveryData = {};
-        let userSubscriptions = new Set(); // direction IDs user is subscribed to
+        let userSubscriptions = new Set();
         let myLocationMarker = null;
         let myLocationActive = false;
 
+        // --- Demo Data Support ---
+        async function loadDemoData() {
+            if (CONFIG.apiBase) return; // Use real API if available
+            try {
+                const r = await fetch('demo_data.json');
+                if (!r.ok) return;
+                const data = await r.json();
+                if (data.directions) {
+                    // 1. Map all items for flat lookup
+                    const allMapped = data.directions.map(mapItem);
+                    allMapped.forEach(it => { flatDiscoveryMap[it.id] = it; });
+
+                    // 2. Build Hierarchy (Country -> Region -> Direction)
+                    discoveryData = {}; 
+                    allMapped.forEach(it => {
+                        const raw = data.directions.find(d => String(d.id) === String(it.id));
+                        if (raw && (raw.parent_id || raw.parent_id === 0)) {
+                            const pId = String(raw.parent_id);
+                            if (pId !== '0' && pId !== 'null') {
+                                const parent = flatDiscoveryMap[pId];
+                                if (parent) {
+                                    if (!parent.items) parent.items = [];
+                                    parent.items.push(it);
+                                    return; // Child added to parent, don't add to root
+                                }
+                            }
+                        }
+                        discoveryData[it.id] = it; // Root item
+                    });
+                }
+                if (data.news) {
+                    window.demoNews = data.news;
+                }
+                renderHome(); // Refresh news
+            } catch (e) {
+                console.warn('Demo data fail:', e);
+            }
+        }
         // --- Real-Time Sync State ---
         let lastIncomingRequestsCount = 0;
         let activeTripId = null;
@@ -1474,8 +1439,11 @@
         }
 
         async function loadOrganizers(direction) {
-            if (!CONFIG.apiBase || !direction) return false;
+            if (!direction) return false;
             const dirId = direction.remote_id || direction.id;
+            if (!CONFIG.apiBase) {
+                return false;
+            }
             const data = await api(`/api/v3/fractal/organizers${buildQuery({ direction_id: dirId, lang: CONFIG.lang, user_id: currentUserId || '' })}`);
             if (!data) return false;
             direction.organizers = data.organizers || [];
@@ -1484,7 +1452,10 @@
         }
 
         async function loadCrews(orgId, dirId) {
-            if (!CONFIG.apiBase || !orgId || !dirId) return [];
+            if (!orgId || !dirId) return [];
+            if (!CONFIG.apiBase) {
+                return [];
+            }
             const data = await api(`/api/v3/fractal/crews${buildQuery({ organizer_id: orgId, direction_id: dirId, user_id: currentUserId || '' })}`);
             if (!data || !data.crews) return [];
             return data.crews;
@@ -1563,6 +1534,29 @@
             document.getElementById('layer-modal').classList.add('state-modal-active');
             navAction = null;
             updateNavState('context', data.type === 'folder' ? null : 'ПІДПИСАТИСЯ');
+        }
+
+        function renderHome() {
+            const container = document.getElementById('home-news-container');
+            if (!container) return;
+            
+            if (window.demoNews && window.demoNews.length) {
+                container.innerHTML = window.demoNews.map(n => `
+                    <div class="trip-card animate-in" style="border-left: 4px solid var(--lime);">
+                        <div class="trip-content">
+                            <div class="trip-meta">${new Date(n.created_at * 1000).toLocaleDateString()}</div>
+                            <div class="trip-title" style="font-size:14px;">${n.text}</div>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📢</div>
+                        <div>Поки що новин немає</div>
+                    </div>
+                `;
+            }
         }
 
         function renderDiscovery(data) {
@@ -1708,10 +1702,25 @@
         function renderDirectionUI(direction) {
             const title = document.getElementById('modal-title');
             const content = document.getElementById('modal-content-area');
+            const dId = direction.remote_id || direction.id;
+            const isSub = userSubscriptions.has(String(dId));
             const isOwner = direction.creator_id === currentUserId;
             const stacks = direction.pStacks || [];
+            const organizers = direction.organizers || [];
 
             title.innerText = direction.title;
+            
+            // Logic for headers
+            let subHeader = `Вже підписані (${stacks.length})`;
+            const blueCount = stacks.filter(c => c === '#42a5f5').length;
+            const redCount = stacks.filter(c => c === '#ef5350').length;
+            
+            if (organizers.length === 0 && blueCount > 0) {
+                subHeader = `Очікують екіпаж (${blueCount} попутників)`;
+            } else if (redCount > 0 && blueCount === 0) {
+                subHeader = `Водії на лінії (${redCount})`;
+            }
+
             content.innerHTML = `
                 <div style="flex:1"></div>
                 ${isOwner ? `
@@ -1719,8 +1728,8 @@
                     <span class="hero-label" style="color:var(--lime)">КЕРУВАННЯ ТЕМОЮ</span>
                     <input id="edit-direction-title" class="thumb-input" value="${direction.title}" style="margin-bottom:12px;">
                     <div style="display:flex; gap:10px;">
-                        <button class="nav-btn nav-btn-back" style="flex:1; font-size:10px; padding:8px;" onclick="updateDirection('${direction.remote_id || direction.id}')">ЗБЕРЕГТИ</button>
-                        <button class="btn-destructive" style="flex:1; padding:8px;" onclick="deleteDirection('${direction.remote_id || direction.id}')">ВИДАЛИТИ</button>
+                        <button class="nav-btn nav-btn-back" style="flex:1; font-size:10px; padding:8px;" onclick="updateDirection('${dId}')">ЗБЕРЕГТИ</button>
+                        <button class="btn-destructive" style="flex:1; padding:8px;" onclick="deleteDirection('${dId}')">ВИДАЛИТИ</button>
                     </div>
                 </div>
                 ` : ''}
@@ -1733,28 +1742,41 @@
                 </div>
                 ` : ''}
                 <div class="trip-card" style="background:none; border:none; padding:0; margin-bottom:30px;"><div class="trip-desc">${direction.desc}</div></div>
-                <h3 class="section-header">Вже підписані (${stacks.length})</h3>
-                <div style="display:flex; gap:12px; margin-bottom:30px;">${stacks.map(c => `<div class="user-av" style="background:${c}"></div>`).join('')}</div>`;
-            const organizers = direction.organizers || [];
-            const orgHeader = `<h3 class="section-header">Екіпажі</h3>`;
+                
+                <h3 class="section-header">${subHeader}</h3>
+                <div style="display:flex; gap:12px; margin-bottom:10px; flex-wrap:wrap;">
+                    ${stacks.map(c => `<div class="user-av" style="background:${c}"></div>`).join('')}
+                </div>
+                <div style="display:flex; gap:15px; margin-bottom:30px; font-size:10px; color:var(--text-muted)">
+                    <div style="display:flex; align-items:center; gap:5px;"><div style="width:8px; height:8px; border-radius:50%; background:#ef5350"></div> водії</div>
+                    <div style="display:flex; align-items:center; gap:5px;"><div style="width:8px; height:8px; border-radius:50%; background:#42a5f5"></div> попутники</div>
+                </div>
+                `;
+
+            const orgHeader = `<h3 class="section-header">Активні Екіпажі</h3>`;
             const orgList = organizers.map(org => `
-                <div class="trip-card" onclick="openOrganizerCrews(${org.user_id}, '${direction.remote_id || direction.id}')">
+                <div class="trip-card" onclick="openOrganizerCrews(${org.user_id}, '${dId}')">
                     <div class="token-icon" style="background:var(--glass)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--lime)">
                         <path d="M12 2L15 8L22 9L17 14L18 21L12 17L6 21L7 14L2 9L9 8L12 2Z"></path>
                     </svg></div>
                     <div class="trip-content">
                         <div class="trip-title">${org.name || 'Організатор'}</div>
-                        <div class="trip-meta">🗓 ${org.departure || 'Найближчий виїзд'} • ${org.seats_free || 0} попутників</div>
+                        <div class="trip-meta">🗓 ${org.departure || 'Найближчий виїзд'} • ${org.seats_free || 0} вільних місць</div>
                     </div>
                 </div>
             `).join('');
-            const emptyOrgs = `<div class="trip-card"><div class="trip-content"><div class="trip-title">Екіпажів поки немає</div><div class="trip-meta">Створіть перший екіпаж у профілі водія.</div></div></div>`;
+            const emptyOrgs = `<div class="trip-card" style="border-style:dashed; opacity:0.7">
+                <div class="trip-content">
+                    <div class="trip-title" style="color:var(--text-muted)">Екіпажів поки немає</div>
+                    <div class="trip-meta">Станьте першим водієм на цьому маршруті!</div>
+                </div>
+            </div>`;
+            
             content.insertAdjacentHTML('beforeend', orgHeader + (organizers.length ? orgList : emptyOrgs));
-            const dId = direction.remote_id || direction.id;
-            const isSub = userSubscriptions.has(String(dId));
+            
             navAction = { type: 'subscribe', directionId: dId };
             updateNavState('context', isSub ? 'ДО ПАРАМЕТРІВ' : 'ПІДПИСАТИСЯ');
-            // Highlight the action button color
+            
             const actionBtn = document.getElementById('nav-main-action');
             if (actionBtn) {
                 if (isSub) {
@@ -3005,7 +3027,7 @@
             openTripDetails('ГІРСЬКИЙ ВІДПОЧИНОК', 'SNOW PEAK', 'Вас запрошено до спільної поїздки.');
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             initApiBase();
             currentUserId = resolveUserId();
             currentUserName = resolveUserName();
@@ -3013,11 +3035,14 @@
             if (!userSettings.name && currentUserName) userSettings.name = currentUserName;
             CONFIG.lang = userSettings.lang || CONFIG.lang;
             applyHeader();
+            
+            await loadDemoData();
             loadRootFromApi();
             hydrateTrips();
             initMap();
             if (!localStorage.getItem('wt_intro_seen')) openIntro();
             startSyncEngine();
+            renderHome();
         });
 
     </script>
