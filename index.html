@@ -22,7 +22,8 @@
             --glass: rgba(255, 255, 255, 0.05);
             --glass-border: rgba(255, 255, 255, 0.1);
             --glass-card: rgba(255, 255, 255, 0.03);
-            --text-muted: rgba(255, 255, 255, 0.65); /* Increased for better outdoor visibility */
+            --text-muted: rgba(255, 255, 255, 0.65);
+            /* Increased for better outdoor visibility */
         }
 
         * {
@@ -84,16 +85,19 @@
             will-change: transform, filter;
             padding: 20px;
             padding-top: max(70px, calc(env(safe-area-inset-top) + 50px));
-            padding-bottom: 110px; /* Increased to resolve menu overlap */
+            padding-bottom: 110px;
+            /* Increased to resolve menu overlap */
             display: flex;
             flex-direction: column;
             justify-content: flex-end;
-            gap: 8px; /* Essential gap to prevent overlap */
+            gap: 8px;
+            /* Essential gap to prevent overlap */
         }
 
         .layer-main {
             z-index: 10;
-            pointer-events: auto; /* Ensure active layer is clickable */
+            pointer-events: auto;
+            /* Ensure active layer is clickable */
         }
 
         .layer-modal {
@@ -232,7 +236,8 @@
         }
 
         .trip-card:last-child {
-            margin-bottom: 8px; /* Micro-gap even for last child */
+            margin-bottom: 8px;
+            /* Micro-gap even for last child */
         }
 
         .token-icon {
@@ -307,7 +312,8 @@
             border: 1px solid var(--lime);
             border-radius: 36px;
             padding: 24px;
-            margin-bottom: 8px; /* Micro-gap */
+            margin-bottom: 8px;
+            /* Micro-gap */
             position: relative;
             overflow: hidden;
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
@@ -418,8 +424,9 @@
 
         /* ── INPUT ── */
         .thumb-input-container {
-            margin-top: 0; 
-            margin-bottom: 0; /* Clear margin, use layer padding instead */
+            margin-top: 0;
+            margin-bottom: 0;
+            /* Clear margin, use layer padding instead */
         }
 
         .thumb-input {
@@ -495,7 +502,7 @@
             align-items: center;
             gap: 12px;
             padding: 10px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         .ledger-role {
@@ -506,9 +513,20 @@
             text-transform: uppercase;
         }
 
-        .role-driver { background: var(--lime); color: #000; }
-        .role-navigator { background: var(--sky); color: #000; }
-        .role-pilgrim { background: rgba(255,255,255,0.1); color: #fff; }
+        .role-driver {
+            background: var(--lime);
+            color: #000;
+        }
+
+        .role-navigator {
+            background: var(--sky);
+            color: #000;
+        }
+
+        .role-pilgrim {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
 
         .chat-highlights {
             background: rgba(92, 107, 192, 0.15);
@@ -556,7 +574,7 @@
             align-items: center;
             gap: 12px;
             z-index: 2000;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
             opacity: 0;
             transition: all 0.5s cubic-bezier(0.2, 1, 0.2, 1);
             pointer-events: none;
@@ -573,9 +591,22 @@
         }
 
         @keyframes bounce {
-            0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
-            40% {transform: translateY(-5px);}
-            60% {transform: translateY(-3px);}
+
+            0%,
+            20%,
+            50%,
+            80%,
+            100% {
+                transform: translateY(0);
+            }
+
+            40% {
+                transform: translateY(-5px);
+            }
+
+            60% {
+                transform: translateY(-3px);
+            }
         }
 
         /* ── TOAST (Contract Feedback) ── */
@@ -594,7 +625,7 @@
             opacity: 0;
             pointer-events: none;
             transition: all 0.4s cubic-bezier(0.2, 1, 0.2, 1);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
             white-space: nowrap;
         }
 
@@ -699,15 +730,18 @@
             display: flex;
             flex-direction: column;
             flex: 1;
-            gap: 8px; /* Gap between header, feed, and hero */
+            gap: 8px;
+            /* Gap between header, feed, and hero */
         }
 
         .feed-scroll {
-            flex: 0 1 auto; /* Allow shrinking */
+            flex: 0 1 auto;
+            /* Allow shrinking */
             overflow-y: auto;
             scrollbar-width: none;
             max-height: 55vh;
-            margin-bottom: 8px; /* Micro-gap before input/hero */
+            margin-bottom: 8px;
+            /* Micro-gap before input/hero */
         }
 
         .feed-scroll::-webkit-scrollbar {
@@ -720,9 +754,20 @@
         }
 
         @keyframes pulse {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.2); opacity: 0.7; }
-            100% { transform: scale(1); opacity: 1; }
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(1.2);
+                opacity: 0.7;
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
         }
 
         .rating-stars {
@@ -797,7 +842,7 @@
         .segment-btn.active {
             background: rgba(255, 255, 255, 0.1);
             color: #fff;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         }
 
         .seat-picker {
@@ -823,7 +868,9 @@
             user-select: none;
         }
 
-        .seat-btn:active { transform: scale(0.9); }
+        .seat-btn:active {
+            transform: scale(0.9);
+        }
 
         .seat-count {
             font-family: 'Unbounded', sans-serif;
@@ -851,6 +898,7 @@
             letter-spacing: 1px;
             transition: all 0.3s ease;
         }
+
         .btn-unsubscribe {
             background: rgba(239, 83, 80, 0.1);
             color: #ef5350;
@@ -864,11 +912,13 @@
             letter-spacing: 1px;
             transition: all 0.3s ease;
         }
+
         /* Direction card subscribed highlight */
         .trip-card.subscribed-card {
             border: 1px solid rgba(38, 166, 154, 0.3) !important;
             background: rgba(38, 166, 154, 0.04) !important;
         }
+
         /* My-location button */
         .my-location-btn {
             position: absolute;
@@ -880,26 +930,29 @@
             border-radius: 50%;
             background: rgba(17, 20, 28, 0.85);
             backdrop-filter: blur(10px);
-            border: 1.5px solid rgba(255,255,255,0.12);
+            border: 1.5px solid rgba(255, 255, 255, 0.12);
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
         }
+
         .my-location-btn.active {
             border-color: var(--lime);
-            box-shadow: 0 0 20px rgba(138,201,38,0.3);
+            box-shadow: 0 0 20px rgba(138, 201, 38, 0.3);
         }
+
         .my-location-btn svg {
             width: 22px;
             height: 22px;
             transition: all 0.3s ease;
         }
+
         .my-location-btn.active svg {
             stroke: var(--lime);
-            fill: rgba(138,201,38,0.15);
+            fill: rgba(138, 201, 38, 0.15);
         }
 
         .btn-destructive {
@@ -928,9 +981,9 @@
             <span>Мандрівник натиснув «Поїхали!»</span>
         </div>
         <div id="modal-sub-nav-area" style="display:none;" class="modal-sub-nav">
-             <div class="sub-nav-item active" onclick="switchModalTab('info')">ДЕТАЛІ</div>
-             <div class="sub-nav-item" onclick="switchModalTab('crew')">ЕКІПАЖ</div>
-             <div class="sub-nav-item" onclick="switchModalTab('chat')">ЧАТ</div>
+            <div class="sub-nav-item active" onclick="switchModalTab('info')">ДЕТАЛІ</div>
+            <div class="sub-nav-item" onclick="switchModalTab('crew')">ЕКІПАЖ</div>
+            <div class="sub-nav-item" onclick="switchModalTab('chat')">ЧАТ</div>
         </div>
         <div class="z-stack-container">
 
@@ -951,7 +1004,7 @@
 
                 <!-- CONTENT: HOME -->
                 <div data-tab="home" class="active-content">
-                    <div style="flex:1"></div>
+                    <div class="map-placeholder" data-map-context="home_community" style="position:relative; flex:1; margin-top:-8px; background:rgba(0,0,0,0.4); border-radius:0 0 32px 32px; overflow:hidden; margin-bottom:12px;"></div>
                     <h3 class="section-header" style="margin-bottom:12px;">Громада WayTandem</h3>
                     <div class="feed-scroll" style="max-height: 50vh;">
                         <div class="trip-card"
@@ -981,7 +1034,7 @@
 
                 <!-- CONTENT: BOARD -->
                 <div data-tab="board">
-                    <div style="flex:1"></div>
+                    <div class="map-placeholder" data-map-context="board_discovery" style="position:relative; flex:1; margin-top:-8px; background:rgba(0,0,0,0.4); border-radius:0 0 32px 32px; overflow:hidden; margin-bottom:12px;"></div>
                     <h3 class="section-header" style="margin-bottom:12px;">Оберіть напрямок</h3>
                     <div class="feed-scroll" style="max-height: 45vh;">
                         <div class="trip-card" onclick="openDiscoveryLayer('vacation')">
@@ -1019,7 +1072,7 @@
 
                 <!-- CONTENT: MY TRIPS -->
                 <div data-tab="trips">
-                    <div style="flex:1"></div>
+                    <div class="map-placeholder" data-map-context="my_trips" style="position:relative; flex:1; margin-top:-8px; background:rgba(0,0,0,0.4); border-radius:0 0 32px 32px; overflow:hidden; margin-bottom:12px;"></div>
                     <h3 class="section-header" style="margin-bottom:12px;">Мої поїздки</h3>
                     <div class="feed-scroll" id="trips-feed" style="max-height: 25vh; flex:none;">
                         <div class="trip-card" style="border: 1px solid var(--lime)">
@@ -1032,7 +1085,8 @@
                             </div>
                         </div>
                     </div>
-                    <div class="hero-card" id="trips-hero" style="margin-top:20px; margin-bottom:0;" onclick="acceptInvite()">
+                    <div class="hero-card" id="trips-hero" style="margin-top:20px; margin-bottom:0;"
+                        onclick="acceptInvite()">
                         <span class="hero-label">Спільна мета</span>
                         <h2 class="hero-title" style="font-size:22px;">ГІРСЬКИЙ ВІДПОЧИНОК</h2>
                         <div class="hero-stats" style="margin-bottom:16px;">
@@ -1046,16 +1100,17 @@
                 </div>
 
                 <!-- CONTENT: MAP -->
-                <div data-tab="map">
-                    <h3 class="section-header" style="margin-top:30px;">Карта екіпажів</h3>
-                    <div style="flex:1; background: rgba(0,0,0,0.4); border-radius:32px; overflow:hidden;">
+                <div data-tab="map" class="map-full-container" style="margin-top:-8px;">
+                    <div class="map-placeholder" data-map-context="full_explorer" style="position:relative; flex:1; background: rgba(0,0,0,0.4); border-radius:0 0 32px 32px; overflow:hidden;">
                         <div id="map"></div>
                     </div>
                     <div style="display:flex; gap:8px; margin-top:12px; margin-bottom:4px;">
                         <div class="segment-btn active" id="map-filter-all" onclick="setMapFilter('all')">ВСІ</div>
                         <div class="segment-btn" id="map-filter-goal" onclick="setMapFilter('goal')">ЦІЛЬ</div>
                         <div class="user-role-tag" id="map-count-badge" style="margin-left:auto;">Всі • 0</div>
-                        <div class="nav-btn nav-btn-back" style="margin-left:auto; width:auto; padding:6px 10px; font-size:10px;" onclick="showMap()">ОНОВИТИ</div>
+                        <div class="nav-btn nav-btn-back"
+                            style="margin-left:auto; width:auto; padding:6px 10px; font-size:10px;" onclick="showMap()">
+                            ОНОВИТИ</div>
                     </div>
                 </div>
 
@@ -1098,7 +1153,8 @@
                 </div>
                 <div class="nav-context-actions">
                     <div class="nav-btn nav-btn-back" onclick="closeModal()">НАЗАД</div>
-                    <div class="nav-btn nav-btn-action" id="nav-main-action" style="display:none;" onclick="handleNavAction()">ПІДПИСАТИСЯ</div>
+                    <div class="nav-btn nav-btn-action" id="nav-main-action" style="display:none;"
+                        onclick="handleNavAction()">ПІДПИСАТИСЯ</div>
                 </div>
             </nav>
 
@@ -1414,6 +1470,25 @@
             document.querySelectorAll('[data-tab]').forEach(tab => tab.classList.remove('active-content'));
             const target = document.querySelector(`[data-tab="${tabId}"]`);
             if (target) target.classList.add('active-content');
+
+            // --- Multi-tab Map Placement ---
+            const mapEl = document.getElementById('map');
+            if (mapEl) {
+                const placeholder = target ? target.querySelector('.map-placeholder') : null;
+                if (placeholder) {
+                    placeholder.appendChild(mapEl);
+                    const locBtn = document.getElementById('my-loc-btn');
+                    if (locBtn) placeholder.appendChild(locBtn);
+                    const context = placeholder.dataset.mapContext;
+                    console.log('Map context changed to:', context);
+                    // Hook for future information mask logic: applyMapMask(context);
+
+                    if (mapInstance) {
+                        setTimeout(() => mapInstance.invalidateSize(), 100);
+                    }
+                }
+            }
+
             const input = document.getElementById('universal-input');
             if (input) {
                 const placeholders = { 'home': 'Повідомлення громаді...', 'board': 'Пошук...', 'trips': 'Коментар...', 'map': 'Пошук на карті...' };
@@ -1460,7 +1535,7 @@
                     const itemId = item.id || item.title;
                     const action = item.type === 'folder' ? `openDiscoveryLayer(this.dataset.id)` : `openDirectionDetail(this.dataset.id)`;
                     const isOwner = item.creator_id === currentUserId;
-                    
+
                     const subClass = userSubscriptions.has(String(item.remote_id || item.id)) ? ' subscribed-card' : '';
                     html += `<div class="trip-card${subClass}" data-id="${itemId}" onclick="${action}">
                         <div class="trip-content">
@@ -1473,7 +1548,7 @@
                     </div>`;
                 });
             }
-            
+
             const hasSubfolders = data.items && data.items.some(it => it.type === 'folder');
             const userHasDirection = data.items && data.items.some(it => it.creator_id === currentUserId);
             const showBanner = userSettings.isOrganizer && !hasSubfolders && !userHasDirection;
@@ -1591,16 +1666,16 @@
             const content = document.getElementById('modal-content-area');
             const isOwner = direction.creator_id === currentUserId;
             const stacks = direction.pStacks || [];
-            
+
             title.innerText = direction.title;
             content.innerHTML = `
                 <div style="flex:1"></div>
                 ${isOwner ? `
                 <div class="hero-card" style="margin-bottom:20px; border: 1px solid var(--lime); background: rgba(38,166,154,0.05)">
                     <span class="hero-label" style="color:var(--lime)">КЕРУВАННЯ ТЕМОЮ</span>
-                    <div style="font-size:12px; font-weight:700; margin-bottom:12px;">Ви є організатором цієї теми.</div>
+                    <input id="edit-direction-title" class="thumb-input" value="${direction.title}" style="margin-bottom:12px;">
                     <div style="display:flex; gap:10px;">
-                        <button class="nav-btn nav-btn-back" style="flex:1; font-size:10px; padding:8px;" onclick="toast('Зміни в назві збережено')">РЕДАГУВАТИ</button>
+                        <button class="nav-btn nav-btn-back" style="flex:1; font-size:10px; padding:8px;" onclick="updateDirection('${direction.remote_id || direction.id}')">ЗБЕРЕГТИ</button>
                         <button class="btn-destructive" style="flex:1; padding:8px;" onclick="deleteDirection('${direction.remote_id || direction.id}')">ВИДАЛИТИ</button>
                     </div>
                 </div>
@@ -1731,24 +1806,65 @@
             closeModal();
         }
 
+        async function updateDirection(directionId) {
+            if (!currentUserId || !directionId) return;
+            const input = document.getElementById('edit-direction-title');
+            const newTitle = input ? input.value.trim() : '';
+            if (!newTitle) { showToast('Вкажіть назву'); return; }
+            const res = await api('/api/v3/board', {
+                method: 'PATCH',
+                body: JSON.stringify({ user_id: currentUserId, direction_id: Number(directionId), title: newTitle })
+            });
+            if (res && res.status === 'ok') {
+                showToast('Назва оновлена');
+                const dir = flatDiscoveryMap[String(directionId)];
+                if (dir) {
+                    dir.title = newTitle;
+                    renderDirectionUI(dir);
+                }
+                // Update in all stack levels for consistency
+                discoveryStack.forEach(item => {
+                    if (item.data) {
+                        if (String(item.data.remote_id || item.data.id) === String(directionId)) item.data.title = newTitle;
+                        if (item.data.items) {
+                            const found = item.data.items.find(it => String(it.remote_id || it.id) === String(directionId));
+                            if (found) found.title = newTitle;
+                        }
+                    }
+                });
+                return;
+            }
+            showToast('Помилка оновлення');
+        }
+
         async function deleteDirection(directionId) {
             if (!currentUserId || !directionId) return;
             if (!confirm('Видалити напрямок? Ця дія незворотна.')) return;
             try {
                 const res = await fetch(CONFIG.apiBase + '/api/v3/board/direction', {
                     method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json', ...Object.fromEntries(Object.entries({
-                        'Origin': 'https://kvazarbit.github.io',
-                        'bypass-tunnel-reminder': 'true'
-                    })) },
+                    headers: {
+                        'Content-Type': 'application/json', ...Object.fromEntries(Object.entries({
+                            'Origin': 'https://kvazarbit.github.io',
+                            'bypass-tunnel-reminder': 'true'
+                        }))
+                    },
                     body: JSON.stringify({ user_id: currentUserId, direction_id: Number(directionId) })
                 });
                 const data = await res.json();
                 if (data.status === 'ok') {
                     showToast('Напрямок видалено');
                     delete flatDiscoveryMap[String(directionId)];
-                    closeModal();
-                    loadRootFromApi();
+                    
+                    // Cleanup in stack and parent items
+                    discoveryStack.forEach(item => {
+                        if (item.data && item.data.items) {
+                            item.data.items = item.data.items.filter(it => String(it.remote_id || it.id) !== String(directionId));
+                        }
+                    });
+                    
+                    closeModal(); // Returns to the parent view which is already updated in the stack
+                    loadRootFromApi(); // Background refresh of the board root
                     return;
                 }
                 showToast(data.detail || 'Помилка видалення');
@@ -2371,7 +2487,7 @@
                 const sel = String(did) === String(selectedDirectionId) ? 'selected' : '';
                 return `<option value="${did}" ${sel}>${d.title}</option>`;
             }).join('');
-            
+
             content.innerHTML = `
                 <div style="flex:1"></div>
                 <div style="text-align:center; padding-bottom:20px;">
@@ -2469,9 +2585,9 @@
             const role = userSettings.role === 'driver' ? 'driver' : 'client';
             const res = await api('/api/v3/user/register', {
                 method: 'POST',
-                body: JSON.stringify({ 
-                    user_id: currentUserId, 
-                    name: userSettings.name, 
+                body: JSON.stringify({
+                    user_id: currentUserId,
+                    name: userSettings.name,
                     role: role,
                     is_organizer: userSettings.isOrganizer
                 })
