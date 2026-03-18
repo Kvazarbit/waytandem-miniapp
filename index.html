@@ -1365,18 +1365,6 @@
                 subs.forEach(s => userSubscriptions.add(String(s.direction_id)));
             }
         }
-        let userSubscriptions = new Set(); // direction IDs user is subscribed to
-        let myLocationMarker = null;
-        let myLocationActive = false;
-
-        async function loadUserSubscriptions() {
-            if (!currentUserId || !CONFIG.apiBase) return;
-            const subs = await api('/api/v3/user/subscriptions?user_id=' + currentUserId);
-            userSubscriptions.clear();
-            if (Array.isArray(subs)) {
-                subs.forEach(s => userSubscriptions.add(String(s.direction_id)));
-            }
-        }
 
         function getDiscoverySource() {
             return Object.keys(liveDiscoveryData).length ? liveDiscoveryData : discoveryData;
