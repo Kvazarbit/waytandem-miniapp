@@ -220,7 +220,7 @@
             background: var(--glass-card);
             border: 1px solid var(--glass-border);
             border-radius: 28px;
-            padding: 20px;
+            padding: 16px 20px;
             margin-bottom: 12px;
             display: flex;
             gap: 16px;
@@ -264,18 +264,18 @@
 
         .trip-title {
             font-family: 'Unbounded', sans-serif;
-            font-size: 14px;
+            font-size: 16px;
             font-weight: 900;
-            margin-bottom: 4px;
+            margin-bottom: 2px;
             display: flex;
             align-items: center;
             justify-content: space-between;
         }
 
         .trip-meta {
-            font-size: 11px;
+            font-size: 13px;
             color: var(--text-muted);
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             font-weight: 700;
             display: flex;
             align-items: center;
@@ -298,8 +298,17 @@
             width: 18px;
             height: 18px;
             border-radius: 50%;
-            border: 1.5px solid var(--bg-deep);
-            margin-left: -6px;
+        }
+
+        .role-chart {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            flex-shrink: 0;
+            background: conic-gradient(var(--text-muted) 0% 100%);
+            margin-top: 2px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
         }
 
         .av-item:first-child {
@@ -1025,7 +1034,7 @@
                                 </svg></div>
                             <div class="trip-content">
                                 <div class="trip-title">ПРОГУЛЯНКА</div>
-                                <div class="trip-meta"><span>2/4 місць</span> • <span>Центр</span></div>
+                                <div class="trip-meta"><span>2/4 місця</span> • <span>Центр</span></div>
                                 <div class="trip-desc">Досліджуємо приховані дворики міста та старі кав'ярні.</div>
                             </div>
                         </div>
@@ -1044,7 +1053,10 @@
                                 </svg></div>
                             <div class="trip-content">
                                 <div class="trip-title">ВІДПОЧИНОК</div>
-                                <div class="trip-meta">Гори • Море • Пікнік</div>
+                                <div class="trip-meta" style="justify-content:space-between">
+                                    <span>5 екіпажів • 20 попутників</span>
+                                    <div class="role-chart" style="background: conic-gradient(#ef5350 0% 40%, #ffca28 40% 60%, #42a5f5 60% 100%)"></div>
+                                </div>
                             </div>
                         </div>
                         <div class="trip-card" onclick="openDiscoveryLayer('theocracy')">
@@ -1054,7 +1066,10 @@
                                 </svg></div>
                             <div class="trip-content">
                                 <div class="trip-title">ТЕОКРАТІЯ</div>
-                                <div class="trip-meta">Молитва • Служіння • Громада</div>
+                                <div class="trip-meta" style="justify-content:space-between">
+                                    <span>8 екіпажів • 30 попутників</span>
+                                    <div class="role-chart" style="background: conic-gradient(#ef5350 0% 30%, #ffca28 30% 50%, #42a5f5 50% 100%)"></div>
+                                </div>
                             </div>
                         </div>
                         <div class="trip-card" onclick="openDiscoveryLayer('commute')">
@@ -1064,7 +1079,10 @@
                                 </svg></div>
                             <div class="trip-content">
                                 <div class="trip-title">ДОЇЗДИ</div>
-                                <div class="trip-meta">Робота • Бізнес • Міжміські</div>
+                                <div class="trip-meta" style="justify-content:space-between">
+                                    <span>15 екіпажів • 10 попутників</span>
+                                    <div class="role-chart" style="background: conic-gradient(#ef5350 0% 70%, #ffca28 70% 80%, #42a5f5 80% 100%)"></div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1073,29 +1091,21 @@
                 <!-- CONTENT: MY TRIPS -->
                 <div data-tab="trips">
                     <div class="map-placeholder" data-map-context="my_trips" style="position:relative; flex:1; margin-top:-8px; background:rgba(0,0,0,0.4); border-radius:0 0 32px 32px; overflow:hidden; margin-bottom:12px;"></div>
-                    <h3 class="section-header" style="margin-bottom:12px;">Мої поїздки</h3>
-                    <div class="feed-scroll" id="trips-feed" style="max-height: 25vh; flex:none;">
-                        <div class="trip-card" style="border: 1px solid var(--lime)">
-                            <div class="token-icon"><svg viewBox="0 0 24 24" fill="none" stroke="var(--lime)">
-                                    <path d="M12 2L15 8L22 9L17 14L18 21L12 17L6 21L7 14L2 9L9 8L12 2Z"></path>
-                                </svg></div>
-                            <div class="trip-content">
-                                <div class="trip-title">ОДЕСА - СЕРФІНГ</div>
-                                <div class="trip-meta">Ви приєднані • Неділя 09:00</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="hero-card" id="trips-hero" style="margin-top:20px; margin-bottom:0;"
-                        onclick="acceptInvite()">
+                    
+                    <h3 class="section-header" style="margin-bottom:12px;">Події та історія</h3>
+
+                    <div class="hero-card" id="trips-hero" style="margin-bottom:20px;" onclick="openActiveTrip()">
                         <span class="hero-label">Спільна мета</span>
-                        <h2 class="hero-title" style="font-size:22px;">ГІРСЬКИЙ ВІДПОЧИНОК</h2>
-                        <div class="hero-stats" style="margin-bottom:16px;">
-                            <div class="stat-item"><span class="label">Учасники</span><span class="val">3/5 Місць</span>
-                            </div>
-                            <div class="stat-item"><span class="label">Виїзд</span><span class="val">15 липня</span>
+                        <h2 class="hero-title" style="font-size:22px;">Очікування</h2>
+                        <div class="btn-confirm">Дошка напрямків</div>
+                    </div>
+
+                    <div class="feed-scroll" id="trips-feed" style="max-height: 25vh; flex:none;">
+                        <div class="trip-card">
+                            <div class="trip-content">
+                                <div class="trip-title">Завантаження...</div>
                             </div>
                         </div>
-                        <div class="btn-confirm">Приєднатися</div>
                     </div>
                 </div>
 
@@ -1293,51 +1303,57 @@
         const discoveryData = {
             'vacation': {
                 id: 'vacation', title: 'ВІДПОЧИНОК', type: 'folder',
+                meta: '9 екіпажів • 32 попутники',
+                drivers: 9, passengers: 32, organizers: 3,
                 desc: 'Гори, море, пікніки та спільне дозвілля.',
                 items: [
                     {
-                        id: 'гори', title: 'ГОРИ', meta: 'Hiking • Ski', type: 'folder',
-                        pStacks: ['#5c6bc0', '#26a69a', '#ef5350'],
+                        id: 'гори', title: 'ГОРИ', meta: '5 екіпажів • 12 попутників', type: 'folder',
+                        drivers: 5, passengers: 12, organizers: 1,
                         desc: 'Виїзди в Карпати та гірський релакс.',
                         items: [
-                            { id: 'goverla', title: 'ГОВЕРЛА', meta: 'Hiking • Pro', pStacks: ['#5c6bc0', '#ef5350'], desc: 'Маршрут на найвищу точку України.', simulate: true, creator_id: 42 },
-                            { id: 'dragobrat', title: 'ДРАГОБРАТ', meta: 'Ski • Freeride', pStacks: ['#ab47bc', '#42a5f5'], desc: 'Гірськолижний курорт.' }
+                            { id: 'goverla', title: 'ГОВЕРЛА', meta: '2 екіпажі • 8 попутників', drivers: 2, passengers: 8, organizers: 1, desc: 'Маршрут на найвищу точку України.', simulate: true, creator_id: 42 },
+                            { id: 'dragobrat', title: 'ДРАГОБРАТ', meta: '3 екіпажі • 15 попутників', drivers: 3, passengers: 15, organizers: 1, desc: 'Гірськолижний курорт.' }
                         ]
                     },
                     {
-                        id: 'море', title: 'МОРЕ', meta: 'Surf • Beach', type: 'folder',
-                        pStacks: ['#42a5f5', '#66bb6a'],
+                        id: 'море', title: 'МОРЕ', meta: '4 екіпажі • 20 попутників', type: 'folder',
+                        drivers: 4, passengers: 20, organizers: 2,
                         desc: 'Серфінг та морські подорожі.',
                         items: [
-                            { id: 'odessa', title: 'ОДЕСА', meta: 'Surf • City', pStacks: ['#42a5f5', '#66bb6a'], desc: 'Серфінг на Аркадії.' }
+                            { id: 'odessa', title: 'ОДЕСА', meta: '4 екіпажі • 20 попутників', drivers: 4, passengers: 20, organizers: 2, desc: 'Серфінг на Аркадії.' }
                         ]
                     }
                 ]
             },
             'theocracy': {
                 id: 'theocracy', title: 'ТЕОКРАТІЯ', type: 'folder',
+                meta: '8 екіпажів • 30 попутників',
+                drivers: 8, passengers: 30, organizers: 3,
                 desc: 'Спільні події громади.',
                 items: [
                     {
-                        id: 'служіння', title: 'СЛУЖІННЯ', meta: 'Ministry • Help', type: 'folder',
-                        pStacks: ['#ef5350', '#ffa726'],
+                        id: 'служіння', title: 'СЛУЖІННЯ', meta: '8 екіпажів • 30 попутників', type: 'folder',
+                        drivers: 8, passengers: 30, organizers: 3,
                         desc: 'Допомога людям та соціальні ініціативи.',
                         items: [
-                            { id: 'elderly', title: 'ДОПОМОГА ЛІТНІМ', meta: 'Support', pStacks: ['#ef5350'], desc: 'Доставка продуктів.', creator_id: 42 }
+                            { id: 'elderly', title: 'ДОПОМОГА ЛІТНІМ', meta: '5 екіпажів • 25 попутників', drivers: 5, passengers: 25, organizers: 1, desc: 'Доставка продуктів.', creator_id: 42 }
                         ]
                     }
                 ]
             },
             'commute': {
                 id: 'commute', title: 'ДОЇЗДИ', type: 'folder',
+                meta: '15 екіпажів • 10 попутників',
+                drivers: 15, passengers: 10, organizers: 1,
                 desc: 'Щоденна логістика.',
                 items: [
                     {
-                        id: 'робота', title: 'РОБОТА', meta: 'Commute', type: 'folder',
-                        pStacks: ['#66bb6a', '#ffa726'],
+                        id: 'робота', title: 'РОБОТА', meta: '15 екіпажів • 10 попутників', type: 'folder',
+                        drivers: 15, passengers: 10, organizers: 1,
                         desc: 'Поїздки до офісів.',
                         items: [
-                            { id: 'center', title: 'ЦЕНТР', meta: 'BZ', pStacks: ['#66bb6a', '#ffa726'], desc: 'Поїздки до центру.' }
+                            { id: 'center', title: 'ЦЕНТР', meta: '10 екіпажів • 8 попутників', drivers: 10, passengers: 8, organizers: 1, desc: 'Поїздки до центру.' }
                         ]
                     }
                 ]
@@ -1376,10 +1392,19 @@
             return str ? `?${str}` : '';
         }
 
-        const STACK_COLORS = ['#5c6bc0', '#26a69a', '#ef5350', '#ab47bc', '#42a5f5', '#66bb6a', '#ffa726'];
-        function stacksFor(item) {
-            const base = Math.abs(parseInt(item.id || 0, 10)) || 0;
-            return [0, 1, 2].map(i => STACK_COLORS[(base + i) % STACK_COLORS.length]);
+        function getRoleChartStyle(item) {
+            const d = item.drivers || 0;
+            const p = item.passengers || 0;
+            const o = item.organizers || (item.drivers > 0 ? 1 : 0); // Mock organizer if driver exists
+            const total = d + p + o;
+            if (total === 0) return 'background: var(--glass)';
+            
+            const dp = (d / total) * 100;
+            const op = (o / total) * 100;
+            const pp = (p / total) * 100;
+            
+            // Red (#ef5350) -> Yellow (#ffca28) -> Blue (#42a5f5)
+            return `background: conic-gradient(#ef5350 0% ${dp}%, #ffca28 ${dp}% ${dp + op}%, #42a5f5 ${dp + op}% 100%)`;
         }
 
         function mapItem(item) {
@@ -1390,9 +1415,11 @@
                 remote_id: item.id,
                 title: item.title,
                 type: isFolderKind ? 'folder' : 'direction',
-                meta: `${item.drivers || 0} водіїв • ${item.passengers || 0} попутників`,
+                meta: `${item.drivers || 0} екіпажів • ${item.passengers || 0} попутників`,
                 desc: item.title || '',
-                pStacks: stacksFor(item),
+                drivers: item.drivers || 0,
+                passengers: item.passengers || 0,
+                organizers: item.organizers || 0,
                 creator_id: item.creator_id
             };
         }
@@ -1407,21 +1434,30 @@
                     </svg></div>
                     <div class="trip-content">
                         <div class="trip-title">${item.title}</div>
-                        <div class="trip-meta">${item.meta}</div>
+                        <div class="trip-meta" style="justify-content:space-between">
+                            <span>${item.meta}</span>
+                            <div class="role-chart" style="${getRoleChartStyle(item)}"></div>
+                        </div>
                     </div>
                 </div>
             `).join('');
         }
 
         async function loadRootFromApi() {
-            if (!CONFIG.apiBase) return;
+            if (!CONFIG.apiBase) {
+                renderBoardRoot(Object.values(discoveryData));
+                return;
+            }
             const data = await api(`/api/v3/fractal${buildQuery({ lang: CONFIG.lang, user_id: currentUserId || '' })}`);
-            if (!data || !data.interests) return;
+            if (!data || !data.interests) {
+                renderBoardRoot(Object.values(discoveryData));
+                return;
+            }
             liveDiscoveryData = {};
             Object.keys(flatDiscoveryMap).forEach(k => delete flatDiscoveryMap[k]);
             data.interests.forEach(it => {
                 const mapped = mapItem(it);
-                mapped.meta = `${it.drivers || 0} водіїв • ${it.free_seats || 0} місць`;
+                mapped.meta = `${it.drivers || 0} екіпажів • ${it.free_seats || 0} попутників`;
                 liveDiscoveryData[mapped.id] = mapped;
             });
             buildDiscoveryMap(Object.values(getDiscoverySource()));
@@ -1548,7 +1584,10 @@
                                 <div class="trip-title">${item.title} ${item.type === 'folder' ? '📂' : ''} ${userSubscriptions.has(String(item.remote_id || item.id)) ? '<span style="font-size:8px; color:var(--lime); background:rgba(138,201,38,0.1); padding:2px 6px; border-radius:6px; border:0.5px solid var(--lime); margin-left:8px;">ВІДСТЕЖУЄТЬСЯ</span>' : ''}</div>
                                 ${isOwner ? '<div style="font-size:10px; background:rgba(38,166,154,0.1); padding:2px 6px; border-radius:4px; font-weight:800; color:var(--lime)">МОЄ</div>' : ''}
                             </div>
-                            <div class="trip-meta">${item.meta} <div class="av-stack" style="margin-left:auto">${item.pStacks.map(c => `<div class="av-item" style="background:${c}"></div>`).join('')}</div></div>
+                            <div class="trip-meta" style="justify-content:space-between">
+                                <span>${item.meta}</span>
+                                <div class="role-chart" style="${getRoleChartStyle(item)}"></div>
+                            </div>
                         </div>
                     </div>`;
                 });
@@ -1705,7 +1744,7 @@
                     </svg></div>
                     <div class="trip-content">
                         <div class="trip-title">${org.name || 'Організатор'}</div>
-                        <div class="trip-meta">🗓 ${org.departure || 'Найближчий виїзд'} • ${org.seats_free || 0} місць</div>
+                        <div class="trip-meta">🗓 ${org.departure || 'Найближчий виїзд'} • ${org.seats_free || 0} попутників</div>
                     </div>
                 </div>
             `).join('');
@@ -1753,11 +1792,11 @@
                         <div class="trip-content">
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                                 <div class="trip-title">#${crew.crew_id}</div>
-                                <div class="trip-meta">${crew.seats_free || 0} місць</div>
+                                <div class="trip-meta">${crew.seats_free || 0} попутників</div>
                             </div>
                             <div class="trip-desc">${crew.driver_name || 'Водій'} • ${crew.car || 'Авто'}</div>
                             <div class="btn-confirm" style="margin-top:10px;" onclick="joinCrew('${crew.crew_id}', ${data.orgId}, '${data.dirId}')">
-                                ${crew.seats_free > 0 ? 'ПРИЄДНАТИСЯ' : 'МІСЦЬ НЕМАЄ'}
+                                ${crew.seats_free > 0 ? 'ПРИЄДНАТИСЯ' : 'ЕКІПАЖ ПОВНИЙ'}
                             </div>
                         </div>
                     </div>
@@ -2047,13 +2086,13 @@
             const hero = document.getElementById('trips-hero');
             if (!feed || !hero) return;
             if (!list || list.length === 0) {
-                const dir = selectedDirectionId ? flatDiscoveryMap[String(selectedDirectionId)] : null;
-                feed.innerHTML = `<div class="trip-card"><div class="trip-content"><div class="trip-title">Немає активних поїздок</div><div class="trip-meta">Підпишіться на напрямок</div></div></div>`;
-                hero.innerHTML = `<span class="hero-label">Спільна мета</span><h2 class="hero-title" style="font-size:22px;">${dir ? dir.title : 'Очікування'}</h2><div class="btn-confirm">${dir ? 'ДЕТАЛІ' : 'Дошка напрямків'}</div>`;
-                hero.onclick = () => {
-                    if (dir) openGoalOverview(selectedDirectionId);
-                    else switchContext('board', document.querySelector('.nav-item[onclick*=\"board\"]'));
-                };
+                feed.innerHTML = '';
+                hero.innerHTML = `
+                    <h2 class="hero-title">Поки немає активних поїздок</h2>
+                    <div style="color:var(--text-muted); font-size:14px; margin-top:8px;">
+                        Ваші екіпажі та запити з'являться тут, щойно ви долучитесь до поїздки або хтось відгукнеться на ваш напрямок.
+                    </div>`;
+                hero.onclick = null;
                 return;
             }
             feed.innerHTML = list.map(req => `
@@ -2326,7 +2365,7 @@
                 <div class="ledger-row">
                     <div class="user-av" style="background:var(--glass)">${(o.name || '?')[0].toUpperCase()}</div>
                     <div style="flex:1">${o.name || 'Організатор'}</div>
-                    <div class="ledger-role role-driver">${o.seats_free || 0} місць</div>
+                    <div class="ledger-role role-driver">${o.seats_free || 0} попутників</div>
                 </div>
             `).join('');
             let events = [];
@@ -2354,7 +2393,7 @@
                     <h2 class="hero-title">${dir ? dir.title : 'Маршрут'}</h2>
                     <div class="hero-stats" style="margin-top:12px;">
                         <div class="stat-item"><span class="label">Екіпажів</span><span class="val">${crewsCount}</span></div>
-                        <div class="stat-item"><span class="label">Вільні місця</span><span class="val">${freeSeats}</span></div>
+                        <div class="stat-item"><span class="label">Попутники</span><span class="val">${freeSeats}</span></div>
                         <div class="stat-item"><span class="label">Виїзд</span><span class="val">${nextDeparture}</span></div>
                     </div>
                 </div>
@@ -2598,7 +2637,7 @@
                         <div class="seat-btn" onclick="updateSeats(-1)">−</div>
                         <div style="text-align:center">
                             <div class="seat-count" id="profile-seat-count">${userSettings.seats}</div>
-                            <div style="font-size:9px; font-weight:700; color:var(--text-muted)">МІСЦЬ</div>
+                            <div style="font-size:9px; font-weight:700; color:var(--text-muted)">ПОПУТНИКІВ</div>
                         </div>
                         <div class="seat-btn" onclick="updateSeats(1)">+</div>
                     </div>
