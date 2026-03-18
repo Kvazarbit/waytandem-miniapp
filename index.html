@@ -1349,6 +1349,11 @@
         let myLocationMarker = null;
         let myLocationActive = false;
 
+        // --- Real-Time Sync State ---
+        let lastIncomingRequestsCount = 0;
+        let activeTripId = null;
+        let isSyncing = false;
+
         async function loadUserSubscriptions() {
             if (!currentUserId || !CONFIG.apiBase) return;
             const subs = await api('/api/v3/user/subscriptions?user_id=' + currentUserId);
@@ -1944,15 +1949,66 @@
                 hero.onclick = null;
                 return;
             }
+
+            // 1. Check Active Trip
             const trip = await api(`/api/v3/trip/active?user_id=${currentUserId}`);
             if (trip && trip.active !== false) {
-                activeTrip = normalizeTrip(trip);
+                const normalized = normalizeTrip(trip);
+                
+                // Notification: Trip Accepted!
+                if (!activeTripId && normalized.id) {
+                    showToast('🎉 ВАС ПРИЙНЯТО В ЕКІПАЖ!');
+                    if (discoveryStack.length > 0) closeModal(); // Close detail if open
+                }
+                activeTripId = normalized.id;
+                activeTrip = normalized;
                 renderTripsActive(activeTrip);
                 return;
             }
-            activeTrip = null;
+            
+            // If trip was active but now gone (cancelled/finished)
+            if (activeTripId && (!trip || trip.active === false)) {
+                activeTripId = null;
+                activeTrip = null;
+                showToast('Поїздку завершено або скасовано');
+            }
+
+            // 2. Check Pending Invitations (Incoming)
             const pending = await api(`/api/v3/match/pending?scope=incoming&user_id=${currentUserId}`);
-            renderTripsPending(pending || []);
+            const incoming = pending || [];
+            
+            // Notification: New Request!
+            if (incoming.length > lastIncomingRequestsCount) {
+                showToast('👋 НОВИЙ ЗАПИТ В ЕКІПАЖ!');
+                // If on trips tab, it will re-render anyway. 
+                // If on board, maybe show a badge (future improvement)
+            }
+            lastIncomingRequestsCount = incoming.length;
+
+            renderTripsPending(incoming);
+
+            // 3. Auto-refresh Direction Modal if open
+            const top = discoveryStack[discoveryStack.length - 1];
+            if (top && top.type === 'direction') {
+                const dir = top.data;
+                const organizers = await api(`/api/v3/fractal/organizers${buildQuery({ direction_id: (dir.remote_id || dir.id), user_id: currentUserId })}`);
+                if (organizers && organizers.organizers) {
+                    dir.organizers = organizers.organizers;
+                    renderDirectionUI(dir);
+                }
+            }
+        }
+
+        function startSyncEngine() {
+            if (isSyncing) return;
+            isSyncing = true;
+            console.log('🚀 Sync Engine Started');
+            setInterval(async () => {
+                await hydrateTrips();
+                if (document.querySelector('.nav-item.active[onclick*="board"]')) {
+                    await loadUserSubscriptions();
+                }
+            }, 10000); // Every 10 seconds
         }
 
         function renderTripsActive(trip) {
@@ -2922,6 +2978,7 @@
             hydrateTrips();
             initMap();
             if (!localStorage.getItem('wt_intro_seen')) openIntro();
+            startSyncEngine();
         });
 
     </script>
