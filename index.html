@@ -1217,10 +1217,16 @@
 
         function initApiBase() {
             const qp = new URLSearchParams(window.location.search);
-            const apiFromUrl = qp.get('api');
-            if (apiFromUrl) {
-                CONFIG.apiBase = apiFromUrl.trim().replace(/\/$/, '');
-                localStorage.setItem('wt_api', CONFIG.apiBase);
+            if (qp.has('api')) {
+                const apiFromUrl = qp.get('api');
+                if (apiFromUrl && apiFromUrl.trim()) {
+                    CONFIG.apiBase = apiFromUrl.trim().replace(/\/$/, '');
+                    localStorage.setItem('wt_api', CONFIG.apiBase);
+                } else {
+                    // ?api= or ?api (empty) clears the cache
+                    CONFIG.apiBase = '';
+                    localStorage.removeItem('wt_api');
+                }
             }
         }
 
@@ -1294,7 +1300,7 @@
 
         // --- Demo Data Support ---
         async function loadDemoData() {
-            if (CONFIG.apiBase) return; // Use real API if available
+            // Load demo data even if API is set (as a visible fallback/news filler)
             try {
                 const r = await fetch('demo_data.json');
                 if (!r.ok) return;
@@ -1324,6 +1330,9 @@
                 }
                 if (data.news) {
                     window.demoNews = data.news;
+                }
+                if (data.drivers) {
+                    window.demoDrivers = data.drivers;
                 }
                 renderHome(); // Refresh news
             } catch (e) {
@@ -1381,11 +1390,12 @@
                 title: item.title,
                 type: isFolderKind ? 'folder' : 'direction',
                 meta: `${item.drivers || 0} екіпажів • ${item.passengers || 0} попутників`,
-                desc: item.title || '',
+                desc: item.desc || item.title || '',
                 drivers: item.drivers || 0,
                 passengers: item.passengers || 0,
                 organizers: item.organizers || 0,
-                creator_id: item.creator_id
+                creator_id: item.creator_id,
+                pStacks: item.pStacks || []
             };
         }
 
@@ -1419,7 +1429,7 @@
                 return;
             }
             liveDiscoveryData = {};
-            Object.keys(flatDiscoveryMap).forEach(k => delete flatDiscoveryMap[k]);
+            // Object.keys(flatDiscoveryMap).forEach(k => delete flatDiscoveryMap[k]); // 🛠 Fixed: Don't clear map, keep demo fallback
             data.interests.forEach(it => {
                 const mapped = mapItem(it);
                 mapped.meta = `${it.drivers || 0} екіпажів • ${it.free_seats || 0} попутників`;
@@ -1442,6 +1452,11 @@
             if (!direction) return false;
             const dirId = direction.remote_id || direction.id;
             if (!CONFIG.apiBase) {
+                // FALLBACK: Use demoDrivers from window
+                if (window.demoDrivers) {
+                    direction.organizers = window.demoDrivers.filter(d => String(d.direction_id) === String(dirId));
+                    return true;
+                }
                 return false;
             }
             const data = await api(`/api/v3/fractal/organizers${buildQuery({ direction_id: dirId, lang: CONFIG.lang, user_id: currentUserId || '' })}`);
@@ -1541,14 +1556,18 @@
             if (!container) return;
             
             if (window.demoNews && window.demoNews.length) {
-                container.innerHTML = window.demoNews.map(n => `
-                    <div class="trip-card animate-in" style="border-left: 4px solid var(--lime);">
-                        <div class="trip-content">
-                            <div class="trip-meta">${new Date(n.created_at * 1000).toLocaleDateString()}</div>
-                            <div class="trip-title" style="font-size:14px;">${n.text}</div>
+                container.innerHTML = window.demoNews.map(n => {
+                    const action = n.direction_id ? `onclick="openDiscoveryLayer('${n.direction_id}')"` : '';
+                    const cursor = n.direction_id ? 'pointer' : 'default';
+                    return `
+                        <div class="trip-card animate-in" style="border-left: 4px solid var(--lime); cursor: ${cursor};" ${action}>
+                            <div class="trip-content">
+                                <div class="trip-meta">${new Date(n.created_at * 1000).toLocaleDateString()}</div>
+                                <div class="trip-title" style="font-size:14px;">${n.text}</div>
+                            </div>
                         </div>
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
             } else {
                 container.innerHTML = `
                     <div class="empty-state">
@@ -1592,11 +1611,35 @@
             const showBanner = userSettings.isOrganizer && !hasSubfolders && !userHasDirection;
 
             if (showBanner) {
+                const today = new Date().toISOString().split('T')[0];
                 html += `
-                    <div class="hero-card" style="margin-top:16px;">
-                        <span class="hero-label">Нове направлення</span>
-                        <input id="new-direction-title" class="thumb-input" placeholder="Назва (наприклад: Закопане 25.03 07:00)">
-                        <div class="btn-confirm" style="margin-top:10px;" onclick="createDirection('${data.remote_id || data.id}')">СТВОРИТИ НАПРЯМОК</div>
+                    <div class="hero-card" id="new-direction-container" style="margin-top:16px;">
+                        <button id="new-dir-toggle-btn" class="nav-btn-back" style="width:100%; border-radius:12px; font-weight:800; padding:12px;" onclick="toggleDirectionForm('new', true)">Створити напрямок</button>
+                        
+                        <div id="new-direction-form" style="display:none; flex-direction:column; gap:12px; margin-top:12px;">
+                            <span class="hero-label">Новий напрямок</span>
+                            <input id="new-direction-title" class="thumb-input" placeholder="Назва (наприклад: Закопане)">
+                            
+                            <div style="display:flex; flex-direction:column; gap:4px;">
+                                <label style="font-size:10px; color:var(--text-muted); padding-left:4px;">ДАТА ПОДІЇ</label>
+                                <input id="new-direction-date" type="date" class="thumb-input" min="${today}">
+                            </div>
+
+                            <div style="display:flex; flex-direction:column; gap:4px;">
+                                <label style="font-size:10px; color:var(--text-muted); padding-left:4px;">МІСЦЕ ЗУСТРІЧІ / КООРДИНАТИ</label>
+                                <div style="display:flex; gap:8px;">
+                                    <input id="new-direction-point" class="thumb-input" style="flex:1" placeholder="Адреса або локація">
+                                    <button class="nav-btn" style="padding:0 12px; font-size:12px;" onclick="pickOnMap()">📍</button>
+                                </div>
+                            </div>
+
+                            <textarea id="new-direction-desc" class="thumb-input" style="height:60px; padding-top:10px;" placeholder="Короткий опис..."></textarea>
+                            
+                            <div style="display:flex; gap:10px; margin-top:8px;">
+                                <div class="btn-confirm" style="flex:2" onclick="createDirection('${data.remote_id || data.id}')">ПІДТВЕРДИТИ</div>
+                                <div class="nav-btn" style="flex:1; display:flex; align-items:center; justify-content:center; font-size:10px; color:var(--text-muted)" onclick="toggleDirectionForm('new', false)">СКАСУВАТИ</div>
+                            </div>
+                        </div>
                     </div>`;
             }
             content.innerHTML = html;
@@ -1664,7 +1707,15 @@
         async function createDirection(parentId) {
             if (!await ensureRegistered()) return;
             const titleEl = document.getElementById('new-direction-title');
+            const dateEl = document.getElementById('new-direction-date');
+            const pointEl = document.getElementById('new-direction-point');
+            const descEl = document.getElementById('new-direction-desc');
+            
             const title = titleEl ? titleEl.value.trim() : '';
+            const date = dateEl ? dateEl.value : '';
+            const point = pointEl ? pointEl.value.trim() : '';
+            const desc = descEl ? descEl.value.trim() : '';
+            
             const parentNum = Number(parentId);
             if (!title) {
                 showToast('Вкажіть назву');
@@ -1676,7 +1727,14 @@
             }
             const res = await api('/api/v3/board', {
                 method: 'POST',
-                body: JSON.stringify({ user_id: currentUserId, title: title, parent_id: parentNum })
+                body: JSON.stringify({ 
+                    user_id: currentUserId, 
+                    title: title, 
+                    parent_id: parentNum,
+                    start_date: date,
+                    meeting_point: point,
+                    description: desc
+                })
             });
             if (res && res.status === 'ok') {
                 showToast('Напрямок створено');
@@ -1724,12 +1782,29 @@
             content.innerHTML = `
                 <div style="flex:1"></div>
                 ${isOwner ? `
-                <div class="hero-card" style="margin-bottom:20px; border: 1px solid var(--lime); background: rgba(38,166,154,0.05)">
-                    <span class="hero-label" style="color:var(--lime)">КЕРУВАННЯ ТЕМОЮ</span>
-                    <input id="edit-direction-title" class="thumb-input" value="${direction.title}" style="margin-bottom:12px;">
-                    <div style="display:flex; gap:10px;">
-                        <button class="nav-btn nav-btn-back" style="flex:1; font-size:10px; padding:8px;" onclick="updateDirection('${dId}')">ЗБЕРЕГТИ</button>
-                        <button class="btn-destructive" style="flex:1; padding:8px;" onclick="deleteDirection('${dId}')">ВИДАЛИТИ</button>
+                <div class="hero-card" id="edit-direction-container" style="margin-bottom:20px; border: 1px solid var(--lime); background: rgba(38,166,154,0.05)">
+                    <button id="edit-dir-toggle-btn" class="nav-btn" style="width:100%; font-size:12px; font-weight:800;" onclick="toggleDirectionForm('edit', true)">Редагувати напрямок</button>
+                    
+                    <div id="edit-direction-form" style="display:none; flex-direction:column; gap:8px; margin-top:12px;">
+                        <span class="hero-label" style="color:var(--lime)">КЕРУВАННЯ ТЕМОЮ</span>
+                        
+                        <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:12px;">
+                            <input id="edit-direction-title" class="thumb-input" value="${direction.title}" placeholder="Назва">
+                            <input id="edit-direction-date" type="date" class="thumb-input" value="${direction.start_date || ''}">
+                            
+                            <div style="display:flex; gap:8px;">
+                                <input id="edit-direction-point" class="thumb-input" style="flex:1" value="${direction.meeting_point || ''}" placeholder="Місце зустрічі">
+                                <button class="nav-btn" style="padding:0 12px; font-size:12px;" onclick="pickOnMap()">📍</button>
+                            </div>
+                            
+                            <textarea id="edit-direction-desc" class="thumb-input" style="height:60px; padding-top:10px;" placeholder="Опис">${direction.desc || ''}</textarea>
+                        </div>
+
+                        <div style="display:flex; gap:10px;">
+                            <button class="nav-btn nav-btn-back" style="flex:2; font-size:12px; padding:12px;" onclick="updateDirection('${dId}')">ПІДТВЕРДИТИ</button>
+                            <button class="nav-btn" style="flex:1; font-size:10px;" onclick="toggleDirectionForm('edit', false)">СКАСУВАТИ</button>
+                        </div>
+                        <button class="btn-destructive" style="width:100%; margin-top:8px; padding:8px; font-size:10px;" onclick="deleteDirection('${dId}')">ВИДАЛИТИ НАПРЯМОК</button>
                     </div>
                 </div>
                 ` : ''}
@@ -1741,7 +1816,17 @@
                     </div>
                 </div>
                 ` : ''}
-                <div class="trip-card" style="background:none; border:none; padding:0; margin-bottom:30px;"><div class="trip-desc">${direction.desc}</div></div>
+                <div class="trip-card" style="background:none; border:none; padding:0; margin-bottom:10px;">
+                    <div class="trip-desc">${direction.desc}</div>
+                </div>
+                ${direction.start_date ? `
+                <div style="font-size:12px; color:var(--text-muted); margin-bottom:8px; display:flex; align-items:center; gap:8px;">
+                    <span style="font-size:16px;">📅</span> <b>ДАТА ПОДІЇ:</b> ${new Date(direction.start_date).toLocaleDateString()}
+                </div>` : ''}
+                ${direction.meeting_point ? `
+                <div style="font-size:12px; color:var(--text-muted); margin-bottom:20px; display:flex; align-items:center; gap:8px;">
+                    <span style="font-size:16px;">📍</span> <b>МІСЦЕ ЗУСТРІЧІ:</b> ${direction.meeting_point}
+                </div>` : ''}
                 
                 <h3 class="section-header">${subHeader}</h3>
                 <div style="display:flex; gap:12px; margin-bottom:10px; flex-wrap:wrap;">
@@ -1884,27 +1969,55 @@
 
         async function updateDirection(directionId) {
             if (!currentUserId || !directionId) return;
-            const input = document.getElementById('edit-direction-title');
-            const newTitle = input ? input.value.trim() : '';
+            const titleEl = document.getElementById('edit-direction-title');
+            const dateEl = document.getElementById('edit-direction-date');
+            const pointEl = document.getElementById('edit-direction-point');
+            const descEl = document.getElementById('edit-direction-desc');
+
+            const newTitle = titleEl ? titleEl.value.trim() : '';
+            const newDate = dateEl ? dateEl.value : '';
+            const newPoint = pointEl ? pointEl.value.trim() : '';
+            const newDesc = descEl ? descEl.value.trim() : '';
+
             if (!newTitle) { showToast('Вкажіть назву'); return; }
             const res = await api('/api/v3/board', {
                 method: 'PATCH',
-                body: JSON.stringify({ user_id: currentUserId, direction_id: Number(directionId), title: newTitle })
+                body: JSON.stringify({ 
+                    user_id: currentUserId, 
+                    direction_id: Number(directionId), 
+                    title: newTitle,
+                    start_date: newDate,
+                    meeting_point: newPoint,
+                    description: newDesc
+                })
             });
             if (res && res.status === 'ok') {
-                showToast('Назва оновлена');
+                showToast('Напрямок оновлено');
                 const dir = flatDiscoveryMap[String(directionId)];
                 if (dir) {
                     dir.title = newTitle;
+                    dir.start_date = newDate;
+                    dir.meeting_point = newPoint;
+                    dir.desc = newDesc;
                     renderDirectionUI(dir);
                 }
                 // Update in all stack levels for consistency
                 discoveryStack.forEach(item => {
                     if (item.data) {
-                        if (String(item.data.remote_id || item.data.id) === String(directionId)) item.data.title = newTitle;
+                        if (String(item.data.remote_id || item.data.id) === String(directionId)) {
+                            item.data.title = newTitle;
+                            item.data.start_date = newDate;
+                            item.data.meeting_point = newPoint;
+                            item.data.desc = newDesc;
+                        }
                         if (item.data.items) {
                             const found = item.data.items.find(it => String(it.remote_id || it.id) === String(directionId));
-                            if (found) found.title = newTitle;
+                            if (found) {
+                                found.title = newTitle;
+                                found.start_date = newDate;
+                                found.meeting_point = newPoint;
+                                found.desc = newDesc;
+                            }
                         }
                     }
                 });
@@ -1988,6 +2101,59 @@
                     mapInstance.removeLayer(myLocationMarker);
                     myLocationMarker = null;
                 }
+            }
+        }
+
+        let isPickingLocation = false;
+        function pickOnMap() {
+            isPickingLocation = true;
+            showToast('Оберіть точку на карті');
+            const mapBtn = document.querySelector('.nav-item[onclick*="map"]');
+            if (mapBtn) switchContext('map', mapBtn);
+            
+            // Temporary click listener for picking
+            const pickingHandler = (e) => {
+                if (!isPickingLocation) return;
+                const lat = e.latlng.lat.toFixed(6);
+                const lng = e.latlng.lng.toFixed(6);
+                const coords = `${lat}, ${lng}`;
+                
+                // Try finding both create and edit point fields
+                const createPoint = document.getElementById('new-direction-point');
+                const editPoint = document.getElementById('edit-direction-point');
+                
+                if (createPoint) createPoint.value = coords;
+                if (editPoint) editPoint.value = coords;
+                
+                isPickingLocation = false;
+                mapInstance.off('click', pickingHandler);
+                showToast('Локацію обрано!');
+                
+                // Go back to board
+                const boardBtn = document.querySelector('.nav-item[onclick*="board"]');
+                if (boardBtn) switchContext('board', boardBtn);
+            };
+            
+            if (mapInstance) {
+                mapInstance.on('click', pickingHandler);
+            }
+        }
+
+        function toggleDirectionForm(type, show) {
+            const formId = type === 'new' ? 'new-direction-form' : 'edit-direction-form';
+            const btnId = type === 'new' ? 'new-dir-toggle-btn' : 'edit-dir-toggle-btn';
+            
+            const form = document.getElementById(formId);
+            const btn = document.getElementById(btnId);
+            
+            if (!form || !btn) return;
+            
+            if (show) {
+                form.style.display = 'flex';
+                btn.style.display = 'none';
+            } else {
+                form.style.display = 'none';
+                btn.style.display = 'block';
             }
         }
 
