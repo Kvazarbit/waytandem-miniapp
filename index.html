@@ -2385,6 +2385,9 @@
             if (!trip.is_started && isDriver) {
                 navAction = { type: 'start_trip' };
                 updateNavState('context', '🚀 ПОЇХАЛИ');
+            } else if (trip.is_started && trip._my_done) {
+                navAction = null;
+                updateNavState('context', 'ОЧІКУЄМО...');
             } else if (trip.is_started) {
                 navAction = { type: 'finish_trip' };
                 updateNavState('context', 'ФІНІШУВАТИ');
@@ -2476,8 +2479,8 @@
             });
             if (res && res.status === 'ok') {
                 activeTrip.is_started = true;
-                showToast('Поїхали!');
-                renderActiveTripModal(activeTrip);
+                showToast('🚀 Поїхали!');
+                renderActiveTripTab();
                 renderTripsActive(activeTrip);
                 return;
             }
@@ -2487,20 +2490,31 @@
         async function finishTrip() {
             if (!activeTrip || !currentUserId) return;
             const role = activeTrip.viewer_role === 'driver' ? 'driver' : 'passenger';
-            await api('/api/v3/trip/done', {
+            const res = await api('/api/v3/trip/done', {
                 method: 'POST',
                 body: JSON.stringify({ request_id: activeTrip.id, user_id: currentUserId, role: role })
             });
-            showToast('Фініш підтверджено');
+            if (!res || res.status !== 'ok') { showToast('Помилка фінішу'); return; }
+            if (res.completed) {
+                showToast('Поїздку завершено! 🏁');
+                activeTrip = null; closeModal();
+            } else {
+                showToast('Ваш фініш підтверджено. Очікуємо партнера...');
+                if (activeTrip) activeTrip._my_done = true;
+                renderActiveTripTab();
+            }
             hydrateTrips();
         }
 
         async function cancelTrip() {
             if (!activeTrip || !currentUserId) return;
-            await api('/api/v3/trip/cancel', {
+            if (activeTrip.is_started) { showToast('Скасування неможливе після старту'); return; }
+            if (!confirm('Скасувати поїздку?')) return;
+            const res = await api('/api/v3/trip/cancel', {
                 method: 'POST',
                 body: JSON.stringify({ request_id: activeTrip.id, user_id: currentUserId })
             });
+            if (!res || res.status !== 'ok') { showToast((res && res.reason) || 'Помилка скасування'); return; }
             showToast('Поїздку скасовано');
             activeTrip = null;
             closeModal();
