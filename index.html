@@ -2384,6 +2384,17 @@
                 
                 activeTripId = normalized.id;
                 activeTrip = normalized;
+                
+                // 🔄 Real-time Modal Sync: update open modal if it matches active trip
+                if (currentModalData && currentModalData.trip && currentModalData.trip.id === activeTripId) {
+                    const oldStarted = currentModalData.trip.is_started;
+                    currentModalData.trip = normalized;
+                    if (oldStarted !== normalized.is_started) {
+                        console.log('🔄 Modal UI Refresh (Trip Status Changed)');
+                        renderActiveTripTab(); 
+                    }
+                }
+
                 renderTripsActive(activeTrip);
                 return;
             }
@@ -2785,6 +2796,10 @@
             });
             if (res && res.status === 'ok') {
                 activeTrip.is_started = true;
+                // 🔄 Sync Modal Data if open
+                if (currentModalData && currentModalData.trip && currentModalData.trip.id === activeTrip.id) {
+                    currentModalData.trip.is_started = true;
+                }
                 showToast('🚀 Поїхали!');
                 renderActiveTripTab();
                 renderTripsActive(activeTrip);
