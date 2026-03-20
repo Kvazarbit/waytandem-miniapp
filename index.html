@@ -2401,14 +2401,34 @@
             
             // If trip was active but now gone (cancelled/finished)
             if (activeTripId && (!trip || trip.active === false)) {
+                console.log('🏁 Active trip cleared from sync');
+                const lastTrip = activeTrip;
                 activeTripId = null;
                 activeTrip = null;
-                showToast('Поїздку завершено або скасовано');
+                lastTripStartedState = false; // reset so loud push fires on next trip
+                
+                // If it was a started trip, show rating 
+                if (lastTrip && lastTrip.is_started) {
+                    showToast('Поїздку завершено');
+                    showRatingScreen(lastTrip);
+                } else {
+                    showToast('Поїздку завершено або скасовано');
+                    closeModal(); // back to board
+                }
             }
 
             // 2. Check Pending Invitations (Incoming)
-            const pending = await api(`/api/v3/match/pending?scope=incoming&user_id=${currentUserId}`);
-            const incoming = pending || [];
+            let pending = await api(`/api/v3/match/pending?scope=incoming&user_id=${currentUserId}`);
+            let incoming = pending || [];
+            
+            // 3. Check Pending Invitations (Outgoing) - if no incoming
+            let outgoing = [];
+            if (incoming.length === 0) {
+                const out = await api(`/api/v3/match/pending?scope=outgoing&user_id=${currentUserId}`);
+                outgoing = out || [];
+            }
+            
+            const allPending = [...incoming, ...outgoing];
             
             // Notification: New Request! + focus capture (як в боті)
             if (incoming.length > lastIncomingRequestsCount) {
@@ -2418,7 +2438,7 @@
             }
             lastIncomingRequestsCount = incoming.length;
 
-            renderTripsPending(incoming);
+            renderTripsPending(allPending);
 
             // 3. Auto-refresh Direction Modal if open
             const top = discoveryStack[discoveryStack.length - 1];
@@ -2451,17 +2471,32 @@
             const feed = document.getElementById('trips-feed');
             const hero = document.getElementById('trips-hero');
             if (!feed || !hero) return;
-            const isStarted = trip.is_started;
-            const dotColor = isStarted ? '#8ac926' : '#ffca3a';
-            const phase = isStarted ? 'В дорозі' : 'Резервація';
-            const stepNum = isStarted ? 5 : 4;
+
+            const isStarted = !!trip.is_started;
+            const isDriver = trip.viewer_role === 'driver';
+            const iAmDone = isDriver ? !!trip.driver_finished : !!trip.client_finished;
+            const partnerDone = isDriver ? !!trip.client_finished : !!trip.driver_finished;
+            
+            const dotColor = isStarted ? 'var(--lime)' : '#ffca3a';
+            let phase = isStarted ? 'Поїздка триває' : 'Резервація';
+            let stepNum = isStarted ? 5 : 4;
+            
+            if (iAmDone && !partnerDone) {
+                phase = 'Очікування партнера';
+                stepNum = 6;
+            }
+
             const crewId = trip.crew_id || trip.crew_display_id || '—';
             const departure = trip.departure || trip.departure_time || trip.time || '';
             const roleLabel = trip.viewer_role === 'driver' ? '🚗 Ви водій' : '👤 Ви попутник';
             const partner = trip.partner_name || (trip.viewer_role === 'driver' ? 'Попутник' : trip.organizer_name || trip.driver_name || 'Водій');
-            const hint = isStarted
+            
+            let hint = isStarted
                 ? (trip.viewer_role === 'driver' ? 'Натисніть «Завершити» після прибуття' : 'Очікуйте сигнал водія про прибуття')
                 : (trip.viewer_role === 'driver' ? 'Натисніть «Поїхали» коли всі готові' : 'Очікуйте сигнал водія про виїзд');
+            
+            if (iAmDone) hint = 'Залишилось дочекатися підтвердження партнера';
+
             feed.innerHTML = `
                 <div class="trip-card" style="border:1px solid ${dotColor}; background:rgba(255,255,255,0.02);">
                     <div class="trip-content">
@@ -2474,11 +2509,11 @@
                     </div>
                 </div>`;
             hero.innerHTML = `
-                ${buildStateStrip(stepNum, 6, `Крок ${stepNum} · ${phase}`, dotColor)}
+                ${buildStateStrip(stepNum, 6, iAmDone ? `Крок ${stepNum} · Очікування` : `Крок ${stepNum} · ${phase}`, dotColor)}
                 <h2 class="hero-title" style="font-size:20px; margin-bottom:6px;">${trip.direction_title || 'Поїздка'}</h2>
                 <div style="color:var(--text-muted); font-size:13px; margin-bottom:14px;">${roleLabel} • Екіпаж #${crewId}</div>
                 <div class="what-next" style="margin-bottom:16px;">⏭ ${hint}</div>
-                <div class="btn-confirm">ВІДКРИТИ ЕКІПАЖ</div>`;
+                <div class="btn-confirm">${iAmDone ? 'ОЧІКУВАННЯ ПАРТНЕРА' : 'ВІДКРИТИ ЕКІПАЖ'}</div>`;
             hero.onclick = () => openActiveTrip();
         }
 
@@ -2503,9 +2538,11 @@
                 hero.onclick = null;
                 return;
             }
-            // Беремо перший запит (як в боті — водій бачить одну картку за раз)
+
+            // Беремо перший запит (як в боті — бачимо одну картку за раз)
             const req = list[0];
-            const dirTitle = flatDiscoveryMap[String(req.direction_id)]?.title || 'Напрямок';
+            const isOutgoing = req.scope === 'outgoing';
+            const dirTitle = flatDiscoveryMap[String(req.direction_id)]?.title || req.direction || 'Напрямок';
             // Спробуємо отримати учасників екіпажу (з кешу або activeTrip)
             const crewMembers = (activeTrip && activeTrip.members) || [];
             const crewRows = crewMembers.length
@@ -2517,35 +2554,41 @@
                     </div>`).join('')
                 : `<div style="color:var(--text-muted);font-size:12px;">Ви — перший учасник екіпажу</div>`;
 
+            const partnerName = (isOutgoing ? req.target_name : req.partner_name) || 'Користувач';
+            const statusLabel = isOutgoing ? 'Запит надіслано' : 'Вхідний запит';
+            const statusColor = isOutgoing ? '#42a5f5' : '#ffca3a';
+
             feed.innerHTML = `
-                <div class="trip-card" style="border:1px solid rgba(255,202,58,0.5); background:rgba(255,202,58,0.04);">
+                <div class="trip-card" style="border:1px solid ${statusColor}; background:rgba(255,255,255,0.02);">
                     <div class="trip-content">
                         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-                            <div style="width:8px;height:8px;border-radius:50%;background:#ffca3a;animation:pulse 1.5s infinite;"></div>
-                            <span style="font-size:10px;font-weight:800;color:#ffca3a;text-transform:uppercase;letter-spacing:1px;">Вхідний запит</span>
+                            <div style="width:8px;height:8px;border-radius:50%;background:${statusColor};animation:pulse 1.5s infinite;"></div>
+                            <span style="font-size:10px;font-weight:800;color:${statusColor};text-transform:uppercase;letter-spacing:1px;">${statusLabel}</span>
                             ${list.length > 1 ? `<span style="margin-left:auto;font-size:10px;color:var(--text-muted);">ще ${list.length-1} в черзі</span>` : ''}
                         </div>
                         <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-                            <div class="user-av" style="background:linear-gradient(135deg,#42a5f5,#ab47bc);flex-shrink:0;">${(req.partner_name||'?')[0].toUpperCase()}</div>
+                            <div class="user-av" style="background:linear-gradient(135deg,#42a5f5,#ab47bc);flex-shrink:0;">${(partnerName||'?')[0].toUpperCase()}</div>
                             <div>
-                                <div class="trip-title" style="font-size:16px;margin-bottom:2px;">${req.partner_name || 'Попутник'}</div>
-                                <div class="trip-meta">хоче приєднатись • ${dirTitle}</div>
+                                <div class="trip-title" style="font-size:16px;margin-bottom:2px;">${partnerName}</div>
+                                <div class="trip-meta">${isOutgoing ? 'ви хочете приєднатись' : 'хоче приєднатись'} • ${dirTitle}</div>
                             </div>
                         </div>
                         <div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:10px;margin-bottom:10px;">
                             <div style="font-size:10px;font-weight:800;color:var(--text-muted);margin-bottom:6px;">ЕКІПАЖ ЗАРАЗ</div>
                             ${crewRows}
                         </div>
-                        <div class="what-next" style="font-size:12px; margin-bottom:4px;">Прийміть — і ${req.partner_name||'попутник'} потрапить в екіпаж. Відхиліть — запит скасовується.</div>
+                        <div class="what-next" style="font-size:12px; margin-bottom:4px;">
+                            ${isOutgoing ? `Очікуйте рішення ${partnerName}. Ви можете скасувати запит будь-коли.` : `Прийміть — і ${partnerName} потрапить в екіпаж. Відхиліть — запит скасовується.`}
+                        </div>
                     </div>
                 </div>`;
 
             hero.innerHTML = `
-                ${buildStateStrip(3, 6, `${list.length} вхідних запит${list.length === 1 ? '' : 'и'}`, '#ffca3a')}
-                <h2 class="hero-title" style="font-size:20px;">Попутник хоче приєднатись</h2>`;
+                ${buildStateStrip(isOutgoing ? 2 : 3, 6, isOutgoing ? 'Очікування рішення' : `${list.length} вхідних запит${list.length === 1 ? '' : 'и'}`, statusColor)}
+                <h2 class="hero-title" style="font-size:20px;">${isOutgoing ? 'Запит на розгляді' : 'Попутник хоче приєднатись'}</h2>`;
             hero.onclick = null;
 
-            // Нижня панель в режимі вхідного запиту (як в боті)
+            // Нижня панель в режимі запиту (як в боті)
             const nav = document.getElementById('bottom-nav');
             const actionBtn = document.getElementById('nav-main-action');
             if (nav) nav.classList.add('state-context');
@@ -2555,11 +2598,20 @@
             // Додаємо спеціальні кнопки для рішення замість стандартного BACK
             const contextActions = document.querySelector('.nav-context-actions');
             if (contextActions) {
-                contextActions.innerHTML = `
-                    <div class="nav-btn" style="flex:0.8;background:rgba(239,83,80,0.15);color:#ef5350;border:1px solid rgba(239,83,80,0.3);font-size:10px;padding:10px 6px;" onclick="tiredOfDriverWaiting()">⏹️ ЗУПИНИТИ</div>
-                    <div class="nav-btn" style="flex:1;background:rgba(239,83,80,0.1);color:#ef5350;border:1px solid rgba(239,83,80,0.2);font-size:10px;" onclick="respondInvite(${req.partner_id}, ${req.direction_id}, false)">✕ ВІДХИЛИТИ</div>
-                    <div class="nav-btn nav-btn-action" style="flex:1.2;font-size:10px;" onclick="respondInvite(${req.partner_id}, ${req.direction_id}, true)">✓ ПРИЙНЯТИ</div>
-                `;
+                const partnerId = isOutgoing ? req.target_id : req.partner_id;
+                if (isOutgoing) {
+                    contextActions.innerHTML = `
+                        <div class="nav-btn" style="flex:1;"></div>
+                        <div class="nav-btn" style="flex:1.5;background:rgba(239,83,80,0.1);color:#ef5350;border:1px solid rgba(239,83,80,0.2);" onclick="respondInvite(${partnerId}, ${req.direction_id}, false)">🛑 СКАСУВАТИ ЗАПИТ</div>
+                        <div class="nav-btn" style="flex:1;"></div>
+                    `;
+                } else {
+                    contextActions.innerHTML = `
+                        <div class="nav-btn" style="flex:0.8;background:rgba(239,83,80,0.15);color:#ef5350;border:1px solid rgba(239,83,80,0.3);font-size:10px;padding:10px 6px;" onclick="tiredOfDriverWaiting()">⏹️ ЗУПИНИТИ</div>
+                        <div class="nav-btn" style="flex:1;background:rgba(239,83,80,0.1);color:#ef5350;border:1px solid rgba(239,83,80,0.2);font-size:10px;" onclick="respondInvite(${partnerId}, ${req.direction_id}, false)">✕ ВІДХИЛИТИ</div>
+                        <div class="nav-btn nav-btn-action" style="flex:1.2;font-size:10px;" onclick="respondInvite(${partnerId}, ${req.direction_id}, true)">✓ ПРИЙНЯТИ</div>
+                    `;
+                }
             }
         }
 
@@ -2583,9 +2635,14 @@
         function renderActiveTripModal(trip) {
             const title = document.getElementById('modal-title');
             const content = document.getElementById('modal-content-area');
-            const phase = trip.is_started ? 'В дорозі' : 'Резервація';
-            const crewId = trip.crew_id || trip.crew_display_id || '—';
             const isDriver = trip.viewer_role === 'driver';
+            const iAmDone = isDriver ? !!trip.driver_finished : !!trip.client_finished;
+            const partnerDone = isDriver ? !!trip.client_finished : !!trip.driver_finished;
+            
+            let phase = trip.is_started ? 'В дорозі' : 'Резервація';
+            if (iAmDone && !partnerDone) phase = 'Очікування партнера';
+
+            const crewId = trip.crew_id || trip.crew_display_id || '—';
             if (title) title.innerText = trip.direction_title || 'Поїздка';
             if (content) {
                 content.innerHTML = `
@@ -2595,14 +2652,17 @@
                         <h2 class="hero-title">Екіпаж #${crewId}</h2>
                         <div style="color:var(--text-muted); font-size:13px; margin-top:10px;">${trip.organizer_name || trip.driver_name || 'Організатор'} • ${trip.departure || 'Час уточнюється'}</div>
                     </div>
-                    ${!trip.is_started ? `<div class="btn-destructive" style="width:100%;" onclick="cancelTrip()">🚫 ПОКИНУТИ РЕЗЕРВАЦІЮ</div>` : ''}`;
+                    ${(!trip.is_started && !iAmDone) ? `<div class="btn-destructive" style="width:100%;" onclick="cancelTrip()">🚫 ПОКИНУТИ РЕЗЕРВАЦІЮ</div>` : ''}`;
             }
-            if (!trip.is_started && isDriver) {
+            if (!trip.is_started && isDriver && !iAmDone) {
                 navAction = { type: 'start_trip' };
                 updateNavState('context', '🚀 ПОЇХАЛИ');
-            } else if (trip.is_started) {
+            } else if (trip.is_started && !iAmDone) {
                 navAction = { type: 'finish_trip' };
                 updateNavState('context', '🏁 ЗАВЕРШИТИ');
+            } else if (iAmDone && !partnerDone) {
+                navAction = null;
+                updateNavState('context', '⏳ ОЧІКУВАННЯ...');
             } else {
                 navAction = null;
                 updateNavState('context', null);
@@ -2641,6 +2701,9 @@
             const content = document.getElementById('modal-content-area');
             const isStarted = trip.is_started;
             const isDriver = trip.viewer_role === 'driver';
+            // sync with driver_finished/client_finished (set by finishTrip)
+            const iAmDone = isDriver ? !!trip.driver_finished : !!trip.client_finished;
+            const partnerDone = isDriver ? !!trip.client_finished : !!trip.driver_finished;
             const phase = isStarted ? 'В дорозі' : 'Резервація';
             const dotColor = isStarted ? '#8ac926' : '#ffca3a';
             const crewId = trip.crew_id || trip.crew_display_id || '—';
@@ -2667,7 +2730,7 @@
                 whatNext = isDriver
                     ? `⏭ Натисніть «Поїхали» коли всі учасники готові до виїзду.`
                     : `⏭ Очікуйте, поки водій натисне «Поїхали». Скасування доступне лише на цьому етапі.`;
-            } else if (trip._my_done) {
+            } else if (iAmDone && !partnerDone) {
                 whatNext = `⏭ Ваш фініш підтверджено. Очікуємо підтвердження другої сторони.`;
             } else {
                 whatNext = isDriver
@@ -2698,9 +2761,9 @@
             if (!isStarted && isDriver) {
                 navAction = { type: 'start_trip' };
                 updateNavState('context', '🚀 ПОЇХАЛИ');
-            } else if (isStarted && trip._my_done) {
+            } else if (isStarted && iAmDone && !partnerDone) {
                 navAction = null;
-                updateNavState('context', 'ОЧІКУЄМО...');
+                updateNavState('context', '⏳ ОЧІКУЄМО...');
             } else if (isStarted) {
                 navAction = { type: 'finish_trip' };
                 updateNavState('context', '🏁 ЗАВЕРШИТИ');
@@ -2817,14 +2880,20 @@
                 body: JSON.stringify({ request_id: activeTrip.id, user_id: currentUserId, role: role })
             });
             if (!res || res.status !== 'ok') { showToast('Помилка фінішу'); return; }
+            
             if (res.completed) {
                 const finishedTrip = activeTrip;
                 activeTrip = null;
+                activeTripId = null;
+                showToast('✅ Поїздку завершено!');
                 showRatingScreen(finishedTrip);
             } else {
-                showToast('Ваш фініш підтверджено. Очікуємо партнера...');
-                if (activeTrip) activeTrip._my_done = true;
+                showToast('🏁 Ваш фініш підтверджено.');
+                // 🔄 Keep trip but mark as done in UI
+                if (role === 'driver') activeTrip.driver_finished = 1;
+                else activeTrip.client_finished = 1;
                 renderActiveTripTab();
+                renderTripsActive(activeTrip);
             }
             hydrateTrips();
         }
