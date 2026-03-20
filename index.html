@@ -20,10 +20,12 @@
             --gold: #ffca3a;
             --gold-glow: rgba(255, 202, 58, 0.3);
             --glass: rgba(255, 255, 255, 0.05);
-            --glass-border: rgba(255, 255, 255, 0.1);
-            --glass-card: rgba(255, 255, 255, 0.03);
-            --text-muted: rgba(255, 255, 255, 0.65);
-            /* Increased for better outdoor visibility */
+            --glass-border: rgba(255, 255, 255, 0.12);
+            --glass-card: rgba(255, 255, 255, 0.04);
+            --text-muted: rgba(255, 255, 255, 0.78);
+            --error: #ef5350;
+            --error-glow: rgba(239, 83, 80, 0.3);
+            /* v2.1 Production: boosted contrast for outdoor visibility */
         }
 
         * {
@@ -301,14 +303,21 @@
         }
 
         .role-chart {
-            width: 16px;
-            height: 16px;
+            width: 28px;
+            height: 28px;
             border-radius: 50%;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.15);
             flex-shrink: 0;
-            background: conic-gradient(var(--text-muted) 0% 100%);
-            margin-top: 2px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            background: conic-gradient(rgba(255,255,255,0.08) 0% 100%);
+            box-shadow: 0 0 12px rgba(0, 0, 0, 0.4), inset 0 0 4px rgba(0,0,0,0.3);
+            transform: rotate(0deg);
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            will-change: background;
+        }
+        .role-chart:not([style*="conic-gradient(rgba"]) {
+            box-shadow: 0 0 12px rgba(0, 0, 0, 0.4), inset 0 0 4px rgba(0,0,0,0.3), 0 0 8px var(--lime-glow);
         }
 
         .av-item:first-child {
@@ -1025,11 +1034,56 @@
             width: 100%; height: 130px; border-radius: 16px; overflow: hidden;
             border: 1px solid rgba(255,255,255,0.1); margin-bottom: 12px; flex-shrink: 0;
         }
+
+        /* ── PRODUCTION: Skeleton Loading ── */
+        .skeleton {
+            background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%);
+            background-size: 200% 100%;
+            animation: skeleton-shimmer 1.5s infinite;
+            border-radius: 12px;
+        }
+        .skeleton-card { height: 72px; margin-bottom: 12px; border-radius: 28px; }
+        .skeleton-hero { height: 140px; margin-bottom: 16px; border-radius: 36px; }
+        .skeleton-text { height: 14px; width: 60%; margin-bottom: 8px; border-radius: 7px; }
+        @keyframes skeleton-shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* ── PRODUCTION: Error Toast ── */
+        .toast-system.toast-error {
+            background: rgba(239, 83, 80, 0.95);
+            color: #fff;
+        }
+
+        /* ── PRODUCTION: Offline Banner ── */
+        .offline-banner {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            background: linear-gradient(90deg, #b71c1c, #d32f2f);
+            color: #fff;
+            text-align: center;
+            padding: 6px 16px;
+            font-size: 12px;
+            font-weight: 800;
+            z-index: 5000;
+            transform: translateY(-100%);
+            transition: transform 0.4s cubic-bezier(0.2, 1, 0.2, 1);
+            letter-spacing: 0.5px;
+        }
+        .offline-banner.active { transform: translateY(0); }
+
+        /* ── PRODUCTION: Touch target enforcement ── */
+        .btn-confirm, .nav-btn, .segment-btn, .btn-back, .btn-destructive, .btn-subscribed, .btn-unsubscribe {
+            min-height: 44px;
+            display: flex; align-items: center; justify-content: center;
+        }
     </style>
 </head>
 
 <body>
-
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <div id="offline-indicator" class="offline-banner">⚡ Немає з'єднання</div>
     <div class="canvas"></div>
 
     <div class="phone-container">
@@ -1286,6 +1340,7 @@
             }
         }
 
+        let _apiErrorCount = 0;
         async function api(path, opts = {}) {
             if (!CONFIG.apiBase) return null;
             const headers = { 'Content-Type': 'application/json' };
@@ -1293,12 +1348,56 @@
             if (initData) headers['Authorization'] = 'tma ' + initData;
             try {
                 const r = await fetch(CONFIG.apiBase + path, { ...opts, headers: { ...headers, ...opts.headers } });
-                if (!r.ok) return null;
+                if (!r.ok) {
+                    // Show error only for user-initiated actions (POST), not background sync
+                    if (opts.method === 'POST') showErrorToast('Помилка сервера (' + r.status + ')');
+                    return null;
+                }
+                _apiErrorCount = 0; // Reset on success
                 return await r.json();
             } catch (e) {
-                console.error('API Error:', e);
+                _apiErrorCount++;
+                console.error('API Error:', path, e);
+                // Show offline only after 3+ consecutive failures (avoid false alarms)
+                if (_apiErrorCount >= 3) setOffline(true);
+                if (opts.method === 'POST') showErrorToast('Немає зв\'язку з сервером');
                 return null;
             }
+        }
+
+        function showErrorToast(text) {
+            const el = document.getElementById('status-toast');
+            el.innerText = '⚠️ ' + text;
+            el.classList.add('active', 'toast-error');
+            setTimeout(() => { el.classList.remove('active', 'toast-error'); }, 3000);
+        }
+
+        function setOffline(offline) {
+            const el = document.getElementById('offline-indicator');
+            if (el) offline ? el.classList.add('active') : el.classList.remove('active');
+        }
+
+        // ── PRODUCTION: Haptic Feedback Helper ──
+        function haptic(type) {
+            try {
+                const hf = window.Telegram?.WebApp?.HapticFeedback;
+                if (!hf) return;
+                if (type === 'success') hf.notificationOccurred('success');
+                else if (type === 'warning') hf.notificationOccurred('warning');
+                else if (type === 'error') hf.notificationOccurred('error');
+                else if (type === 'light') hf.impactOccurred('light');
+                else if (type === 'medium') hf.impactOccurred('medium');
+                else hf.impactOccurred('light');
+            } catch(_) {}
+        }
+
+        // ── PRODUCTION: BackButton sync ──
+        function syncBackButton() {
+            try {
+                const bb = window.Telegram?.WebApp?.BackButton;
+                if (!bb) return;
+                discoveryStack.length > 0 ? bb.show() : bb.hide();
+            } catch(_) {}
         }
 
         function saveProfile() {
@@ -1424,18 +1523,25 @@
         }
 
         function getRoleChartStyle(item) {
-            const d = item.drivers || 0;
-            const p = item.passengers || 0;
-            const o = item.organizers || (item.drivers > 0 ? 1 : 0); // Mock organizer if driver exists
+            const d = item.drivers || 0;      // Водії → red
+            const p = item.passengers || 0;   // Попутники → sky
+            const o = item.organizers || 0;   // Організатори → gold
             const total = d + p + o;
-            if (total === 0) return 'background: var(--glass)';
-            
-            const dp = (d / total) * 100;
-            const op = (o / total) * 100;
-            const pp = (p / total) * 100;
-            
-            // Red (#ef5350) -> Yellow (#ffca28) -> Blue (#42a5f5)
-            return `background: conic-gradient(#ef5350 0% ${dp}%, #ffca28 ${dp}% ${dp + op}%, #42a5f5 ${dp + op}% 100%)`;
+            if (total === 0) return 'background: conic-gradient(rgba(255,255,255,0.08) 0deg 360deg)';
+
+            // Degrees for precise boundaries — no wrap-around bleed
+            const dDeg = Math.round((d / total) * 360);
+            const pDeg = Math.round((p / total) * 360);
+            const oDeg = 360 - dDeg - pDeg;
+
+            const stops = [];
+            let at = 0;
+            if (d > 0) { stops.push(`#ef5350 ${at}deg ${at + dDeg}deg`); at += dDeg; }
+            if (p > 0) { stops.push(`#42a5f5 ${at}deg ${at + pDeg}deg`); at += pDeg; }
+            if (o > 0) { stops.push(`#ffca28 ${at}deg 360deg`); }
+
+            if (stops.length === 1) return `background: ${stops[0].split(' ')[0]}`;
+            return `background: conic-gradient(${stops.join(', ')})`;
         }
 
         function mapItem(item) {
@@ -1450,6 +1556,7 @@
                 desc: item.desc || item.title || '',
                 drivers: item.drivers || 0,
                 passengers: item.passengers || 0,
+                free_seats: item.free_seats || 0,
                 organizers: item.organizers || 0,
                 creator_id: item.creator_id,
                 pStacks: item.pStacks || []
@@ -1489,7 +1596,8 @@
             // Object.keys(flatDiscoveryMap).forEach(k => delete flatDiscoveryMap[k]); // 🛠 Fixed: Don't clear map, keep demo fallback
             data.interests.forEach(it => {
                 const mapped = mapItem(it);
-                mapped.meta = `${it.drivers || 0} екіпажів • ${it.free_seats || 0} попутників`;
+                mapped.free_seats = it.free_seats || 0;
+                mapped.meta = `${it.drivers || 0} водіїв • ${it.passengers || 0} попутників • ${it.free_seats || 0} місць`;
                 liveDiscoveryData[mapped.id] = mapped;
             });
             buildDiscoveryMap(Object.values(getDiscoverySource()));
@@ -1520,6 +1628,7 @@
             if (!data) return false;
             direction.organizers = data.organizers || [];
             if (data.direction?.title) direction.title = data.direction.title;
+            if (data.direction?.meeting_point) direction.meeting_point = data.direction.meeting_point;
             return true;
         }
 
@@ -1691,7 +1800,7 @@
                     html += `<div class="trip-card${subClass}" data-id="${itemId}" onclick="${action}">
                         <div class="trip-content">
                             <div style="display:flex; justify-content:space-between; align-items:flex-start">
-                                <div class="trip-title">${item.title} ${item.type === 'folder' ? '📂' : ''} ${userSubscriptions.has(String(item.remote_id || item.id)) ? '<span style="font-size:8px; color:var(--lime); background:rgba(138,201,38,0.1); padding:2px 6px; border-radius:6px; border:0.5px solid var(--lime); margin-left:8px;">ВІДСТЕЖУЄТЬСЯ</span>' : ''}</div>
+                                <div class="trip-title">${item.title} ${userSubscriptions.has(String(item.remote_id || item.id)) ? '<span style="font-size:8px; color:var(--lime); background:rgba(138,201,38,0.1); padding:2px 6px; border-radius:6px; border:0.5px solid var(--lime); margin-left:8px;">ВІДСТЕЖУЄТЬСЯ</span>' : ''}</div>
                                 ${isOwner ? '<div style="font-size:10px; background:rgba(38,166,154,0.1); padding:2px 6px; border-radius:4px; font-weight:800; color:var(--lime)">МОЄ</div>' : ''}
                             </div>
                             <div class="trip-meta" style="justify-content:space-between">
@@ -2859,6 +2968,7 @@
             });
             if (res && res.status === 'ok') {
                 activeTrip.is_started = true;
+                haptic('success');
                 // 🔄 Sync Modal Data if open
                 if (currentModalData && currentModalData.trip && currentModalData.trip.id === activeTrip.id) {
                     currentModalData.trip.is_started = true;
@@ -2879,7 +2989,7 @@
                 method: 'POST',
                 body: JSON.stringify({ request_id: activeTrip.id, user_id: currentUserId, role: role })
             });
-            if (!res || res.status !== 'ok') { showToast('Помилка фінішу'); return; }
+            if (!res || res.status !== 'ok') { showToast('Помилка фінішу'); haptic('error'); return; }
             
             if (res.completed) {
                 const finishedTrip = activeTrip;
@@ -2995,6 +3105,7 @@
                 body: JSON.stringify({ user_id: currentUserId, target_id: partnerId, direction_id: directionId, accept: accept })
             });
             if (res && res.status === 'ok') {
+                haptic(accept ? 'success' : 'warning');
                 showToast(accept ? '✓ Учасника додано в екіпаж' : 'Запит відхилено');
                 // Зняти блокування + повернути навігацію
                 releaseTripsFocus();
@@ -3125,11 +3236,35 @@
             if (!mapInstance) return;
             mapMarkers.forEach(m => mapInstance.removeLayer(m));
             mapMarkers = [];
+            if (window._goalMarker) { mapInstance.removeLayer(window._goalMarker); window._goalMarker = null; }
+
             const data = await api('/api/v3/map/crews');
             const list = Array.isArray(data) ? data : (data && data.crews ? data.crews : []);
-            if (!list.length) return;
             const filterId = mapFilterDirectionId ? String(mapFilterDirectionId) : null;
             let count = 0;
+
+            // Plot destination goal pin
+            if (filterId && flatDiscoveryMap[filterId] && flatDiscoveryMap[filterId].meeting_point) {
+                const meeting = flatDiscoveryMap[filterId].meeting_point;
+                fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(meeting)}&format=json&limit=1`)
+                    .then(r => r.json())
+                    .then(res => {
+                        if (res && res.length > 0 && mapInstance) {
+                            const lat = parseFloat(res[0].lat), lng = parseFloat(res[0].lon);
+                            window._goalMarker = L.marker([lat, lng], {
+                                icon: L.divIcon({
+                                    className: 'custom-marker',
+                                    html: `<div style="background:var(--gold); width:18px; height:18px; border-radius:50%; box-shadow: 0 0 20px var(--gold); border: 2px solid #fff; z-index:1000;"></div>`
+                                })
+                            }).addTo(mapInstance);
+                            window._goalMarker.bindPopup(`<b>Ціль:</b><br>${flatDiscoveryMap[filterId].title}`).openPopup();
+                            mapInstance.flyTo([lat, lng], 12, { animate: true, duration: 1.5 });
+                        }
+                    }).catch(e => console.error("Goal geocode err", e));
+            }
+
+            if (!list.length) return;
+
             list.forEach(crew => {
                 if (filterId && String(crew.direction_id) !== filterId) return;
                 if (!crew.lat || !crew.lng) return;
@@ -3233,15 +3368,25 @@
                 currentSimStep = null;
                 navAction = null;
                 updateNavState('global');
+                syncBackButton();
+                // Refresh root board to preserve fractal chart colors
+                loadRootFromApi();
             } else {
                 discoveryStack.pop();
+                syncBackButton();
                 const prev = discoveryStack[discoveryStack.length - 1];
                 if (prev.key === 'trip_detail') openTripDetails(prev.title, prev.loc, prev.desc);
                 else if (prev.key === 'active_trip') openActiveTrip();
                 else if (prev.key === 'goal_overview') renderGoalOverview(prev.directionId);
                 else if (prev.key === 'profile') renderProfileContent();
                 else if (prev.type === 'direction') renderDirectionUI(prev.data);
-                else renderDiscovery(prev.data);
+                else {
+                    renderDiscovery(prev.data);
+                    // Refresh children from API to get fresh fractal counts (organizers/drivers/passengers)
+                    if (prev.data && prev.data.remote_id && prev.data.type === 'folder') {
+                        loadChildrenFor(prev.data).then(ok => { if (ok) renderDiscovery(prev.data); });
+                    }
+                }
             }
         }
 
@@ -3682,6 +3827,27 @@
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
+            // ── Telegram Mini App Integration ──
+            if (window.Telegram?.WebApp) {
+                const tg = window.Telegram.WebApp;
+                tg.ready();
+                tg.expand();
+                // Sync theme
+                if (tg.themeParams?.bg_color) {
+                    document.documentElement.style.setProperty('--bg-deep', tg.themeParams.bg_color);
+                }
+                // BackButton integration
+                tg.BackButton.onClick(() => {
+                    if (discoveryStack.length > 0) closeModal();
+                    else tg.close();
+                });
+                console.log('✅ Telegram WebApp initialized');
+            }
+
+            // ── Offline Detection ──
+            window.addEventListener('online', () => { setOffline(false); _apiErrorCount = 0; });
+            window.addEventListener('offline', () => setOffline(true));
+
             initApiBase();
             currentUserId = resolveUserId();
             currentUserName = resolveUserName();
@@ -3716,7 +3882,7 @@
                         window.liveNewsSearch = val;
                         renderHome();
                     } else if (tabId.includes('board')) {
-                        const cards = document.querySelectorAll('#board [data-tab="board"].active-content .trip-card');
+                        const cards = document.querySelectorAll('[data-tab="board"] .feed-scroll .trip-card');
                         cards.forEach(card => {
                             const title = card.querySelector('.trip-title')?.innerText.toLowerCase() || '';
                             const meta = card.querySelector('.trip-meta')?.innerText.toLowerCase() || '';
@@ -3749,8 +3915,25 @@
                                 showToast('Спочатку виберіть / створіть екіпаж');
                             }
                         } else if (tabId.includes('map')) {
-                            showToast(`📍 Шукаємо локацію '${val}'...`);
+                            showToast(`📍 Шукаємо '${val}'...`);
                             uInput.value = '';
+                            fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(val)}&format=json&limit=1`)
+                                .then(r => r.json())
+                                .then(results => {
+                                    if (results && results.length > 0) {
+                                        const loc = results[0];
+                                        const lat = parseFloat(loc.lat), lng = parseFloat(loc.lon);
+                                        if (mapInstance) {
+                                            mapInstance.flyTo([lat, lng], 13);
+                                            if (window._searchMarker) mapInstance.removeLayer(window._searchMarker);
+                                            window._searchMarker = L.marker([lat, lng]).addTo(mapInstance)
+                                                .bindPopup(`<b>${loc.display_name.split(',')[0]}</b>`).openPopup();
+                                        }
+                                        showToast(`✅ ${loc.display_name.split(',').slice(0, 2).join(',')}`);
+                                    } else {
+                                        showToast('❌ Локацію не знайдено');
+                                    }
+                                }).catch(() => showToast('❌ Помилка пошуку'));
                         }
                     }
                 });
