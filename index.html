@@ -1062,7 +1062,14 @@
                 <div data-tab="home" class="active-content">
                     <div class="map-placeholder" data-map-context="home_community" style="position:relative; flex:1; margin-top:-8px; background:rgba(0,0,0,0.4); border-radius:0 0 32px 32px; overflow:hidden; margin-bottom:12px;"></div>
                     <div id="home-news-section">
-                        <h3 class="section-header" style="margin-bottom:12px;">Останні новини</h3>
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+                            <span class="section-header" style="margin:0;">Новини</span>
+                            <div style="display:flex;gap:4px;margin-left:auto;">
+                                <div class="home-filter-btn active segment-btn" data-f="all" onclick="setHomeFilter('all')" style="padding:4px 10px;font-size:10px;border-radius:8px;">ВСІ</div>
+                                <div class="home-filter-btn segment-btn" data-f="active" onclick="setHomeFilter('active')" style="padding:4px 10px;font-size:10px;border-radius:8px;">АКТИВНІ</div>
+                                <div class="home-filter-btn segment-btn" data-f="new" onclick="setHomeFilter('new')" style="padding:4px 10px;font-size:10px;border-radius:8px;">НОВІ</div>
+                            </div>
+                        </div>
                         <div id="home-news-container" class="feed-scroll" style="max-height: 50vh;">
                             <!-- Dynamic news will be rendered here -->
                             <div class="empty-state">
@@ -1389,6 +1396,7 @@
         // --- Real-Time Sync State ---
         let lastIncomingRequestsCount = 0;
         let activeTripId = null;
+        let lastTripStartedState = false; // #4: track is_started transitions for loud push
         let isSyncing = false;
 
         async function loadUserSubscriptions() {
@@ -1565,9 +1573,12 @@
 
             const input = document.getElementById('universal-input');
             if (input) {
-                const placeholders = { 'home': 'Повідомлення громаді...', 'board': 'Пошук...', 'trips': 'Коментар...', 'map': 'Пошук на карті...' };
+                const placeholders = { 'home': 'Пошук новин...', 'board': 'Пошук напрямку...', 'trips': 'Написати екіпажу...', 'map': 'Шукати локацію...' };
                 input.placeholder = placeholders[tabId] || 'Введіть текст...';
+                input.value = ''; // clear input on switch
+                window.liveNewsSearch = ''; // reset home filter
             }
+            if (tabId === 'home')  loadNewsFromApi();
             if (tabId === 'board') { loadUserSubscriptions(); loadRootFromApi(); }
             if (tabId === 'trips') hydrateTrips();
             if (tabId === 'map') {
@@ -1598,31 +1609,68 @@
             updateNavState('context', data.type === 'folder' ? null : 'ПІДПИСАТИСЯ');
         }
 
+        let homeNewsFilter = 'all'; // 'all' | 'active' | 'new'
+
+        function setHomeFilter(f) {
+            homeNewsFilter = f;
+            document.querySelectorAll('.home-filter-btn').forEach(el => {
+                el.classList.toggle('active', el.dataset.f === f);
+            });
+            window.liveNews = null; // скинути кеш при зміні фільтра
+            loadNewsFromApi().then(() => { if (!window.liveNews) renderHome(); });
+        }
+
+        async function loadNewsFromApi() {
+            if (!CONFIG.apiBase) return;
+            const data = await api(`/api/v3/news?limit=30&filter=${homeNewsFilter}`);
+            if (data && data.news && data.news.length) {
+                window.liveNews = data.news;
+                renderHome();
+            }
+        }
+
         function renderHome() {
             const container = document.getElementById('home-news-container');
             if (!container) return;
-            
-            if (window.demoNews && window.demoNews.length) {
-                container.innerHTML = window.demoNews.map(n => {
-                    const action = n.direction_id ? `onclick="openDiscoveryLayer('${n.direction_id}')"` : '';
-                    const cursor = n.direction_id ? 'pointer' : 'default';
-                    return `
-                        <div class="trip-card animate-in" style="border-left: 4px solid var(--lime); cursor: ${cursor};" ${action}>
-                            <div class="trip-content">
-                                <div class="trip-meta">${new Date(n.created_at * 1000).toLocaleDateString()}</div>
-                                <div class="trip-title" style="font-size:14px;">${n.text}</div>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            } else {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-icon">📢</div>
-                        <div>Поки що новин немає</div>
-                    </div>
-                `;
+            // Спочатку live дані з API, потім fallback на demo_data.json
+            const news = window.liveNews || window.demoNews || [];
+            if (!news.length) {
+                container.innerHTML = `<div class="empty-state"><div class="empty-icon">📢</div><div>Поки що новин немає</div></div>`;
+                return;
             }
+            // Фільтрація
+            let filtered = news;
+            if (homeNewsFilter === 'active') {
+                filtered = news.filter(n => n.kind === 'active' || n.is_active);
+                if (!filtered.length) filtered = news; // fallback
+            } else if (homeNewsFilter === 'new') {
+                const cutoff = Date.now() / 1000 - 7 * 86400; // останні 7 днів
+                filtered = news.filter(n => n.created_at > cutoff);
+                if (!filtered.length) filtered = news.slice(0, 5);
+            }
+            // Пошук
+            if (window.liveNewsSearch) {
+                const query = window.liveNewsSearch.toLowerCase();
+                filtered = filtered.filter(n => 
+                    (n.text || '').toLowerCase().includes(query) || 
+                    (n.title || '').toLowerCase().includes(query)
+                );
+            }
+            container.innerHTML = filtered.map(n => {
+                const action = n.direction_id ? `onclick="openDiscoveryLayer('${n.direction_id}')"` : '';
+                const cursor = n.direction_id ? 'pointer' : 'default';
+                const isDemo = !CONFIG.apiBase;
+                return `
+                    <div class="trip-card animate-in" style="border-left:4px solid var(--lime);cursor:${cursor};" ${action}>
+                        <div class="trip-content">
+                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                                ${isDemo ? '<span style="font-size:9px;font-weight:800;background:rgba(255,202,58,0.15);color:#ffca3a;padding:2px 6px;border-radius:6px;border:0.5px solid #ffca3a;">DEMO</span>' : ''}
+                                <span class="trip-meta" style="margin:0;">${new Date((n.created_at||Date.now()/1000) * 1000).toLocaleDateString()}</span>
+                            </div>
+                            <div class="trip-title" style="font-size:14px;">${n.text || n.title || ''}</div>
+                        </div>
+                    </div>`;
+            }).join('');
         }
 
         function renderDiscovery(data) {
@@ -1737,14 +1785,14 @@
                 if (res && res.status === 'ok') {
                     userSubscriptions.add(dirStr);
                     selectedDirectionId = directionId;
-                    showToast('Підписано! Дивіться карту 🗺️');
+                    showToast('✅ Підписано! Бот шукатиме вам екіпаж. Дивіться «Поїздки».');
                     const direction = flatDiscoveryMap[dirStr];
                     if (direction) await loadOrganizers(direction);
                     renderDirectionUI(direction || { title: 'Напрямок', desc: '', pStacks: [] });
-                    // Auto-jump to map with goal filter
-                    mapFilterDirectionId = directionId;
-                    const mapBtn = document.querySelector('.nav-item[onclick*="map"]');
-                    if (mapBtn) switchContext('map', mapBtn);
+                    // #5: Auto-jump to ПОЇЗДКИ (like bot) instead of map
+                    closeModal();
+                    const tripsBtn = document.querySelector('.nav-item[onclick*="trips"]');
+                    if (tripsBtn) switchContext('trips', tripsBtn);
                     return;
                 }
                 showToast('Не вдалося підписатися');
@@ -1872,7 +1920,7 @@
                 </div>` : ''}
                 ${direction.meeting_point ? `
                 <div style="font-size:12px; color:var(--text-muted); margin-bottom:20px; display:flex; align-items:center; gap:8px;">
-                    <span style="font-size:16px;">📍</span> <b>МІСЦЕ ЗУСТРІЧІ:</b> ${direction.meeting_point}
+                    <span style="font-size:16px;">📍</span> <b>МІСЦЕ ЗУСТРІЧІ:</b> ${/^\s*-?\d+\.\d+\s*[,;]\s*-?\d+\.\d+\s*$/.test(direction.meeting_point) ? `<a href="https://www.google.com/maps?q=${direction.meeting_point}" target="_blank" style="color:var(--sky); text-decoration:underline;">📍 Показати на карті</a>` : direction.meeting_point}
                 </div>` : ''}
                 
                 <h3 class="section-header">${subHeader}</h3>
@@ -2211,6 +2259,46 @@
             }
         }
 
+        // ─── FOCUS CAPTURE (як в боті: вхідній запит захоплює екран) ───
+        let tripsFocusLocked = false;
+
+        function focusTripsTab() {
+            tripsFocusLocked = true;
+            const tripsEl = document.querySelector('.nav-item[onclick*="trips"]');
+            if (!tripsEl) return;
+            // Switch to trips tab
+            const curActive = document.querySelector('.nav-item.active');
+            if (curActive && !curActive.getAttribute('onclick').includes('trips')) {
+                switchContext('trips', tripsEl);
+            }
+            // Block other tabs visually
+            document.querySelectorAll('.nav-item:not([onclick*="trips"])').forEach(el => {
+                el.style.opacity = '0.35';
+                el.style.pointerEvents = 'none';
+                el.dataset.blocked = '1';
+            });
+        }
+
+        function releaseTripsFocus() {
+            tripsFocusLocked = false;
+            document.querySelectorAll('.nav-item[data-blocked]').forEach(el => {
+                el.style.opacity = '';
+                el.style.pointerEvents = '';
+                delete el.dataset.blocked;
+            });
+        }
+
+        // ─── AUTO-OPEN MAP after Поїхали (крок 5) ───
+        function autoOpenMapAfterStart() {
+            const mapEl = document.querySelector('.nav-item[onclick*="map"]');
+            if (mapEl) {
+                setTimeout(() => {
+                    switchContext('map', mapEl);
+                    showToast('🗺️ Відкриваємо карту маршруту...');
+                }, 800);
+            }
+        }
+
         function buildStateStrip(step, total, label, dotColor) {
             return `<div class="state-strip">
                 <div class="state-strip-dot" style="background:${dotColor};box-shadow:0 0 8px ${dotColor}"></div>
@@ -2239,6 +2327,14 @@
             if (!trip.viewer_role && trip.driver_id && currentUserId) {
                 trip.viewer_role = String(trip.driver_id) === String(currentUserId) ? 'driver' : 'passenger';
             }
+            // #9: Parse coordinate-style meeting_point into pickup_lat/pickup_lng for mini-map
+            if (!trip.pickup_lat && trip.meeting_point) {
+                const coordMatch = String(trip.meeting_point).match(/^\s*(-?\d+\.\d+)\s*[,;]\s*(-?\d+\.\d+)\s*$/);
+                if (coordMatch) {
+                    trip.pickup_lat = parseFloat(coordMatch[1]);
+                    trip.pickup_lng = parseFloat(coordMatch[2]);
+                }
+            }
             return trip;
         }
 
@@ -2263,6 +2359,12 @@
                     showToast('🎉 ВАС ПРИЙНЯТО В ЕКІПАЖ!');
                     if (discoveryStack.length > 0) closeModal(); // Close detail if open
                 }
+                // #4: Loud Push when driver starts trip (passenger side)
+                if (normalized.is_started && !lastTripStartedState && normalized.viewer_role !== 'driver') {
+                    showLoudPush();
+                    setTimeout(() => hideLoudPush(), 4000);
+                }
+                lastTripStartedState = !!normalized.is_started;
                 activeTripId = normalized.id;
                 activeTrip = normalized;
                 renderTripsActive(activeTrip);
@@ -2280,11 +2382,11 @@
             const pending = await api(`/api/v3/match/pending?scope=incoming&user_id=${currentUserId}`);
             const incoming = pending || [];
             
-            // Notification: New Request!
+            // Notification: New Request! + focus capture (як в боті)
             if (incoming.length > lastIncomingRequestsCount) {
                 showToast('👋 НОВИЙ ЗАПИТ В ЕКІПАЖ!');
-                // If on trips tab, it will re-render anyway. 
-                // If on board, maybe show a badge (future improvement)
+                // Захопити фокус на таб ПОЇЗДКИ
+                focusTripsTab();
             }
             lastIncomingRequestsCount = incoming.length;
 
@@ -2311,7 +2413,7 @@
                 if (document.querySelector('.nav-item.active[onclick*="board"]')) {
                     await loadUserSubscriptions();
                 }
-            }, 10000); // Every 10 seconds
+            }, 1000); // Every 1 second (як в боті — миттєва реакція)
         }
 
         function renderTripsActive(trip) {
@@ -2354,38 +2456,85 @@
             const hero = document.getElementById('trips-hero');
             if (!feed || !hero) return;
             if (!list || list.length === 0) {
+                // Зняти блокування якщо запитів нема
+                releaseTripsFocus();
+                // Повернути стандартну ніжню панель
+                updateNavState('global');
                 feed.innerHTML = '';
                 hero.innerHTML = `
                     <h2 class="hero-title" style="font-size:20px;">Активних поїздок немає</h2>
                     <div style="color:var(--text-muted); font-size:14px; margin-top:8px; line-height:1.6;">
                         Тут з'являться ваші поїздки та вхідні запити попутників.
-                    </div>`;
+                    </div>
+                    ${userSettings.role === 'driver' ? '<div style="color:var(--lime); font-size:12px; margin-top:12px; font-weight:700;">💡 Водій? Відкрийте Дошку → оберіть напрямок → створіть екіпаж.</div>' : ''}`;
                 hero.onclick = null;
                 return;
             }
-            feed.innerHTML = list.map(req => {
-                const dirTitle = flatDiscoveryMap[String(req.direction_id)]?.title || 'Напрямок';
-                return `
-                    <div class="trip-card" style="border:1px solid rgba(255,202,58,0.35); background:rgba(255,202,58,0.03);">
-                        <div class="trip-content">
-                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-                                <div style="width:7px;height:7px;border-radius:50%;background:#ffca3a;flex-shrink:0;"></div>
-                                <span style="font-size:10px;font-weight:800;color:#ffca3a;text-transform:uppercase;letter-spacing:1px;">Вхідний запит</span>
-                            </div>
-                            <div class="trip-title" style="font-size:15px;">${req.partner_name || 'Попутник'}</div>
-                            <div class="trip-meta" style="margin-bottom:10px;">хоче приєднатись • ${dirTitle}</div>
-                            <div class="what-next" style="font-size:12px; margin-bottom:10px;">Прийміть — і учасник потрапить в екіпаж. Відхиліть — і запит скасовується.</div>
-                            <div style="display:flex; gap:8px;">
-                                <div class="btn-destructive" style="flex:1; padding:10px; font-size:11px;" onclick="respondInvite(${req.partner_id}, ${req.direction_id}, false)">✕ ВІДХИЛИТИ</div>
-                                <div class="btn-confirm" style="flex:1; padding:10px; font-size:11px;" onclick="respondInvite(${req.partner_id}, ${req.direction_id}, true)">✓ ПРИЙНЯТИ</div>
+            // Беремо перший запит (як в боті — водій бачить одну картку за раз)
+            const req = list[0];
+            const dirTitle = flatDiscoveryMap[String(req.direction_id)]?.title || 'Напрямок';
+            // Спробуємо отримати учасників екіпажу (з кешу або activeTrip)
+            const crewMembers = (activeTrip && activeTrip.members) || [];
+            const crewRows = crewMembers.length
+                ? crewMembers.map(m => `
+                    <div style="display:flex;align-items:center;gap:8px;padding:4px 0;">
+                        <div class="user-av" style="width:28px;height:28px;font-size:11px;background:var(--glass);">${(m.name||'?')[0].toUpperCase()}</div>
+                        <div style="font-size:12px;flex:1;">${m.name||'?'}</div>
+                        <div style="font-size:9px;font-weight:800;color:${m.role==='driver'?'var(--lime)':'var(--text-muted)'};">${m.role==='driver'?'🚗 Driver':'Pilgrim'}</div>
+                    </div>`).join('')
+                : `<div style="color:var(--text-muted);font-size:12px;">Ви — перший учасник екіпажу</div>`;
+
+            feed.innerHTML = `
+                <div class="trip-card" style="border:1px solid rgba(255,202,58,0.5); background:rgba(255,202,58,0.04);">
+                    <div class="trip-content">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                            <div style="width:8px;height:8px;border-radius:50%;background:#ffca3a;animation:pulse 1.5s infinite;"></div>
+                            <span style="font-size:10px;font-weight:800;color:#ffca3a;text-transform:uppercase;letter-spacing:1px;">Вхідний запит</span>
+                            ${list.length > 1 ? `<span style="margin-left:auto;font-size:10px;color:var(--text-muted);">ще ${list.length-1} в черзі</span>` : ''}
+                        </div>
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                            <div class="user-av" style="background:linear-gradient(135deg,#42a5f5,#ab47bc);flex-shrink:0;">${(req.partner_name||'?')[0].toUpperCase()}</div>
+                            <div>
+                                <div class="trip-title" style="font-size:16px;margin-bottom:2px;">${req.partner_name || 'Попутник'}</div>
+                                <div class="trip-meta">хоче приєднатись • ${dirTitle}</div>
                             </div>
                         </div>
-                    </div>`;
-            }).join('');
+                        <div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:10px;margin-bottom:10px;">
+                            <div style="font-size:10px;font-weight:800;color:var(--text-muted);margin-bottom:6px;">ЕКІПАЖ ЗАРАЗ</div>
+                            ${crewRows}
+                        </div>
+                        <div class="what-next" style="font-size:12px; margin-bottom:4px;">Прийміть — і ${req.partner_name||'попутник'} потрапить в екіпаж. Відхиліть — запит скасовується.</div>
+                    </div>
+                </div>`;
+
             hero.innerHTML = `
                 ${buildStateStrip(3, 6, `${list.length} вхідних запит${list.length === 1 ? '' : 'и'}`, '#ffca3a')}
-                <h2 class="hero-title" style="font-size:20px;">Попутники хочуть приєднатись</h2>`;
+                <h2 class="hero-title" style="font-size:20px;">Попутник хоче приєднатись</h2>`;
             hero.onclick = null;
+
+            // Нижня панель в режимі вхідного запиту (як в боті)
+            const nav = document.getElementById('bottom-nav');
+            const actionBtn = document.getElementById('nav-main-action');
+            if (nav) nav.classList.add('state-context');
+            if (actionBtn) {
+                actionBtn.style.display = 'none'; // приховуємо action-кнопку
+            }
+            // Додаємо спеціальні кнопки для рішення замість стандартного BACK
+            const contextActions = document.querySelector('.nav-context-actions');
+            if (contextActions) {
+                contextActions.innerHTML = `
+                    <div class="nav-btn" style="flex:0.8;background:rgba(239,83,80,0.15);color:#ef5350;border:1px solid rgba(239,83,80,0.3);font-size:10px;padding:10px 6px;" onclick="tiredOfDriverWaiting()">⏹️ ЗУПИНИТИ</div>
+                    <div class="nav-btn" style="flex:1;background:rgba(239,83,80,0.1);color:#ef5350;border:1px solid rgba(239,83,80,0.2);font-size:10px;" onclick="respondInvite(${req.partner_id}, ${req.direction_id}, false)">✕ ВІДХИЛИТИ</div>
+                    <div class="nav-btn nav-btn-action" style="flex:1.2;font-size:10px;" onclick="respondInvite(${req.partner_id}, ${req.direction_id}, true)">✓ ПРИЙНЯТИ</div>
+                `;
+            }
+        }
+
+        // Зупинити очікування зі сторони водія (опціональна кнопка зліва)
+        async function tiredOfDriverWaiting() {
+            showToast('Очікування зупинено');
+            releaseTripsFocus();
+            updateNavState('global');
         }
 
         function openActiveTrip() {
@@ -2468,10 +2617,11 @@
             const departure = trip.departure || trip.departure_time || '';
 
             // 1. Що сталось
+            const isGenericPartner = !trip.partner_name || partner === 'Попутник' || partner === 'Водій';
             let whatHappened;
             if (!isStarted) {
                 whatHappened = isDriver
-                    ? `✅ Попутник ${partner} підтвердив участь. Екіпаж зібрано.`
+                    ? (isGenericPartner ? `✅ Екіпаж зібрано. Попутник підтвердив участь.` : `✅ ${partner} підтвердив участь. Екіпаж зібрано.`)
                     : `✅ Водій ${driverName} прийняв вас в екіпаж.`;
             } else {
                 whatHappened = `🚀 Поїздку розпочато. Ви в дорозі.`;
@@ -2484,7 +2634,7 @@
                     ? `⏭ Натисніть «Поїхали» коли всі учасники готові до виїзду.`
                     : `⏭ Очікуйте, поки водій натисне «Поїхали». Скасування доступне лише на цьому етапі.`;
             } else if (trip._my_done) {
-                whatNext = `⏭ Ваш фініш підтверджено. Очікуємо підтвердження від ${partner}.`;
+                whatNext = `⏭ Ваш фініш підтверджено. Очікуємо підтвердження другої сторони.`;
             } else {
                 whatNext = isDriver
                     ? `⏭ Натисніть «Завершити» після прибуття до місця призначення.`
@@ -2615,6 +2765,7 @@
                 showToast('🚀 Поїхали!');
                 renderActiveTripTab();
                 renderTripsActive(activeTrip);
+                autoOpenMapAfterStart(); // відкриваємо карту з маршрутом
                 return;
             }
             showToast('Не вдалося стартувати');
@@ -2661,9 +2812,10 @@
             discoveryStack = [{ key: 'rating', trip: trip }];
             const title = document.getElementById('modal-title');
             const content = document.getElementById('modal-content-area');
-            const partner = (trip.viewer_role === 'driver'
+            const partnerRaw = (trip.viewer_role === 'driver'
                 ? (trip.partner_name || trip.client_name)
-                : (trip.partner_name || trip.organizer_name || trip.driver_name)) || 'Партнера';
+                : (trip.partner_name || trip.organizer_name || trip.driver_name)) || '';
+            const ratingQuestion = partnerRaw ? `Як вам ${partnerRaw}?` : 'Як пройшла поїздка?';
             if (title) title.innerText = 'ОЦІНКА ПОЇЗДКИ';
             if (content) {
                 content.innerHTML = `
@@ -2675,7 +2827,7 @@
                         <div style="color:var(--text-muted); font-size:13px;">${trip.direction_title || 'Маршрут'}</div>
                     </div>
                     <div class="what-happened">✅ Обидві сторони підтвердили прибуття. Поїздка закрита.</div>
-                    <div style="text-align:center; margin:16px 0 8px; font-size:13px; font-weight:800; color:rgba(255,255,255,0.75);">Як вам ${partner}?</div>
+                    <div style="text-align:center; margin:16px 0 8px; font-size:13px; font-weight:800; color:rgba(255,255,255,0.75);">${ratingQuestion}</div>
                     <div style="display:flex; justify-content:center; gap:12px; margin-bottom:8px;">
                         <div onclick="selectRating(1)"  id="rating-btn-1"
                             style="cursor:pointer;text-align:center;opacity:0.4;transition:all 0.2s;padding:12px 16px;border-radius:16px;border:1px solid rgba(255,255,255,0.08);">
@@ -2731,7 +2883,9 @@
                 body: JSON.stringify({ user_id: currentUserId, target_id: partnerId, direction_id: directionId, accept: accept })
             });
             if (res && res.status === 'ok') {
-                showToast(accept ? 'Учасника додано' : 'Запит відхилено');
+                showToast(accept ? '✓ Учасника додано в екіпаж' : 'Запит відхилено');
+                // Зняти блокування + повернути навігацію
+                releaseTripsFocus();
                 hydrateTrips();
                 return;
             }
@@ -3373,9 +3527,10 @@
                             Об’єднуємо людей за спільною ціллю: напрямок + час + екіпаж.
                         </div>
                     </div>
-                    <div class="trip-card"><div class="trip-content"><div class="trip-title">1. Обери напрямок</div><div class="trip-meta">Гори, море або свій маршрут</div></div></div>
-                    <div class="trip-card"><div class="trip-content"><div class="trip-title">2. Вступай у екіпаж</div><div class="trip-meta">Бот розподіляє або ти обираєш</div></div></div>
-                    <div class="trip-card"><div class="trip-content"><div class="trip-title">3. Координація та виїзд</div><div class="trip-meta">Спільний чат і події</div></div></div>
+                    <div class="trip-card"><div class="trip-content"><div class="trip-title">1. Оберіть роль у Профілі</div><div class="trip-meta">Натисніть аватар вгорі → Попутник або Водій</div></div></div>
+                    <div class="trip-card"><div class="trip-content"><div class="trip-title">2. Відкрийте Дошку</div><div class="trip-meta">Оберіть напрямок і підпишіться</div></div></div>
+                    <div class="trip-card"><div class="trip-content"><div class="trip-title">3. Вступайте в екіпаж</div><div class="trip-meta">Бот знайде вам водія або ви самі оберете</div></div></div>
+                    <div class="trip-card"><div class="trip-content"><div class="trip-title">4. Координація та виїзд</div><div class="trip-meta">Спільний чат, карта та події</div></div></div>
                 `;
             }
         }
@@ -3430,6 +3585,59 @@
             if (!localStorage.getItem('wt_intro_seen')) openIntro();
             startSyncEngine();
             renderHome();
+
+            // Setup Universal Input logic
+            const uInput = document.getElementById('universal-input');
+            if (uInput) {
+                uInput.addEventListener('input', (e) => {
+                    const val = e.target.value.toLowerCase().trim();
+                    const activeTab = document.querySelector('.nav-item.active');
+                    if (!activeTab) return;
+                    const tabId = activeTab.getAttribute('onclick');
+
+                    if (tabId.includes('home')) {
+                        window.liveNewsSearch = val;
+                        renderHome();
+                    } else if (tabId.includes('board')) {
+                        const cards = document.querySelectorAll('#board [data-tab="board"].active-content .trip-card');
+                        cards.forEach(card => {
+                            const title = card.querySelector('.trip-title')?.innerText.toLowerCase() || '';
+                            const meta = card.querySelector('.trip-meta')?.innerText.toLowerCase() || '';
+                            if (title.includes(val) || meta.includes(val)) card.style.display = 'flex';
+                            else card.style.display = 'none';
+                        });
+                    }
+                });
+
+                uInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        const val = e.target.value.trim();
+                        if (!val) return;
+                        const activeTab = document.querySelector('.nav-item.active');
+                        if (!activeTab) return;
+                        const tabId = activeTab.getAttribute('onclick');
+
+                        if (tabId.includes('trips')) {
+                            if (activeTrip && activeTrip.id && currentUserId) {
+                                showToast('Відправка...');
+                                api('/api/v3/trip/message', {
+                                    method: 'POST',
+                                    body: JSON.stringify({ request_id: activeTrip.id, user_id: currentUserId, text: val })
+                                }).then(() => {
+                                    uInput.value = '';
+                                    if (document.getElementById('trip-chat-area')) refreshTripMessages();
+                                    showToast('✅ Надіслано в чат екіпажу');
+                                });
+                            } else {
+                                showToast('Спочатку виберіть / створіть екіпаж');
+                            }
+                        } else if (tabId.includes('map')) {
+                            showToast(`📍 Шукаємо локацію '${val}'...`);
+                            uInput.value = '';
+                        }
+                    }
+                });
+            }
         });
 
     </script>
