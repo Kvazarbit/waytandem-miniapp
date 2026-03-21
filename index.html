@@ -1455,10 +1455,8 @@
         async function api(path, opts = {}) {
             if (!CONFIG.apiBase) return null;
             
-            // 🛡️ ЗАХИСТ ВІД ЗКЛЕЮВАННЯ: якщо в шляху є параметри, але немає '?'
             let fixedPath = path;
             if ((fixedPath.includes('limit=') || fixedPath.includes('scope=') || fixedPath.includes('user_id=')) && !fixedPath.includes('?')) {
-                // Знаходимо першу позицію де зазвичай починаються параметри
                 const endpoints = ['news', 'pending', 'active', 'messages', 'crews', 'organizers'];
                 for (const ep of endpoints) {
                     if (fixedPath.includes(ep) && !fixedPath.includes(ep + '?')) {
@@ -1473,7 +1471,6 @@
             if (initData) headers['Authorization'] = 'tma ' + initData;
             
             const fullUrl = CONFIG.apiBase + fixedPath;
-            console.log('📡 API Request:', fullUrl);
 
             try {
                 const r = await fetch(fullUrl, { ...opts, headers: { ...headers, ...opts.headers } });
@@ -1485,7 +1482,7 @@
                 return await r.json();
             } catch (e) {
                 _apiErrorCount++;
-                console.error('API Error:', fullUrl, e);
+                console.error('❌ API Error:', fullUrl, e);
                 if (_apiErrorCount >= 3) setOffline(true);
                 if (opts.method === 'POST') showErrorToast('Немає зв\'язку з сервером');
                 return null;
@@ -2703,8 +2700,11 @@
         function startSyncEngine() {
             if (isSyncing) return;
             isSyncing = true;
-            console.log('🚀 Sync Engine Started');
+            console.log('🚀 Sync Engine Started (Economy Mode)');
             setInterval(async () => {
+                // Не робимо запити, якщо сторінка прихована (економія трафіку тунелю)
+                if (document.hidden) return;
+                
                 await hydrateTrips();
                 if (document.querySelector('.nav-item.active[onclick*="board"]')) {
                     await loadUserSubscriptions();
@@ -2712,7 +2712,7 @@
                 if (document.querySelector('.nav-item.active[onclick*="home"]')) {
                     await loadNewsFromApi();
                 }
-            }, 1000); // Every 1 second (як в боті — миттєва реакція)
+            }, 3000); // 3 секунди — оптимально для стабільності тунелю
         }
 
         function renderTripsActive(trip) {
