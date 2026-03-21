@@ -1454,22 +1454,34 @@
         let _apiErrorCount = 0;
         async function api(path, opts = {}) {
             if (!CONFIG.apiBase) return null;
+            
+            // Захист: якщо в шляху є параметри, але немає знака питання (баг склеювання)
+            let fixedPath = path;
+            if (fixedPath.includes('limit=') && !fixedPath.includes('?')) {
+                fixedPath = fixedPath.replace('limit=', '?limit=');
+            }
+            if (fixedPath.includes('user_id=') && !fixedPath.includes('?')) {
+                fixedPath = fixedPath.replace('user_id=', '?user_id=');
+            }
+
             const headers = { 'Content-Type': 'application/json' };
             const initData = window.Telegram?.WebApp?.initData || '';
             if (initData) headers['Authorization'] = 'tma ' + initData;
+            
+            const fullUrl = CONFIG.apiBase + fixedPath;
+            console.log('📡 API Request:', fullUrl);
+
             try {
-                const r = await fetch(CONFIG.apiBase + path, { ...opts, headers: { ...headers, ...opts.headers } });
+                const r = await fetch(fullUrl, { ...opts, headers: { ...headers, ...opts.headers } });
                 if (!r.ok) {
-                    // Show error only for user-initiated actions (POST), not background sync
                     if (opts.method === 'POST') showErrorToast('Помилка сервера (' + r.status + ')');
                     return null;
                 }
-                _apiErrorCount = 0; // Reset on success
+                _apiErrorCount = 0;
                 return await r.json();
             } catch (e) {
                 _apiErrorCount++;
-                console.error('API Error:', path, e);
-                // Show offline only after 3+ consecutive failures (avoid false alarms)
+                console.error('API Error:', fullUrl, e);
                 if (_apiErrorCount >= 3) setOffline(true);
                 if (opts.method === 'POST') showErrorToast('Немає зв\'язку з сервером');
                 return null;
@@ -3362,14 +3374,18 @@
             mapMarkers = [];
             if (window._goalMarker) { mapInstance.removeLayer(window._goalMarker); window._goalMarker = null; }
 
+            console.log('📡 Fetching map crews from API...');
             const data = await api('/api/v3/map/crews');
             const list = Array.isArray(data) ? data : (data && data.crews ? data.crews : []);
+            console.log(`📍 Received ${list.length} crews for map`);
+            
             const filterId = mapFilterDirectionId ? String(mapFilterDirectionId) : null;
             let count = 0;
 
             // Plot destination goal pin
             if (filterId && flatDiscoveryMap[filterId] && flatDiscoveryMap[filterId].meeting_point) {
                 const dir = flatDiscoveryMap[filterId];
+                console.log('🎯 Plotting goal marker for:', dir.title);
                 const plotGoal = (lat, lng) => {
                     if (!mapInstance) return;
                     window._goalMarker = L.marker([lat, lng], {
@@ -3402,32 +3418,49 @@
                 }
             }
 
-            if (!list.length) return;
+            if (!list.length) {
+                console.warn('⚠️ No crew data received for map');
+                return;
+            }
 
             list.forEach(crew => {
-                if (filterId && String(crew.direction_id) !== filterId) return;
-                if (!crew.lat || !crew.lng) return;
-                // Calculate colored chart segments for the crew pin: 1 driver + N passengers
-                crew.drivers = 1;
-                // If seats_used isn't provided, fallback to members array length minus driver
-                crew.passengers = crew.seats_used !== undefined ? crew.seats_used : (crew.members ? crew.members.length - 1 : 0);
-                crew.organizers = 0;
+                try {
+                    if (filterId && String(crew.direction_id) !== filterId) return;
+                    if (!crew.lat || !crew.lng) {
+                        console.warn(`⏩ Skipping crew ${crew.crew_id || ''} due to missing coords`, crew);
+                        return;
+                    }
+                    
+                    // Ensure numeric values
+                    const lat = parseFloat(crew.lat);
+                    const lng = parseFloat(crew.lng);
+                    if (isNaN(lat) || !isFinite(lat)) return;
 
-                const marker = L.marker([crew.lat, crew.lng], {
-                    icon: L.divIcon({
-                        className: 'custom-marker',
-                        html: `<div class="role-chart" style="${getRoleChartStyle(crew)}; width: 14px; height: 14px; border: 2px solid var(--block-bg); box-shadow: 0 0 10px rgba(0,0,0,0.5);"></div>`
-                    })
-                }).addTo(mapInstance);
-                marker.bindPopup(`
-                    <div style="text-align:center;">
-                        <b>${crew.driver_name || 'Екіпаж'}</b><br>${crew.direction_title || ''}<br>
-                        <button class="tg-btn" style="margin-top:8px; padding:6px 12px; font-size:13px; border-radius:6px; width:100%;" onclick="switchContext('board'); setTimeout(() => openGoalOverview('${crew.direction_id}'), 50);">В каталог</button>
-                    </div>
-                `);
-                mapMarkers.push(marker);
-                count += 1;
+                    // Calculate colored chart segments for the crew pin
+                    crew.drivers = crew.drivers || 1;
+                    crew.passengers = crew.passengers !== undefined ? crew.passengers : (crew.seats_used || 0);
+                    crew.organizers = crew.organizers || 0;
+
+                    const marker = L.marker([lat, lng], {
+                        icon: L.divIcon({
+                            className: 'custom-marker',
+                            html: `<div class="role-chart" style="${getRoleChartStyle(crew)}; width: 14px; height: 14px; border: 2px solid var(--block-bg); box-shadow: 0 0 10px rgba(0,0,0,0.5);"></div>`
+                        })
+                    }).addTo(mapInstance);
+                    marker.bindPopup(`
+                        <div style="text-align:center;">
+                            <b>${crew.driver_name || crew.organizer_name || 'Екіпаж'}</b><br>${crew.direction_title || ''}<br>
+                            <button class="tg-btn" style="margin-top:8px; padding:6px 12px; font-size:13px; border-radius:6px; width:100%;" onclick="switchContext('board'); setTimeout(() => openGoalOverview('${crew.direction_id}'), 50);">В каталог</button>
+                        </div>
+                    `);
+                    mapMarkers.push(marker);
+                    count += 1;
+                } catch (e) {
+                    console.error('Error adding marker for crew:', crew, e);
+                }
             });
+            
+            console.log(`✅ Successfully added ${count} markers to map`);
             const badge = document.getElementById('map-count-badge');
             if (badge) {
                 const mode = badge.dataset.mode === 'goal' ? 'Ціль' : 'Всі';
