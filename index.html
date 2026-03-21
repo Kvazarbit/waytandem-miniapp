@@ -1455,13 +1455,17 @@
         async function api(path, opts = {}) {
             if (!CONFIG.apiBase) return null;
             
-            // Захист: якщо в шляху є параметри, але немає знака питання (баг склеювання)
+            // 🛡️ ЗАХИСТ ВІД ЗКЛЕЮВАННЯ: якщо в шляху є параметри, але немає '?'
             let fixedPath = path;
-            if (fixedPath.includes('limit=') && !fixedPath.includes('?')) {
-                fixedPath = fixedPath.replace('limit=', '?limit=');
-            }
-            if (fixedPath.includes('user_id=') && !fixedPath.includes('?')) {
-                fixedPath = fixedPath.replace('user_id=', '?user_id=');
+            if ((fixedPath.includes('limit=') || fixedPath.includes('scope=') || fixedPath.includes('user_id=')) && !fixedPath.includes('?')) {
+                // Знаходимо першу позицію де зазвичай починаються параметри
+                const endpoints = ['news', 'pending', 'active', 'messages', 'crews', 'organizers'];
+                for (const ep of endpoints) {
+                    if (fixedPath.includes(ep) && !fixedPath.includes(ep + '?')) {
+                        fixedPath = fixedPath.replace(ep, ep + '?');
+                        break;
+                    }
+                }
             }
 
             const headers = { 'Content-Type': 'application/json' };
