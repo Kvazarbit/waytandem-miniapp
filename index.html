@@ -3296,7 +3296,7 @@
                 const marker = L.marker([crew.lat, crew.lng], {
                     icon: L.divIcon({
                         className: 'custom-marker',
-                        html: `<div style="background:var(--lime); width:12px; height:12px; border-radius:50%; box-shadow: 0 0 15px var(--lime)"></div>`
+                        html: `<div class="role-chart" style="${getRoleChartStyle(crew)}; width: 14px; height: 14px; border: 2px solid var(--block-bg); box-shadow: 0 0 10px rgba(0,0,0,0.5);"></div>`
                     })
                 }).addTo(mapInstance);
                 marker.bindPopup(`
