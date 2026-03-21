@@ -309,15 +309,16 @@
             border: 2px solid rgba(255, 255, 255, 0.15);
             flex-shrink: 0;
             overflow: hidden;
-            background: conic-gradient(rgba(255,255,255,0.08) 0% 100%);
-            box-shadow: 0 0 12px rgba(0, 0, 0, 0.4), inset 0 0 4px rgba(0,0,0,0.3);
+            background: conic-gradient(rgba(255, 255, 255, 0.08) 0% 100%);
+            box-shadow: 0 0 12px rgba(0, 0, 0, 0.4), inset 0 0 4px rgba(0, 0, 0, 0.3);
             transform: rotate(0deg);
             -webkit-backface-visibility: hidden;
             backface-visibility: hidden;
             will-change: background;
         }
+
         .role-chart:not([style*="conic-gradient(rgba"]) {
-            box-shadow: 0 0 12px rgba(0, 0, 0, 0.4), inset 0 0 4px rgba(0,0,0,0.3), 0 0 8px var(--lime-glow);
+            box-shadow: 0 0 12px rgba(0, 0, 0, 0.4), inset 0 0 4px rgba(0, 0, 0, 0.3), 0 0 8px var(--lime-glow);
         }
 
         .av-item:first-child {
@@ -773,21 +774,44 @@
         }
 
         @keyframes pulse-glow {
-            0% { transform: scale(1); opacity: 1; filter: drop-shadow(0 0 5px var(--lime-glow)); }
-            50% { transform: scale(1.15); opacity: 0.8; filter: drop-shadow(0 0 20px var(--lime-glow)); }
-            100% { transform: scale(1); opacity: 1; filter: drop-shadow(0 0 5px var(--lime-glow)); }
+            0% {
+                transform: scale(1);
+                opacity: 1;
+                filter: drop-shadow(0 0 5px var(--lime-glow));
+            }
+
+            50% {
+                transform: scale(1.15);
+                opacity: 0.8;
+                filter: drop-shadow(0 0 20px var(--lime-glow));
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+                filter: drop-shadow(0 0 5px var(--lime-glow));
+            }
         }
 
         .pulse-green {
             animation: pulse-button-green 1.5s infinite;
-            background: #4ade80 !important; /* Brighter green for pulse */
+            background: #4ade80 !important;
+            /* Brighter green for pulse */
             box-shadow: 0 0 20px rgba(74, 222, 128, 0.5) !important;
         }
 
         @keyframes pulse-button-green {
-            0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); }
-            70% { box-shadow: 0 0 0 15px rgba(74, 222, 128, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+            0% {
+                box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 15px rgba(74, 222, 128, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(74, 222, 128, 0);
+            }
         }
 
         .rating-stars {
@@ -996,33 +1020,46 @@
             padding: 10px 16px;
             border-radius: 14px;
             margin-bottom: 14px;
-            background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
             flex-shrink: 0;
         }
+
         .state-strip-dot {
-            width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
         }
+
         .state-strip-label {
-            font-size: 11px; font-weight: 800; text-transform: uppercase;
-            letter-spacing: 1px; color: rgba(255,255,255,0.75);
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: rgba(255, 255, 255, 0.75);
         }
+
         .state-strip-step {
-            margin-left: auto; font-size: 10px; font-weight: 700;
-            color: rgba(255,255,255,0.25);
+            margin-left: auto;
+            font-size: 10px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.25);
         }
+
         .what-next {
-            background: rgba(138,201,38,0.06);
-            border: 1px solid rgba(138,201,38,0.2);
+            background: rgba(138, 201, 38, 0.06);
+            border: 1px solid rgba(138, 201, 38, 0.2);
             border-radius: 12px;
             padding: 12px 16px;
             font-size: 13px;
-            color: rgba(255,255,255,0.8);
+            color: rgba(255, 255, 255, 0.8);
             line-height: 1.55;
             flex-shrink: 0;
         }
+
         .what-happened {
-            background: rgba(255,255,255,0.03);
+            background: rgba(255, 255, 255, 0.03);
             border-radius: 10px;
             padding: 10px 14px;
             font-size: 12px;
@@ -1030,24 +1067,52 @@
             line-height: 1.55;
             flex-shrink: 0;
         }
+
         .mini-map-container {
-            width: 100%; height: 130px; border-radius: 16px; overflow: hidden;
-            border: 1px solid rgba(255,255,255,0.1); margin-bottom: 12px; flex-shrink: 0;
+            width: 100%;
+            height: 130px;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 12px;
+            flex-shrink: 0;
         }
 
         /* ── PRODUCTION: Skeleton Loading ── */
         .skeleton {
-            background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%);
+            background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 25%, rgba(255, 255, 255, 0.08) 50%, rgba(255, 255, 255, 0.04) 75%);
             background-size: 200% 100%;
             animation: skeleton-shimmer 1.5s infinite;
             border-radius: 12px;
         }
-        .skeleton-card { height: 72px; margin-bottom: 12px; border-radius: 28px; }
-        .skeleton-hero { height: 140px; margin-bottom: 16px; border-radius: 36px; }
-        .skeleton-text { height: 14px; width: 60%; margin-bottom: 8px; border-radius: 7px; }
+
+        .skeleton-card {
+            height: 72px;
+            margin-bottom: 12px;
+            border-radius: 28px;
+        }
+
+        .skeleton-hero {
+            height: 140px;
+            margin-bottom: 16px;
+            border-radius: 36px;
+        }
+
+        .skeleton-text {
+            height: 14px;
+            width: 60%;
+            margin-bottom: 8px;
+            border-radius: 7px;
+        }
+
         @keyframes skeleton-shimmer {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
+            0% {
+                background-position: 200% 0;
+            }
+
+            100% {
+                background-position: -200% 0;
+            }
         }
 
         /* ── PRODUCTION: Error Toast ── */
@@ -1059,7 +1124,9 @@
         /* ── PRODUCTION: Offline Banner ── */
         .offline-banner {
             position: fixed;
-            top: 0; left: 0; right: 0;
+            top: 0;
+            left: 0;
+            right: 0;
             background: linear-gradient(90deg, #b71c1c, #d32f2f);
             color: #fff;
             text-align: center;
@@ -1071,12 +1138,23 @@
             transition: transform 0.4s cubic-bezier(0.2, 1, 0.2, 1);
             letter-spacing: 0.5px;
         }
-        .offline-banner.active { transform: translateY(0); }
+
+        .offline-banner.active {
+            transform: translateY(0);
+        }
 
         /* ── PRODUCTION: Touch target enforcement ── */
-        .btn-confirm, .nav-btn, .segment-btn, .btn-back, .btn-destructive, .btn-subscribed, .btn-unsubscribe {
+        .btn-confirm,
+        .nav-btn,
+        .segment-btn,
+        .btn-back,
+        .btn-destructive,
+        .btn-subscribed,
+        .btn-unsubscribe {
             min-height: 44px;
-            display: flex; align-items: center; justify-content: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
     </style>
 </head>
@@ -1116,14 +1194,21 @@
 
                 <!-- CONTENT: HOME -->
                 <div data-tab="home" class="active-content">
-                    <div class="map-placeholder" data-map-context="home_community" style="position:relative; flex:1; margin-top:-8px; background:rgba(0,0,0,0.4); border-radius:0 0 32px 32px; overflow:hidden; margin-bottom:12px;"></div>
+                    <div class="map-placeholder" data-map-context="home_community"
+                        style="position:relative; flex:1; margin-top:-8px; background:rgba(0,0,0,0.4); border-radius:0 0 32px 32px; overflow:hidden; margin-bottom:12px;">
+                    </div>
                     <div id="home-news-section">
                         <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
                             <span class="section-header" style="margin:0;">Новини</span>
                             <div style="display:flex;gap:4px;margin-left:auto;">
-                                <div class="home-filter-btn active segment-btn" data-f="all" onclick="setHomeFilter('all')" style="padding:4px 10px;font-size:10px;border-radius:8px;">ВСІ</div>
-                                <div class="home-filter-btn segment-btn" data-f="active" onclick="setHomeFilter('active')" style="padding:4px 10px;font-size:10px;border-radius:8px;">АКТИВНІ</div>
-                                <div class="home-filter-btn segment-btn" data-f="new" onclick="setHomeFilter('new')" style="padding:4px 10px;font-size:10px;border-radius:8px;">НОВІ</div>
+                                <div class="home-filter-btn active segment-btn" data-f="all"
+                                    onclick="setHomeFilter('all')"
+                                    style="padding:4px 10px;font-size:10px;border-radius:8px;">ВСІ</div>
+                                <div class="home-filter-btn segment-btn" data-f="active"
+                                    onclick="setHomeFilter('active')"
+                                    style="padding:4px 10px;font-size:10px;border-radius:8px;">АКТИВНІ</div>
+                                <div class="home-filter-btn segment-btn" data-f="new" onclick="setHomeFilter('new')"
+                                    style="padding:4px 10px;font-size:10px;border-radius:8px;">НОВІ</div>
                             </div>
                         </div>
                         <div id="home-news-container" class="feed-scroll" style="max-height: 50vh;">
@@ -1138,7 +1223,9 @@
 
                 <!-- CONTENT: BOARD -->
                 <div data-tab="board">
-                    <div class="map-placeholder" data-map-context="board_discovery" style="position:relative; flex:1; margin-top:-8px; background:rgba(0,0,0,0.4); border-radius:0 0 32px 32px; overflow:hidden; margin-bottom:12px;"></div>
+                    <div class="map-placeholder" data-map-context="board_discovery"
+                        style="position:relative; flex:1; margin-top:-8px; background:rgba(0,0,0,0.4); border-radius:0 0 32px 32px; overflow:hidden; margin-bottom:12px;">
+                    </div>
                     <h3 class="section-header" style="margin-bottom:12px;">Оберіть напрямок</h3>
                     <div class="feed-scroll" style="max-height: 45vh;">
                         <div class="trip-card" onclick="openDiscoveryLayer('vacation')">
@@ -1150,7 +1237,9 @@
                                 <div class="trip-title">ВІДПОЧИНОК</div>
                                 <div class="trip-meta" style="justify-content:space-between">
                                     <span>5 екіпажів • 20 попутників</span>
-                                    <div class="role-chart" style="background: conic-gradient(#ef5350 0% 40%, #ffca28 40% 60%, #42a5f5 60% 100%)"></div>
+                                    <div class="role-chart"
+                                        style="background: conic-gradient(#ef5350 0% 40%, #ffca28 40% 60%, #42a5f5 60% 100%)">
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1163,7 +1252,9 @@
                                 <div class="trip-title">ТЕОКРАТІЯ</div>
                                 <div class="trip-meta" style="justify-content:space-between">
                                     <span>8 екіпажів • 30 попутників</span>
-                                    <div class="role-chart" style="background: conic-gradient(#ef5350 0% 30%, #ffca28 30% 50%, #42a5f5 50% 100%)"></div>
+                                    <div class="role-chart"
+                                        style="background: conic-gradient(#ef5350 0% 30%, #ffca28 30% 50%, #42a5f5 50% 100%)">
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1176,7 +1267,9 @@
                                 <div class="trip-title">ДОЇЗДИ</div>
                                 <div class="trip-meta" style="justify-content:space-between">
                                     <span>15 екіпажів • 10 попутників</span>
-                                    <div class="role-chart" style="background: conic-gradient(#ef5350 0% 70%, #ffca28 70% 80%, #42a5f5 80% 100%)"></div>
+                                    <div class="role-chart"
+                                        style="background: conic-gradient(#ef5350 0% 70%, #ffca28 70% 80%, #42a5f5 80% 100%)">
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1185,8 +1278,10 @@
 
                 <!-- CONTENT: MY TRIPS -->
                 <div data-tab="trips">
-                    <div class="map-placeholder" data-map-context="my_trips" style="position:relative; flex:1; margin-top:-8px; background:rgba(0,0,0,0.4); border-radius:0 0 32px 32px; overflow:hidden; margin-bottom:12px;"></div>
-                    
+                    <div class="map-placeholder" data-map-context="my_trips"
+                        style="position:relative; flex:1; margin-top:-8px; background:rgba(0,0,0,0.4); border-radius:0 0 32px 32px; overflow:hidden; margin-bottom:12px;">
+                    </div>
+
                     <h3 class="section-header" style="margin-bottom:12px;">Події та історія</h3>
 
                     <div class="hero-card" id="trips-hero" style="margin-bottom:20px;" onclick="openActiveTrip()">
@@ -1206,7 +1301,8 @@
 
                 <!-- CONTENT: MAP -->
                 <div data-tab="map" class="map-full-container" style="margin-top:-8px;">
-                    <div class="map-placeholder" data-map-context="full_explorer" style="position:relative; flex:1; background: rgba(0,0,0,0.4); border-radius:0 0 32px 32px; overflow:hidden;">
+                    <div class="map-placeholder" data-map-context="full_explorer"
+                        style="position:relative; flex:1; background: rgba(0,0,0,0.4); border-radius:0 0 32px 32px; overflow:hidden;">
                         <div id="map"></div>
                     </div>
                     <div style="display:flex; gap:8px; margin-top:12px; margin-bottom:4px;">
@@ -1309,19 +1405,34 @@
 
         function resolveUserId() {
             const tgId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-            if (tgId) return tgId;
+            if (tgId) {
+                console.log('🆔 User ID from Telegram:', tgId);
+                return tgId;
+            }
             const qp = new URLSearchParams(window.location.search);
             const uid = qp.get('user_id');
-            if (uid && uid.trim().match(/^\d+$/)) return parseInt(uid, 10);
+            if (uid && uid.trim().match(/^\d+$/)) {
+                const parsedUid = parseInt(uid, 10);
+                console.log('🆔 User ID from URL:', parsedUid);
+                return parsedUid;
+            }
+            console.warn('🆔 User ID not found, using 0');
             return 0;
         }
 
         function resolveUserName() {
-            const tgName = window.Telegram?.WebApp?.initDataUnsafe?.user?.first_name;
-            if (tgName) return tgName;
+            const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+            if (tgUser && tgUser.first_name) {
+                const name = tgUser.last_name ? `${tgUser.first_name} ${tgUser.last_name}` : tgUser.first_name;
+                console.log('👤 Name from Telegram:', name);
+                return name;
+            }
             const qp = new URLSearchParams(window.location.search);
             const name = qp.get('name');
-            if (name && name.trim()) return name.trim();
+            if (name && name.trim()) {
+                console.log('👤 Name from URL:', name.trim());
+                return name.trim();
+            }
             return '';
         }
 
@@ -1388,7 +1499,7 @@
                 else if (type === 'light') hf.impactOccurred('light');
                 else if (type === 'medium') hf.impactOccurred('medium');
                 else hf.impactOccurred('light');
-            } catch(_) {}
+            } catch (_) { }
         }
 
         // ── PRODUCTION: BackButton sync ──
@@ -1397,7 +1508,7 @@
                 const bb = window.Telegram?.WebApp?.BackButton;
                 if (!bb) return;
                 discoveryStack.length > 0 ? bb.show() : bb.hide();
-            } catch(_) {}
+            } catch (_) { }
         }
 
         function saveProfile() {
@@ -1466,7 +1577,7 @@
                     allMapped.forEach(it => { flatDiscoveryMap[it.id] = it; });
 
                     // 2. Build Hierarchy (Country -> Region -> Direction)
-                    discoveryData = {}; 
+                    discoveryData = {};
                     allMapped.forEach(it => {
                         const raw = data.directions.find(d => String(d.id) === String(it.id));
                         if (raw && (raw.parent_id || raw.parent_id === 0)) {
@@ -1698,7 +1809,7 @@
                 input.value = ''; // clear input on switch
                 window.liveNewsSearch = ''; // reset home filter
             }
-            if (tabId === 'home')  loadNewsFromApi();
+            if (tabId === 'home') loadNewsFromApi();
             if (tabId === 'board' && !skipReload) { loadUserSubscriptions(); loadRootFromApi(); }
             if (tabId === 'trips') hydrateTrips();
             if (tabId === 'map') {
@@ -1771,8 +1882,8 @@
             // Пошук
             if (window.liveNewsSearch) {
                 const query = window.liveNewsSearch.toLowerCase();
-                filtered = filtered.filter(n => 
-                    (n.text || '').toLowerCase().includes(query) || 
+                filtered = filtered.filter(n =>
+                    (n.text || '').toLowerCase().includes(query) ||
                     (n.title || '').toLowerCase().includes(query)
                 );
             }
@@ -1785,7 +1896,7 @@
                         <div class="trip-content">
                             <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
                                 ${isDemo ? '<span style="font-size:9px;font-weight:800;background:rgba(255,202,58,0.15);color:#ffca3a;padding:2px 6px;border-radius:6px;border:0.5px solid #ffca3a;">DEMO</span>' : ''}
-                                <span class="trip-meta" style="margin:0;">${new Date((n.created_at||Date.now()/1000) * 1000).toLocaleDateString()}</span>
+                                <span class="trip-meta" style="margin:0;">${new Date((n.created_at || Date.now() / 1000) * 1000).toLocaleDateString()}</span>
                             </div>
                             <div class="trip-title" style="font-size:14px;">${n.text || n.title || ''}</div>
                         </div>
@@ -1927,12 +2038,12 @@
             const dateEl = document.getElementById('new-direction-date');
             const pointEl = document.getElementById('new-direction-point');
             const descEl = document.getElementById('new-direction-desc');
-            
+
             const title = titleEl ? titleEl.value.trim() : '';
             const date = dateEl ? dateEl.value : '';
             const point = pointEl ? pointEl.value.trim() : '';
             const desc = descEl ? descEl.value.trim() : '';
-            
+
             const parentNum = Number(parentId);
             if (!title) {
                 showToast('Вкажіть назву');
@@ -1944,9 +2055,9 @@
             }
             const res = await api('/api/v3/board', {
                 method: 'POST',
-                body: JSON.stringify({ 
-                    user_id: currentUserId, 
-                    title: title, 
+                body: JSON.stringify({
+                    user_id: currentUserId,
+                    title: title,
                     parent_id: parentNum,
                     start_date: date,
                     meeting_point: point,
@@ -1984,12 +2095,12 @@
             const organizers = direction.organizers || [];
 
             title.innerText = direction.title;
-            
+
             // Logic for headers
             let subHeader = `Вже підписані (${stacks.length})`;
             const blueCount = stacks.filter(c => c === '#42a5f5').length;
             const redCount = stacks.filter(c => c === '#ef5350').length;
-            
+
             if (organizers.length === 0 && blueCount > 0) {
                 subHeader = `Очікують екіпаж (${blueCount} попутників)`;
             } else if (redCount > 0 && blueCount === 0) {
@@ -2073,15 +2184,15 @@
                     <div class="trip-meta">Станьте першим водієм на цьому маршруті!</div>
                 </div>
             </div>`;
-            
+
             content.insertAdjacentHTML('beforeend', orgHeader + (organizers.length ? orgList : emptyOrgs));
-            
+
             navAction = { type: 'subscribe', directionId: dId };
-            
+
             // #2/#3: Apply pulse animation if trip is active and started
             const btnText = isSub ? 'ДО ПАРАМЕТРІВ' : 'ПІДПИСАТИСЯ';
             updateNavState('context', btnText);
-            
+
             const actionBtn = document.getElementById('nav-main-action');
             if (actionBtn) {
                 // Pulse green if trip started (UX Fix #3)
@@ -2216,9 +2327,9 @@
             if (!newTitle) { showToast('Вкажіть назву'); return; }
             const res = await api('/api/v3/board', {
                 method: 'PATCH',
-                body: JSON.stringify({ 
-                    user_id: currentUserId, 
-                    direction_id: Number(directionId), 
+                body: JSON.stringify({
+                    user_id: currentUserId,
+                    direction_id: Number(directionId),
                     title: newTitle,
                     start_date: newDate,
                     meeting_point: newPoint,
@@ -2278,14 +2389,14 @@
                 if (data.status === 'ok') {
                     showToast('Напрямок видалено');
                     delete flatDiscoveryMap[String(directionId)];
-                    
+
                     // Cleanup in stack and parent items
                     discoveryStack.forEach(item => {
                         if (item.data && item.data.items) {
                             item.data.items = item.data.items.filter(it => String(it.remote_id || it.id) !== String(directionId));
                         }
                     });
-                    
+
                     closeModal(); // Returns to the parent view which is already updated in the stack
                     loadRootFromApi(); // Background refresh of the board root
                     return;
@@ -2344,30 +2455,30 @@
             showToast('Оберіть точку на карті');
             const mapBtn = document.querySelector('.nav-item[onclick*="map"]');
             if (mapBtn) switchContext('map', mapBtn);
-            
+
             // Temporary click listener for picking
             const pickingHandler = (e) => {
                 if (!isPickingLocation) return;
                 const lat = e.latlng.lat.toFixed(6);
                 const lng = e.latlng.lng.toFixed(6);
                 const coords = `${lat}, ${lng}`;
-                
+
                 // Try finding both create and edit point fields
                 const createPoint = document.getElementById('new-direction-point');
                 const editPoint = document.getElementById('edit-direction-point');
-                
+
                 if (createPoint) createPoint.value = coords;
                 if (editPoint) editPoint.value = coords;
-                
+
                 isPickingLocation = false;
                 mapInstance.off('click', pickingHandler);
                 showToast('Локацію обрано!');
-                
+
                 // Go back to board
                 const boardBtn = document.querySelector('.nav-item[onclick*="board"]');
                 if (boardBtn) switchContext('board', boardBtn, true);
             };
-            
+
             if (mapInstance) {
                 mapInstance.on('click', pickingHandler);
             }
@@ -2376,12 +2487,12 @@
         function toggleDirectionForm(type, show) {
             const formId = type === 'new' ? 'new-direction-form' : 'edit-direction-form';
             const btnId = type === 'new' ? 'new-dir-toggle-btn' : 'edit-dir-toggle-btn';
-            
+
             const form = document.getElementById(formId);
             const btn = document.getElementById(btnId);
-            
+
             if (!form || !btn) return;
-            
+
             if (show) {
                 form.style.display = 'flex';
                 btn.style.display = 'none';
@@ -2443,14 +2554,14 @@
             const el = document.getElementById('trip-mini-map');
             if (!el || !trip.pickup_lat) return;
             try {
-                const m = L.map(el, { zoomControl:false, attributionControl:false, dragging:false, scrollWheelZoom:false })
+                const m = L.map(el, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false })
                     .setView([trip.pickup_lat, trip.pickup_lng], 14);
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(m);
                 L.marker([trip.pickup_lat, trip.pickup_lng], {
-                    icon: L.divIcon({ className:'', html:`<div style="background:var(--lime);width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 12px var(--lime)"></div>` })
+                    icon: L.divIcon({ className: '', html: `<div style="background:var(--lime);width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 12px var(--lime)"></div>` })
                 }).addTo(m);
                 setTimeout(() => m.invalidateSize(), 60);
-            } catch(e) { console.warn('mini map err', e); }
+            } catch (e) { console.warn('mini map err', e); }
         }
 
         function normalizeTrip(trip) {
@@ -2485,7 +2596,7 @@
             const trip = await api(`/api/v3/trip/active?user_id=${currentUserId}`);
             if (trip && trip.active !== false) {
                 const normalized = normalizeTrip(trip);
-                
+
                 // Notification: Trip Accepted!
                 if (!activeTripId && normalized.id) {
                     showToast('🎉 ВАС ПРИЙНЯТО В ЕКІПАЖ!');
@@ -2499,24 +2610,24 @@
                     setTimeout(() => hideLoudPush(), 5000);
                 }
                 lastTripStartedState = !!normalized.is_started;
-                
+
                 activeTripId = normalized.id;
                 activeTrip = normalized;
-                
+
                 // 🔄 Real-time Modal Sync: update open modal if it matches active trip
                 if (currentModalData && currentModalData.trip && currentModalData.trip.id === activeTripId) {
                     const oldStarted = currentModalData.trip.is_started;
                     currentModalData.trip = normalized;
                     if (oldStarted !== normalized.is_started) {
                         console.log('🔄 Modal UI Refresh (Trip Status Changed)');
-                        renderActiveTripTab(); 
+                        renderActiveTripTab();
                     }
                 }
 
                 renderTripsActive(activeTrip);
                 return;
             }
-            
+
             // If trip was active but now gone (cancelled/finished)
             if (activeTripId && (!trip || trip.active === false)) {
                 console.log('🏁 Active trip cleared from sync');
@@ -2524,7 +2635,7 @@
                 activeTripId = null;
                 activeTrip = null;
                 lastTripStartedState = false; // reset so loud push fires on next trip
-                
+
                 // If it was a started trip, show rating 
                 if (lastTrip && lastTrip.is_started) {
                     showToast('Поїздку завершено');
@@ -2538,16 +2649,16 @@
             // 2. Check Pending Invitations (Incoming)
             let pending = await api(`/api/v3/match/pending?scope=incoming&user_id=${currentUserId}`);
             let incoming = pending || [];
-            
+
             // 3. Check Pending Invitations (Outgoing) - if no incoming
             let outgoing = [];
             if (incoming.length === 0) {
                 const out = await api(`/api/v3/match/pending?scope=outgoing&user_id=${currentUserId}`);
                 outgoing = out || [];
             }
-            
+
             const allPending = [...incoming, ...outgoing];
-            
+
             // Notification: New Request! + focus capture (як в боті)
             if (incoming.length > lastIncomingRequestsCount) {
                 showToast('👋 НОВИЙ ЗАПИТ В ЕКІПАЖ!');
@@ -2565,7 +2676,10 @@
                 const organizers = await api(`/api/v3/fractal/organizers${buildQuery({ direction_id: (dir.remote_id || dir.id), user_id: currentUserId })}`);
                 if (organizers && organizers.organizers) {
                     dir.organizers = organizers.organizers;
-                    renderDirectionUI(dir);
+                    const editForm = document.getElementById('edit-direction-form');
+                    if (!editForm || editForm.style.display !== 'flex') {
+                        renderDirectionUI(dir);
+                    }
                 }
             }
         }
@@ -2594,11 +2708,11 @@
             const isDriver = trip.viewer_role === 'driver';
             const iAmDone = isDriver ? !!trip.driver_finished : !!trip.client_finished;
             const partnerDone = isDriver ? !!trip.client_finished : !!trip.driver_finished;
-            
+
             const dotColor = isStarted ? 'var(--lime)' : '#ffca3a';
             let phase = isStarted ? 'Поїздка триває' : 'Резервація';
             let stepNum = isStarted ? 5 : 4;
-            
+
             if (iAmDone && !partnerDone) {
                 phase = 'Очікування партнера';
                 stepNum = 6;
@@ -2608,11 +2722,11 @@
             const departure = trip.departure || trip.departure_time || trip.time || '';
             const roleLabel = trip.viewer_role === 'driver' ? '🚗 Ви водій' : '👤 Ви попутник';
             const partner = trip.partner_name || (trip.viewer_role === 'driver' ? 'Попутник' : trip.organizer_name || trip.driver_name || 'Водій');
-            
+
             let hint = isStarted
                 ? (trip.viewer_role === 'driver' ? 'Натисніть «Завершити» після прибуття' : 'Очікуйте сигнал водія про прибуття')
                 : (trip.viewer_role === 'driver' ? 'Натисніть «Поїхали» коли всі готові' : 'Очікуйте сигнал водія про виїзд');
-            
+
             if (iAmDone) hint = 'Залишилось дочекатися підтвердження партнера';
 
             feed.innerHTML = `
@@ -2666,9 +2780,9 @@
             const crewRows = crewMembers.length
                 ? crewMembers.map(m => `
                     <div style="display:flex;align-items:center;gap:8px;padding:4px 0;">
-                        <div class="user-av" style="width:28px;height:28px;font-size:11px;background:var(--glass);">${(m.name||'?')[0].toUpperCase()}</div>
-                        <div style="font-size:12px;flex:1;">${m.name||'?'}</div>
-                        <div style="font-size:9px;font-weight:800;color:${m.role==='driver'?'var(--lime)':'var(--text-muted)'};">${m.role==='driver'?'🚗 Driver':'Pilgrim'}</div>
+                        <div class="user-av" style="width:28px;height:28px;font-size:11px;background:var(--glass);">${(m.name || '?')[0].toUpperCase()}</div>
+                        <div style="font-size:12px;flex:1;">${m.name || '?'}</div>
+                        <div style="font-size:9px;font-weight:800;color:${m.role === 'driver' ? 'var(--lime)' : 'var(--text-muted)'};">${m.role === 'driver' ? '🚗 Driver' : 'Pilgrim'}</div>
                     </div>`).join('')
                 : `<div style="color:var(--text-muted);font-size:12px;">Ви — перший учасник екіпажу</div>`;
 
@@ -2682,10 +2796,10 @@
                         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
                             <div style="width:8px;height:8px;border-radius:50%;background:${statusColor};animation:pulse 1.5s infinite;"></div>
                             <span style="font-size:10px;font-weight:800;color:${statusColor};text-transform:uppercase;letter-spacing:1px;">${statusLabel}</span>
-                            ${list.length > 1 ? `<span style="margin-left:auto;font-size:10px;color:var(--text-muted);">ще ${list.length-1} в черзі</span>` : ''}
+                            ${list.length > 1 ? `<span style="margin-left:auto;font-size:10px;color:var(--text-muted);">ще ${list.length - 1} в черзі</span>` : ''}
                         </div>
                         <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-                            <div class="user-av" style="background:linear-gradient(135deg,#42a5f5,#ab47bc);flex-shrink:0;">${(partnerName||'?')[0].toUpperCase()}</div>
+                            <div class="user-av" style="background:linear-gradient(135deg,#42a5f5,#ab47bc);flex-shrink:0;">${(partnerName || '?')[0].toUpperCase()}</div>
                             <div>
                                 <div class="trip-title" style="font-size:16px;margin-bottom:2px;">${partnerName}</div>
                                 <div class="trip-meta">${isOutgoing ? 'ви хочете приєднатись' : 'хоче приєднатись'} • ${dirTitle}</div>
@@ -2756,7 +2870,7 @@
             const isDriver = trip.viewer_role === 'driver';
             const iAmDone = isDriver ? !!trip.driver_finished : !!trip.client_finished;
             const partnerDone = isDriver ? !!trip.client_finished : !!trip.driver_finished;
-            
+
             let phase = trip.is_started ? 'В дорозі' : 'Резервація';
             if (iAmDone && !partnerDone) phase = 'Очікування партнера';
 
@@ -2999,7 +3113,7 @@
                 body: JSON.stringify({ request_id: activeTrip.id, user_id: currentUserId, role: role })
             });
             if (!res || res.status !== 'ok') { showToast('Помилка фінішу'); haptic('error'); return; }
-            
+
             if (res.completed) {
                 const finishedTrip = activeTrip;
                 activeTrip = null;
@@ -3041,11 +3155,11 @@
             const partnerRaw = (trip.viewer_role === 'driver'
                 ? (trip.partner_name || trip.client_name)
                 : (trip.partner_name || trip.organizer_name || trip.driver_name)) || '';
-            
+
             // #14: Fix rating screen fallback text
             const pName = partnerRaw ? String(partnerRaw).trim() : '';
-            const ratingQuestion = (pName && pName !== 'Попутник' && pName !== 'Водій') 
-                ? `Як вам ${pName}?` 
+            const ratingQuestion = (pName && pName !== 'Попутник' && pName !== 'Водій')
+                ? `Як вам ${pName}?`
                 : 'Як пройшла поїздка?';
             if (title) title.innerText = 'ОЦІНКА ПОЇЗДКИ';
             if (content) {
@@ -3293,6 +3407,12 @@
             list.forEach(crew => {
                 if (filterId && String(crew.direction_id) !== filterId) return;
                 if (!crew.lat || !crew.lng) return;
+                // Calculate colored chart segments for the crew pin: 1 driver + N passengers
+                crew.drivers = 1;
+                // If seats_used isn't provided, fallback to members array length minus driver
+                crew.passengers = crew.seats_used !== undefined ? crew.seats_used : (crew.members ? crew.members.length - 1 : 0);
+                crew.organizers = 0;
+
                 const marker = L.marker([crew.lat, crew.lng], {
                     icon: L.divIcon({
                         className: 'custom-marker',
@@ -3890,11 +4010,11 @@
             if (!userSettings.name && currentUserName) userSettings.name = currentUserName;
             CONFIG.lang = userSettings.lang || CONFIG.lang;
             applyHeader();
-            
+
             await loadDemoData();
             loadRootFromApi();
             hydrateTrips();
-            
+
             // #1: Onboarding: Show intro on first launch if no profile name (L-1/I-5)
             // Force intro if even if seen if name is missing (critical for UX)
             if (!localStorage.getItem('wt_intro_seen') || !userSettings.name) {
