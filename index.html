@@ -1529,18 +1529,23 @@
             const total = d + p + o;
             if (total === 0) return 'background: conic-gradient(rgba(255,255,255,0.08) 0deg 360deg)';
 
-            // Degrees for precise boundaries — no wrap-around bleed
-            const dDeg = Math.round((d / total) * 360);
-            const pDeg = Math.round((p / total) * 360);
-            const oDeg = 360 - dDeg - pDeg;
+            const colors = [];
+            if (d > 0) colors.push({ color: '#ef5350', count: d });
+            if (p > 0) colors.push({ color: '#42a5f5', count: p });
+            if (o > 0) colors.push({ color: '#ffca28', count: o });
+
+            if (colors.length === 1) return `background: ${colors[0].color}`;
 
             const stops = [];
             let at = 0;
-            if (d > 0) { stops.push(`#ef5350 ${at}deg ${at + dDeg}deg`); at += dDeg; }
-            if (p > 0) { stops.push(`#42a5f5 ${at}deg ${at + pDeg}deg`); at += pDeg; }
-            if (o > 0) { stops.push(`#ffca28 ${at}deg 360deg`); }
+            for (let i = 0; i < colors.length; i++) {
+                const isLast = (i === colors.length - 1);
+                // use floating-point exactly, but snap the very last one to 360 to prevent ANY micro-gaps
+                const deg = isLast ? (360 - at) : ((colors[i].count / total) * 360);
+                stops.push(`${colors[i].color} ${at}deg ${at + deg}deg`);
+                at += deg;
+            }
 
-            if (stops.length === 1) return `background: ${stops[0].split(' ')[0]}`;
             return `background: conic-gradient(${stops.join(', ')})`;
         }
 
@@ -1656,10 +1661,14 @@
             return Object.values(flatDiscoveryMap).filter(it => it && it.type === 'direction');
         }
 
-        function switchContext(tabId, el) {
+        function switchContext(tabId, el, skipReload = false) {
             console.log('Switching to context:', tabId);
             document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
-            el.classList.add('active');
+            if (!el) {
+                const tabs = Array.from(document.querySelectorAll('.nav-item'));
+                el = tabs.find(t => t.getAttribute('onclick') && t.getAttribute('onclick').includes(tabId));
+            }
+            if (el) el.classList.add('active');
             document.querySelectorAll('[data-tab]').forEach(tab => tab.classList.remove('active-content'));
             const target = document.querySelector(`[data-tab="${tabId}"]`);
             if (target) target.classList.add('active-content');
@@ -1690,7 +1699,7 @@
                 window.liveNewsSearch = ''; // reset home filter
             }
             if (tabId === 'home')  loadNewsFromApi();
-            if (tabId === 'board') { loadUserSubscriptions(); loadRootFromApi(); }
+            if (tabId === 'board' && !skipReload) { loadUserSubscriptions(); loadRootFromApi(); }
             if (tabId === 'trips') hydrateTrips();
             if (tabId === 'map') {
                 mapFilterDirectionId = selectedDirectionId;
@@ -2356,7 +2365,7 @@
                 
                 // Go back to board
                 const boardBtn = document.querySelector('.nav-item[onclick*="board"]');
-                if (boardBtn) switchContext('board', boardBtn);
+                if (boardBtn) switchContext('board', boardBtn, true);
             };
             
             if (mapInstance) {
@@ -3117,6 +3126,7 @@
 
         async function openGoalOverview(directionId) {
             if (!directionId) return;
+            selectedDirectionId = directionId;
             mapFilterDirectionId = directionId;
             currentModalData = { key: 'goal_overview', directionId: directionId };
             discoveryStack.push(currentModalData);
@@ -3183,7 +3193,7 @@
                 ${list || '<div class="trip-card"><div class="trip-content"><div class="trip-title">Екіпажів поки немає</div></div></div>'}
                 <div class="hero-card" style="margin-top:16px;">
                     <span class="hero-label">Карта</span>
-                    <div class="btn-confirm" onclick="switchContext('map', document.querySelector('.nav-item[onclick*=\"map\"]'))">ВІДКРИТИ КАРТУ</div>
+                    <div class="btn-confirm" onclick="switchContext('map')">ВІДКРИТИ КАРТУ</div>
                 </div>
                 <h3 class="section-header">Події</h3>
                 <div class="nav-btn nav-btn-back" style="margin-bottom:10px; width:auto; padding:6px 10px; font-size:10px;" onclick="renderGoalOverview('${directionId}')">ОНОВИТИ ПОДІЇ</div>
@@ -3245,22 +3255,37 @@
 
             // Plot destination goal pin
             if (filterId && flatDiscoveryMap[filterId] && flatDiscoveryMap[filterId].meeting_point) {
-                const meeting = flatDiscoveryMap[filterId].meeting_point;
-                fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(meeting)}&format=json&limit=1`)
-                    .then(r => r.json())
-                    .then(res => {
-                        if (res && res.length > 0 && mapInstance) {
-                            const lat = parseFloat(res[0].lat), lng = parseFloat(res[0].lon);
-                            window._goalMarker = L.marker([lat, lng], {
-                                icon: L.divIcon({
-                                    className: 'custom-marker',
-                                    html: `<div style="background:var(--gold); width:18px; height:18px; border-radius:50%; box-shadow: 0 0 20px var(--gold); border: 2px solid #fff; z-index:1000;"></div>`
-                                })
-                            }).addTo(mapInstance);
-                            window._goalMarker.bindPopup(`<b>Ціль:</b><br>${flatDiscoveryMap[filterId].title}`).openPopup();
-                            mapInstance.flyTo([lat, lng], 12, { animate: true, duration: 1.5 });
-                        }
-                    }).catch(e => console.error("Goal geocode err", e));
+                const dir = flatDiscoveryMap[filterId];
+                const plotGoal = (lat, lng) => {
+                    if (!mapInstance) return;
+                    window._goalMarker = L.marker([lat, lng], {
+                        icon: L.divIcon({
+                            className: 'custom-marker',
+                            html: `<div style="background:var(--gold); width:18px; height:18px; border-radius:50%; box-shadow: 0 0 20px var(--gold); border: 2px solid #fff; z-index:1000;"></div>`
+                        })
+                    }).addTo(mapInstance);
+                    window._goalMarker.bindPopup(`
+                        <div style="text-align:center;">
+                            <b>Ціль:</b><br>${dir.title}<br>
+                            <button class="tg-btn" style="margin-top:8px; padding:6px 12px; font-size:13px; border-radius:6px; width:100%;" onclick="switchContext('board'); setTimeout(() => openGoalOverview('${filterId}'), 50);">В каталог</button>
+                        </div>
+                    `).openPopup();
+                    mapInstance.flyTo([lat, lng], 13, { animate: true, duration: 1.0 });
+                };
+
+                if (dir.lat && dir.lng) {
+                    plotGoal(dir.lat, dir.lng);
+                } else {
+                    fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(dir.meeting_point)}&format=json&limit=1`)
+                        .then(r => r.json())
+                        .then(res => {
+                            if (res && res.length > 0) {
+                                dir.lat = parseFloat(res[0].lat);
+                                dir.lng = parseFloat(res[0].lon);
+                                plotGoal(dir.lat, dir.lng);
+                            }
+                        }).catch(e => console.error("Goal geocode err", e));
+                }
             }
 
             if (!list.length) return;
@@ -3274,7 +3299,12 @@
                         html: `<div style="background:var(--lime); width:12px; height:12px; border-radius:50%; box-shadow: 0 0 15px var(--lime)"></div>`
                     })
                 }).addTo(mapInstance);
-                marker.bindPopup(`<b>${crew.driver_name || 'Екіпаж'}</b><br>${crew.direction_title || ''}`);
+                marker.bindPopup(`
+                    <div style="text-align:center;">
+                        <b>${crew.driver_name || 'Екіпаж'}</b><br>${crew.direction_title || ''}<br>
+                        <button class="tg-btn" style="margin-top:8px; padding:6px 12px; font-size:13px; border-radius:6px; width:100%;" onclick="switchContext('board'); setTimeout(() => openGoalOverview('${crew.direction_id}'), 50);">В каталог</button>
+                    </div>
+                `);
                 mapMarkers.push(marker);
                 count += 1;
             });
@@ -3282,6 +3312,11 @@
             if (badge) {
                 const mode = badge.dataset.mode === 'goal' ? 'Ціль' : 'Всі';
                 badge.textContent = count ? `${mode} • ${count}` : `${mode} • 0`;
+            }
+
+            if (!filterId && mapMarkers.length > 0 && mapInstance) {
+                const group = new L.featureGroup(mapMarkers);
+                mapInstance.flyToBounds(group.getBounds(), { padding: [30, 30], animate: true, duration: 1.0, maxZoom: 13 });
             }
         }
 
