@@ -3035,7 +3035,7 @@
             return isStarted ? 'driving' : isDriver ? 'reserved_drv' : 'reserved_pax';
         }
 
-        async function hydrateTrips() {
+        async function hydrateTrips(opts = {}) {
             const feed = document.getElementById('trips-feed');
             const hero = document.getElementById('trips-hero');
             if (!feed || !hero) return false;
@@ -3045,9 +3045,21 @@
                 hero.onclick = null;
                 return false;
             }
+            const fullPendingScan = opts.fullPendingScan !== false;
 
-            // 1. Check Active Trip
-            const trip = await api(`/api/v3/trip/active?user_id=${currentUserId}`);
+            // 1. Unified hydrate (frontend+server+core snapshot)
+            const shouldFetchOutgoing = fullPendingScan || !!pendingInvite || ((window.activePendingMatches || []).some(x => x && x.scope === 'outgoing'));
+            const hyd = await api(
+                `/api/v3/hydrate?user_id=${currentUserId}&include_outgoing=${shouldFetchOutgoing ? 1 : 0}`,
+                { _silent404: true }
+            );
+            const incomingHyd = Array.isArray(hyd?.incoming) ? hyd.incoming : null;
+            const outgoingHyd = Array.isArray(hyd?.outgoing) ? hyd.outgoing : null;
+
+            // 2. Check Active Trip
+            const trip = hyd && typeof hyd.trip === 'object'
+                ? hyd.trip
+                : await api(`/api/v3/trip/active?user_id=${currentUserId}`);
             if (trip && trip.active !== false) {
                 const normalized = normalizeTrip(trip);
 
@@ -3112,15 +3124,22 @@
                 }
             }
 
-            // 2. Check Pending Invitations (Incoming)
-            let pending = await api(`/api/v3/match/pending?scope=incoming&user_id=${currentUserId}`);
+            // 3. Check Pending Invitations (Incoming)
+            let pending = incomingHyd;
+            if (!Array.isArray(pending)) {
+                pending = await api(`/api/v3/match/pending?scope=incoming&user_id=${currentUserId}`);
+            }
             let incoming = pending || [];
 
-            // 3. Check Pending Invitations (Outgoing)
+            // 4. Check Pending Invitations (Outgoing)
             let outgoing = [];
             if (incoming.length === 0) {
-                const out = await api(`/api/v3/match/pending?scope=outgoing&user_id=${currentUserId}`);
-                outgoing = out || [];
+                if (Array.isArray(outgoingHyd)) {
+                    outgoing = outgoingHyd;
+                } else if (shouldFetchOutgoing) {
+                    const out = await api(`/api/v3/match/pending?scope=outgoing&user_id=${currentUserId}`);
+                    outgoing = out || [];
+                }
             }
 
             const allPending = [...incoming, ...outgoing];
@@ -3136,9 +3155,12 @@
 
             renderTripsPending(allPending);
 
-            // 3. Auto-refresh Direction Modal if open
+            // 5. Auto-refresh Direction Modal if open (throttled)
             const top = discoveryStack[discoveryStack.length - 1];
-            if (top && top.type === 'direction') {
+            const nowMs = Date.now();
+            const modalRefreshGap = activeTrip ? 5000 : 12000;
+            if (top && top.type === 'direction' && (nowMs - lastDirectionModalRefreshAt) >= modalRefreshGap) {
+                lastDirectionModalRefreshAt = nowMs;
                 const dir = top.data;
                 const organizers = await api(`/api/v3/fractal/organizers${buildQuery({ direction_id: (dir.remote_id || dir.id), user_id: currentUserId })}`);
                 if (organizers && organizers.organizers) {
@@ -3156,39 +3178,90 @@
 
         let syncCycle = 0;
         let syncTimer = null;
+        let lastDirectionModalRefreshAt = 0;
+        const syncAux = { newsAt: 0, subsAt: 0, mapAt: 0 };
+
+        function syncJitterFactor() {
+            const uid = Math.abs(Number(currentUserId || 0));
+            const bucket = uid % 17; // 0..16
+            return (bucket - 8) / 100; // -8%..+8%
+        }
+
+        function computeSyncDelayMs(ctx) {
+            let base = 30000;
+            if (ctx.hidden) base = 60000;
+            else if (ctx.offline) base = 45000;
+            else if (['cancel_pending_me', 'cancel_pending_partner', 'finish_request', 'waiting_done'].includes(ctx.lifecycleState)) base = 1800;
+            else if (['reserved_drv', 'reserved_pax', 'driving'].includes(ctx.lifecycleState)) base = 3200;
+            else if (ctx.pendingCount > 0) base = 3500;
+            else if (ctx.isMapActive) base = 12000;
+            else if (ctx.isBoardActive || ctx.isHomeActive) base = 18000;
+            const jittered = Math.round(base * (1 + syncJitterFactor()));
+            return Math.max(1600, Math.min(60000, jittered));
+        }
 
         async function startSyncEngine() {
             if (isSyncing) return;
             isSyncing = true;
-            console.log('🚀 Sync Engine Started (Adaptive Mode)');
+            console.log('🚀 Sync Engine Started (Adaptive+Hydrate Mode)');
             
             async function tick() {
-                if (document.hidden) {
-                    syncTimer = setTimeout(tick, 10000);
-                    return;
-                }
-
-                const hasActivity = await hydrateTrips();
-                checkGeoProximity(); // Geo-proximity toasts — повідомляє пасажира про наближення водія
-                
+                const isHidden = !!document.hidden;
+                const isOffline = !!document.getElementById('offline-indicator')?.classList.contains('active');
+                let hasActivity = false;
                 let markersCount = 0;
-                const isMapActive = !!document.querySelector('.nav-item.active[onclick*="map"]');
-                const isBoardActive = !!document.querySelector('.nav-item.active[onclick*="board"]');
-                const isHomeActive = !!document.querySelector('.nav-item.active[onclick*="home"]');
+                let isMapActive = false;
+                let isBoardActive = false;
+                let isHomeActive = false;
+                try {
+                    if (!isHidden) {
+                        const pendingKnown = Array.isArray(window.activePendingMatches) && window.activePendingMatches.length > 0;
+                        const fullPendingScan = pendingKnown || !!pendingInvite || (syncCycle % 4 === 0);
+                        hasActivity = await hydrateTrips({ fullPendingScan });
+                        checkGeoProximity(); // Geo-proximity toasts — повідомляє пасажира про наближення водія
+                        
+                        isMapActive = !!document.querySelector('.nav-item.active[onclick*="map"]');
+                        isBoardActive = !!document.querySelector('.nav-item.active[onclick*="board"]');
+                        isHomeActive = !!document.querySelector('.nav-item.active[onclick*="home"]');
+                        const now = Date.now();
 
-                if (isBoardActive) await loadUserSubscriptions();
-                if (isHomeActive) await loadNewsFromApi();
-                if (isMapActive) markersCount = await refreshMapMarkers();
+                        if (isBoardActive && (now - syncAux.subsAt) >= 15000) {
+                            await loadUserSubscriptions();
+                            syncAux.subsAt = now;
+                        }
+                        if (isHomeActive && (now - syncAux.newsAt) >= 20000) {
+                            await loadNewsFromApi();
+                            syncAux.newsAt = now;
+                        }
+                        if (isMapActive) {
+                            const mapGap = activeTrip ? 3200 : 12000;
+                            if ((now - syncAux.mapAt) >= mapGap) {
+                                markersCount = await refreshMapMarkers();
+                                syncAux.mapAt = now;
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.error('❌ Sync tick failed:', err);
+                }
 
                 syncCycle++;
-                // 💓 ПУЛЬС: раз на 30 секунд (при 10с інтервалі) або частіше при активності
-                if (syncCycle % 3 === 0 || hasActivity) {
+                const pendingCount = Array.isArray(window.activePendingMatches) ? window.activePendingMatches.length : 0;
+                const lifecycleState = activeTrip ? resolveTripLifecycleState(activeTrip) : 'global';
+                if (syncCycle % 3 === 0 || hasActivity || pendingCount > 0) {
                     const tripInfo = activeTrip ? `Active Trip #${activeTrip.id}` : 'No active trip';
-                    console.log(`💓 Heartbeat: ${tripInfo} | Activity: ${hasActivity} | Map: ${markersCount || 0}`);
+                    console.log(`💓 Heartbeat: ${tripInfo} | pending=${pendingCount} | state=${lifecycleState} | map=${markersCount || 0}`);
                 }
 
-                // Адаптивний інтервал: 1.5с якщо чекаємо на рішення, 10с якщо все спокійно
-                const nextDelay = hasActivity ? 1500 : 10000;
+                const nextDelay = computeSyncDelayMs({
+                    hidden: isHidden,
+                    offline: isOffline,
+                    lifecycleState,
+                    pendingCount,
+                    isMapActive,
+                    isBoardActive,
+                    isHomeActive
+                });
                 syncTimer = setTimeout(tick, nextDelay);
             }
 
