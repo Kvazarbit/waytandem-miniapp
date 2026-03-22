@@ -3891,7 +3891,7 @@
             const text = input ? input.value.trim() : '';
             if (!text) return;
             if (!currentUserId) { showToast('Потрібен user_id'); return; }
-            const res = await api('/api/v3/direction/message', {
+            const res = await api('/api/v3/direction/messages', {
                 method: 'POST',
                 body: JSON.stringify({ direction_id: directionId, user_id: currentUserId, text: text })
             });
