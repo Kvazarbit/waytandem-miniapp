@@ -1792,6 +1792,9 @@
                     });
                 });
                 userSubscriptionsList = userSubscriptionsList.slice(0, 10);
+                if (!selectedDirectionId && userSubscriptionsList.length) {
+                    selectedDirectionId = userSubscriptionsList[0].direction_id;
+                }
             }
             if (document.querySelector('.nav-item.active[onclick*="board"]')) {
                 renderBoardRoot(Object.values(getDiscoverySource()));
@@ -2950,6 +2953,132 @@
             }
         }
 
+        function clearGoalRoutePreview() {
+            ['_goalRouteLine', '_goalDistLabel'].forEach(k => {
+                if (window[k] && mapInstance) {
+                    mapInstance.removeLayer(window[k]);
+                    window[k] = null;
+                }
+            });
+        }
+
+        function parseCoordPair(value) {
+            const m = String(value || '').trim().match(/^\s*(-?\d+\.\d+)\s*[,;]\s*(-?\d+\.\d+)\s*$/);
+            if (!m) return null;
+            const lat = Number(m[1]);
+            const lng = Number(m[2]);
+            if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+            return { lat, lng };
+        }
+
+        async function resolveGoalPointForRoute() {
+            let goalId = String(
+                mapFilterDirectionId ||
+                (userSubscriptionsList[0] && userSubscriptionsList[0].direction_id) ||
+                selectedDirectionId ||
+                ''
+            ).trim();
+            if (!goalId && currentUserId && CONFIG.apiBase) {
+                await loadUserSubscriptions();
+                goalId = String(
+                    mapFilterDirectionId ||
+                    (userSubscriptionsList[0] && userSubscriptionsList[0].direction_id) ||
+                    selectedDirectionId ||
+                    ''
+                ).trim();
+            }
+            if (!goalId) return null;
+            let dir = flatDiscoveryMap[goalId];
+            if (!dir && CONFIG.apiBase) {
+                const numId = parseInt(goalId, 10);
+                if (!isNaN(numId)) {
+                    const data = await api(`/api/v3/fractal/organizers${buildQuery({ direction_id: numId, lang: CONFIG.lang, user_id: currentUserId || '' })}`);
+                    if (data && data.direction) {
+                        const d = data.direction;
+                        dir = {
+                            id: String(numId), remote_id: numId,
+                            title: d.title || 'Напрямок',
+                            type: 'direction', desc: d.desc || d.title || '',
+                            meeting_point: d.meeting_point || '',
+                            start_date: d.start_date || '', end_date: d.end_date || '',
+                            lat: d.lat, lng: d.lng
+                        };
+                        flatDiscoveryMap[goalId] = dir;
+                    }
+                }
+            }
+            if (!dir) return null;
+
+            const lat = Number(dir.lat);
+            const lng = Number(dir.lng);
+            if (Number.isFinite(lat) && Number.isFinite(lng)) {
+                return { lat, lng, title: dir.title || 'Ціль' };
+            }
+
+            const coordPoint = parseCoordPair(dir.meeting_point);
+            if (coordPoint) {
+                dir.lat = coordPoint.lat;
+                dir.lng = coordPoint.lng;
+                return { lat: coordPoint.lat, lng: coordPoint.lng, title: dir.title || 'Ціль' };
+            }
+
+            if (dir.meeting_point) {
+                try {
+                    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(dir.meeting_point)}&format=json&limit=1`);
+                    const list = await res.json();
+                    if (list && list.length) {
+                        const gLat = Number(list[0].lat);
+                        const gLng = Number(list[0].lon);
+                        if (Number.isFinite(gLat) && Number.isFinite(gLng)) {
+                            dir.lat = gLat;
+                            dir.lng = gLng;
+                            return { lat: gLat, lng: gLng, title: dir.title || 'Ціль' };
+                        }
+                    }
+                } catch (_) {}
+            }
+            return null;
+        }
+
+        async function buildRouteToGoalFromMyLocation(lat, lng) {
+            if (!mapInstance) return false;
+            if (activeTrip && activeTrip.pickup_lat) return false; // lifecycle route has priority
+            clearGoalRoutePreview();
+            const goal = await resolveGoalPointForRoute();
+            if (!goal) return false;
+
+            window._goalRouteLine = L.polyline([[lat, lng], [goal.lat, goal.lng]], {
+                color: 'rgba(66,165,245,0.75)',
+                weight: 3.5,
+                dashArray: '6,7'
+            }).addTo(mapInstance);
+
+            const dist = Math.round(haversine(lat, lng, goal.lat, goal.lng));
+            const distText = dist < 1000 ? `${dist}м` : `${(dist / 1000).toFixed(1)}км`;
+            const mid = [(lat + goal.lat) / 2, (lng + goal.lng) / 2];
+            window._goalDistLabel = L.marker(mid, {
+                icon: L.divIcon({
+                    className: '',
+                    html: `<div style="background:rgba(0,0,0,0.76);color:#fff;font-size:10px;font-weight:800;padding:3px 9px;border-radius:8px;white-space:nowrap;border:1px solid rgba(255,255,255,0.2);">🎯 ${distText}</div>`
+                })
+            }).addTo(mapInstance);
+
+            const bounds = L.latLngBounds([[lat, lng], [goal.lat, goal.lng]]);
+            const mapSize = mapInstance.getSize ? mapInstance.getSize() : { x: 360, y: 640 };
+            const sidePad = Math.max(28, Math.round(mapSize.x * 0.07));
+            const topPad = Math.max(74, Math.round(mapSize.y * 0.16));
+            const bottomPad = Math.max(158, Math.round(mapSize.y * 0.30));
+            mapInstance.flyToBounds(bounds, {
+                paddingTopLeft: [sidePad, topPad],
+                paddingBottomRight: [sidePad, bottomPad],
+                maxZoom: 14,
+                animate: true,
+                duration: 1.0
+            });
+            showToast(`Маршрут до цілі: ${goal.title}`);
+            return true;
+        }
+
         function toggleMyLocation() {
             const btn = document.getElementById('my-loc-btn');
             if (!navigator.geolocation) {
@@ -2961,7 +3090,7 @@
 
             if (myLocationActive) {
                 navigator.geolocation.getCurrentPosition(
-                    pos => {
+                    async pos => {
                         const lat = pos.coords.latitude;
                         const lng = pos.coords.longitude;
                         if (mapInstance) {
@@ -2974,7 +3103,8 @@
                                 weight: 3
                             }).addTo(mapInstance);
                             myLocationMarker.bindPopup('Я тут');
-                            mapInstance.setView([lat, lng], 13);
+                            const routed = await buildRouteToGoalFromMyLocation(lat, lng);
+                            if (!routed) mapInstance.setView([lat, lng], 13);
                         }
                     },
                     err => {
@@ -2989,6 +3119,7 @@
                     mapInstance.removeLayer(myLocationMarker);
                     myLocationMarker = null;
                 }
+                clearGoalRoutePreview();
             }
         }
 
@@ -4462,6 +4593,7 @@
 
         function setMapFilter(mode) {
             mapFilterDirectionId = mode === 'goal' ? selectedDirectionId : null;
+            clearGoalRoutePreview();
             const allBtn = document.getElementById('map-filter-all');
             const goalBtn = document.getElementById('map-filter-goal');
             if (allBtn) allBtn.classList.toggle('active', mode === 'all');
