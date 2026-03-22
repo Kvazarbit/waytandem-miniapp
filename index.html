@@ -665,7 +665,19 @@
             width: 100%;
             gap: 12px;
             padding: 2px 4px;
+            flex-wrap: wrap;
             transition: opacity 0.3s, transform 0.3s;
+        }
+
+        .nav-context-actions .nav-owner-edit-btn {
+            flex: 0 0 100%;
+            width: 100%;
+            font-size: 10px;
+            opacity: 0.82;
+        }
+
+        .nav-context-actions .nav-context-secondary {
+            flex: 1 1 calc(50% - 6px);
         }
 
         nav.state-context {
@@ -1500,8 +1512,10 @@
                     </a>
                 </div>
                 <div class="nav-context-actions">
-                    <div class="nav-btn nav-btn-back" onclick="closeModal()">НАЗАД</div>
-                    <div class="nav-btn nav-btn-action" id="nav-main-action" style="display:none;"
+                    <div class="nav-btn nav-btn-back nav-owner-edit-btn" id="nav-owner-edit" style="display:none;"
+                        onclick="openOwnerEditFromNav()">РЕДАГУВАТИ</div>
+                    <div class="nav-btn nav-btn-back nav-context-secondary" onclick="closeModal()">НАЗАД</div>
+                    <div class="nav-btn nav-btn-action nav-context-secondary" id="nav-main-action" style="display:none;"
                         onclick="handleNavAction()">ПІДПИСАТИСЯ</div>
                 </div>
                 <!-- LIFECYCLE BAR: 1 дія = 1 колір (Uber-pattern) -->
@@ -2626,8 +2640,8 @@
             content.innerHTML = `
                 <div style="flex:1"></div>
                 ${isOwner ? `
-                <div class="hero-card" id="edit-direction-container" style="margin-bottom:20px; border: 1px solid var(--lime); background: rgba(38,166,154,0.05)">
-                    <button id="edit-dir-toggle-btn" class="nav-btn" style="width:100%; font-size:12px; font-weight:800;" onclick="toggleDirectionForm('edit', true)">Редагувати напрямок</button>
+                <div class="hero-card" id="edit-direction-container" style="display:none; margin-top:12px; margin-bottom:8px; border: 1px solid var(--lime); background: rgba(38,166,154,0.05)">
+                    <button id="edit-dir-toggle-btn" class="nav-btn" style="display:none; width:100%; font-size:12px; font-weight:800;" onclick="toggleDirectionForm('edit', true)">Редагувати напрямок</button>
                     
                     <div id="edit-direction-form" style="display:none; flex-direction:column; gap:8px; margin-top:12px;">
                         <span class="hero-label" style="color:var(--lime)">КЕРУВАННЯ ТЕМОЮ</span>
@@ -2703,14 +2717,21 @@
             </div>`;
 
             content.insertAdjacentHTML('beforeend', orgHeader + (organizers.length ? orgList : emptyOrgs));
+            if (isOwner) {
+                const editContainer = document.getElementById('edit-direction-container');
+                if (editContainer) {
+                    content.appendChild(editContainer); // move owner edit banner to bottom zone
+                }
+            }
 
             navAction = { type: 'subscribe', directionId: dId };
 
             // #2/#3: Apply pulse animation if trip is active and started
-            const btnText = isSub ? 'ДО ПАРАМЕТРІВ' : 'ПІДПИСАТИСЯ';
+            const btnText = isSub ? 'ВІДПИСАТИСЬ' : 'ПІДПИСАТИСЯ';
             updateNavState('context', btnText);
 
             const actionBtn = document.getElementById('nav-main-action');
+            const ownerEditBtn = document.getElementById('nav-owner-edit');
             if (actionBtn) {
                 // Pulse green if trip started (UX Fix #3)
                 if (activeTrip && activeTrip.is_started) {
@@ -2731,6 +2752,7 @@
                     actionBtn.style.boxShadow = '';
                 }
             }
+            if (ownerEditBtn) ownerEditBtn.style.display = isOwner ? 'block' : 'none';
         }
 
         async function openOrganizerCrews(orgId, dirId) {
@@ -3251,22 +3273,39 @@
         }
 
         function toggleDirectionForm(type, show) {
+            const containerId = type === 'new' ? 'new-direction-container' : 'edit-direction-container';
             const formId = type === 'new' ? 'new-direction-form' : 'edit-direction-form';
             const btnId = type === 'new' ? 'new-dir-toggle-btn' : 'edit-dir-toggle-btn';
 
+            const container = document.getElementById(containerId);
             const form = document.getElementById(formId);
             const btn = document.getElementById(btnId);
 
             if (!form || !btn) return;
 
             if (show) {
+                if (type === 'edit' && container) container.style.display = 'block';
                 form.style.display = 'flex';
                 btn.style.display = 'none';
                 syncDirectionDateBounds(type);
             } else {
                 form.style.display = 'none';
-                btn.style.display = 'block';
+                if (type === 'edit') {
+                    btn.style.display = 'none';
+                    if (container) container.style.display = 'none';
+                } else {
+                    btn.style.display = 'block';
+                }
             }
+        }
+
+        function openOwnerEditFromNav() {
+            const container = document.getElementById('edit-direction-container');
+            if (!container) return;
+            container.style.display = 'block';
+            toggleDirectionForm('edit', true);
+            const scroll = document.getElementById('modal-scroll');
+            if (scroll) scroll.scrollTo({ top: scroll.scrollHeight, behavior: 'smooth' });
         }
 
         // ─── FOCUS CAPTURE (як в боті: вхідній запит захоплює екран) ───
@@ -4800,11 +4839,13 @@
                 const prev = discoveryStack[discoveryStack.length - 1];
                 if (prev.key === 'trip_detail') openTripDetails(prev.title, prev.loc, prev.desc);
                 else if (prev.key === 'active_trip') openActiveTrip();
-                else if (prev.key === 'goal_overview') renderGoalOverview(prev.directionId);
-                else if (prev.key === 'profile') renderProfileContent();
+                else if (prev.key === 'goal_overview') { renderGoalOverview(prev.directionId); navAction = null; updateNavState('context', null); }
+                else if (prev.key === 'profile') { renderProfileContent(); navAction = { type: 'save_profile' }; updateNavState('context', 'ЗБЕРЕГТИ'); }
                 else if (prev.type === 'direction') renderDirectionUI(prev.data);
                 else {
                     renderDiscovery(prev.data);
+                    navAction = null;
+                    updateNavState('context', prev.data && prev.data.type === 'folder' ? null : 'ПІДПИСАТИСЯ');
                     // Refresh children from API to get fresh fractal counts (organizers/drivers/passengers)
                     if (prev.data && prev.data.remote_id && prev.data.type === 'folder') {
                         loadChildrenFor(prev.data).then(ok => { if (ok) renderDiscovery(prev.data); });
@@ -5260,9 +5301,19 @@
             setLifecycleNav(resolveTripLifecycleState(activeTrip), activeTrip);
         }
 
+        function syncModalBottomInset() {
+            const nav = document.getElementById('bottom-nav');
+            const layerModal = document.getElementById('layer-modal');
+            if (!nav || !layerModal) return;
+            const navH = Math.ceil(nav.getBoundingClientRect().height || 0);
+            const bottomPad = Math.max(110, navH + 24);
+            layerModal.style.paddingBottom = `${bottomPad}px`;
+        }
+
         function updateNavState(state, actionText = null) {
             const nav = document.getElementById('bottom-nav');
             const actionBtn = document.getElementById('nav-main-action');
+            const ownerEditBtn = document.getElementById('nav-owner-edit');
             if (state === 'context') {
                 // Модалка відкрита — перемикаємося в context-режим
                 nav.classList.remove('state-lifecycle');
@@ -5273,12 +5324,19 @@
                 } else {
                     actionBtn.style.display = 'none';
                 }
+                if (ownerEditBtn) {
+                    const top = discoveryStack[discoveryStack.length - 1];
+                    const canEditDirection = !!(top && top.type === 'direction' && top.data && Number(top.data.creator_id) === Number(currentUserId));
+                    ownerEditBtn.style.display = canEditDirection ? 'block' : 'none';
+                }
             } else {
                 // Модалка закрилась — повертаємо lifecycle якщо є активна поїздка
                 nav.classList.remove('state-context');
                 actionBtn.style.display = 'none';
+                if (ownerEditBtn) ownerEditBtn.style.display = 'none';
                 refreshLifecycleNav();
             }
+            syncModalBottomInset();
         }
 
         function handleNavAction() {
@@ -5461,6 +5519,7 @@
 
             window.addEventListener('online', () => { setOffline(false); _apiErrorCount = 0; });
             window.addEventListener('offline', () => setOffline(true));
+            window.addEventListener('resize', syncModalBottomInset);
 
             initApiBase();
             currentUserId = resolveUserId();
@@ -5479,6 +5538,7 @@
             }
             startSyncEngine();
             renderHome();
+            syncModalBottomInset();
 
             const uInput = document.getElementById('universal-input');
             if (uInput) {
