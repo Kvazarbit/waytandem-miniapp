@@ -1988,7 +1988,28 @@
             console.log('Opening Discovery Layer:', arg);
             let data = typeof arg === 'string' ? (getDiscoverySource()[arg] || flatDiscoveryMap[arg]) : arg;
             if (!data) {
+                // v24.9: якщо arg — нумерний ID з реальної БД (відсутній в локальному кеші)
+                // → завантажуємо з API і відкриваємо Goal Overview
+                const numId = parseInt(arg, 10);
+                if (!isNaN(numId) && CONFIG.apiBase) {
+                    console.log('Fetching direction from API:', numId);
+                    const d = await api(`/api/v3/fractal/organizers${buildQuery({ direction_id: numId, lang: CONFIG.lang, user_id: currentUserId || '' })}`);
+                    if (d && d.direction) {
+                        const dir = d.direction;
+                        // Додаємо в локальний кеш щоб повторні кліки працювали зі ņого кешу
+                        flatDiscoveryMap[String(numId)] = {
+                            id: String(numId), remote_id: numId,
+                            title: dir.title || 'Напрямок',
+                            type: 'direction', desc: dir.title || '',
+                            meta: '', drivers: dir.drivers || 0, passengers: dir.passengers || 0,
+                            organizers: d.organizers || [], meeting_point: dir.meeting_point || ''
+                        };
+                        await openGoalOverview(numId);
+                        return;
+                    }
+                }
                 console.error('No data found for:', arg);
+                showToast('Напрямок не знайдено');
                 return;
             }
             if (data.simulate) {
