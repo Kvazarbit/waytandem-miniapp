@@ -1725,6 +1725,7 @@
 
         let liveDiscoveryData = {};
         let userSubscriptions = new Set();
+        let userSubscriptionsList = [];
         let myLocationMarker = null;
         let myLocationActive = false;
 
@@ -1779,13 +1780,135 @@
             if (!currentUserId || !CONFIG.apiBase) return;
             const subs = await api('/api/v3/user/subscriptions?user_id=' + currentUserId);
             userSubscriptions.clear();
+            userSubscriptionsList = [];
             if (Array.isArray(subs)) {
-                subs.forEach(s => userSubscriptions.add(String(s.direction_id)));
+                subs.forEach(s => {
+                    const id = String(s.direction_id || '');
+                    if (!id) return;
+                    userSubscriptions.add(id);
+                    userSubscriptionsList.push({
+                        direction_id: id,
+                        title: String(s.title || '').trim() || `Напрямок #${id}`
+                    });
+                });
+                userSubscriptionsList = userSubscriptionsList.slice(0, 10);
+            }
+            if (document.querySelector('.nav-item.active[onclick*="board"]')) {
+                renderBoardRoot(Object.values(getDiscoverySource()));
             }
         }
 
         function getDiscoverySource() {
             return Object.keys(liveDiscoveryData).length ? liveDiscoveryData : discoveryData;
+        }
+
+        let lastBoardSearchStats = { visible: 0, total: 0, query: '' };
+
+        function getBoardNavEl() {
+            return document.getElementById('nav-board-item') || document.querySelector('.nav-item[onclick*="board"]');
+        }
+
+        async function openMySubscribedDirection() {
+            const firstSub = (userSubscriptionsList && userSubscriptionsList.length) ? userSubscriptionsList[0] : null;
+            if (!firstSub || !firstSub.direction_id) {
+                showToast('У вас ще немає підписок');
+                return;
+            }
+            await openDirectionDetail(String(firstSub.direction_id));
+        }
+
+        function openBoardFromHome() {
+            const boardBtn = getBoardNavEl();
+            if (boardBtn) switchContext('board', boardBtn);
+        }
+
+        async function startCreateDirectionFlow(seedTitle = '') {
+            if (!await ensureRegistered()) return;
+            const boardBtn = getBoardNavEl();
+            if (boardBtn) switchContext('board', boardBtn);
+
+            await loadRootFromApi();
+
+            const source = Object.values(getDiscoverySource());
+            const folders = source.filter(it => it && it.type === 'folder');
+            if (!folders.length) {
+                showToast('Папки для створення поки недоступні');
+                return;
+            }
+
+            const seed = String(seedTitle || '').trim().toLowerCase();
+            const preferredTokens = ['гори', 'закоп', 'mount', 'ski', 'відпоч', 'trip', 'travel'];
+            const targetFolder =
+                folders.find(f => seed && String(f.title || '').toLowerCase().includes(seed)) ||
+                folders.find(f => preferredTokens.some(t => String(f.title || '').toLowerCase().includes(t))) ||
+                folders[0];
+
+            await openDiscoveryLayer(String(targetFolder.id || targetFolder.remote_id));
+
+            setTimeout(() => {
+                const toggle = document.getElementById('new-dir-toggle-btn');
+                if (!toggle) {
+                    showToast('У цій папці створення недоступне. Оберіть іншу тему.');
+                    return;
+                }
+                toggleDirectionForm('new', true);
+                const titleEl = document.getElementById('new-direction-title');
+                const descEl = document.getElementById('new-direction-desc');
+                const dateEl = document.getElementById('new-direction-date');
+                const defaultTitle = String(seedTitle || '').trim() || 'Закопане · Спільна поїздка';
+                if (titleEl && !titleEl.value.trim()) titleEl.value = defaultTitle;
+                if (descEl && !descEl.value.trim()) descEl.value = 'Хто хоче приєднатись до поїздки?';
+                if (dateEl && !dateEl.value) dateEl.value = new Date().toISOString().split('T')[0];
+                syncDirectionDateBounds('new');
+            }, 70);
+        }
+
+        function applyBoardSearch(rawQuery) {
+            const q = String(rawQuery || '').trim().toLowerCase();
+            const feed = document.querySelector('[data-tab="board"] .feed-scroll');
+            if (!feed) return { visible: 0, total: 0, query: q };
+
+            const cards = Array.from(feed.querySelectorAll('.trip-card'));
+            let visible = 0;
+            let total = 0;
+
+            cards.forEach(card => {
+                const title = (card.querySelector('.trip-title')?.innerText || '').toLowerCase();
+                const meta = (card.querySelector('.trip-meta')?.innerText || '').toLowerCase();
+                const desc = (card.querySelector('.trip-desc')?.innerText || '').toLowerCase();
+                if (!title && !meta && !desc) return;
+                total++;
+                const match = !q || title.includes(q) || meta.includes(q) || desc.includes(q);
+                card.style.display = match ? 'flex' : 'none';
+                if (match) visible++;
+            });
+
+            let hint = document.getElementById('board-search-empty');
+            if (!hint) {
+                hint = document.createElement('div');
+                hint.id = 'board-search-empty';
+                hint.className = 'trip-card';
+                hint.style.display = 'none';
+                hint.style.borderStyle = 'dashed';
+                hint.style.opacity = '0.95';
+                hint.innerHTML = `
+                    <div class="trip-content">
+                        <div class="trip-title">Нічого не знайдено</div>
+                        <div class="trip-meta">Спробуйте створити власний напрямок: <b data-board-query></b></div>
+                        <div class="btn-confirm" style="margin-top:10px;" onclick="startCreateDirectionFlow((document.getElementById('universal-input')?.value || '').trim())">➕ СТВОРИТИ З ЦИМ ЗАПИТОМ</div>
+                    </div>`;
+                feed.appendChild(hint);
+            }
+
+            const shouldShowHint = !!q && visible === 0;
+            hint.style.display = shouldShowHint ? 'flex' : 'none';
+            if (shouldShowHint) {
+                const queryEl = hint.querySelector('[data-board-query]');
+                if (queryEl) queryEl.textContent = q;
+            }
+
+            lastBoardSearchStats = { visible, total, query: q };
+            return lastBoardSearchStats;
         }
 
         function buildQuery(params) {
@@ -1857,9 +1980,20 @@
                 const t = Date.parse(item.start_date);
                 return Number.isFinite(t) && t >= now && t <= inWeek;
             }).length;
-            const boardBanner = (activeCount + newCount) > 0
-                ? `<div class="trip-card" style="margin-bottom:10px; border-left:4px solid var(--gold); background:rgba(255,202,58,0.08);"><div class="trip-content"><div class="trip-title" style="font-size:12px;">● АКТИВНІ: ${activeCount} • 🆕 СТАРТУЮТЬ ЗА 7 ДНІВ: ${newCount}</div></div></div>`
-                : '';
+            let boardBanner = '';
+            const firstSub = (userSubscriptionsList && userSubscriptionsList.length) ? userSubscriptionsList[0] : null;
+            if (firstSub) {
+                const more = userSubscriptionsList.length > 1 ? ` +${userSubscriptionsList.length - 1}` : '';
+                boardBanner = `
+                    <div class="trip-card" onclick="openMySubscribedDirection()" style="margin-bottom:10px; border-left:4px solid var(--lime); background:rgba(138,201,38,0.09); cursor:pointer;">
+                        <div class="trip-content">
+                            <div class="trip-title" style="font-size:12px;">● МОЯ ПІДПИСКА: ${firstSub.title}${more}</div>
+                            <div class="trip-meta" style="margin-top:4px;">АКТИВНІ: ${activeCount} • 🆕 СТАРТУЮТЬ ЗА 7 ДНІВ: ${newCount} • Натисніть, щоб відкрити</div>
+                        </div>
+                    </div>`;
+            } else if ((activeCount + newCount) > 0) {
+                boardBanner = `<div class="trip-card" style="margin-bottom:10px; border-left:4px solid var(--gold); background:rgba(255,202,58,0.08);"><div class="trip-content"><div class="trip-title" style="font-size:12px;">● АКТИВНІ: ${activeCount} • 🆕 СТАРТУЮТЬ ЗА 7 ДНІВ: ${newCount}</div></div></div>`;
+            }
             board.innerHTML = boardBanner + items.map(item => `
                 <div class="trip-card" onclick="openDiscoveryLayer('${item.id}')">
                     <div class="token-icon" style="background:var(--glass)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--lime)">
@@ -1874,6 +2008,11 @@
                     </div>
                 </div>
             `).join('');
+            const isBoardActive = !!document.querySelector('.nav-item.active[onclick*="board"]');
+            const uInput = document.getElementById('universal-input');
+            if (isBoardActive && uInput && uInput.value.trim()) {
+                applyBoardSearch(uInput.value);
+            }
         }
 
         async function loadRootFromApi() {
@@ -1985,7 +2124,7 @@
 
             const input = document.getElementById('universal-input');
             if (input) {
-                const placeholders = { 'home': 'Пошук новин...', 'board': 'Пошук напрямку...', 'trips': 'Написати екіпажу...', 'map': 'Шукати локацію...' };
+                const placeholders = { 'home': 'Пошук новин...', 'board': 'Пошук напрямку або ідеї...', 'trips': 'Написати екіпажу...', 'map': 'Шукати локацію...' };
                 input.placeholder = placeholders[tabId] || 'Введіть текст...';
                 input.value = ''; // clear input on switch
                 window.liveNewsSearch = ''; // reset home filter
@@ -2006,8 +2145,8 @@
             console.log('Opening Discovery Layer:', arg);
             let data = typeof arg === 'string' ? (getDiscoverySource()[arg] || flatDiscoveryMap[arg]) : arg;
             if (!data) {
-                // v24.9: якщо arg — нумерний ID з реальної БД (відсутній в локальному кеші)
-                // → завантажуємо з API і відкриваємо Goal Overview
+                // v24.9+: якщо arg — нумерний ID з реальної БД (відсутній в локальному кеші)
+                // → завантажуємо з API і відкриваємо картку підписки напряму
                 const numId = parseInt(arg, 10);
                 if (!isNaN(numId) && CONFIG.apiBase) {
                     console.log('Fetching direction from API:', numId);
@@ -2023,7 +2162,7 @@
                             organizers: d.organizers || [], meeting_point: dir.meeting_point || '',
                             start_date: dir.start_date || '', end_date: dir.end_date || ''
                         };
-                        await openGoalOverview(numId);
+                        await openDirectionDetail(String(numId));
                         return;
                     }
                 }
@@ -2046,6 +2185,35 @@
             updateNavState('context', data.type === 'folder' ? null : 'ПІДПИСАТИСЯ');
         }
 
+        async function openNewsDirection(directionId) {
+            const dirId = String(directionId || '').trim();
+            if (!dirId) return;
+            const boardBtn = getBoardNavEl();
+            if (boardBtn) switchContext('board', boardBtn, true);
+            await openDirectionDetail(dirId);
+        }
+
+        function isDirectionCreateNews(item) {
+            if (!item) return false;
+            if (item.kind === 'direction_new') return true;
+            const text = String(item.text || item.title || '').toLowerCase();
+            if (item.kind === 'event' && item.direction_id) {
+                return text.includes('новий напрямок') || text.includes('додано новий напрямок') || text.includes('створив новий напрямок');
+            }
+            return false;
+        }
+
+        function getContextualHomeNews(newsList) {
+            const news = Array.isArray(newsList) ? newsList : [];
+            if (activeTrip && activeTrip.direction_id) {
+                const activeDir = String(activeTrip.direction_id);
+                return news.filter(n => n && String(n.direction_id || '') === activeDir && n.kind !== 'trip_done');
+            }
+            const createdDirections = news.filter(isDirectionCreateNews);
+            if (createdDirections.length) return createdDirections;
+            return news.filter(n => n && n.direction_id && n.kind !== 'trip_done');
+        }
+
         let homeNewsFilter = 'all'; // 'all' | 'active' | 'new'
 
         function setHomeFilter(f) {
@@ -2058,9 +2226,9 @@
         }
 
         function updateFeedSignals(newsList) {
-            const news = Array.isArray(newsList) ? newsList : [];
+            const news = getContextualHomeNews(newsList);
             const cutoff = Date.now() / 1000 - 7 * 86400;
-            const activeCount = news.filter(n => n && (n.kind === 'active' || n.is_active)).length;
+            const activeCount = news.length;
             const newCount = news.filter(n => n && Number(n.created_at || 0) > cutoff).length;
             const homeNav = document.getElementById('nav-home-item');
             const boardNav = document.getElementById('nav-board-item');
@@ -2074,7 +2242,11 @@
                 return;
             }
             banner.style.display = 'block';
-            banner.innerHTML = `● АКТИВНІ: <b>${activeCount}</b> &nbsp; 🆕 НОВІ: <b>${newCount}</b>`;
+            if (activeTrip && activeTrip.direction_id) {
+                banner.innerHTML = `● ПОДІЇ ПО ВАШІЙ ЦІЛІ: <b>${activeCount}</b> &nbsp; 🆕 ЗА 7 ДНІВ: <b>${newCount}</b>`;
+            } else {
+                banner.innerHTML = `● НОВІ НАПРЯМКИ: <b>${activeCount}</b> &nbsp; 🆕 ЗА 7 ДНІВ: <b>${newCount}</b>`;
+            }
         }
 
         async function loadNewsFromApi() {
@@ -2151,9 +2323,9 @@
             }
 
             // ─── STANDARD NEWS VIEW (If no matches) ───
-            const news = rawNews;
+            const news = getContextualHomeNews(rawNews);
             if (!news.length) {
-                container.innerHTML = `<div class="empty-state"><div class="empty-icon">📢</div><div>Поки що новин немає</div></div>`;
+                container.innerHTML = `<div class="empty-state"><div class="empty-icon">📢</div><div>${activeTrip ? 'Поки немає новин вашої спільної подорожі' : 'Поки немає нових напрямків або подій у каталозі'}</div></div>`;
                 return;
             }
             let filtered = news;
@@ -2170,7 +2342,7 @@
                 filtered = filtered.filter(n => (n.text || '').toLowerCase().includes(query) || (n.title || '').toLowerCase().includes(query));
             }
             container.innerHTML = filtered.map(n => {
-                const action = n.direction_id ? `onclick="openDiscoveryLayer('${n.direction_id}')"` : '';
+                const action = n.direction_id ? `onclick="openNewsDirection('${n.direction_id}')"` : '';
                 const cursor = n.direction_id ? 'pointer' : 'default';
                 const isDemo = !CONFIG.apiBase;
                 const src = window.liveNewsSource;
@@ -2191,6 +2363,7 @@
                                 <span class="trip-meta" style="margin:0;">${dateStr}</span>
                             </div>
                             <div class="trip-title" style="font-size:14px;">${n.text || n.title || ''}</div>
+                            ${n.direction_id ? '<div class="trip-meta" style="margin-top:6px; color:var(--sky);">Відкрити на Дошці →</div>' : ''}
                         </div>
                     </div>`;
             }).join('');
@@ -2268,7 +2441,29 @@
 
         async function openDirectionDetail(arg) {
             let direction = typeof arg === 'string' ? flatDiscoveryMap[arg] : arg;
-            if (!direction) return;
+            if (!direction && CONFIG.apiBase) {
+                const numId = parseInt(arg, 10);
+                if (!isNaN(numId)) {
+                    const d = await api(`/api/v3/fractal/organizers${buildQuery({ direction_id: numId, lang: CONFIG.lang, user_id: currentUserId || '' })}`);
+                    if (d && d.direction) {
+                        const dir = d.direction;
+                        direction = {
+                            id: String(numId), remote_id: numId,
+                            title: dir.title || 'Напрямок',
+                            type: 'direction', desc: dir.desc || dir.title || '',
+                            meta: '',
+                            drivers: dir.drivers || 0, passengers: dir.passengers || 0,
+                            organizers: d.organizers || [], meeting_point: dir.meeting_point || '',
+                            start_date: dir.start_date || '', end_date: dir.end_date || ''
+                        };
+                        flatDiscoveryMap[String(numId)] = direction;
+                    }
+                }
+            }
+            if (!direction) {
+                showToast('Напрямок не знайдено');
+                return;
+            }
             if (direction.simulate) {
                 startSimulation();
                 return;
@@ -2295,6 +2490,7 @@
                 });
                 if (res && res.status === 'ok') {
                     userSubscriptions.delete(dirStr);
+                    await loadUserSubscriptions();
                     showToast('Відписано');
                     selectedDirectionId = null;
                     const direction = flatDiscoveryMap[dirStr];
@@ -2312,6 +2508,7 @@
                 });
                 if (res && res.status === 'ok') {
                     userSubscriptions.add(dirStr);
+                    await loadUserSubscriptions();
                     selectedDirectionId = directionId;
                     showToast('✅ Підписано! Бот шукатиме вам екіпаж. Дивіться «Поїздки».');
                     const direction = flatDiscoveryMap[dirStr];
@@ -2369,11 +2566,24 @@
             if (res && res.status === 'ok') {
                 showToast('Напрямок створено');
                 if (titleEl) titleEl.value = '';
+                if (dateEl) dateEl.value = '';
                 if (endDateEl) endDateEl.value = '';
+                if (pointEl) pointEl.value = '';
+                if (descEl) descEl.value = '';
+                await loadNewsFromApi();
+                if (!window.liveNews) renderHome();
+
                 const folder = flatDiscoveryMap[String(parentId)];
                 if (folder) {
                     await loadChildrenFor(folder);
                     renderDiscovery(folder);
+                    const created = (folder.items || []).find(it =>
+                        it && it.type === 'direction' &&
+                        String(it.title || '').trim().toLowerCase() === title.toLowerCase()
+                    );
+                    if (created) {
+                        await openDirectionDetail(String(created.id || created.remote_id));
+                    }
                 }
                 return;
             }
@@ -2785,6 +2995,7 @@
         let isPickingLocation = false;
         let pickTargetInputId = null;
         let mapPickingHandlerRef = null;
+        let mapPickResume = null;
 
         async function searchAddressOnMap(query, opts = {}) {
             const q = String(query || '').trim();
@@ -2818,6 +3029,20 @@
             }
         }
 
+        function restoreAfterMapPick() {
+            if (!mapPickResume) return;
+            const resume = mapPickResume;
+            mapPickResume = null;
+            const boardBtn = getBoardNavEl();
+            if (boardBtn) switchContext('board', boardBtn, true);
+            const layerMain = document.getElementById('layer-main');
+            const layerModal = document.getElementById('layer-modal');
+            if (layerMain) layerMain.classList.add('state-background');
+            if (layerModal) layerModal.classList.add('state-modal-active');
+            if (resume.formType) toggleDirectionForm(resume.formType, true);
+            syncBackButton();
+        }
+
         function pickOnMap(targetInputId = null) {
             pickTargetInputId = targetInputId || pickTargetInputId || 'new-direction-point';
             const targetInput = document.getElementById(pickTargetInputId);
@@ -2825,6 +3050,17 @@
             const isCoords = /^\s*-?\d+\.\d+\s*[,;]\s*-?\d+\.\d+\s*$/.test(currentVal);
 
             isPickingLocation = true;
+            const layerMain = document.getElementById('layer-main');
+            const layerModal = document.getElementById('layer-modal');
+            const modalWasOpen = !!layerModal?.classList.contains('state-modal-active');
+            mapPickResume = null;
+            if (modalWasOpen) {
+                mapPickResume = {
+                    formType: String(pickTargetInputId).startsWith('edit-') ? 'edit' : 'new'
+                };
+                layerModal.classList.remove('state-modal-active');
+                if (layerMain) layerMain.classList.remove('state-background');
+            }
             const mapBtn = document.querySelector('.nav-item[onclick*="map"]');
             if (mapBtn) switchContext('map', mapBtn);
 
@@ -2833,7 +3069,10 @@
             }
             showToast('Оберіть точку на карті');
 
-            if (!mapInstance) return;
+            if (!mapInstance) {
+                restoreAfterMapPick();
+                return;
+            }
             if (mapPickingHandlerRef) mapInstance.off('click', mapPickingHandlerRef);
             mapPickingHandlerRef = (e) => {
                 if (!isPickingLocation) return;
@@ -2851,8 +3090,12 @@
                 mapPickingHandlerRef = null;
                 showToast('Локацію обрано!');
 
-                const boardBtn = document.querySelector('.nav-item[onclick*="board"]');
-                if (boardBtn) switchContext('board', boardBtn, true);
+                if (mapPickResume) {
+                    restoreAfterMapPick();
+                } else {
+                    const boardBtn = getBoardNavEl();
+                    if (boardBtn) switchContext('board', boardBtn, true);
+                }
             };
             mapInstance.on('click', mapPickingHandlerRef);
         }
@@ -5116,13 +5359,7 @@
                         window.liveNewsSearch = val;
                         renderHome();
                     } else if (tabId.includes('board')) {
-                        const cards = document.querySelectorAll('[data-tab=\"board\"] .feed-scroll .trip-card');
-                        cards.forEach(card => {
-                            const title = card.querySelector('.trip-title')?.innerText.toLowerCase() || '';
-                            const meta = card.querySelector('.trip-meta')?.innerText.toLowerCase() || '';
-                            if (title.includes(val) || meta.includes(val)) card.style.display = 'flex';
-                            else card.style.display = 'none';
-                        });
+                        applyBoardSearch(val);
                     }
                 });
 
@@ -5144,6 +5381,17 @@
                                     if (document.getElementById('trip-chat-area')) refreshTripMessages();
                                     showToast('✅ Надіслано');
                                 });
+                            }
+                        } else if (tabId.includes('board')) {
+                            const stats = applyBoardSearch(val);
+                            if (stats.visible === 1) {
+                                const first = Array.from(document.querySelectorAll('[data-tab=\"board\"] .feed-scroll .trip-card'))
+                                    .find(card => card.style.display !== 'none');
+                                if (first) first.click();
+                            } else if (stats.visible === 0) {
+                                startCreateDirectionFlow(val);
+                            } else {
+                                showToast('Оберіть напрямок зі списку');
                             }
                         } else if (tabId.includes('map')) {
                             uInput.value = '';
