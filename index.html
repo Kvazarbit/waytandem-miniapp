@@ -1623,6 +1623,8 @@
             try {
                 const r = await fetch(fullUrl, { ...opts, headers: { ...headers, ...opts.headers } });
                 if (!r.ok) {
+                    // _silent404: тихо повертаємо null без шуму в консолі (ендпоінт ще не реалізовано)
+                    if (opts._silent404 && r.status === 404) return null;
                     if (opts.method === 'POST') showErrorToast('Помилка сервера (' + r.status + ')');
                     return null;
                 }
@@ -2017,9 +2019,19 @@
 
         async function loadNewsFromApi() {
             if (!CONFIG.apiBase) return;
+            // v24.9: спочатку пробуємо живу стрічку з реальної БД
+            const feed = await api(`/api/v3/home/feed?limit=30&lang=${CONFIG.lang || 'uk'}`);
+            if (feed && feed.news && feed.news.length) {
+                window.liveNews = feed.news;
+                window.liveNewsSource = 'live'; // позначаємо джерело для UI
+                renderHome();
+                return;
+            }
+            // fallback: старий endpoint новин (записи в event_log)
             const data = await api(`/api/v3/news?limit=30&filter=${homeNewsFilter}`);
             if (data && data.news && data.news.length) {
                 window.liveNews = data.news;
+                window.liveNewsSource = 'event_log';
                 renderHome();
             }
         }
@@ -2099,12 +2111,22 @@
                 const action = n.direction_id ? `onclick="openDiscoveryLayer('${n.direction_id}')"` : '';
                 const cursor = n.direction_id ? 'pointer' : 'default';
                 const isDemo = !CONFIG.apiBase;
+                const src = window.liveNewsSource;
+                // Іконка по типу події (v24.9)
+                const kindIcon = { crew_open:'#ef5350', subscription:'#42a5f5',
+                                   direction_new:'#8ac926', trip_done:'#26a69a',
+                                   event:'#ffca3a' }[n.kind] || 'var(--lime)';
+                // Позначка джерела даних
+                let badge = '';
+                if (isDemo)        badge = '<span style="font-size:9px;font-weight:800;background:rgba(255,202,58,0.15);color:#ffca3a;padding:2px 6px;border-radius:6px;border:0.5px solid #ffca3a;">DEMO</span>';
+                else if (src==='live') badge = '<span style="font-size:9px;font-weight:800;background:rgba(138,201,38,0.1);color:var(--lime);padding:2px 6px;border-radius:6px;border:0.5px solid var(--lime);">&#x25CF; ЖИВЕ</span>';
+                const dateStr = new Date((n.created_at || Date.now() / 1000) * 1000).toLocaleDateString();
                 return `
-                    <div class="trip-card animate-in" style="border-left:4px solid var(--lime);cursor:${cursor};" ${action}>
+                    <div class="trip-card animate-in" style="border-left:4px solid ${kindIcon};cursor:${cursor};" ${action}>
                         <div class="trip-content">
                             <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-                                ${isDemo ? '<span style="font-size:9px;font-weight:800;background:rgba(255,202,58,0.15);color:#ffca3a;padding:2px 6px;border-radius:6px;border:0.5px solid #ffca3a;">DEMO</span>' : ''}
-                                <span class="trip-meta" style="margin:0;">${new Date((n.created_at || Date.now() / 1000) * 1000).toLocaleDateString()}</span>
+                                ${badge}
+                                <span class="trip-meta" style="margin:0;">${dateStr}</span>
                             </div>
                             <div class="trip-title" style="font-size:14px;">${n.text || n.title || ''}</div>
                         </div>
@@ -3936,7 +3958,7 @@
             `;
             // P5: завантажуємо повідомлення напрямку після рендеру
             const _dcFeedId = `dir-chat-feed-${directionId}`;
-            api('/api/v3/direction/messages' + buildQuery({ direction_id: directionId, limit: 20, user_id: currentUserId || '' })).then(res => {
+            api('/api/v3/direction/messages' + buildQuery({ direction_id: directionId, limit: 20, user_id: currentUserId || '' }), { _silent404: true }).then(res => {
                 const chatFeed = document.getElementById(_dcFeedId);
                 if (!chatFeed) return;
                 const msgs = Array.isArray(res) ? res : (res && res.messages ? res.messages : []);
