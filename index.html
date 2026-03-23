@@ -184,6 +184,8 @@
             font-weight: 800;
             letter-spacing: 1px;
             color: var(--text-muted);
+            cursor: pointer;
+            user-select: none;
         }
 
         .user-av-btn {
@@ -557,22 +559,80 @@
         }
 
         .chat-msg {
-            margin-bottom: 12px;
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 14px;
             max-width: 85%;
+            animation: slide-up 0.25s cubic-bezier(0.2, 1, 0.2, 1);
         }
+        .chat-msg-me { align-self: flex-end; align-items: flex-end; }
+        .chat-msg-partner { align-self: flex-start; align-items: flex-start; }
 
         .chat-bubble {
-            background: rgba(255, 255, 255, 0.08);
-            padding: 10px 14px;
+            padding: 10px 15px;
             border-radius: 18px;
-            font-size: 13px;
+            font-size: 14px;
+            line-height: 1.45;
+            position: relative;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        }
+        .chat-msg-me .chat-bubble {
+            background: linear-gradient(135deg, var(--sky), #7e57c2);
+            color: #fff;
+            border-bottom-right-radius: 4px;
+        }
+        .chat-msg-partner .chat-bubble {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: var(--text-main);
+            border-bottom-left-radius: 4px;
         }
 
-        .msg-meta {
-            font-size: 10px;
+        .chat-meta {
+            font-size: 9px;
+            font-weight: 800;
             color: var(--text-muted);
             margin-bottom: 4px;
-            margin-left: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            padding: 0 6px;
+        }
+
+        .quick-replies {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding: 10px 0;
+            margin-bottom: 4px;
+            scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
+        }
+        .quick-replies::-webkit-scrollbar { display: none; }
+        .quick-reply-btn {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: var(--sky);
+            padding: 7px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.2, 1, 0.2, 1);
+        }
+        .quick-reply-btn:active { background: var(--sky); color: #000; transform: scale(0.92); }
+
+        .chat-system-msg {
+            align-self: center;
+            font-size: 11px;
+            color: var(--text-muted);
+            background: rgba(255,255,255,0.04);
+            padding: 5px 14px;
+            border-radius: 12px;
+            margin: 18px 0;
+            font-weight: 700;
+            text-align: center;
+            letter-spacing: 0.5px;
         }
 
         /* ── LOUD HEADER (I-97) ── */
@@ -1303,6 +1363,14 @@
         .mlo-phase{ font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:1px; }
         .mlo-title{ font-size:18px; font-weight:900; margin-bottom:3px; line-height:1.15; letter-spacing:-0.5px; }
         .mlo-sub  { font-size:12px; color:var(--text-muted); margin-bottom:9px; }
+        @keyframes nav-flash {
+            0% { background: rgba(138, 201, 38, 0.3); border-color: var(--lime); }
+            100% { background: rgba(15, 23, 42, 0.9); border-color: var(--glass-border); }
+        }
+        .nav-flash-trigger {
+            animation: nav-flash 0.8s cubic-bezier(0.2, 1, 0.2, 1);
+        }
+
         .mlo-hint {
             font-size:12px; color:rgba(255,255,255,0.78);
             background:rgba(138,201,38,0.07);
@@ -1344,7 +1412,7 @@
                         <h1 onclick="openIntro()">WayTandem</h1>
                     </div>
                     <div class="header-actions">
-                        <div class="user-role-tag" id="role-tag">ВОДІЙ</div>
+                        <div class="user-role-tag" id="role-tag" onclick="quickToggleRoleFromHeader()" title="Швидка зміна ролі">ОБЕРІТЬ РОЛЬ</div>
                         <div class="user-av-btn" onclick="openProfile()">
                             <div class="user-av" id="user-av-initial">Ю</div>
                         </div>
@@ -1553,13 +1621,41 @@
         let mapMarkers = [];
         let userSettings = {
             name: '',
-            role: 'passenger', // 'passenger' | 'driver'
+            role: '', // '' | 'passenger' | 'driver'
             lang: 'uk',        // 'uk' | 'pl' | 'en'
             seats: 4,
             car: '',
             status: 'ready',    // 'ready' | 'break'
             isOrganizer: false
         };
+
+        function saveState() {
+            try {
+                const state = {
+                    userSettings,
+                    activeTrip,
+                    subscriptions: Array.from(userSubscriptions),
+                    lastSync: Date.now()
+                };
+                localStorage.setItem('wt_state_' + currentUserId, JSON.stringify(state));
+            } catch (e) { console.warn('💾 Save state failed', e); }
+        }
+
+        function loadState() {
+            try {
+                const saved = localStorage.getItem('wt_state_' + currentUserId);
+                if (saved) {
+                    const state = JSON.parse(saved);
+                    if (state.userSettings) userSettings = { ...userSettings, ...state.userSettings };
+                    if (state.activeTrip) {
+                        activeTrip = state.activeTrip;
+                        activeTripId = activeTrip.id;
+                    }
+                    if (state.subscriptions) userSubscriptions = new Set(state.subscriptions);
+                    console.log('💾 State recovered from localStorage');
+                }
+            } catch (e) { console.warn('💾 Load state failed', e); }
+        }
 
         const CONFIG = {
             apiBase: localStorage.getItem('wt_api') || '',
@@ -1661,6 +1757,10 @@
             setTimeout(() => { el.classList.remove('active', 'toast-error'); }, 3000);
         }
 
+        function isOffline() {
+            return document.getElementById('offline-indicator')?.classList.contains('active');
+        }
+
         function setOffline(offline) {
             const el = document.getElementById('offline-indicator');
             if (el) offline ? el.classList.add('active') : el.classList.remove('active');
@@ -1699,15 +1799,39 @@
             try {
                 const data = JSON.parse(raw);
                 Object.assign(userSettings, data);
+                if (!['driver', 'passenger'].includes(String(userSettings.role || ''))) userSettings.role = '';
                 return true;
             } catch (_) {
                 return false;
             }
         }
 
+        function hasSelectedRole() {
+            return userSettings.role === 'driver' || userSettings.role === 'passenger';
+        }
+
+        function getApiRoleOrNull() {
+            if (userSettings.role === 'driver') return 'driver';
+            if (userSettings.role === 'passenger') return 'client';
+            return null;
+        }
+
+        function ensureRoleSelected() {
+            if (hasSelectedRole()) return true;
+            showToast('Спочатку оберіть роль');
+            openProfile();
+            return false;
+        }
+
         function applyHeader() {
             const roleTag = document.getElementById('role-tag');
-            if (roleTag) roleTag.textContent = userSettings.role === 'driver' ? 'ВОДІЙ' : 'ПОПУТНИК';
+            if (roleTag) {
+                roleTag.textContent = userSettings.role === 'driver'
+                    ? 'ВОДІЙ'
+                    : userSettings.role === 'passenger'
+                        ? 'ПОПУТНИК'
+                        : 'ОБЕРІТЬ РОЛЬ';
+            }
             const av = document.getElementById('user-av-initial');
             const name = userSettings.name || currentUserName || '?';
             if (av) av.textContent = name ? name[0].toUpperCase() : '?';
@@ -1717,6 +1841,36 @@
             userSettings.role = role;
             renderProfileContent();
             applyHeader();
+            saveProfile(); saveState();
+        }
+
+        async function quickToggleRoleFromHeader() {
+            if (activeTrip && activeTrip.id && !activeTrip.completed) {
+                showToast('Завершіть активну поїздку перед зміною ролі');
+                return;
+            }
+            if (!hasSelectedRole()) {
+                showToast('Оберіть роль у профілі');
+                openProfile();
+                return;
+            }
+            userSettings.role = userSettings.role === 'driver' ? 'passenger' : 'driver';
+            applyHeader();
+            saveProfile(); saveState();
+            showToast(userSettings.role === 'driver' ? 'Роль: Водій' : 'Роль: Попутник');
+
+            const role = getApiRoleOrNull();
+            if (!currentUserId || !userSettings.name || !role) return;
+            await api('/api/v3/user/register', {
+                method: 'POST',
+                body: JSON.stringify({ user_id: currentUserId, name: userSettings.name, role: role })
+            });
+            if (role === 'driver') {
+                await api('/api/v3/driver/register', {
+                    method: 'POST',
+                    body: JSON.stringify({ user_id: currentUserId, car: userSettings.car || 'Авто', seats: userSettings.seats })
+                });
+            }
         }
 
         function setLang(lang) {
@@ -2285,13 +2439,90 @@
             }
         }
 
+        function renderNewsItemsHtml(newsList) {
+            if (!newsList || !newsList.length) return '';
+            return newsList.map(n => {
+                const action = n.direction_id ? `onclick="openNewsDirection('${n.direction_id}')"` : '';
+                const cursor = n.direction_id ? 'pointer' : 'default';
+                const isDemo = !CONFIG.apiBase;
+                const src = window.liveNewsSource;
+                const kindIcon = { crew_open:'#ef5350', subscription:'#42a5f5',
+                                   direction_new:'#8ac926', trip_done:'#26a69a',
+                                   event:'#ffca3a' }[n.kind] || 'var(--lime)';
+                let badge = '';
+                if (isDemo)        badge = '<span style="font-size:9px;font-weight:800;background:rgba(255,202,58,0.15);color:#ffca3a;padding:2px 6px;border-radius:6px;border:0.5px solid #ffca3a;">DEMO</span>';
+                else if (src==='live') badge = '<span style="font-size:9px;font-weight:800;background:rgba(138,201,38,0.1);color:var(--lime);padding:2px 6px;border-radius:6px;border:0.5px solid var(--lime);">&#x25CF; ЖИВЕ</span>';
+                const dateStr = new Date((n.created_at || Date.now() / 1000) * 1000).toLocaleDateString();
+                return `
+                    <div class="trip-card animate-in" style="border-left:4px solid ${kindIcon};cursor:${cursor};" ${action}>
+                        <div class="trip-content">
+                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                                ${badge}
+                                <span class="trip-meta" style="margin:0;">${dateStr}</span>
+                            </div>
+                            <div class="trip-title" style="font-size:14px;">${n.text || n.title || ''}</div>
+                            ${n.direction_id ? '<div class="trip-meta" style="margin-top:6px; color:var(--sky);">Відкрити на Дошці →</div>' : ''}
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+
         function renderHome() {
             const container = document.getElementById('home-news-container');
+            const newsBanner = document.getElementById('home-news-banner');
             if (!container) return;
             const rawNews = window.liveNews || window.demoNews || [];
             updateFeedSignals(rawNews);
 
-            // ─── TRIGGER: MATCH CARDS (M-1/M-2 Parity) ───
+            if (newsBanner) newsBanner.style.display = 'none';
+
+            // ─── PRIORITY 1: ACTIVE TRIP (C-1 Dashboard Mirror) ───
+            if (activeTrip && activeTrip.active !== false) {
+                const trip = activeTrip;
+                const isStarted = !!trip.is_started;
+                const isDriver = trip.viewer_role === 'driver';
+                const iAmDone = isDriver ? !!trip.driver_finished : !!trip.client_finished;
+                const partnerDone = isDriver ? !!trip.client_finished : !!trip.driver_finished;
+                const cancel = getTripCancelState(trip);
+                
+                const color = cancel.byPartner ? '#ef5350' : (isStarted ? 'var(--lime)' : '#ffca3a');
+                const phase = iAmDone ? 'Очікування фінішу' : (cancel.byMe ? 'Скасування' : (cancel.byPartner ? 'Запит на скасування' : (isStarted ? 'В дорозі' : 'Резервація')));
+                
+                container.innerHTML = `
+                    <div class="lifecycle-container animate-in" style="padding:0; --glow-color: ${color}44;">
+                        ${buildStateStrip(isStarted ? 5 : 4, 6, phase, color)}
+                        <div class="trip-card trip-card-active-glow" onclick="openActiveTrip()" style="border:1.5px solid ${color}; background:rgba(255,255,255,0.03); margin-top:10px; padding:20px; cursor:pointer;">
+                            <div style="display:flex; align-items:center; gap:16px;">
+                                <div class="user-av" style="width:54px; height:54px; font-size:20px; background:linear-gradient(135deg,#42a5f5,#ab47bc); box-shadow: 0 8px 24px rgba(0,0,0,0.3);">
+                                    ${(trip.direction_title || '?')[0].toUpperCase()}
+                                </div>
+                                <div style="flex:1;">
+                                    <div style="font-size:18px; font-weight:900; margin-bottom:2px; letter-spacing:-0.5px;">${trip.direction_title || 'Поїздка'}</div>
+                                    <div style="font-size:12px; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:1px;">
+                                        Екіпаж #${trip.crew_id || '—'} • ${isDriver ? '🚗 Ви водій' : '👤 Ви попутник'}
+                                    </div>
+                                </div>
+                                <div style="font-size:28px; filter: drop-shadow(0 0 10px ${color}66);">${isStarted ? '🚀' : '⏳'}</div>
+                            </div>
+                            <div class="what-next" style="margin-top:16px; background:rgba(255,255,255,0.05); border:none; border-left:3px solid ${color}; border-radius:0 12px 12px 0;">
+                                ${isStarted 
+                                    ? (iAmDone ? 'Ваш приїзд підтверджено. Очікуємо партнера.' : 'Ви в дорозі. Натисніть для деталей або фінішу.') 
+                                    : 'Резервація активна. Очікуйте готовності всього екіпажу.'}
+                            </div>
+                            <div class="lc-btn lc-go" style="margin-top:16px; height:50px; font-size:13px; background:${color}; color:${color==='#ffca3a'||color==='var(--lime)'?'#000':'#fff'};">
+                                ВІДКРИТИ МОСТИК ЕКІПАЖУ
+                            </div>
+                        </div>
+                        ${rawNews.length > 0 ? `<div style="text-align:center; font-size:10px; color:var(--text-muted); margin-top:20px; font-weight:800; letter-spacing:1px;">ГОРТАЙТЕ НИЖЧЕ ДЛЯ НОВИН ГРОМАДИ ↓</div>` : ''}
+                    </div>
+                    <div style="margin-top:24px; opacity:0.4; filter:grayscale(1); pointer-events:none;">
+                        ${renderNewsItemsHtml(rawNews.slice(0, 3))}
+                    </div>
+                `;
+                return;
+            }
+
+            // ─── PRIORITY 2: MATCH CARDS (M-1/M-2 Parity) ───
             const matches = window.activePendingMatches || [];
             if (matches.length > 0) {
                 const req = matches[0];
@@ -2506,7 +2737,7 @@
                     body: JSON.stringify({ user_id: currentUserId, direction_id: directionId })
                 });
                 if (res && res.status === 'ok') {
-                    userSubscriptions.delete(dirStr);
+                    userSubscriptions.delete(dirStr); saveState();
                     await loadUserSubscriptions();
                     showToast('Відписано');
                     selectedDirectionId = null;
@@ -2524,7 +2755,7 @@
                     body: JSON.stringify({ user_id: currentUserId, direction_id: directionId, role: role })
                 });
                 if (res && res.status === 'ok') {
-                    userSubscriptions.add(dirStr);
+                    userSubscriptions.add(dirStr); saveState();
                     await loadUserSubscriptions();
                     selectedDirectionId = directionId;
                     showToast('✅ Підписано! Бот шукатиме вам екіпаж. Дивіться «Поїздки».');
@@ -2621,6 +2852,7 @@
             const dId = direction.remote_id || direction.id;
             const isSub = userSubscriptions.has(String(dId));
             const isOwner = direction.creator_id === currentUserId;
+            const showRoleHint = !isSub && !hasSelectedRole();
             const stacks = direction.pStacks || [];
             const organizers = direction.organizers || [];
 
@@ -2675,6 +2907,11 @@
                     </div>
                 </div>
                 ` : ''}
+                ${showRoleHint ? `
+                <div class="hero-card" style="margin-bottom:12px; border:1px dashed rgba(255,255,255,0.22); background:rgba(255,255,255,0.03); padding:10px 12px;">
+                    <div style="font-size:11px; color:var(--text-muted);">Щоб підписатися, спочатку оберіть роль. Натисніть мітку ролі зверху.</div>
+                </div>
+                ` : ''}
                 <div class="trip-card" style="background:none; border:none; padding:0; margin-bottom:10px;">
                     <div class="trip-desc">${direction.desc}</div>
                 </div>
@@ -2727,7 +2964,7 @@
             navAction = { type: 'subscribe', directionId: dId };
 
             // #2/#3: Apply pulse animation if trip is active and started
-            const btnText = isSub ? 'ВІДПИСАТИСЬ' : 'ПІДПИСАТИСЯ';
+            const btnText = isSub ? 'ВІДПИСАТИСЬ' : (!hasSelectedRole() ? 'ОБЕРІТЬ РОЛЬ' : 'ПІДПИСАТИСЯ');
             updateNavState('context', btnText);
 
             const actionBtn = document.getElementById('nav-main-action');
@@ -2779,9 +3016,18 @@
                                 <div class="trip-meta">${crew.seats_free || 0} попутників</div>
                             </div>
                             <div class="trip-desc">${crew.driver_name || 'Водій'} • ${crew.car || 'Авто'}</div>
-                            <div class="btn-confirm" style="margin-top:10px;" onclick="joinCrew('${crew.crew_id}', ${data.orgId}, '${data.dirId}')">
-                                ${crew.seats_free > 0 ? 'ПРИЄДНАТИСЯ' : 'ЕКІПАЖ ПОВНИЙ'}
-                            </div>
+                            ${data.orgId == currentUserId 
+                                ? `<div class="btn-confirm" style="margin-top:10px; opacity:0.6; cursor:default; background:var(--glass); color:var(--text-muted); box-shadow:none;">МІЙ ЕКІПАЖ</div>`
+                                : activeTrip 
+                                    ? `<div class="btn-confirm" style="margin-top:10px; opacity:0.6; cursor:default; background:var(--glass); color:var(--text-muted); box-shadow:none;">У ВАС Є ПОЇЗДКА</div>`
+                                    : userSettings.role === 'driver'
+                                        ? `<div class="btn-confirm" style="margin-top:10px; opacity:0.6; cursor:default; background:var(--glass); color:var(--text-muted); box-shadow:none;">ВИ ВОДІЙ</div>`
+                                        : !userSettings.role
+                                            ? `<div class="btn-confirm" style="margin-top:10px; opacity:0.8;" onclick="openProfile()">ОБЕРІТЬ РОЛЬ</div>`
+                                            : `<div class="btn-confirm" style="margin-top:10px;" onclick="joinCrew('${crew.crew_id}', ${data.orgId}, '${data.dirId}')">
+                                                ${crew.seats_free > 0 ? 'ПРИЄДНАТИСЯ' : 'ЕКІПАЖ ПОВНИЙ'}
+                                              </div>`
+                            }
                         </div>
                     </div>
                 `).join('') : `<div class="trip-card"><div class="trip-content"><div class="trip-title">Порожньо</div><div class="trip-meta">Немає екіпажів</div></div></div>`}
@@ -3362,11 +3608,17 @@
         }
 
         function buildStateStrip(step, total, label, dotColor) {
-            return `<div class="state-strip">
-                <div class="state-strip-dot" style="background:${dotColor};box-shadow:0 0 8px ${dotColor}"></div>
-                <span class="state-strip-label">${label}</span>
-                <span class="state-strip-step">${step} ∕ ${total}</span>
-            </div>`;
+            const pct = Math.round((step / total) * 100);
+            return `
+                <div class="state-strip" style="margin-bottom:6px;">
+                    <div class="state-strip-dot" style="background:${dotColor}; box-shadow: 0 0 10px ${dotColor}"></div>
+                    <span class="state-strip-label" style="color:${dotColor}">${label}</span>
+                    <span class="state-strip-step" style="opacity:0.6;">Крок ${step}/${total}</span>
+                </div>
+                <div style="width:100%; height:3px; background:rgba(255,255,255,0.06); border-radius:4px; margin-bottom:16px; overflow:hidden;">
+                    <div style="width:${pct}%; height:100%; background:${dotColor}; transition:width 0.8s cubic-bezier(0.2,1,0.2,1); box-shadow: 0 0 10px ${dotColor}66;"></div>
+                </div>
+            `;
         }
 
         function initTripMiniMap(trip) {
@@ -3466,6 +3718,10 @@
                 `/api/v3/hydrate?user_id=${currentUserId}&include_outgoing=${shouldFetchOutgoing ? 1 : 0}`,
                 { _silent404: true }
             );
+            if (hyd === null && isOffline()) {
+                console.log('📡 Offline: skipping UI wipe');
+                return false;
+            }
             const incomingHyd = Array.isArray(hyd?.incoming) ? hyd.incoming : null;
             const outgoingHyd = Array.isArray(hyd?.outgoing) ? hyd.outgoing : null;
 
@@ -3476,9 +3732,10 @@
             if (trip && trip.active !== false) {
                 const normalized = normalizeTrip(trip);
 
-                // Notification: Trip Accepted!
+        // Notification: Trip Accepted!
                 if (!activeTripId && normalized.id) {
-                    showToast('🎉 ВАС ПРИЙНЯТО В ЕКІПАЖ!');
+                    showLoudPush('🎉', 'ВАС ПРИЙНЯТО В ЕКІПАЖ!');
+                    setTimeout(() => hideLoudPush(), 6000);
                     if (discoveryStack.length > 0) closeModal(); // Close detail if open
                     const mapEl = document.querySelector('.nav-item[onclick*="map"]');
                     if (mapEl) switchContext('map', mapEl);
@@ -3486,8 +3743,8 @@
                 
                 if (normalized.is_started && !lastTripStartedState && normalized.viewer_role !== 'driver') {
                     console.log('📢 LOUD PUSH triggered (is_started transition)');
-                    showLoudPush();
-                    setTimeout(() => hideLoudPush(), 5000);
+                    showLoudPush('🚀', 'Водій натиснув «Поїхали!»');
+                    setTimeout(() => hideLoudPush(), 6000);
                     autoOpenMapAfterStart(); // WEB_FLOWS §Крок4→5: пасажир теж бачить карту
                 }
                 lastTripStartedState = !!normalized.is_started;
@@ -3559,10 +3816,14 @@
             window.activePendingMatches = allPending;
 
             if (incoming.length > lastIncomingRequestsCount) {
-                showToast('👋 НОВИЙ ЗАПИТ В ЕКІПАЖ!');
-                focusTripsTab();
-                // Примусово перемалювати головну, щоб показати картку
-                if (document.querySelector('.nav-item.active[onclick*="home"]')) renderHome();
+                showLoudPush('👋', 'НОВИЙ ЗАПИТ В ЕКІПАЖ!');
+                setTimeout(() => hideLoudPush(), 6000);
+                // Auto-switch context to HOME if not in a critical modal
+                if (discoveryStack.length === 0) {
+                    const homeTab = document.querySelector('.nav-item[onclick*="home"]');
+                    if (homeTab) switchContext('home', homeTab);
+                }
+                renderHome(); // Force immediate render of the match card
             }
             lastIncomingRequestsCount = incoming.length;
 
@@ -3586,6 +3847,7 @@
             }
             
             // Якщо є хоча б один запит — це активність
+            saveState();
             return allPending.length > 0;
         }
 
@@ -3607,6 +3869,7 @@
             else if (['cancel_pending_me', 'cancel_pending_partner', 'finish_request', 'waiting_done'].includes(ctx.lifecycleState)) base = 1800;
             else if (['reserved_drv', 'reserved_pax', 'driving'].includes(ctx.lifecycleState)) base = 3200;
             else if (ctx.pendingCount > 0) base = 3500;
+            else if (userSubscriptions.size > 0) base = 6000; // Fast poll if waiting for matches
             else if (ctx.isMapActive) base = 12000;
             else if (ctx.isBoardActive || ctx.isHomeActive) base = 18000;
             const jittered = Math.round(base * (1 + syncJitterFactor()));
@@ -4120,15 +4383,15 @@
             const content = document.getElementById('modal-content-area');
             if (!content) return;
             content.innerHTML = `
-                <div style="display:flex; gap:8px; margin-bottom:10px;">
-                    <div class="nav-btn nav-btn-back" style="flex:1; font-size:10px; padding:8px;" onclick="refreshTripMessages()">ОНОВИТИ</div>
-                </div>
                 <div id="trip-system-area"></div>
                 <div id="trip-chat-area"></div>
                 <div style="flex:1"></div>
-                <div class="thumb-input-container" style="position:static; padding:0; border:none; margin-top:10px;">
-                    <input type="text" id="trip-chat-input" class="thumb-input" placeholder="Повідомлення...">
-                    <div class="btn-confirm" style="margin-top:8px;" onclick="sendTripMessage()">НАДІСЛАТИ</div>
+                <div class="thumb-input-container" style="position:sticky; bottom:0; background:var(--bg-main); padding:10px 0; z-index:10; border:none;">
+                    <div id="quick-reply-container"></div>
+                    <div style="display:flex; gap:10px; align-items:center;">
+                        <input type="text" id="trip-chat-input" class="thumb-input" style="margin:0;" placeholder="Повідомлення...">
+                        <div class="lc-btn lc-go lc-sm" style="width:50px; height:50px; border-radius:12px; margin:0; font-size:18px;" onclick="sendTripMessage()">🚀</div>
+                    </div>
                 </div>
             `;
             refreshTripMessages();
@@ -4140,21 +4403,51 @@
             await loadTripMessages();
             const systemEl = document.getElementById('trip-system-area');
             const chatEl = document.getElementById('trip-chat-area');
+            const quickEl = document.getElementById('quick-reply-container');
             if (!systemEl || !chatEl) return;
-            const system = (tripMessages || []).filter(m => m.kind === 'system');
-            const chat = (tripMessages || []).filter(m => m.kind !== 'system');
-            systemEl.innerHTML = system.map(m => `
-                <div class="chat-highlights">
-                    <div style="font-weight:800; margin-bottom:4px;">📌 СИСТЕМА</div>
-                    ${m.text || ''}
-                </div>
-            `).join('') || '';
-            chatEl.innerHTML = chat.map(m => `
-                <div class="chat-msg">
-                    <div class="msg-meta">${m.author_name || m.name || 'Учасник'} • ${m.ts || ''}</div>
-                    <div class="chat-bubble">${m.text || ''}</div>
-                </div>
-            `).join('') || '<div class="trip-card"><div class="trip-content"><div class="trip-title">Повідомлень немає</div></div></div>';
+
+            const quickPhrases = ['ОК', 'Я на місці', 'Буду за 5 хв', 'Виходжу!', 'Де ви?'];
+            if (quickEl) {
+                quickEl.innerHTML = `<div class="quick-replies">
+                    ${quickPhrases.map(p => `<div class="quick-reply-btn" onclick="sendQuickChatMessage('${p}')">${p}</div>`).join('')}
+                </div>`;
+            }
+
+            const chat = (tripMessages || []);
+            chatEl.innerHTML = chat.map(m => {
+                if (m.kind === 'system') {
+                    return `<div class="chat-system-msg">${m.text}</div>`;
+                }
+                const isMe = String(m.user_id || m.author_id) === String(currentUserId);
+                const cls = isMe ? 'chat-msg-me' : 'chat-msg-partner';
+                const sender = isMe ? 'ВИ' : (m.author_name || m.name || 'ПАРТНЕР');
+                const time = m.created_at ? new Date(m.created_at * 1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
+                
+                return `
+                    <div class="chat-msg ${cls}">
+                        <div class="chat-meta">${sender} • ${time}</div>
+                        <div class="chat-bubble">${m.text || ''}</div>
+                    </div>`;
+            }).join('') || '<div class="trip-card" style="opacity:0.5;"><div class="trip-content"><div class="trip-title" style="font-size:13px; text-align:center;">Повідомлень немає</div></div></div>';
+
+            // Auto-scroll to bottom
+            setTimeout(() => {
+                const layer = document.getElementById('layer-modal');
+                if (layer) layer.scrollTop = layer.scrollHeight;
+            }, 100);
+
+            const input = document.getElementById('trip-chat-input');
+            if (input && !input.onkeyup) {
+                input.onkeyup = (e) => { if (e.key === 'Enter') sendTripMessage(); };
+            }
+        }
+
+        async function sendQuickChatMessage(text) {
+            const input = document.getElementById('trip-chat-input');
+            if (input) {
+                input.value = text;
+                await sendTripMessage();
+            }
         }
 
         async function sendTripMessage() {
@@ -4162,6 +4455,7 @@
             const input = document.getElementById('trip-chat-input');
             const text = input ? input.value.trim() : '';
             if (!text) return;
+            haptic('light');
             await api('/api/v3/trip/message', {
                 method: 'POST',
                 body: JSON.stringify({ request_id: activeTrip.id, user_id: currentUserId, text: text })
@@ -4887,7 +5181,7 @@
                 <div class="control-group">
                     <span class="control-label">Моя роль</span>
                     <div class="segment-control">
-                        <div class="segment-btn ${userSettings.role === 'passenger' ? 'active' : ''}" onclick="setRole('passenger')">Паломник</div>
+                        <div class="segment-btn ${userSettings.role === 'passenger' ? 'active' : ''}" onclick="setRole('passenger')">Попутник</div>
                         <div class="segment-btn ${userSettings.role === 'driver' ? 'active' : ''}" onclick="setRole('driver')">Водій</div>
                     </div>
                 </div>
@@ -4967,7 +5261,12 @@
                 showToast("Вкажіть ім'я");
                 return;
             }
-            const role = userSettings.role === 'driver' ? 'driver' : 'client';
+            const role = getApiRoleOrNull();
+            if (!role) {
+                showToast('Оберіть роль');
+                openProfile();
+                return;
+            }
             const res = await api('/api/v3/user/register', {
                 method: 'POST',
                 body: JSON.stringify({
@@ -4984,7 +5283,7 @@
                         body: JSON.stringify({ user_id: currentUserId, car: userSettings.car || 'Авто', seats: userSettings.seats })
                     });
                 }
-                saveProfile();
+                saveProfile(); saveState();
                 applyHeader();
                 showToast('Профіль збережено');
                 closeModal();
@@ -5004,7 +5303,9 @@
                 openProfile();
                 return false;
             }
-            const role = userSettings.role === 'driver' ? 'driver' : 'client';
+            if (!ensureRoleSelected()) return false;
+            const role = getApiRoleOrNull();
+            if (!role) return false;
             await api('/api/v3/user/register', {
                 method: 'POST',
                 body: JSON.stringify({ user_id: currentUserId, name: userSettings.name, role: role })
@@ -5106,45 +5407,58 @@
         }
 
         // ─── SMART LIFECYCLE NAV (Uber-pattern: 1 дія = 1 колір) ───
+        let _lastLifecycleState = null;
         function setLifecycleNav(state, ctx) {
             const nav = document.getElementById('bottom-nav');
             const bar = document.getElementById('nav-lifecycle-bar');
             if (!bar || !nav) return;
+
+            // Trigger visual flash on state change
+            if (_lastLifecycleState !== state && state !== 'global') {
+                nav.classList.remove('nav-flash-trigger');
+                void nav.offsetWidth; // force reflow
+                nav.classList.add('nav-flash-trigger');
+            }
+            _lastLifecycleState = state;
+
             nav.classList.remove('state-context', 'state-lifecycle');
             bar.innerHTML = '';
             if (!state || state === 'global') return;
             nav.classList.add('state-lifecycle');
-            // Маленька ghost-кнопка чату (другорядна)
+
+            // Другорядні кнопки (допоміжні)
             const CHAT = `<div class="lc-btn lc-ghost lc-sm" title="Чат" onclick="openActiveTrip();setTimeout(()=>switchModalTab('chat'),80)">💬</div>`;
+            const MAP = `<div class="lc-btn lc-ghost lc-sm" title="Карта" onclick="const m=document.querySelector('.nav-item[onclick*=\\'map\\']'); if(m)switchContext('map',m);">📍</div>`;
             const DOTS = `<span class="lc-dots"><span></span><span></span><span></span></span>`;
             let html = '';
             switch (state) {
                 // Пасажир: запит надіслано, чекаємо
                 case 'waiting_out':
-                    html = `<div class="lc-btn lc-stop" onclick="tiredOfWaiting()">🛑  Скасувати очікування</div>`;
+                    html = `${MAP}<div class="lc-btn lc-stop" style="flex:2;" onclick="tiredOfWaiting()">🛑  СКАСУВАТИ ОЧІКУВАННЯ</div>`;
                     break;
                 // Водій: новий запит в екіпаж
                 case 'incoming': {
                     const pid = ctx?.partnerId || 0, did = ctx?.directionId || 0;
                     html = `<div class="lc-btn lc-stop" style="flex:0 0 80px;font-size:11px;" onclick="respondInvite(${pid},${did},false)">✕ НІ</div>
-                            <div class="lc-btn lc-go lc-go-pulse" style="flex:2;" onclick="respondInvite(${pid},${did},true)">✓  БЕРУ!</div>`;
+                            <div class="lc-btn lc-go lc-go-pulse" style="flex:2;" onclick="respondInvite(${pid},${did},true)">✓  БЕРУ В ЕКІПАЖ!</div>`;
                     break;
                 }
                 // Пасажир: резервація, чекає поіхали
                 case 'reserved_pax':
-                    html = `${CHAT}
-                            <div class="lc-btn lc-wait" style="flex:1;font-size:11px;" onclick="openActiveTrip()">⏳  Чекаю виїзду</div>
+                    html = `${CHAT}${MAP}
+                            <div class="lc-btn lc-wait" style="flex:1.5;font-size:11px;" onclick="openActiveTrip()">⏳  ЧЕКАЮ ВИЇЗДУ</div>
                             <div class="lc-btn lc-stop lc-sm" title="Вийти" onclick="if(confirm('Вийти з резервації?'))cancelTrip()">🚫</div>`;
                     break;
                 // Водій: резервація, готовий стартувати — ГОЛОВНА КНОПКА
                 case 'reserved_drv':
-                    html = `${CHAT}
-                            <div class="lc-btn lc-go lc-go-pulse" style="flex:2;" onclick="startTrip()">🚗  ПОЇХАЛИ!</div>`;
+                    html = `${CHAT}${MAP}
+                            <div class="lc-btn lc-go lc-go-pulse" style="flex:2;" onclick="startTrip()">🚗  ПОЇХАЛИ!</div>
+                            <div class="lc-btn lc-stop lc-sm" title="Скасувати" onclick="cancelTrip()">🚫</div>`;
                     break;
                 // Запит на скасування надіслано нами — тільки очікування
                 case 'cancel_pending_me':
                     html = `${CHAT}
-                            <div class="lc-btn lc-wait" style="flex:1;opacity:0.9;">⏳  Очікуємо підтвердження</div>`;
+                            <div class="lc-btn lc-wait" style="flex:1;opacity:0.9;">⏳  ЧЕКАЄМО ПІДТВЕРДЖЕННЯ</div>`;
                     break;
                 // Партнер просить скасувати — треба підтвердити/відхилити
                 case 'cancel_pending_partner':
@@ -5154,8 +5468,8 @@
                     break;
                 // Обидва: в дорозі
                 case 'driving':
-                    html = `${CHAT}
-                            <div class="lc-btn lc-go" style="flex:2;" onclick="finishTrip()">🏁  МИ ПРИБУЛИ</div>`;
+                    html = `${CHAT}${MAP}
+                            <div class="lc-btn lc-go lc-go-pulse" style="flex:2;" onclick="finishTrip()">🏁  МИ ПРИБУЛИ!</div>`;
                     break;
                 // Партнер вже натиснув фініш — просить підтвердити
                 case 'finish_request':
@@ -5165,11 +5479,13 @@
                     break;
                 // Один завершив, чекає другого
                 case 'waiting_done':
-                    html = `<div class="lc-btn lc-wait" style="flex:1;opacity:0.65;cursor:default;">⏳  Чекаємо ${DOTS}</div>`;
+                    html = `<div class="lc-btn lc-wait" style="flex:1;opacity:0.65;cursor:default;">⏳  ЧЕКАЄМО ПАРТНЕРА ${DOTS}</div>`;
                     break;
                 default: break;
             }
             bar.innerHTML = html;
+            // Always sync map overlay when nav changes
+            updateMapOverlay();
         }
 
         // ─── MAP LIFECYCLE OVERLAY: карта як головний екран поїздки (Google Maps pattern) ───
@@ -5254,13 +5570,83 @@
             });
         }
 
+        // ─── GEOLOCATION TRACKING (v24.6.5) ───
+        let _geoWatchId = null;
+        let _lastGeoSync = 0;
+
+        function startGeoTracking() {
+            if (!navigator.geolocation || _geoWatchId) return;
+            console.log('📡 Starting Geolocation Tracking...');
+            _geoWatchId = navigator.geolocation.watchPosition(
+                async (pos) => {
+                    const { latitude, longitude } = pos.coords;
+                    window.myLat = latitude;
+                    window.myLng = longitude;
+                    const now = Date.now();
+                    if (now - _lastGeoSync > 30000) { // 30s throttle
+                        _lastGeoSync = now;
+                        if (currentUserId && CONFIG.apiBase) {
+                            api('/api/v3/user/location', {
+                                method: 'POST',
+                                body: JSON.stringify({ user_id: currentUserId, lat: latitude, lng: longitude })
+                            }).catch(e => console.warn('Geo sync fail:', e));
+                        }
+                    }
+                },
+                (err) => console.warn('📍 Geo error:', err.message),
+                { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+            );
+        }
+
+        let _memberMarkers = {}; 
+
         function updateMapLifecycleMarkers(trip) {
             if (!mapInstance) return;
-            // Очищаємо старі lifecycle-маркери
+            // Clear old legacy static markers
             ['_lcDriverMarker','_lcUserMarker','_lcRouteLine','_lcDistLabel'].forEach(k => {
                 if (window[k]) { mapInstance.removeLayer(window[k]); window[k] = null; }
             });
-            if (!trip || !trip.pickup_lat) return;
+            
+            if (!trip) {
+                // Clear dynamic member markers if no trip
+                Object.values(_memberMarkers).forEach(m => mapInstance.removeLayer(m));
+                _memberMarkers = {};
+                return;
+            }
+
+            // Render all members with live coords
+            const members = trip.members || [];
+            members.forEach(m => {
+                if (!m.lat || !m.lng) return;
+                const isMe = String(m.id) === String(currentUserId);
+                if (isMe) return; // My position is handled by standard location dot
+
+                const color = m.role === 'driver' ? '#ef5350' : '#42a5f5';
+                const label = (m.name || '?')[0].toUpperCase();
+                
+                if (!_memberMarkers[m.id]) {
+                    const icon = L.divIcon({
+                        className: 'custom-div-icon',
+                        html: `<div class="map-marker-pulse" style="background:${color}; width:32px; height:32px; border:3px solid #fff; font-size:12px; font-weight:900; color:#fff; display:flex; align-items:center; justify-content:center; border-radius:50%; box-shadow:0 4px 12px rgba(0,0,0,0.4);">${label}</div>`,
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 16]
+                    });
+                    _memberMarkers[m.id] = L.marker([m.lat, m.lng], { icon }).addTo(mapInstance);
+                } else {
+                    _memberMarkers[m.id].setLatLng([m.lat, m.lng]);
+                }
+            });
+
+            // Cleanup old members
+            const activeIds = members.map(m => String(m.id));
+            Object.keys(_memberMarkers).forEach(uid => {
+                if (!activeIds.includes(uid)) {
+                    mapInstance.removeLayer(_memberMarkers[uid]);
+                    delete _memberMarkers[uid];
+                }
+            });
+
+            if (!trip.pickup_lat) return;
             const dName = trip.organizer_name || trip.driver_name || 'Водій';
             // Зелений маркер — точка збору / водій
             window._lcDriverMarker = L.marker([trip.pickup_lat, trip.pickup_lng], {
@@ -5451,14 +5837,20 @@
             }
         ];
 
-        function showLoudPush() {
+        function showLoudPush(icon = '🚀', text = 'Поїхали!') {
             const el = document.getElementById('loud-push');
+            if (!el) return;
+            const iconEl = el.querySelector('.loud-icon');
+            const textEl = el.querySelector('span:not(.loud-icon)');
+            if (iconEl) iconEl.innerText = icon;
+            if (textEl) textEl.innerText = text;
             el.classList.add('active');
+            haptic('success');
         }
 
         function hideLoudPush() {
             const el = document.getElementById('loud-push');
-            el.classList.remove('active');
+            if (el) el.classList.remove('active');
         }
 
         function showToast(text) {
@@ -5520,10 +5912,15 @@
             window.addEventListener('online', () => { setOffline(false); _apiErrorCount = 0; });
             window.addEventListener('offline', () => setOffline(true));
             window.addEventListener('resize', syncModalBottomInset);
+            window.addEventListener('beforeunload', saveState);
 
             initApiBase();
             currentUserId = resolveUserId();
             currentUserName = resolveUserName();
+            
+            // Load saved state before profile call
+            loadState();
+            
             loadProfile();
             if (!userSettings.name && currentUserName) userSettings.name = currentUserName;
             CONFIG.lang = userSettings.lang || CONFIG.lang;
