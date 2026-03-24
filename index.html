@@ -1836,7 +1836,7 @@
             }
             const av = document.getElementById('user-av-initial');
             const name = userSettings.name || currentUserName || '?';
-            if (av) av.textContent = name ? name[0].toUpperCase() : '?';
+            if (av) av.textContent = (name[0] || '?').toUpperCase();
         }
 
         function setRole(role) {
@@ -2028,7 +2028,10 @@
             await openDiscoveryLayer(String(targetFolder.id || targetFolder.remote_id));
 
             setTimeout(() => {
+                console.log('Running setTimeout 70ms inside startCreateDirectionFlow');
                 const toggle = document.getElementById('new-dir-toggle-btn');
+                console.log('toggle is null?', !toggle);
+                console.log('Is it in HTML?', document.getElementById('modal-content-area').innerHTML.includes('new-dir-toggle-btn'));
                 if (!toggle) {
                     showToast('У цій папці створення недоступне. Оберіть іншу тему.');
                     return;
@@ -2206,6 +2209,11 @@
             if (!data || !data.interests) {
                 renderBoardRoot(Object.values(discoveryData));
                 return;
+            }
+            if (data.user_status && typeof data.user_status.is_organizer !== 'undefined') {
+                userSettings.isOrganizer = !!data.user_status.is_organizer;
+                console.log('[UI] Updated isOrganizer from API:', userSettings.isOrganizer);
+                saveProfile();
             }
             liveDiscoveryData = {};
             // Object.keys(flatDiscoveryMap).forEach(k => delete flatDiscoveryMap[k]); // 🛠 Fixed: Don't clear map, keep demo fallback
@@ -2628,6 +2636,7 @@
             }).join('');
         }
         function renderDiscovery(data) {
+            console.log('renderDiscovery called for data:', data ? data.id : 'null', new Error().stack);
             const title = document.getElementById('modal-title');
             const content = document.getElementById('modal-content-area');
             title.innerText = data.title;
@@ -2656,8 +2665,16 @@
             }
 
             const hasSubfolders = data.items && data.items.some(it => it.type === 'folder');
-            const userHasDirection = data.items && data.items.some(it => it.creator_id === currentUserId);
+            const userHasDirection = data.items && data.items.some(it => String(it.creator_id) === String(currentUserId));
             const showBanner = userSettings.isOrganizer && !hasSubfolders && !userHasDirection;
+
+            console.log('showBanner evaluation:', {
+                isOrganizer: userSettings.isOrganizer,
+                hasSubfolders: hasSubfolders,
+                userHasDirection: userHasDirection,
+                itemsCount: data.items ? data.items.length : 0,
+                currentUserId: currentUserId,
+            });
 
             if (showBanner) {
                 const today = new Date().toISOString().split('T')[0];
@@ -2790,6 +2807,7 @@
         }
 
         async function createDirection(parentId) {
+            if (isApiBusy) return;
             if (!await ensureRegistered()) return;
             const titleEl = document.getElementById('new-direction-title');
             const dateEl = document.getElementById('new-direction-date');
@@ -2816,51 +2834,56 @@
                 showToast('Дата завершення має бути після дати події');
                 return;
             }
-            const res = await api('/api/v3/board', {
-                method: 'POST',
-                body: JSON.stringify({
-                    user_id: currentUserId,
-                    title: title,
-                    parent_id: parentNum,
-                    start_date: date,
-                    end_date: endDate,
-                    meeting_point: point,
-                    description: desc
-                })
-            });
-            if (res && res.status === 'ok') {
-                showToast('Напрямок створено');
-                if (titleEl) titleEl.value = '';
-                if (dateEl) dateEl.value = '';
-                if (endDateEl) endDateEl.value = '';
-                if (pointEl) pointEl.value = '';
-                if (descEl) descEl.value = '';
-                await loadNewsFromApi();
-                if (!window.liveNews) renderHome();
+            isApiBusy = true;
+            try {
+                const res = await api('/api/v3/board', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        user_id: currentUserId,
+                        title: title,
+                        parent_id: parentNum,
+                        start_date: date,
+                        end_date: endDate,
+                        meeting_point: point,
+                        description: desc
+                    })
+                });
+                if (res && res.status === 'ok') {
+                    showToast('Напрямок створено');
+                    if (titleEl) titleEl.value = '';
+                    if (dateEl) dateEl.value = '';
+                    if (endDateEl) endDateEl.value = '';
+                    if (pointEl) pointEl.value = '';
+                    if (descEl) descEl.value = '';
+                    await loadNewsFromApi();
+                    if (!window.liveNews) renderHome();
 
-                const folder = flatDiscoveryMap[String(parentId)];
-                if (folder) {
-                    await loadChildrenFor(folder);
-                    renderDiscovery(folder);
-                    const created = (folder.items || []).find(it =>
-                        it && it.type === 'direction' &&
-                        String(it.title || '').trim().toLowerCase() === title.toLowerCase()
-                    );
-                    if (created) {
-                        await openDirectionDetail(String(created.id || created.remote_id));
+                    const folder = flatDiscoveryMap[String(parentId)];
+                    if (folder) {
+                        await loadChildrenFor(folder);
+                        renderDiscovery(folder);
+                        const created = (folder.items || []).find(it =>
+                            it && it.type === 'direction' &&
+                            String(it.title || '').trim().toLowerCase() === title.toLowerCase()
+                        );
+                        if (created) {
+                            await openDirectionDetail(String(created.id || created.remote_id));
+                        }
                     }
+                    return;
                 }
-                return;
+                if (res && res.status === 'exists') {
+                    showToast('Вже існує');
+                    return;
+                }
+                if (res && res.status === 'limit') {
+                    showToast('Ліміт напрямків');
+                    return;
+                }
+                showToast('Помилка створення');
+            } finally {
+                isApiBusy = false;
             }
-            if (res && res.status === 'exists') {
-                showToast('Вже існує');
-                return;
-            }
-            if (res && res.status === 'limit') {
-                showToast('Ліміт напрямків');
-                return;
-            }
-            showToast('Помилка створення');
         }
 
         function renderDirectionUI(direction) {
@@ -3566,14 +3589,18 @@
             const form = document.getElementById(formId);
             const btn = document.getElementById(btnId);
 
+            console.log('toggleDirectionForm called:', { type, show, formExists: !!form, btnExists: !!btn });
+
             if (!form || !btn) return;
 
             if (show) {
+                console.log('Setting form display to flex');
                 if (type === 'edit' && container) container.style.display = 'block';
                 form.style.display = 'flex';
                 btn.style.display = 'none';
                 syncDirectionDateBounds(type);
             } else {
+                console.log('Setting form display to none');
                 form.style.display = 'none';
                 if (type === 'edit') {
                     btn.style.display = 'none';
@@ -5325,11 +5352,13 @@
         }
 
         async function registerUser() {
+            if (isApiBusy) return;
             if (!currentUserId) {
                 showToast('Потрібен user_id');
                 return;
             }
             readProfileInputs();
+            applyHeader(); // Immediate UI update for E2E speed
             if (!userSettings.name) {
                 showToast("Вкажіть ім'я");
                 return;
@@ -5340,29 +5369,34 @@
                 openProfile();
                 return;
             }
-            const res = await api('/api/v3/user/register', {
-                method: 'POST',
-                body: JSON.stringify({
-                    user_id: currentUserId,
-                    name: userSettings.name,
-                    role: role,
-                    is_organizer: userSettings.isOrganizer
-                })
-            });
-            if (res && (res.status === 'ok' || res.status === 'updated')) {
-                if (userSettings.role === 'driver') {
-                    await api('/api/v3/driver/register', {
-                        method: 'POST',
-                        body: JSON.stringify({ user_id: currentUserId, car: userSettings.car || 'Авто', seats: userSettings.seats })
-                    });
+            isApiBusy = true;
+            try {
+                const res = await api('/api/v3/user/register', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        user_id: currentUserId,
+                        name: userSettings.name,
+                        role: role,
+                        is_organizer: userSettings.isOrganizer
+                    })
+                });
+                if (res && (res.status === 'ok' || res.status === 'updated')) {
+                    if (userSettings.role === 'driver') {
+                        await api('/api/v3/driver/register', {
+                            method: 'POST',
+                            body: JSON.stringify({ user_id: currentUserId, car: userSettings.car || 'Авто', seats: userSettings.seats })
+                        });
+                    }
+                    saveProfile(); saveState();
+                    applyHeader();
+                    showToast('Профіль збережено');
+                    closeModal();
+                    return;
                 }
-                saveProfile(); saveState();
-                applyHeader();
-                showToast('Профіль збережено');
-                closeModal();
-                return;
+                showToast('Помилка реєстрації');
+            } finally {
+                isApiBusy = false;
             }
-            showToast('Помилка реєстрації');
         }
 
         async function ensureRegistered() {
