@@ -2666,7 +2666,7 @@
 
             const hasSubfolders = data.items && data.items.some(it => it.type === 'folder');
             const userHasDirection = data.items && data.items.some(it => String(it.creator_id) === String(currentUserId));
-            const showBanner = userSettings.isOrganizer && !hasSubfolders && !userHasDirection;
+            const showBanner = userSettings.isOrganizer && !hasSubfolders;
 
             console.log('showBanner evaluation:', {
                 isOrganizer: userSettings.isOrganizer,
@@ -4077,6 +4077,25 @@
                         ? (isDriver ? 'Натисніть «Завершити» після прибуття' : 'Очікуйте сигнал водія про прибуття')
                         : (isDriver ? 'Натисніть «Поїхали» коли всі готові' : 'Очікуйте сигнал водія про виїзд');
              
+            // Actions for Hero
+            let actionsHtml = '';
+            if (cancel.byPartner) {
+                actionsHtml = `<div class="btn-confirm" onclick="openActiveTrip()">⚠️ ПОТРЕБУЄ УВАГИ</div>`;
+            } else if (cancel.byMe) {
+                 actionsHtml = `<div class="btn-confirm" style="background:var(--glass);color:var(--text-muted);border:none;">⏳ ОЧІКУВАННЯ</div>`;
+            } else if (iAmDone) {
+                 actionsHtml = `<div class="btn-confirm" style="background:var(--glass);color:var(--text-muted);border:none;">⏳ ОЧІКУВАННЯ ПАРТНЕРА</div>`;
+            } else if (isStarted) {
+                actionsHtml = `
+                    <div class="nav-btn" style="flex:1; background:var(--glass);" onclick="openActiveTrip(); switchModalTab('chat');">💬 ЧАТ</div>
+                    <div class="nav-btn nav-btn-action" style="flex:1.5;" onclick="finishTrip()">🏁 ЗАВЕРШИТИ</div>`;
+            } else {
+                actionsHtml = `
+                    <div class="nav-btn" style="flex:1; background:rgba(239,83,80,0.1);color:#ef5350;" onclick="cancelTrip()">🚫 ПОКИНУТИ</div>
+                    ${isDriver ? `<div class="nav-btn nav-btn-action" style="flex:1.5;" onclick="startTrip()">🚀 ПОЇХАЛИ!</div>` : `<div class="nav-btn nav-btn-action" style="flex:1.5;" onclick="openActiveTrip()">ДЕТАЛІ</div>`}
+                `;
+            }
+
             const cfg = {
                 step: iAmDone ? 6 : step,
                 totalSteps: 6,
@@ -4086,9 +4105,7 @@
                 subtitle: `Екіпаж #${trip.crew_id || '—'} • ${trip.viewer_role === 'driver' ? '🚗 Ви водій' : '👤 Ви попутник'}`,
                 hint: hint,
                 members: trip.members || [],
-                actions: iAmDone 
-                    ? `<div class="btn-confirm" style="background:var(--glass);color:var(--text-muted);border:none;">ОЧІКУВАННЯ ПАРТНЕРА</div>`
-                    : `<div class="btn-confirm" onclick="openActiveTrip()">ДЕТАЛІ ПОЇЗДКИ</div>`
+                actions: actionsHtml
             };
 
             const html = buildLifecycleCard(cfg);
@@ -4379,16 +4396,31 @@
                         <span>${[trip.pickup, trip.destination].filter(Boolean).join(' → ')}</span>
                        </div>`
                     : '';
-            const cancelActionHtml = !isStarted
-                ? (cancel.byPartner
-                    ? `<div style="display:flex; gap:10px;">
-                            <div class="btn-destructive" style="flex:1;" onclick="rejectTripCancel()">✕ ВІДХИЛИТИ</div>
-                            <div class="btn-confirm" style="flex:1;" onclick="confirmTripCancel()">✓ ПІДТВЕРДИТИ</div>
-                       </div>`
-                    : cancel.byMe
-                        ? `<div class="btn-confirm" style="width:100%;background:var(--glass);color:var(--text-muted);border:none;">⏳ ОЧІКУЄМО ПІДТВЕРДЖЕННЯ ЕКІПАЖУ</div>`
-                        : `<div class="btn-destructive" style="width:100%;" onclick="cancelTrip()">🚫 ПОКИНУТИ РЕЗЕРВАЦІЮ</div>`)
-                : '';
+            // Action Buttons
+            let buttonsHtml = '';
+            if (cancel.byPartner) {
+                buttonsHtml = `
+                    <div style="display:flex; gap:10px;">
+                        <div class="btn-destructive" style="flex:1;" onclick="rejectTripCancel()">✕ ВІДХИЛИТИ</div>
+                        <div class="btn-confirm" style="flex:1;" onclick="confirmTripCancel()">✓ ПІДТВЕРДИТИ</div>
+                    </div>`;
+            } else if (cancel.byMe) {
+                buttonsHtml = `<div class="btn-confirm" style="width:100%;background:var(--glass);color:var(--text-muted);border:none;">⏳ ОЧІКУЄМО ПІДТВЕРДЖЕННЯ ЕКІПАЖУ</div>`;
+            } else if (!isStarted) {
+                buttonsHtml = `
+                    <div style="display:flex; gap:10px;">
+                         <div class="btn-destructive" style="flex:1;" onclick="cancelTrip()">🚫 ПОКИНУТИ</div>
+                         ${isDriver ? `<div class="btn-confirm lc-go lc-go-pulse" style="flex:2;" onclick="startTrip()">🚀 ПОЇХАЛИ!</div>` : ''}
+                    </div>`;
+            } else if (iAmDone && !partnerDone) {
+                 buttonsHtml = `<div class="btn-confirm" style="width:100%;background:var(--glass);color:var(--text-muted);border:none;">⏳ ОЧІКУВАННЯ ПАРТНЕРА</div>`;
+            } else if (isStarted) {
+                buttonsHtml = `
+                    <div style="display:flex; gap:10px;">
+                         <div class="btn-confirm" style="flex:1; background:var(--glass);" onclick="switchModalTab('chat')">💬 ЧАТ</div>
+                         ${!iAmDone ? `<div class="btn-confirm lc-go lc-go-pulse" style="flex:2;" onclick="finishTrip()">🏁 ЗАВЕРШИТИ</div>` : ''}
+                    </div>`;
+            }
 
             if (title) title.innerText = trip.direction_title || 'Поїздка';
             if (content) {
@@ -4397,8 +4429,8 @@
                     ${mapHtml}
                     <div class="what-happened">${whatHappened}</div>
                     ${buildCrewBridge(trip)}
-                    <div class="what-next" style="margin-top:10px; margin-bottom:${!isStarted ? 12 : 0}px;">${whatNext}</div>
-                    ${cancelActionHtml}`;
+                    <div class="what-next" style="margin-top:10px; margin-bottom:16px;">${whatNext}</div>
+                    ${buttonsHtml}`;
             }
 
             if (cancel.byMe) {
