@@ -91,7 +91,8 @@
             padding-bottom: calc(72px + max(16px, env(safe-area-inset-bottom)) + 12px);
             display: flex;
             flex-direction: column;
-            gap: 0; /* Gap managed by internal flex layout */
+            gap: 0;
+            /* Gap managed by internal flex layout */
         }
 
         .layer-main {
@@ -318,17 +319,16 @@
         }
 
         .role-chart {
-            width: 28px;
-            height: 28px;
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
-            border: 2px solid rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.2);
             flex-shrink: 0;
             overflow: hidden;
             background: conic-gradient(rgba(255, 255, 255, 0.08) 0% 100%);
-            box-shadow: 0 0 12px rgba(0, 0, 0, 0.4), inset 0 0 4px rgba(0, 0, 0, 0.3);
-            transform: rotate(0deg);
-            -webkit-backface-visibility: hidden;
-            backface-visibility: hidden;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.4), inset 0 0 6px rgba(0, 0, 0, 0.3);
+            mask-image: radial-gradient(circle, transparent 35%, black 41%);
+            -webkit-mask-image: radial-gradient(circle, transparent 35%, black 43%);
             will-change: background;
         }
 
@@ -506,6 +506,95 @@
             transition: all 0.4s cubic-bezier(0.2, 1, 0.2, 1);
         }
 
+        /* ── ANIMATIONS: GEOSPATIAL PULSE & HIGHLIGHT ── */
+        @keyframes marker-pulse {
+            0% {
+                transform: scale(1);
+                opacity: 0.9;
+            }
+
+            50% {
+                transform: scale(1.4);
+                opacity: 0.4;
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 0.9;
+            }
+        }
+
+        .map-marker-pulse {
+            animation: marker-pulse 2s infinite ease-in-out;
+            transform-origin: center;
+        }
+
+        @keyframes card-highlight-glow {
+            0% {
+                box-shadow: 0 0 0 rgba(138, 201, 38, 0);
+                background: var(--glass-card);
+            }
+
+            30% {
+                box-shadow: 0 0 30px var(--lime-glow);
+                background: rgba(138, 201, 38, 0.15);
+            }
+
+            100% {
+                box-shadow: 0 0 0 rgba(138, 201, 38, 0);
+                background: var(--glass-card);
+            }
+        }
+
+        .trip-card-highlight {
+            animation: card-highlight-glow 2s cubic-bezier(0.4, 0, 0.2, 1);
+            border-color: var(--lime) !important;
+            z-index: 100 !important;
+        }
+
+        /* ── LEAFLET POPUP GLASS DESIGN ── */
+        .leaflet-popup-content-wrapper {
+            background: rgba(7, 9, 14, 0.9) !important;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border) !important;
+            border-radius: 20px !important;
+            color: #fff !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+            padding: 5px !important;
+        }
+
+        .leaflet-popup-tip {
+            background: rgba(7, 9, 14, 0.9) !important;
+            border: 1px solid var(--glass-border);
+        }
+
+        .marker-popup-card {
+            padding: 8px;
+            text-align: center;
+            min-width: 140px;
+        }
+
+        .marker-popup-btn {
+            margin-top: 10px;
+            background: var(--lime);
+            color: #000;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 800;
+            font-family: 'Unbounded', sans-serif;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s;
+            box-shadow: 0 0 15px var(--lime-glow);
+        }
+
+        .marker-popup-btn:active {
+            transform: scale(0.95);
+        }
+
         /* ── FRACTAL LEDGER & CHAT (Diamond Scale) ── */
         .modal-sub-nav {
             display: flex;
@@ -579,8 +668,16 @@
             max-width: 85%;
             animation: slide-up 0.25s cubic-bezier(0.2, 1, 0.2, 1);
         }
-        .chat-msg-me { align-self: flex-end; align-items: flex-end; }
-        .chat-msg-partner { align-self: flex-start; align-items: flex-start; }
+
+        .chat-msg-me {
+            align-self: flex-end;
+            align-items: flex-end;
+        }
+
+        .chat-msg-partner {
+            align-self: flex-start;
+            align-items: flex-start;
+        }
 
         .chat-bubble {
             padding: 10px 15px;
@@ -588,16 +685,18 @@
             font-size: 14px;
             line-height: 1.45;
             position: relative;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
         }
+
         .chat-msg-me .chat-bubble {
             background: linear-gradient(135deg, var(--sky), #7e57c2);
             color: #fff;
             border-bottom-right-radius: 4px;
         }
+
         .chat-msg-partner .chat-bubble {
-            background: rgba(255,255,255,0.08);
-            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             color: var(--text-main);
             border-bottom-left-radius: 4px;
         }
@@ -621,10 +720,14 @@
             scrollbar-width: none;
             -webkit-overflow-scrolling: touch;
         }
-        .quick-replies::-webkit-scrollbar { display: none; }
+
+        .quick-replies::-webkit-scrollbar {
+            display: none;
+        }
+
         .quick-reply-btn {
-            background: rgba(255,255,255,0.06);
-            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             color: var(--sky);
             padding: 7px 14px;
             border-radius: 20px;
@@ -634,13 +737,18 @@
             cursor: pointer;
             transition: all 0.2s cubic-bezier(0.2, 1, 0.2, 1);
         }
-        .quick-reply-btn:active { background: var(--sky); color: #000; transform: scale(0.92); }
+
+        .quick-reply-btn:active {
+            background: var(--sky);
+            color: #000;
+            transform: scale(0.92);
+        }
 
         .chat-system-msg {
             align-self: center;
             font-size: 11px;
             color: var(--text-muted);
-            background: rgba(255,255,255,0.04);
+            background: rgba(255, 255, 255, 0.04);
             padding: 5px 14px;
             border-radius: 12px;
             margin: 18px 0;
@@ -1100,14 +1208,29 @@
 
         /* ─── LIFECYCLE ANIMATIONS ─── */
         @keyframes lifecycle-slide-up {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         @keyframes border-glow {
-            0% { box-shadow: 0 0 5px rgba(255,255,255,0.05); }
-            50% { box-shadow: 0 0 15px var(--glow-color); }
-            100% { box-shadow: 0 0 5px rgba(255,255,255,0.05); }
+            0% {
+                box-shadow: 0 0 5px rgba(255, 255, 255, 0.05);
+            }
+
+            50% {
+                box-shadow: 0 0 15px var(--glow-color);
+            }
+
+            100% {
+                box-shadow: 0 0 5px rgba(255, 255, 255, 0.05);
+            }
         }
 
         .lifecycle-container {
@@ -1276,9 +1399,19 @@
             padding: 2px 4px;
             transition: opacity 0.3s;
         }
-        nav.state-lifecycle .nav-standard-items { display: none; opacity: 0; }
-        nav.state-lifecycle .nav-context-actions { display: none; }
-        nav.state-lifecycle #nav-lifecycle-bar { display: flex; }
+
+        nav.state-lifecycle .nav-standard-items {
+            display: none;
+            opacity: 0;
+        }
+
+        nav.state-lifecycle .nav-context-actions {
+            display: none;
+        }
+
+        nav.state-lifecycle #nav-lifecycle-bar {
+            display: flex;
+        }
 
         .lc-btn {
             flex: 1;
@@ -1297,55 +1430,102 @@
             min-height: 44px;
             user-select: none;
         }
-        .lc-btn:active { transform: scale(0.96); }
+
+        .lc-btn:active {
+            transform: scale(0.96);
+        }
 
         /* Зелена — ІДИ */
         .lc-go {
             background: var(--lime);
             color: #000;
-            box-shadow: 0 8px 20px rgba(138,201,38,0.4);
+            box-shadow: 0 8px 20px rgba(138, 201, 38, 0.4);
         }
+
         /* Жовта — ЧЕКАЙ */
         .lc-wait {
-            background: rgba(255,202,58,0.12);
+            background: rgba(255, 202, 58, 0.12);
             color: var(--gold);
-            border: 1px solid rgba(255,202,58,0.3);
+            border: 1px solid rgba(255, 202, 58, 0.3);
         }
+
         /* Червона — СКАСУЙ */
         .lc-stop {
-            background: rgba(239,83,80,0.12);
+            background: rgba(239, 83, 80, 0.12);
             color: #ef5350;
-            border: 1px solid rgba(239,83,80,0.3);
+            border: 1px solid rgba(239, 83, 80, 0.3);
         }
+
         /* Прозора — другорядна */
         .lc-ghost {
             background: var(--glass);
             color: var(--text-muted);
             border: 1px solid var(--glass-border);
         }
+
         /* Маленька скварна */
-        .lc-sm { flex: 0 0 50px; font-size: 20px; padding: 0; }
+        .lc-sm {
+            flex: 0 0 50px;
+            font-size: 20px;
+            padding: 0;
+        }
 
         /* Пульс для головної CTA — звертає на себе увагу */
         @keyframes lc-pulse {
-            0%   { box-shadow: 0 0 0 0 rgba(138,201,38,0.7); }
-            60%  { box-shadow: 0 0 0 14px rgba(138,201,38,0); }
-            100% { box-shadow: 0 0 0 0 rgba(138,201,38,0); }
+            0% {
+                box-shadow: 0 0 0 0 rgba(138, 201, 38, 0.7);
+            }
+
+            60% {
+                box-shadow: 0 0 0 14px rgba(138, 201, 38, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(138, 201, 38, 0);
+            }
         }
-        .lc-go-pulse { animation: lc-pulse 1.4s infinite; }
+
+        .lc-go-pulse {
+            animation: lc-pulse 1.4s infinite;
+        }
 
         /* Анімовані точки чекання */
-        .lc-dots { display: inline-flex; gap: 3px; margin-left: 6px; vertical-align: middle; }
+        .lc-dots {
+            display: inline-flex;
+            gap: 3px;
+            margin-left: 6px;
+            vertical-align: middle;
+        }
+
         .lc-dots span {
-            width: 4px; height: 4px; border-radius: 50%;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
             background: currentColor;
             animation: lc-dot-bounce 1.4s infinite;
         }
-        .lc-dots span:nth-child(2) { animation-delay: 0.2s; }
-        .lc-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+        .lc-dots span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .lc-dots span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
         @keyframes lc-dot-bounce {
-            0%, 80%, 100% { transform: scale(0.5); opacity: 0.3; }
-            40%            { transform: scale(1);   opacity: 1;   }
+
+            0%,
+            80%,
+            100% {
+                transform: scale(0.5);
+                opacity: 0.3;
+            }
+
+            40% {
+                transform: scale(1);
+                opacity: 1;
+            }
         }
 
         /* ── MAP LIFECYCLE OVERLAY (Google Maps pattern: стан поїздки НА карті) ── */
@@ -1359,43 +1539,98 @@
             background: rgba(10, 14, 22, 0.93);
             backdrop-filter: blur(22px);
             -webkit-backdrop-filter: blur(22px);
-            border: 1px solid rgba(255,255,255,0.13);
+            border: 1px solid rgba(255, 255, 255, 0.13);
             border-radius: 22px;
             padding: 14px 16px;
             pointer-events: auto;
         }
+
         @keyframes mlo-in {
-            from { opacity:0; transform:translateY(18px); }
-            to   { opacity:1; transform:translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(18px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
+
         #map-lifecycle-overlay.active {
             display: block;
-            animation: mlo-in 0.32s cubic-bezier(0.2,0.8,0.2,1);
+            animation: mlo-in 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
-        .mlo-row  { display:flex; align-items:center; gap:9px; margin-bottom:7px; }
-        .mlo-dot  { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
-        .mlo-phase{ font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:1px; }
-        .mlo-title{ font-size:18px; font-weight:900; margin-bottom:3px; line-height:1.15; letter-spacing:-0.5px; }
-        .mlo-sub  { font-size:12px; color:var(--text-muted); margin-bottom:9px; }
+
+        .mlo-row {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            margin-bottom: 7px;
+        }
+
+        .mlo-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .mlo-phase {
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .mlo-title {
+            font-size: 18px;
+            font-weight: 900;
+            margin-bottom: 3px;
+            line-height: 1.15;
+            letter-spacing: -0.5px;
+        }
+
+        .mlo-sub {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 9px;
+        }
+
         @keyframes nav-flash {
-            0% { background: rgba(138, 201, 38, 0.3); border-color: var(--lime); }
-            100% { background: rgba(15, 23, 42, 0.9); border-color: var(--glass-border); }
+            0% {
+                background: rgba(138, 201, 38, 0.3);
+                border-color: var(--lime);
+            }
+
+            100% {
+                background: rgba(15, 23, 42, 0.9);
+                border-color: var(--glass-border);
+            }
         }
+
         .nav-flash-trigger {
             animation: nav-flash 0.8s cubic-bezier(0.2, 1, 0.2, 1);
         }
 
         .mlo-hint {
-            font-size:12px; color:rgba(255,255,255,0.78);
-            background:rgba(138,201,38,0.07);
-            border:1px solid rgba(138,201,38,0.2);
-            border-radius:11px; padding:9px 13px; line-height:1.45;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.78);
+            background: rgba(138, 201, 38, 0.07);
+            border: 1px solid rgba(138, 201, 38, 0.2);
+            border-radius: 11px;
+            padding: 9px 13px;
+            line-height: 1.45;
         }
+
         .mlo-hint-wait {
-            font-size:12px; color:var(--gold);
-            background:rgba(255,202,58,0.07);
-            border:1px solid rgba(255,202,58,0.2);
-            border-radius:11px; padding:9px 13px; line-height:1.45;
+            font-size: 12px;
+            color: var(--gold);
+            background: rgba(255, 202, 58, 0.07);
+            border: 1px solid rgba(255, 202, 58, 0.2);
+            border-radius: 11px;
+            padding: 9px 13px;
+            line-height: 1.45;
         }
     </style>
 </head>
@@ -1426,7 +1661,8 @@
                         <h1 onclick="openIntro()">WayTandem</h1>
                     </div>
                     <div class="header-actions">
-                        <div class="user-role-tag" id="role-tag" onclick="quickToggleRoleFromHeader()" title="Швидка зміна ролі">ОБЕРІТЬ РОЛЬ</div>
+                        <div class="user-role-tag" id="role-tag" onclick="quickToggleRoleFromHeader()"
+                            title="Швидка зміна ролі">ОБЕРІТЬ РОЛЬ</div>
                         <div class="user-av-btn" onclick="openProfile()">
                             <div class="user-av" id="user-av-initial">Ю</div>
                         </div>
@@ -1434,16 +1670,20 @@
                 </header>
 
                 <!-- CONTENT: HOME -->
-                <div data-tab="home" class="active-content" style="flex:1; min-height:0; border:none; padding:0;">
+                <div data-tab="home" class="active-content" style="min-height:0; border:none; padding:0;">
                     <!-- STRETCHABLE AREA -->
-                    <div id="home-main-area" style="flex:1; display:flex; flex-direction:column; justify-content:flex-end; overflow:hidden; min-height:0;">
-                        <div id="home-top-action-area" style="margin-bottom:12px; padding:0 20px; display:flex; flex-direction:column; gap:8px;">
+                    <div id="home-main-area"
+                        style="flex:1; display:flex; flex-direction:column; justify-content:flex-end; overflow:hidden; min-height:0;">
+                        <div id="home-top-action-area"
+                            style="margin-bottom:12px; padding:0 20px; display:flex; flex-direction:column; gap:8px;">
                             <span class="section-header" style="margin:0; font-size:12px; flex-shrink:0;">Новини</span>
                         </div>
-                        <div id="home-map-display" style="display:none; flex:1; min-height:300px; width:100%; border-radius:32px; border:1.5px solid var(--glass-border); overflow:hidden; position:relative; box-shadow:0 12px 48px rgba(0,0,0,0.6); margin-bottom:12px;">
+                        <div id="home-map-display"
+                            style="display:none; flex:1; min-height:300px; width:100%; border-radius:32px; border:1.5px solid var(--glass-border); overflow:hidden; position:relative; box-shadow:0 12px 48px rgba(0,0,0,0.6); margin-bottom:12px;">
                             <div id="home-map-el" style="width:100%; height:100%;"></div>
                         </div>
-                        <div id="home-news-container" class="feed-scroll" style="flex:0 1 auto; max-height:100%; overflow-y:auto;">
+                        <div id="home-news-container" class="feed-scroll"
+                            style="flex:0 1 auto; max-height:100%; overflow-y:auto;">
                             <!-- Dynamic news will be rendered here -->
                             <div class="empty-state">
                                 <div class="empty-icon">📢</div>
@@ -1455,71 +1695,57 @@
 
                 <!-- CONTENT: BOARD -->
                 <div data-tab="board">
-                    <div class="map-placeholder" data-map-context="board_discovery"
-                        style="position:relative; flex:1; margin-top:-8px; background:rgba(0,0,0,0.4); border-radius:0 0 32px 32px; overflow:hidden; margin-bottom:12px;">
-                    </div>
-                    <h3 class="section-header" style="margin-bottom:12px;">Оберіть напрямок</h3>
-                    <div class="feed-scroll" style="max-height: 45vh;">
-                        <div class="trip-card" onclick="openDiscoveryLayer('vacation')">
-                            <div class="token-icon" style="background:var(--sky-glow)"><svg viewBox="0 0 24 24"
-                                    fill="none" stroke="var(--sky)">
-                                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                                </svg></div>
-                            <div class="trip-content">
+                    <div style="flex:1; display:flex; flex-direction:column; justify-content:flex-end; overflow:hidden; min-height:0;">
+                        <h3 class="section-header" style="margin-bottom:12px; padding:0 20px; flex-shrink:0;">Оберіть напрямок</h3>
+                        <div class="feed-scroll" style="flex:0 1 auto; max-height:100%; overflow-y:auto;">
+                        <div class="trip-card" onclick="openDiscoveryLayer('90')">
+                            <div class="trip-content" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
                                 <div class="trip-title">ВІДПОЧИНОК</div>
-                                <div class="trip-meta" style="justify-content:space-between">
-                                    <span>5 екіпажів • 20 попутників</span>
-                                    <div class="role-chart"
-                                        style="background: conic-gradient(#ef5350 0% 40%, #ffca28 40% 60%, #42a5f5 60% 100%)">
+                                <div style="display:flex; align-items:center; gap:12px;">
+                                    <div style="display:flex; align-items:center; gap:4px; font-size:13px; font-weight:600; opacity:0.9;">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px; opacity:0.8;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> 25
                                     </div>
+                                    <div class="role-chart" style="background: conic-gradient(#FF5252 0% 40%, #FFC107 40% 60%, #2196F3 60% 100%)"></div>
                                 </div>
                             </div>
                         </div>
-                        <div class="trip-card" onclick="openDiscoveryLayer('theocracy')">
-                            <div class="token-icon" style="background:var(--gold-glow)"><svg viewBox="0 0 24 24"
-                                    fill="none" stroke="var(--gold)">
-                                    <path d="M12 2L15 8L22 9L17 14L18 21L12 17L6 21L7 14L2 9L9 8L12 2Z"></path>
-                                </svg></div>
-                            <div class="trip-content">
+                        <div class="trip-card" onclick="openDiscoveryLayer('92')">
+                            <div class="trip-content" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
                                 <div class="trip-title">ТЕОКРАТІЯ</div>
-                                <div class="trip-meta" style="justify-content:space-between">
-                                    <span>8 екіпажів • 30 попутників</span>
-                                    <div class="role-chart"
-                                        style="background: conic-gradient(#ef5350 0% 30%, #ffca28 30% 50%, #42a5f5 50% 100%)">
+                                <div style="display:flex; align-items:center; gap:12px;">
+                                    <div style="display:flex; align-items:center; gap:4px; font-size:13px; font-weight:600; opacity:0.9;">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px; opacity:0.8;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> 38
                                     </div>
+                                    <div class="role-chart" style="background: conic-gradient(#FF5252 0% 30%, #FFC107 30% 50%, #2196F3 50% 100%)"></div>
                                 </div>
                             </div>
                         </div>
-                        <div class="trip-card" onclick="openDiscoveryLayer('commute')">
-                            <div class="token-icon" style="background:var(--lime-glow)"><svg viewBox="0 0 24 24"
-                                    fill="none" stroke="var(--lime)">
-                                    <path d="M7 17L16.5 7.5M16 11V7H12"></path>
-                                </svg></div>
-                            <div class="trip-content">
-                                <div class="trip-title">ДОЇЗДИ</div>
-                                <div class="trip-meta" style="justify-content:space-between">
-                                    <span>15 екіпажів • 10 попутників</span>
-                                    <div class="role-chart"
-                                        style="background: conic-gradient(#ef5350 0% 70%, #ffca28 70% 80%, #42a5f5 80% 100%)">
+                        <div class="trip-card" onclick="openDiscoveryLayer('91')">
+                            <div class="trip-content" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                                <div class="trip-title">ПРАЦЯ</div>
+                                <div style="display:flex; align-items:center; gap:12px;">
+                                    <div style="display:flex; align-items:center; gap:4px; font-size:13px; font-weight:600; opacity:0.9;">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px; opacity:0.8;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> 12
                                     </div>
+                                    <div class="role-chart" style="background: conic-gradient(#FF5252 0% 70%, #FFC107 70% 80%, #2196F3 80% 100%)"></div>
                                 </div>
                             </div>
                         </div>
+                        </div>
+                        <div id="board-info-banner-container" style="padding: 0 8px; flex-shrink: 0;"></div>
                     </div>
                 </div>
 
                 <!-- CONTENT: MY TRIPS -->
-                <div data-tab="trips">
-                    <div class="map-placeholder" data-map-context="my_trips"
-                        style="position:relative; flex:1; margin-top:-8px; background:rgba(0,0,0,0.4); border-radius:0 0 32px 32px; overflow:hidden; margin-bottom:12px;">
-                    </div>
+                <div data-tab="trips" style="min-height:0; border:none; padding:0;">
 
-                    <div id="trips-hero" style="margin-bottom:20px; padding:20px 0 8px;">
+                    <div id="trips-hero" style="margin-bottom:8px; padding:20px 20px 8px;">
                         <h2 style="font-size:20px;font-weight:800;margin-bottom:8px;">Активних поїздок немає</h2>
-                        <div style="color:var(--text-muted);font-size:14px;">Тут з'являться ваші поїздки та запити від попутників.</div>
+                        <div style="color:var(--text-muted);font-size:14px;">Тут з'являться ваші поїздки та запити від
+                            попутників.</div>
                     </div>
 
-                    <div class="feed-scroll" id="trips-feed" style="max-height: 25vh; flex:none;">
+                    <div class="feed-scroll" id="trips-feed" style="flex:1; max-height:100%; overflow-y:auto;">
                         <div class="trip-card">
                             <div class="trip-content">
                                 <div class="trip-title">Завантаження...</div>
@@ -1547,33 +1773,71 @@
                 </div>
 
                 <!-- STICKY ACTION AREA (Universal across tabs) -->
-                <div id="sticky-action-area" style="margin-top:auto; padding-top:4px; padding-bottom: 8px; display:flex; flex-direction:column; gap:4px; pointer-events:none;">
+                <div id="sticky-action-area"
+                    style="margin-top:auto; padding-top:4px; padding-bottom: 8px; display:flex; flex-direction:column; gap:4px; pointer-events:none;">
                     <!-- HOME ONLY: Banners and Filters -->
-                    <div id="home-action-group" style="display:flex; flex-direction:column; gap:0px; pointer-events:auto;">
+                    <div id="home-action-group"
+                        style="display:flex; flex-direction:column; gap:0px; pointer-events:auto;">
                         <div id="home-bottom-action-area">
                             <!-- Unified Banner Unit (Filters) -->
                             <div id="home-unified-banner" style="display:flex; flex-direction:column; gap:8px;">
-                                <div id="home-filters-banner" style="display:flex; align-items:center; width:100%; order:1;">
-                                    <div class="filter-segment-control" style="display:flex; justify-content:space-around; align-items:center; width:100%; background:rgba(255,255,255,0.08); backdrop-filter:blur(10px); padding:8px; border-radius:20px; border:1px solid var(--glass-border);">
-                                        <div class="home-filter-btn" data-f="map" onclick="toggleHomeMap()" title="Карта"
+                                <div id="home-filters-banner"
+                                    style="display:flex; align-items:center; width:100%; order:1;">
+                                    <div class="filter-segment-control"
+                                        style="display:flex; justify-content:space-around; align-items:center; width:100%; background:rgba(255,255,255,0.08); backdrop-filter:blur(10px); padding:8px; border-radius:20px; border:1px solid var(--glass-border);">
+                                        <div class="home-filter-btn" data-f="map" onclick="toggleHomeMap()"
+                                            title="Карта"
                                             style="width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:10px; cursor:pointer; transition:all 0.3s; color:var(--text-muted);">
-                                            <svg viewBox="0 0 24 24" style="width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+                                            <svg viewBox="0 0 24 24"
+                                                style="width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;">
+                                                <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
+                                                <line x1="8" y1="2" x2="8" y2="18" />
+                                                <line x1="16" y1="6" x2="16" y2="22" />
+                                            </svg>
                                         </div>
-                                        <div class="home-filter-btn active" data-f="all" onclick="setHomeFilter('all')" title="Всі"
+                                        <div class="home-filter-btn active" data-f="all" onclick="setHomeFilter('all')"
+                                            title="Всі"
                                             style="width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:10px; cursor:pointer; transition:all 0.3s;">
-                                            <svg viewBox="0 0 24 24" style="width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                                            <svg viewBox="0 0 24 24"
+                                                style="width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;">
+                                                <circle cx="12" cy="12" r="10" />
+                                                <line x1="2" y1="12" x2="22" y2="12" />
+                                                <path
+                                                    d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                                            </svg>
                                         </div>
-                                        <div class="home-filter-btn" data-f="driver" onclick="setHomeFilter('driver')" title="Водії"
+                                        <div class="home-filter-btn" data-f="driver" onclick="setHomeFilter('driver')"
+                                            title="Водії"
                                             style="width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:10px; cursor:pointer; transition:all 0.3s; color:var(--text-muted);">
-                                            <svg viewBox="0 0 24 24" style="width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>
+                                            <svg viewBox="0 0 24 24"
+                                                style="width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;">
+                                                <path
+                                                    d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" />
+                                                <circle cx="7" cy="17" r="2" />
+                                                <path d="M9 17h6" />
+                                                <circle cx="17" cy="17" r="2" />
+                                            </svg>
                                         </div>
-                                        <div class="home-filter-btn" data-f="passenger" onclick="setHomeFilter('passenger')" title="Попутник"
+                                        <div class="home-filter-btn" data-f="passenger"
+                                            onclick="setHomeFilter('passenger')" title="Попутник"
                                             style="width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:10px; cursor:pointer; transition:all 0.3s; color:var(--text-muted);">
-                                            <svg viewBox="0 0 24 24" style="width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;"><path d="M18 20a6 6 0 0 0-12 0"/><circle cx="12" cy="10" r="4"/><circle cx="12" cy="2" r="1"/></svg>
+                                            <svg viewBox="0 0 24 24"
+                                                style="width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;">
+                                                <path d="M18 20a6 6 0 0 0-12 0" />
+                                                <circle cx="12" cy="10" r="4" />
+                                                <circle cx="12" cy="2" r="1" />
+                                            </svg>
                                         </div>
-                                        <div class="home-filter-btn" data-f="group" onclick="setHomeFilter('group')" title="Групи"
+                                        <div class="home-filter-btn" data-f="group" onclick="setHomeFilter('group')"
+                                            title="Групи"
                                             style="width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:10px; cursor:pointer; transition:all 0.3s; color:var(--text-muted);">
-                                            <svg viewBox="0 0 24 24" style="width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                                            <svg viewBox="0 0 24 24"
+                                                style="width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;">
+                                                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                                                <circle cx="9" cy="7" r="4" />
+                                                <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                                                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                                            </svg>
                                         </div>
                                     </div>
                                 </div>
@@ -1582,8 +1846,7 @@
                     </div>
 
                     <div class="thumb-input-container" style="pointer-events:auto;">
-                        <input type="text" id="universal-input" class="thumb-input"
-                            placeholder="Пошук новин...">
+                        <input type="text" id="universal-input" class="thumb-input" placeholder="Пошук новин...">
                     </div>
                 </div>
             </div>
@@ -1637,7 +1900,7 @@
                     <h2 class="hero-title" id="modal-title" style="margin-bottom:20px;">Заголовок</h2>
                     <div id="modal-content-area" style="flex:1; display:flex; flex-direction:column; gap:8px;"></div>
                 </div>
-                </div>
+            </div>
 
         </div>
     </div>
@@ -1646,6 +1909,9 @@
     <script>
         let discoveryStack = [];
         let currentSimStep = null;
+
+        const CAR_ICON_MINI = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px; opacity:0.8;"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>`;
+        const USER_ICON_MINI = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px; opacity:0.8;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
 
         // ── v24.5 STATE ──
         let currentUserId = 0;
@@ -1755,7 +2021,7 @@
         let _apiErrorCount = 0;
         async function api(path, opts = {}) {
             if (!CONFIG.apiBase) return null;
-            
+
             let fixedPath = path;
             if ((fixedPath.includes('limit=') || fixedPath.includes('scope=') || fixedPath.includes('user_id=')) && !fixedPath.includes('?')) {
                 const endpoints = ['news', 'pending', 'active', 'messages', 'crews', 'organizers'];
@@ -1770,7 +2036,7 @@
             const headers = { 'Content-Type': 'application/json' };
             const initData = window.Telegram?.WebApp?.initData || '';
             if (initData) headers['Authorization'] = 'tma ' + initData;
-            
+
             const fullUrl = CONFIG.apiBase + fixedPath;
 
             try {
@@ -2151,30 +2417,27 @@
         }
 
         function getRoleChartStyle(item) {
-            const d = item.drivers || 0;      // Водії → red
-            const p = item.passengers || 0;   // Попутники → sky
-            const o = item.organizers || 0;   // Організатори → gold
+            const d = item.drivers || 0;
+            const p = item.passengers || 0;
+            const o = item.organizers || 0;
             const total = d + p + o;
-            if (total === 0) return 'background: conic-gradient(rgba(255,255,255,0.08) 0deg 360deg)';
+            if (total === 0) return 'background: rgba(255,255,255,0.05);';
 
             const colors = [];
-            if (d > 0) colors.push({ color: '#ef5350', count: d });
-            if (p > 0) colors.push({ color: '#42a5f5', count: p });
-            if (o > 0) colors.push({ color: '#ffca28', count: o });
+            if (d > 0) colors.push({ color: '#FF5252', count: d }); // Red
+            if (p > 0) colors.push({ color: '#2196F3', count: p }); // Blue
+            if (o > 0) colors.push({ color: '#FFC107', count: o }); // Gold
 
-            if (colors.length === 1) return `background: ${colors[0].color}`;
+            if (colors.length === 1) return `background: ${colors[0].color};`;
 
             const stops = [];
             let at = 0;
             for (let i = 0; i < colors.length; i++) {
-                const isLast = (i === colors.length - 1);
-                // use floating-point exactly, but snap the very last one to 360 to prevent ANY micro-gaps
-                const deg = isLast ? (360 - at) : ((colors[i].count / total) * 360);
-                stops.push(`${colors[i].color} ${at}deg ${at + deg}deg`);
-                at += deg;
+                const perc = (colors[i].count / total) * 100;
+                stops.push(`${colors[i].color} ${at}% ${at + perc}%`);
+                at += perc;
             }
-
-            return `background: conic-gradient(${stops.join(', ')})`;
+            return `background: conic-gradient(${stops.join(', ')});`;
         }
 
         function mapItem(item) {
@@ -2212,32 +2475,51 @@
             }).length;
             let boardBanner = '';
             const firstSub = (userSubscriptionsList && userSubscriptionsList.length) ? userSubscriptionsList[0] : null;
+
             if (firstSub) {
-                const more = userSubscriptionsList.length > 1 ? ` +${userSubscriptionsList.length - 1}` : '';
+                const fullDir = flatDiscoveryMap[firstSub.direction_id] || firstSub;
+                const paxCount = fullDir.passengers || 0;
+                
+                const groupIconSVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:18px; height:18px;">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>`;
+
                 boardBanner = `
-                    <div class="trip-card" onclick="openMySubscribedDirection()" style="margin-bottom:10px; border-left:4px solid var(--lime); background:rgba(138,201,38,0.09); cursor:pointer;">
-                        <div class="trip-content">
-                            <div class="trip-title" style="font-size:12px;">● МОЯ ПІДПИСКА: ${firstSub.title}${more}</div>
-                            <div class="trip-meta" style="margin-top:4px;">АКТИВНІ: ${activeCount} • 🆕 СТАРТУЮТЬ ЗА 7 ДНІВ: ${newCount} • Натисніть, щоб відкрити</div>
+                    <div class="trip-card" onclick="openMySubscribedDirection()" style="margin-bottom:0; border-left:4px solid var(--lime); background:rgba(138,201,38,0.1); cursor:pointer; padding: 14px 18px;">
+                        <div style="display:flex; align-items:center; gap:14px; width:100%;">
+                            <div class="token-icon" style="background:var(--lime-glow); width:36px; height:36px; flex-shrink:0; color:var(--lime);">${groupIconSVG}</div>
+                            <div class="trip-content" style="flex:1;">
+                                <div class="trip-title" style="font-size:15px; font-weight:700; color:var(--lime);">${firstSub.title}</div>
+                                <div class="trip-meta" style="margin-top:2px; font-size:12px; font-weight:500; opacity:0.9; display:flex; align-items:center; gap:6px;">
+                                    ${USER_ICON_MINI} ${paxCount}
+                                </div>
+                            </div>
                         </div>
                     </div>`;
-            } else if ((activeCount + newCount) > 0) {
-                boardBanner = `<div class="trip-card" style="margin-bottom:10px; border-left:4px solid var(--gold); background:rgba(255,202,58,0.08);"><div class="trip-content"><div class="trip-title" style="font-size:12px;">● АКТИВНІ: ${activeCount} • 🆕 СТАРТУЮТЬ ЗА 7 ДНІВ: ${newCount}</div></div></div>`;
             }
-            board.innerHTML = boardBanner + items.map(item => `
+
+            board.innerHTML = items.map(item => {
+                const total = (item.drivers || 0) + (item.passengers || 0);
+                return `
                 <div class="trip-card" onclick="openDiscoveryLayer('${item.id}')">
-                    <div class="token-icon" style="background:var(--glass)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--lime)">
-                        <path d="M12 2L15 8L22 9L17 14L18 21L12 17L6 21L7 14L2 9L9 8L12 2Z"></path>
-                    </svg></div>
-                    <div class="trip-content">
+                    <div class="trip-content" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
                         <div class="trip-title">${item.title}</div>
-                        <div class="trip-meta" style="justify-content:space-between">
-                            <span>${item.meta}</span>
+                        <div style="display:flex; align-items:center; gap:12px;">
+                            <div style="display:flex; align-items:center; gap:4px; font-size:13px; font-weight:600; opacity:0.9;">
+                                ${USER_ICON_MINI} ${total}
+                            </div>
                             <div class="role-chart" style="${getRoleChartStyle(item)}"></div>
                         </div>
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
+
+            const bannerContainer = document.getElementById('board-info-banner-container');
+            if (bannerContainer) bannerContainer.innerHTML = boardBanner;
+
             const isBoardActive = !!document.querySelector('.nav-item.active[onclick*="board"]');
             const uInput = document.getElementById('universal-input');
             if (isBoardActive && uInput && uInput.value.trim()) {
@@ -2367,7 +2649,7 @@
                     const mapC = document.getElementById('home-map-display');
                     if (mapC && mapC.style.display !== 'none') homePh = 'Пошук на карті...';
                     else {
-                        const ph = { 'all':'Пошук новин...', 'driver':'Пошук водіїв...', 'passenger':'Пошук попутників...', 'group':'Пошук груп...' };
+                        const ph = { 'all': 'Пошук новин...', 'driver': 'Пошук водіїв...', 'passenger': 'Пошук попутників...', 'group': 'Пошук груп...' };
                         homePh = ph[window.homeNewsFilter || 'all'] || 'Пошук новин...';
                     }
                 }
@@ -2384,7 +2666,7 @@
             const homeActions = document.getElementById('home-action-group');
             if (homeActions) {
                 homeActions.style.display = (tabId === 'home') ? 'flex' : 'none';
-                
+
                 // Anchor unified banner position to bottom (Thumb-Zone)
                 const unifiedBanner = document.getElementById('home-unified-banner');
                 if (tabId === 'home' && unifiedBanner) {
@@ -2452,8 +2734,6 @@
         async function openNewsDirection(directionId) {
             const dirId = String(directionId || '').trim();
             if (!dirId) return;
-            const boardBtn = getBoardNavEl();
-            if (boardBtn) switchContext('board', boardBtn, true);
             await openDirectionDetail(dirId);
         }
 
@@ -2486,9 +2766,9 @@
             document.querySelectorAll('.home-filter-btn').forEach(el => {
                 const isActive = el.dataset.f === f;
                 el.classList.toggle('active', isActive);
-                
+
                 // Color mapping for glows
-                const colors = { all:'#fff', driver:'var(--lime)', passenger:'var(--sky)', group:'var(--gold)' };
+                const colors = { all: '#fff', driver: 'var(--lime)', passenger: 'var(--sky)', group: 'var(--gold)' };
                 if (isActive) {
                     el.style.color = colors[f];
                     el.style.boxShadow = `0 0 12px ${colors[f]}44`;
@@ -2500,15 +2780,15 @@
                 }
             });
             window.liveNews = null; // скинути кеш при зміні фільтра
-            
+
             const input = document.getElementById('universal-input');
             if (input) {
                 const ph = { 'all': 'Пошук новин...', 'driver': 'Пошук водіїв...', 'passenger': 'Пошук попутників...', 'group': 'Пошук груп...' };
                 input.placeholder = ph[f] || 'Пошук новин...';
             }
 
-            loadNewsFromApi().then(() => {  
-                if (!window.liveNews) renderHome(); 
+            loadNewsFromApi().then(() => {
+                if (!window.liveNews) renderHome();
                 if (homeMapInstance && document.getElementById('home-map-display').style.display !== 'none') {
                     refreshHomeMapMarkers();
                 }
@@ -2529,9 +2809,9 @@
         function toggleHomeMap() {
             const mapContainer = document.getElementById('home-map-display');
             const newsContainer = document.getElementById('home-news-container');
-            
+
             if (!mapContainer || !newsContainer) return;
-            
+
             const isVisible = mapContainer.style.display !== 'none';
             if (isVisible) {
                 mapContainer.style.display = 'none';
@@ -2541,7 +2821,7 @@
                 newsContainer.style.display = 'none';
                 initHomeMap();
             }
-            
+
             const isMapOn = mapContainer.style.display === 'flex';
 
             const input = document.getElementById('universal-input');
@@ -2593,23 +2873,56 @@
             if (!homeMapInstance) return;
             homeMapMarkers.forEach(m => homeMapInstance.removeLayer(m));
             homeMapMarkers = [];
-            
+
             const news = getContextualHomeNews(window.liveNews || []);
-            news.forEach(n => {
+            news.forEach((n, idx) => {
                 if (n.lat && n.lng) {
-                    const color = { crew_open:'#ef5350', subscription:'#42a5f5', direction_new:'#8ac926' }[n.kind] || 'var(--lime)';
-                    const marker = L.circleMarker([n.lat, n.lng], {
-                        radius: 7,
-                        fillColor: color,
-                        color: "#fff",
-                        weight: 2,
-                        opacity: 1,
-                        fillOpacity: 0.9
-                    }).addTo(homeMapInstance).bindPopup(`<b>${n.kind.toUpperCase()}</b><br>${n.text || n.title || ''}`);
+                    const color = { crew_open: '#ef5350', subscription: '#42a5f5', direction_new: '#8ac926' }[n.kind] || 'var(--lime)';
+                    const marker = L.marker([n.lat, n.lng], {
+                        icon: L.divIcon({
+                            className: 'custom-div-icon',
+                            html: `<div class="map-marker-pulse" style="background:${color}; width:20px; height:20px; border:2px solid #fff; border-radius:50%; box-shadow: 0 0 10px ${color}"></div>`,
+                            iconSize: [20, 20],
+                            iconAnchor: [10, 10]
+                        })
+                    }).addTo(homeMapInstance);
+
+                    marker.bindPopup(`
+                        <div class="marker-popup-card">
+                            <div style="font-size:13px; font-weight:700; margin-bottom:4px; line-height:1.4; color:#fff;">${n.text || n.title || ''}</div>
+                            <button class="marker-popup-btn" onclick="handleMarkerPopupAction('${n.direction_id || ''}', ${idx})">ПЕРЕЙТИ</button>
+                        </div>
+                    `, { closeButton: false, offset: [0, -5], className: 'glass-popup' });
+
                     homeMapMarkers.push(marker);
                 }
             });
         }
+
+        function scrollToNewsItem(index) {
+            const el = document.getElementById(`news-item-${index}`);
+            if (!el) return;
+
+            // Smooth scroll
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            // Highlight effect
+            el.classList.add('trip-card-highlight');
+            setTimeout(() => {
+                el.classList.remove('trip-card-highlight');
+            }, 2000);
+        }
+
+        window.handleMarkerPopupAction = function (directionId, index) {
+            if (directionId && directionId !== 'undefined' && directionId !== '') {
+                openNewsDirection(directionId);
+            } else {
+                if (document.getElementById('home-map-display').style.display !== 'none') {
+                    toggleHomeMap();
+                }
+                scrollToNewsItem(index);
+            }
+        };
 
         async function loadNewsFromApi() {
             if (!CONFIG.apiBase) return;
@@ -2632,27 +2945,28 @@
 
         function renderNewsItemsHtml(newsList) {
             if (!newsList || !newsList.length) return '';
-            return newsList.map(n => {
+            return newsList.map((n, idx) => {
                 const action = n.direction_id ? `onclick="openNewsDirection('${n.direction_id}')"` : '';
                 const cursor = n.direction_id ? 'pointer' : 'default';
                 const isDemo = !CONFIG.apiBase;
                 const src = window.liveNewsSource;
-                const kindIcon = { crew_open:'#ef5350', subscription:'#42a5f5',
-                                   direction_new:'#8ac926', trip_done:'#26a69a',
-                                   event:'#ffca3a' }[n.kind] || 'var(--lime)';
+                const kindIcon = {
+                    crew_open: '#ef5350', subscription: '#42a5f5',
+                    direction_new: '#8ac926', trip_done: '#26a69a',
+                    event: '#ffca3a'
+                }[n.kind] || 'var(--lime)';
                 let badge = '';
-                if (isDemo)        badge = '<span style="font-size:9px;font-weight:800;background:rgba(255,202,58,0.15);color:#ffca3a;padding:2px 6px;border-radius:6px;border:0.5px solid #ffca3a;">DEMO</span>';
-                else if (src==='live') badge = '';
+                if (isDemo) badge = '<span style="font-size:9px;font-weight:800;background:rgba(255,202,58,0.15);color:#ffca3a;padding:2px 6px;border-radius:6px;border:0.5px solid #ffca3a;">DEMO</span>';
+                else if (src === 'live') badge = '';
                 const dateStr = new Date((n.created_at || Date.now() / 1000) * 1000).toLocaleDateString();
                 return `
-                    <div class="trip-card animate-in" style="border-left:4px solid ${kindIcon};cursor:${cursor};" ${action}>
+                    <div id="news-item-${idx}" class="trip-card animate-in" style="border-left:4px solid ${kindIcon};cursor:${cursor};" ${action}>
                         <div class="trip-content">
                             <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
                                 ${badge}
                                 <span class="trip-meta" style="margin:0;">${dateStr}</span>
                             </div>
                             <div class="trip-title" style="font-size:14px;">${n.text || n.title || ''}</div>
-
                         </div>
                     </div>`;
             }).join('');
@@ -2672,10 +2986,10 @@
                 const iAmDone = isDriver ? !!trip.driver_finished : !!trip.client_finished;
                 const partnerDone = isDriver ? !!trip.client_finished : !!trip.driver_finished;
                 const cancel = getTripCancelState(trip);
-                
+
                 const color = cancel.byPartner ? '#ef5350' : (isStarted ? 'var(--lime)' : '#ffca3a');
                 const phase = iAmDone ? 'Очікування фінішу' : (cancel.byMe ? 'Скасування' : (cancel.byPartner ? 'Запит на скасування' : (isStarted ? 'В дорозі' : 'Резервація')));
-                
+
                 container.innerHTML = `
                     <div class="lifecycle-container animate-in" style="padding:0; --glow-color: ${color}44;">
                         ${buildStateStrip(isStarted ? 5 : 4, 6, phase, color)}
@@ -2693,11 +3007,11 @@
                                 <div style="font-size:28px; filter: drop-shadow(0 0 10px ${color}66);">${isStarted ? '🚀' : '⏳'}</div>
                             </div>
                             <div class="what-next" style="margin-top:16px; background:rgba(255,255,255,0.05); border:none; border-left:3px solid ${color}; border-radius:0 12px 12px 0;">
-                                ${isStarted 
-                                    ? (iAmDone ? 'Ваш приїзд підтверджено. Очікуємо партнера.' : 'Ви в дорозі. Натисніть для деталей або фінішу.') 
-                                    : 'Резервація активна. Очікуйте готовності всього екіпажу.'}
+                                ${isStarted
+                        ? (iAmDone ? 'Ваш приїзд підтверджено. Очікуємо партнера.' : 'Ви в дорозі. Натисніть для деталей або фінішу.')
+                        : 'Резервація активна. Очікуйте готовності всього екіпажу.'}
                             </div>
-                            <div class="lc-btn lc-go" style="margin-top:16px; height:50px; font-size:13px; background:${color}; color:${color==='#ffca3a'||color==='var(--lime)'?'#000':'#fff'};">
+                            <div class="lc-btn lc-go" style="margin-top:16px; height:50px; font-size:13px; background:${color}; color:${color === '#ffca3a' || color === 'var(--lime)' ? '#000' : '#fff'};">
                                 ВІДКРИТИ МОСТИК ЕКІПАЖУ
                             </div>
                         </div>
@@ -2720,7 +3034,7 @@
                 const color = isOutgoing ? '#42a5f5' : '#ffca3a';
                 const phase = isOutgoing ? 'Очікування' : 'Запит в екіпаж';
 
-                const actions = isOutgoing 
+                const actions = isOutgoing
                     ? `<div class="btn-confirm" style="background:rgba(239,83,80,0.1);color:#ef5350;border:1px solid rgba(239,83,80,0.2);" onclick="respondInvite(${partnerId}, ${req.direction_id}, false)">🛑 СКАСУВАТИ ЗАПИТ</div>`
                     : `<div style="display:flex;gap:10px;width:100%;">
                         <div class="nav-btn" style="flex:1;background:rgba(239,83,80,0.1);color:#ef5350;" onclick="respondInvite(${partnerId}, ${req.direction_id}, false)">✕ НІ</div>
@@ -2752,7 +3066,7 @@
                                 </div>
                             </div>
                         </div>
-                        ${matches.length > 1 ? `<div style="text-align:center; font-size:10px; color:var(--text-muted); margin-top:12px; font-weight:800;">+ ЩЕ ${matches.length-1} ЗАПИТИ В ЧЕРЗІ</div>` : ''}
+                        ${matches.length > 1 ? `<div style="text-align:center; font-size:10px; color:var(--text-muted); margin-top:12px; font-weight:800;">+ ЩЕ ${matches.length - 1} ЗАПИТИ В ЧЕРЗІ</div>` : ''}
                     </div>
                 `;
                 return;
@@ -2782,13 +3096,15 @@
                 const isDemo = !CONFIG.apiBase;
                 const src = window.liveNewsSource;
                 // Іконка по типу події (v24.9)
-                const kindIcon = { crew_open:'#ef5350', subscription:'#42a5f5',
-                                   direction_new:'#8ac926', trip_done:'#26a69a',
-                                   event:'#ffca3a' }[n.kind] || 'var(--lime)';
+                const kindIcon = {
+                    crew_open: '#ef5350', subscription: '#42a5f5',
+                    direction_new: '#8ac926', trip_done: '#26a69a',
+                    event: '#ffca3a'
+                }[n.kind] || 'var(--lime)';
                 // Позначка джерела даних
                 let badge = '';
-                if (isDemo)        badge = '<span style="font-size:9px;font-weight:800;background:rgba(255,202,58,0.15);color:#ffca3a;padding:2px 6px;border-radius:6px;border:0.5px solid #ffca3a;">DEMO</span>';
-                else if (src==='live') badge = '';
+                if (isDemo) badge = '<span style="font-size:9px;font-weight:800;background:rgba(255,202,58,0.15);color:#ffca3a;padding:2px 6px;border-radius:6px;border:0.5px solid #ffca3a;">DEMO</span>';
+                else if (src === 'live') badge = '';
                 const dateStr = new Date((n.created_at || Date.now() / 1000) * 1000).toLocaleDateString();
                 return `
                     <div class="trip-card animate-in" style="border-left:4px solid ${kindIcon};cursor:${cursor};" ${action}>
@@ -2804,7 +3120,7 @@
             }).join('');
         }
         function renderDiscovery(data) {
-            console.log('renderDiscovery called for data:', data ? data.id : 'null', new Error().stack);
+            if (!data) return;
             const title = document.getElementById('modal-title');
             const content = document.getElementById('modal-content-area');
             title.innerText = data.title;
@@ -2817,14 +3133,14 @@
                     const isOwner = item.creator_id === currentUserId;
 
                     const subClass = userSubscriptions.has(String(item.remote_id || item.id)) ? ' subscribed-card' : '';
+                    const total = (item.drivers || 0) + (item.passengers || 0);
                     html += `<div class="trip-card${subClass}" data-id="${itemId}" onclick="${action}">
-                        <div class="trip-content">
-                            <div style="display:flex; justify-content:space-between; align-items:flex-start">
-                                <div class="trip-title">${item.title} ${userSubscriptions.has(String(item.remote_id || item.id)) ? '<span style="font-size:8px; color:var(--lime); background:rgba(138,201,38,0.1); padding:2px 6px; border-radius:6px; border:0.5px solid var(--lime); margin-left:8px;">ВІДСТЕЖУЄТЬСЯ</span>' : ''}</div>
-                                ${isOwner ? '<div style="font-size:10px; background:rgba(38,166,154,0.1); padding:2px 6px; border-radius:4px; font-weight:800; color:var(--lime)">МОЄ</div>' : ''}
-                            </div>
-                            <div class="trip-meta" style="justify-content:space-between">
-                                <span>${item.meta}</span>
+                        <div class="trip-content" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                            <div class="trip-title">${item.title} ${userSubscriptions.has(String(item.remote_id || item.id)) ? '<span style="font-size:8px; color:var(--lime); background:rgba(138,201,38,0.1); padding:2px 6px; border-radius:6px; border:0.5px solid var(--lime); margin-left:8px;">ВІДСТЕЖУЄТЬСЯ</span>' : ''}</div>
+                            <div style="display:flex; align-items:center; gap:12px;">
+                                <div style="display:flex; align-items:center; gap:4px; font-size:13px; font-weight:600; opacity:0.9;">
+                                    ${USER_ICON_MINI} ${total} 
+                                </div>
                                 <div class="role-chart" style="${getRoleChartStyle(item)}"></div>
                             </div>
                         </div>
@@ -2953,11 +3269,12 @@
                         method: 'POST',
                         body: JSON.stringify({ user_id: currentUserId, direction_id: directionId, role: role })
                     });
-                    if (res && res.status === 'ok') {
+                    if (res && (res.status === 'ok' || res.status === 'already_subscribed')) {
                         userSubscriptions.add(dirStr); saveState();
                         await loadUserSubscriptions();
                         selectedDirectionId = directionId;
-                        showToast('✅ Підписано! Бот шукатиме вам екіпаж. Дивіться «Поїздки».');
+                        const msg = res.status === 'already_subscribed' ? 'Ви вже підписані' : '✅ Підписано! Бот шукатиме вам екіпаж. Дивіться «Поїздки».';
+                        showToast(msg);
                         const direction = flatDiscoveryMap[dirStr];
                         if (direction) await loadOrganizers(direction);
                         renderDirectionUI(direction || { title: 'Напрямок', desc: '', pStacks: [] });
@@ -3024,6 +3341,7 @@
                     if (pointEl) pointEl.value = '';
                     if (descEl) descEl.value = '';
                     await loadNewsFromApi();
+                    await loadUserSubscriptions();
                     if (!window.liveNews) renderHome();
 
                     const folder = flatDiscoveryMap[String(parentId)];
@@ -3143,17 +3461,21 @@
                 `;
 
             const orgHeader = `<h3 class="section-header">Активні Екіпажі</h3>`;
-            const orgList = organizers.map(org => `
+            const orgList = organizers.map(org => {
+                const total = org.seats_free || 0;
+                return `
                 <div class="trip-card" onclick="openOrganizerCrews(${org.user_id}, '${dId}')">
-                    <div class="token-icon" style="background:var(--glass)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--lime)">
-                        <path d="M12 2L15 8L22 9L17 14L18 21L12 17L6 21L7 14L2 9L9 8L12 2Z"></path>
-                    </svg></div>
-                    <div class="trip-content">
-                        <div class="trip-title">${org.name || 'Організатор'}</div>
-                        <div class="trip-meta">🗓 ${org.departure || 'Найближчий виїзд'} • ${org.seats_free || 0} вільних місць</div>
+                    <div class="trip-content" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                        <div>
+                            <div class="trip-title">${org.name || 'Організатор'}</div>
+                            <div style="font-size:11px; opacity:0.7; margin-top:2px;">🗓 ${org.departure || 'Найближчий виїзд'}</div>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:4px; font-size:13px; font-weight:600; opacity:0.9;">
+                            ${USER_ICON_MINI} ${total}
+                        </div>
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
             const emptyOrgs = `<div class="trip-card" style="border-style:dashed; opacity:0.7">
                 <div class="trip-content">
                     <div class="trip-title" style="color:var(--text-muted)">Екіпажів поки немає</div>
@@ -3221,21 +3543,21 @@
                         <div class="trip-content">
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                                 <div class="trip-title">#${crew.crew_id}</div>
-                                <div class="trip-meta">${crew.seats_free || 0} попутників</div>
+                                <div class="trip-meta" style="display:flex; align-items:center; gap:4px; font-size:11px; opacity:0.8;">${USER_ICON_MINI} ${crew.seats_free || 0}</div>
                             </div>
                             <div class="trip-desc">${crew.driver_name || 'Водій'} • ${crew.car || 'Авто'}</div>
-                            ${data.orgId == currentUserId 
-                                ? `<div class="btn-confirm" style="margin-top:10px; opacity:0.6; cursor:default; background:var(--glass); color:var(--text-muted); box-shadow:none;">МІЙ ЕКІПАЖ</div>`
-                                : activeTrip 
-                                    ? `<div class="btn-confirm" style="margin-top:10px; opacity:0.6; cursor:default; background:var(--glass); color:var(--text-muted); box-shadow:none;">У ВАС Є ПОЇЗДКА</div>`
-                                    : userSettings.role === 'driver'
-                                        ? `<div class="btn-confirm" style="margin-top:10px; opacity:0.6; cursor:default; background:var(--glass); color:var(--text-muted); box-shadow:none;">ВИ ВОДІЙ</div>`
-                                        : !userSettings.role
-                                            ? `<div class="btn-confirm" style="margin-top:10px; opacity:0.8;" onclick="openProfile()">ОБЕРІТЬ РОЛЬ</div>`
-                                            : `<div class="btn-confirm" style="margin-top:10px;" onclick="joinCrew('${crew.crew_id}', ${data.orgId}, '${data.dirId}')">
+                            ${data.orgId == currentUserId
+                    ? `<div class="btn-confirm" style="margin-top:10px; opacity:0.6; cursor:default; background:var(--glass); color:var(--text-muted); box-shadow:none;">МІЙ ЕКІПАЖ</div>`
+                    : activeTrip
+                        ? `<div class="btn-confirm" style="margin-top:10px; opacity:0.6; cursor:default; background:var(--glass); color:var(--text-muted); box-shadow:none;">У ВАС Є ПОЇЗДКА</div>`
+                        : userSettings.role === 'driver'
+                            ? `<div class="btn-confirm" style="margin-top:10px; opacity:0.6; cursor:default; background:var(--glass); color:var(--text-muted); box-shadow:none;">ВИ ВОДІЙ</div>`
+                            : !userSettings.role
+                                ? `<div class="btn-confirm" style="margin-top:10px; opacity:0.8;" onclick="openProfile()">ОБЕРІТЬ РОЛЬ</div>`
+                                : `<div class="btn-confirm" style="margin-top:10px;" onclick="joinCrew('${crew.crew_id}', ${data.orgId}, '${data.dirId}')">
                                                 ${crew.seats_free > 0 ? 'ПРИЄДНАТИСЯ' : 'ЕКІПАЖ ПОВНИЙ'}
                                               </div>`
-                            }
+                }
                         </div>
                     </div>
                 `).join('') : `<div class="trip-card"><div class="trip-content"><div class="trip-title">Порожньо</div><div class="trip-meta">Немає екіпажів</div></div></div>`}
@@ -3533,7 +3855,7 @@
                             return { lat: gLat, lng: gLng, title: dir.title || 'Ціль' };
                         }
                     }
-                } catch (_) {}
+                } catch (_) { }
             }
             return null;
         }
@@ -3885,12 +4207,12 @@
                             m.fitBounds(bounds, { padding: [18, 18] });
                             // Підпис відстані
                             const d = Math.round(haversine(uLat, uLng, trip.pickup_lat, trip.pickup_lng));
-                            const dText = d < 1000 ? `${d}м до точки` : `${(d/1000).toFixed(1)}км до точки`;
+                            const dText = d < 1000 ? `${d}м до точки` : `${(d / 1000).toFixed(1)}км до точки`;
                             const distDiv = document.createElement('div');
                             distDiv.style.cssText = 'position:absolute;bottom:6px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.65);color:#fff;font-size:10px;font-weight:700;padding:3px 8px;border-radius:8px;white-space:nowrap;z-index:1000;pointer-events:none;';
                             distDiv.textContent = dText;
                             el.appendChild(distDiv);
-                        } catch (e) {}
+                        } catch (e) { }
                     }, null, { timeout: 6000, maximumAge: 60000 });
                 }
                 setTimeout(() => m.invalidateSize(), 60);
@@ -3968,7 +4290,7 @@
             if (trip && trip.active !== false) {
                 const normalized = normalizeTrip(trip);
 
-        // Notification: Trip Accepted!
+                // Notification: Trip Accepted!
                 if (!activeTripId && normalized.id) {
                     showLoudPush('🎉', 'ВАС ПРИЙНЯТО В ЕКІПАЖ!');
                     setTimeout(() => hideLoudPush(), 6000);
@@ -3976,7 +4298,7 @@
                     const mapEl = document.querySelector('.nav-item[onclick*="map"]');
                     if (mapEl) switchContext('map', mapEl);
                 }
-                
+
                 if (normalized.is_started && !lastTripStartedState && normalized.viewer_role !== 'driver') {
                     console.log('📢 LOUD PUSH triggered (is_started transition)');
                     showLoudPush('🚀', 'Водій натиснув «Поїхали!»');
@@ -4054,7 +4376,7 @@
             if (incoming.length > lastIncomingRequestsCount) {
                 showLoudPush('👋', 'НОВИЙ ЗАПИТ В ЕКІПАЖ!');
                 setTimeout(() => hideLoudPush(), 6000);
-                
+
                 // 💎 STADIUM: Aggressive switch to Home if match arrives
                 if (discoveryStack.length > 0) {
                     console.log('💎 Match arrived, closing Discovery for focus');
@@ -4087,7 +4409,7 @@
                     }
                 }
             }
-            
+
             // Якщо є хоча б один запит — це активність
             saveState();
             return allPending.length > 0;
@@ -4122,7 +4444,7 @@
             if (isSyncing) return;
             isSyncing = true;
             console.log('🚀 Sync Engine Started (Adaptive+Hydrate Mode)');
-            
+
             async function tick() {
                 const isHidden = !!document.hidden;
                 const isOffline = !!document.getElementById('offline-indicator')?.classList.contains('active');
@@ -4137,7 +4459,7 @@
                         const fullPendingScan = pendingKnown || !!pendingInvite || (syncCycle % 4 === 0);
                         hasActivity = await hydrateTrips({ fullPendingScan });
                         checkGeoProximity(); // Geo-proximity toasts — повідомляє пасажира про наближення водія
-                        
+
                         isMapActive = !!document.querySelector('.nav-item.active[onclick*="map"]');
                         isBoardActive = !!document.querySelector('.nav-item.active[onclick*="board"]');
                         isHomeActive = !!document.querySelector('.nav-item.active[onclick*="home"]');
@@ -4171,7 +4493,7 @@
                 const mapReady = !!document.querySelector('[data-tab="map"].active-content') || (window.currentTab === 'map');
                 if (syncCycle % 3 === 0 || hasActivity || pendingCount > 0) {
                     const tripInfo = activeTrip ? `Active Trip #${activeTrip.crew_id || activeTrip.id}` : 'No active trip';
-                    console.log(`💓 Heartbeat: ${tripInfo} | pending=${pendingCount} (${pendIds}) | state=${lifecycleState} | map=${mapReady?1:0}`);
+                    console.log(`💓 Heartbeat: ${tripInfo} | pending=${pendingCount} (${pendIds}) | state=${lifecycleState} | map=${mapReady ? 1 : 0}`);
                 }
 
                 const nextDelay = computeSyncDelayMs({
@@ -4192,12 +4514,12 @@
         // ─── UNIFIED LIFECYCLE UI (Bot Parity) ───
         function buildLifecycleCard(cfg) {
             const { step, totalSteps, phase, color, title, subtitle, hint, actions, members } = cfg;
-            
-            const membersHtml = (members && members.length) 
+
+            const membersHtml = (members && members.length)
                 ? `<div style="background:rgba(255,255,255,0.03);border-radius:12px;padding:12px;margin-bottom:16px;">
                     <div style="font-size:10px;font-weight:800;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;">Екіпаж</div>
                     ${members.map((m, i) => `
-                        <div class="member-item" style="display:flex;align-items:center;gap:10px;padding:4px 0; animation-delay: ${0.1 + i*0.05}s;">
+                        <div class="member-item" style="display:flex;align-items:center;gap:10px;padding:4px 0; animation-delay: ${0.1 + i * 0.05}s;">
                             <div class="user-av" style="width:24px;height:24px;font-size:10px;background:var(--glass);">${(m.name || '?')[0].toUpperCase()}</div>
                             <div style="font-size:12px;flex:1;">${m.name || '?'}</div>
                             <div style="font-size:9px;font-weight:800;color:${m.role === 'driver' ? 'var(--lime)' : 'var(--text-muted)'};">${m.role === 'driver' ? '🚗 ВОДІЙ' : 'ПОПУТНИК'}</div>
@@ -4255,15 +4577,15 @@
                     : isStarted
                         ? (isDriver ? 'Натисніть «Завершити» після прибуття' : 'Очікуйте сигнал водія про прибуття')
                         : (isDriver ? 'Натисніть «Поїхали» коли всі готові' : 'Очікуйте сигнал водія про виїзд');
-             
+
             // Actions for Hero
             let actionsHtml = '';
             if (cancel.byPartner) {
                 actionsHtml = `<div class="btn-confirm" onclick="openActiveTrip()">⚠️ ПОТРЕБУЄ УВАГИ</div>`;
             } else if (cancel.byMe) {
-                 actionsHtml = `<div class="btn-confirm" style="background:var(--glass);color:var(--text-muted);border:none;">⏳ ОЧІКУВАННЯ</div>`;
+                actionsHtml = `<div class="btn-confirm" style="background:var(--glass);color:var(--text-muted);border:none;">⏳ ОЧІКУВАННЯ</div>`;
             } else if (iAmDone) {
-                 actionsHtml = `<div class="btn-confirm" style="background:var(--glass);color:var(--text-muted);border:none;">⏳ ОЧІКУВАННЯ ПАРТНЕРА</div>`;
+                actionsHtml = `<div class="btn-confirm" style="background:var(--glass);color:var(--text-muted);border:none;">⏳ ОЧІКУВАННЯ ПАРТНЕРА</div>`;
             } else if (isStarted) {
                 actionsHtml = `
                     <div class="nav-btn" style="flex:1; background:var(--glass);" onclick="openActiveTrip(); switchModalTab('chat');">💬 ЧАТ</div>
@@ -4322,7 +4644,7 @@
             const isOutgoing = req.scope === 'outgoing';
             const partnerName = (isOutgoing ? req.target_name : req.partner_name) || 'Користувач';
             const partnerId = isOutgoing ? req.target_id : req.partner_id;
-            
+
             const cfg = {
                 step: isOutgoing ? 2 : 3,
                 totalSteps: 6,
@@ -4330,11 +4652,11 @@
                 color: isOutgoing ? '#42a5f5' : '#ffca3a',
                 title: isOutgoing ? 'Очікування відповіді' : 'Новий попутник',
                 subtitle: `${partnerName} • ${flatDiscoveryMap[String(req.direction_id)]?.title || 'Напрямок'}`,
-                hint: isOutgoing 
+                hint: isOutgoing
                     ? `Ви запропонували поїздку. Очікуємо рішення ${partnerName}. Кнопка «🛑 Скасувати» зупиняє очікування.`
                     : `${partnerName} хоче приєднатись до вашого екіпажу. Натисніть: «✕ НІ» або «✓ БЕРУ!».`,
                 members: (activeTrip && activeTrip.members) || [],
-                actions: isOutgoing 
+                actions: isOutgoing
                     ? `<div class="nav-btn" style="flex:1;background:rgba(239,83,80,0.1);color:#ef5350;" onclick="console.log('Click: Cancel', ${partnerId}); respondInvite(${partnerId}, ${req.direction_id}, false)">🛑 СКАСУВАТИ ЗАПИТ</div>`
                     : `<div class="nav-btn" style="flex:1;background:rgba(239,83,80,0.1);color:#ef5350;border:1px solid rgba(239,83,80,0.2);" onclick="console.log('Click: No', ${partnerId}); respondInvite(${partnerId}, ${req.direction_id}, false)">✕ НІ</div>
                        <div class="nav-btn nav-btn-action" style="flex:1.2;" onclick="console.log('Click: Accept', ${partnerId}); respondInvite(${partnerId}, ${req.direction_id}, true)">✓ БЕРУ!</div>`
@@ -4344,7 +4666,7 @@
             hero.innerHTML = html;
             hero.onclick = null;
             feed.innerHTML = ''; // Full focus mode
-            
+
             // Smart lifecycle nav + автоперехід на карту для вхідного запиту
             setLifecycleNav(isOutgoing ? 'waiting_out' : 'incoming',
                 !isOutgoing ? { partnerId, directionId: req.direction_id } : null);
@@ -4594,7 +4916,7 @@
                          ${isDriver ? `<div class="btn-confirm lc-go lc-go-pulse" style="flex:2;" onclick="startTrip()">🚀 ПОЇХАЛИ!</div>` : ''}
                     </div>`;
             } else if (iAmDone && !partnerDone) {
-                 buttonsHtml = `<div class="btn-confirm" style="width:100%;background:var(--glass);color:var(--text-muted);border:none;">⏳ ОЧІКУВАННЯ ПАРТНЕРА</div>`;
+                buttonsHtml = `<div class="btn-confirm" style="width:100%;background:var(--glass);color:var(--text-muted);border:none;">⏳ ОЧІКУВАННЯ ПАРТНЕРА</div>`;
             } else if (isStarted) {
                 buttonsHtml = `
                     <div style="display:flex; gap:10px;">
@@ -4700,8 +5022,8 @@
                 const isMe = String(m.user_id || m.author_id) === String(currentUserId);
                 const cls = isMe ? 'chat-msg-me' : 'chat-msg-partner';
                 const sender = isMe ? 'ВИ' : (m.author_name || m.name || 'ПАРТНЕР');
-                const time = m.created_at ? new Date(m.created_at * 1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
-                
+                const time = m.created_at ? new Date(m.created_at * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+
                 return `
                     <div class="chat-msg ${cls}">
                         <div class="chat-meta">${sender} • ${time}</div>
@@ -5068,9 +5390,9 @@
                 if (res && res.status === 'ok') {
                     haptic(accept ? 'success' : 'warning');
                     showToast(accept ? '✓ Учасника додано в екіпаж' : (isOutgoing ? '⏳ Очікування скасовано' : 'Запит відхилено'));
-                    
+
                     // OPTIMISTIC cleanup: remove the specific match from local state immediately
-                    window.activePendingMatches = (window.activePendingMatches || []).filter(x => 
+                    window.activePendingMatches = (window.activePendingMatches || []).filter(x =>
                         !(String(x.direction_id) === String(directionId) && String((x.partner_id ?? x.target_id ?? x.sender_id)) === String(partnerId))
                     );
 
@@ -5084,7 +5406,7 @@
                         // Force overlay update after a short delay to ensure state was synced
                         setTimeout(() => updateMapOverlay(), 500);
                     }
-                    
+
                     setTimeout(() => hydrateTrips({ fullPendingScan: true }), 150);
                     return;
                 }
@@ -5225,7 +5547,7 @@
                     const mAlign = mine ? 'text-align:right;' : '';
                     const bStyle = mine ? 'background:rgba(138,201,38,0.12);border:1px solid rgba(138,201,38,0.2);' : '';
                     const name = m.name || 'Учасник';
-                    const ts = (m.ts || m.created_at || '').slice(11,16);
+                    const ts = (m.ts || m.created_at || '').slice(11, 16);
                     const text = m.text || '';
                     return `<div class="chat-msg" style="${align}"><div class="msg-meta" style="${mAlign}">${name} • ${ts}</div><div class="chat-bubble" style="${bStyle}">${text}</div></div>`;
                 }).join('');
@@ -5285,7 +5607,7 @@
 
             const data = await api('/api/v3/map/crews');
             const list = Array.isArray(data) ? data : (data && data.crews ? data.crews : []);
-            
+
             const filterId = mapFilterDirectionId ? String(mapFilterDirectionId) : null;
             let count = 0;
 
@@ -5320,7 +5642,7 @@
                                 dir.lng = parseFloat(res[0].lon);
                                 plotGoal(dir.lat, dir.lng);
                             }
-                        }).catch(e => {});
+                        }).catch(e => { });
                 }
             }
 
@@ -5330,7 +5652,7 @@
                 try {
                     if (filterId && String(crew.direction_id) !== filterId) return;
                     if (!crew.lat || !crew.lng) return;
-                    
+
                     const lat = parseFloat(crew.lat);
                     const lng = parseFloat(crew.lng);
                     if (isNaN(lat) || !isFinite(lat)) return;
@@ -5342,7 +5664,7 @@
                     const marker = L.marker([lat, lng], {
                         icon: L.divIcon({
                             className: 'custom-marker',
-                            html: `<div class="role-chart" style="${getRoleChartStyle(crew)}; width: 14px; height: 14px; border: 2px solid var(--block-bg); box-shadow: 0 0 10px rgba(0,0,0,0.5);"></div>`
+                            html: `<div class="role-chart" style="${getRoleChartStyle(crew)}; width: 20px; height: 20px; border: 2px solid var(--block-bg); box-shadow: 0 0 10px rgba(0,0,0,0.5);"></div>`
                         })
                     }).addTo(mapInstance);
                     const canHandshake = !!currentUserId && String(currentUserId) !== String(crew.organizer_id);
@@ -5358,9 +5680,9 @@
                     `);
                     mapMarkers.push(marker);
                     count += 1;
-                } catch (e) {}
+                } catch (e) { }
             });
-            
+
             const badge = document.getElementById('map-count-badge');
             if (badge) {
                 const mode = badge.dataset.mode === 'goal' ? 'Ціль' : 'Всі';
@@ -5568,12 +5890,12 @@
 
                 <div class="control-group">
                     <span class="control-label">Підтримка</span>
-                    <button class="nav-btn nav-btn-action" style="width:100%; font-size:10px;" onclick="toast('Дякуємо за вашу підтримку! ❤️')">Підтримати громаду</button>
+                    <button class="nav-btn nav-btn-action" style="width:100%; font-size:10px;" onclick="showToast('Дякуємо за вашу підтримку! ❤️')">Підтримати громаду</button>
                 </div>
 
                 <div class="control-group" style="border-color: rgba(239,83,80,0.3)">
                     <span class="control-label" style="color:#ef5350">Небезпечна зона</span>
-                    <button class="btn-destructive" style="width:100%" onclick="toast('Запит на видалення надіслано (GDPR)')">ВИДАЛИТИ АКАУНТ</button>
+                    <button class="btn-destructive" style="width:100%" onclick="showToast('Запит на видалення надіслано (GDPR)')">ВИДАЛИТИ АКАУНТ</button>
                 </div>
             `;
         }
@@ -5719,9 +6041,9 @@
         // ─── GEO: відстань між двома точками (метри) ───
         function haversine(lat1, lng1, lat2, lng2) {
             const R = 6371000;
-            const dLat = (lat2-lat1)*Math.PI/180, dLng = (lng2-lng1)*Math.PI/180;
-            const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
-            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            const dLat = (lat2 - lat1) * Math.PI / 180, dLng = (lng2 - lng1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         }
 
         let _geoProxLevel = 0, _geoProxTime = 0;
@@ -5733,12 +6055,12 @@
             if (Date.now() - _geoProxTime < 28000) return; // max 1 тост на 28с
             navigator.geolocation.getCurrentPosition(pos => {
                 const d = Math.round(haversine(pos.coords.latitude, pos.coords.longitude,
-                                               activeTrip.pickup_lat, activeTrip.pickup_lng));
+                    activeTrip.pickup_lat, activeTrip.pickup_lng));
                 let level = 0, msg = '';
-                if      (d < 150)  { level = 4; msg = `✅ Водій на місці! Виходьте назустріч`; }
-                else if (d < 600)  { level = 3; msg = `🚗 Водій поруч — ${d}м`; }
-                else if (d < 2500) { level = 2; msg = `🚗 Водій іде — ~${Math.round(d/100)*100}м`; }
-                else if (d < 6000) { level = 1; msg = `🚗 Водій виїжджає — ~${(d/1000).toFixed(1)}км`; }
+                if (d < 150) { level = 4; msg = `✅ Водій на місці! Виходьте назустріч`; }
+                else if (d < 600) { level = 3; msg = `🚗 Водій поруч — ${d}м`; }
+                else if (d < 2500) { level = 2; msg = `🚗 Водій іде — ~${Math.round(d / 100) * 100}м`; }
+                else if (d < 6000) { level = 1; msg = `🚗 Водій виїжджає — ~${(d / 1000).toFixed(1)}км`; }
                 if (level > _geoProxLevel && level > 0) {
                     _geoProxLevel = level;
                     _geoProxTime = Date.now();
@@ -5877,13 +6199,13 @@
             const title = trip.direction_title || 'Поїздка';
             const subLine = isDriver ? '🚗 Ви водій' : `👤 ${driverName}${carBadge}`;
             let hint;
-            if (iAmDone)      hint = `⏳ Ваш фініш підтверджено. Очікуємо партнера.`;
+            if (iAmDone) hint = `⏳ Ваш фініш підтверджено. Очікуємо партнера.`;
             else if (cancel.byMe) hint = `⏳ Запит на скасування вже надіслано. Очікуємо рішення партнера.`;
             else if (cancel.byPartner) hint = `⚠️ Партнер просить скасувати резервацію. Підтвердіть або відхиліть у нижньому меню.`;
             else if (isStarted) hint = isDriver
                 ? `⏭ Натисніть «Ми прибули» після прибуття — партнер отримає картку підтвердження.`
                 : `⏭ Натисніть «Ми прибули» після прибуття — партнеру піде запит підтвердити або відхилити фініш.`;
-            else               hint = isDriver
+            else hint = isDriver
                 ? `⏳ Натисніть «Поїхали!» коли всі учасники готові.`
                 : `⏳ Очікуйте — водій дасть сигнал про виїзд.`;
             let actions = '';
@@ -5934,7 +6256,7 @@
             const overlay = document.getElementById('map-lifecycle-overlay');
             if (overlay) { overlay.innerHTML = ''; overlay.classList.remove('active'); }
             // Очищаємо lifecycle маркери
-            ['_lcDriverMarker','_lcUserMarker','_lcRouteLine','_lcDistLabel'].forEach(k => {
+            ['_lcDriverMarker', '_lcUserMarker', '_lcRouteLine', '_lcDistLabel'].forEach(k => {
                 if (window[k] && mapInstance) { mapInstance.removeLayer(window[k]); window[k] = null; }
             });
         }
@@ -5967,15 +6289,15 @@
             );
         }
 
-        let _memberMarkers = {}; 
+        let _memberMarkers = {};
 
         function updateMapLifecycleMarkers(trip) {
             if (!mapInstance) return;
             // Clear old legacy static markers
-            ['_lcDriverMarker','_lcUserMarker','_lcRouteLine','_lcDistLabel'].forEach(k => {
+            ['_lcDriverMarker', '_lcUserMarker', '_lcRouteLine', '_lcDistLabel'].forEach(k => {
                 if (window[k]) { mapInstance.removeLayer(window[k]); window[k] = null; }
             });
-            
+
             if (!trip) {
                 // Clear dynamic member markers if no trip
                 Object.values(_memberMarkers).forEach(m => mapInstance.removeLayer(m));
@@ -5992,7 +6314,7 @@
 
                 const color = m.role === 'driver' ? '#ef5350' : '#42a5f5';
                 const label = (m.name || '?')[0].toUpperCase();
-                
+
                 if (!_memberMarkers[m.id]) {
                     const icon = L.divIcon({
                         className: 'custom-div-icon',
@@ -6019,8 +6341,9 @@
             const dName = trip.organizer_name || trip.driver_name || 'Водій';
             // Зелений маркер — точка збору / водій
             window._lcDriverMarker = L.marker([trip.pickup_lat, trip.pickup_lng], {
-                icon: L.divIcon({ className: '', html:
-                    `<div style="background:var(--lime);width:18px;height:18px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 18px var(--lime);">
+                icon: L.divIcon({
+                    className: '', html:
+                        `<div style="background:var(--lime);width:18px;height:18px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 18px var(--lime);">
                          <div style="position:absolute;top:-22px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.82);color:#fff;font-size:9px;font-weight:700;padding:2px 6px;border-radius:6px;white-space:nowrap;">🚗 ${dName}</div>
                      </div>` })
             }).addTo(mapInstance);
@@ -6036,17 +6359,19 @@
                         color: 'rgba(138,201,38,0.55)', weight: 3.5, dashArray: '8,8'
                     }).addTo(mapInstance);
                     const d = Math.round(haversine(uLat, uLng, trip.pickup_lat, trip.pickup_lng));
-                    const dText = d < 1000 ? `${d}м` : `${(d/1000).toFixed(1)}км`;
-                    const mid = [(uLat+trip.pickup_lat)/2, (uLng+trip.pickup_lng)/2];
+                    const dText = d < 1000 ? `${d}м` : `${(d / 1000).toFixed(1)}км`;
+                    const mid = [(uLat + trip.pickup_lat) / 2, (uLng + trip.pickup_lng) / 2];
                     window._lcDistLabel = L.marker(mid, {
-                        icon: L.divIcon({ className: '', html:
-                            `<div style="background:rgba(0,0,0,0.78);color:#fff;font-size:10px;font-weight:800;padding:3px 9px;border-radius:8px;white-space:nowrap;border:1px solid rgba(255,255,255,0.2);">${dText}</div>` })
+                        icon: L.divIcon({
+                            className: '', html:
+                                `<div style="background:rgba(0,0,0,0.78);color:#fff;font-size:10px;font-weight:800;padding:3px 9px;border-radius:8px;white-space:nowrap;border:1px solid rgba(255,255,255,0.2);">${dText}</div>`
+                        })
                     }).addTo(mapInstance);
-                    const bounds = L.latLngBounds([[uLat,uLng],[trip.pickup_lat,trip.pickup_lng]]);
-                    mapInstance.flyToBounds(bounds, { padding:[50,50], maxZoom:15, animate:true, duration:0.9 });
-                }, null, { timeout:7000, maximumAge:45000 });
+                    const bounds = L.latLngBounds([[uLat, uLng], [trip.pickup_lat, trip.pickup_lng]]);
+                    mapInstance.flyToBounds(bounds, { padding: [50, 50], maxZoom: 15, animate: true, duration: 0.9 });
+                }, null, { timeout: 7000, maximumAge: 45000 });
             } else {
-                mapInstance.flyTo([trip.pickup_lat, trip.pickup_lng], 14, { animate:true, duration:0.9 });
+                mapInstance.flyTo([trip.pickup_lat, trip.pickup_lng], 14, { animate: true, duration: 0.9 });
             }
         }
 
@@ -6286,16 +6611,16 @@
             initApiBase();
             currentUserId = resolveUserId();
             currentUserName = resolveUserName();
-            
+
             // Load saved state before profile call
             loadState();
-            
+
             loadProfile();
             if (!userSettings.name && currentUserName) userSettings.name = currentUserName;
             CONFIG.lang = userSettings.lang || CONFIG.lang;
             applyHeader();
 
-            await loadDemoData();
+            // await loadDemoData(); // [REMOVED] Production mode activated: data comes ONLY from real DB now.
             loadRootFromApi();
             hydrateTrips();
 
@@ -6361,4 +6686,5 @@
         });
     </script>
 </body>
+
 </html>
