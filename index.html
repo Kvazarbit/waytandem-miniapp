@@ -2972,6 +2972,118 @@
             }).join('');
         }
 
+        function getPendingMatchesList(list = window.activePendingMatches) {
+            return Array.isArray(list) ? list.filter(Boolean) : [];
+        }
+
+        function getPrimaryPendingMatch(list = window.activePendingMatches) {
+            const all = getPendingMatchesList(list);
+            if (!all.length) return null;
+            return all.find(x => x.scope === 'incoming') || all[0];
+        }
+
+        function normalizePendingName(rawName, partnerId) {
+            const clean = String(rawName || '').trim();
+            const low = clean.toLowerCase();
+            if (!clean || clean === '?' || low === 'користувач' || low === 'user') {
+                return `Учасник #${partnerId || '—'}`;
+            }
+            return clean;
+        }
+
+        function buildPendingQueueLabel(list = window.activePendingMatches) {
+            const all = getPendingMatchesList(list);
+            if (all.length <= 1) return '';
+            const incomingCount = all.filter(x => x.scope === 'incoming').length;
+            const outgoingCount = all.filter(x => x.scope === 'outgoing').length;
+            return `<div style="text-align:center; font-size:10px; color:var(--text-muted); margin-top:12px; font-weight:800;">
+                        ЧЕРГА ЗАПИТІВ: ВХІДНІ ${incomingCount} • ВИХІДНІ ${outgoingCount} • ВСЬОГО ${all.length}
+                    </div>`;
+        }
+
+        function getPendingUiModel(req) {
+            if (!req) return null;
+            const isOutgoing = req.scope === 'outgoing';
+            const directionId = req.direction_id;
+            const partnerIdRaw = isOutgoing
+                ? (req.target_id ?? req.partner_id ?? req.sender_id)
+                : (req.partner_id ?? req.sender_id ?? req.target_id);
+            const partnerId = Number(partnerIdRaw || 0);
+            const rawName = isOutgoing
+                ? (req.target_name ?? req.partner_name)
+                : (req.partner_name ?? req.sender_name ?? req.target_name);
+            const partnerName = normalizePendingName(rawName, partnerId);
+            const directionTitle = flatDiscoveryMap[String(directionId)]?.title || req.direction || 'Напрямок';
+            return {
+                req: req,
+                isOutgoing: isOutgoing,
+                partnerId: partnerId,
+                partnerName: partnerName,
+                directionId: directionId,
+                directionTitle: directionTitle,
+                color: isOutgoing ? '#42a5f5' : '#ffca3a',
+                step: isOutgoing ? 2 : 3,
+                phaseShort: isOutgoing ? 'Запит надіслано' : 'Вхідний запит',
+                phaseFull: isOutgoing ? 'Крок 2 · Запит надіслано' : 'Крок 3 · Вхідний запит',
+                actorLine: isOutgoing ? `Ви → ${partnerName}` : `${partnerName} → Ви`,
+                cardTitle: isOutgoing ? 'Очікування відповіді' : 'Новий запит в екіпаж',
+                hint: isOutgoing
+                    ? `Запит на напрям «${directionTitle}» надіслано. Якщо плани змінились — натисніть «🛑 Скасувати запит».`
+                    : `${partnerName} хоче приєднатись до напряму «${directionTitle}». Оберіть «✕ НІ» або «✓ БЕРУ!».`
+            };
+        }
+
+        function buildPendingActions(model, compact = false) {
+            if (!model) return '';
+            if (model.isOutgoing) {
+                const style = compact
+                    ? 'background:rgba(239,83,80,0.1);color:#ef5350; margin-top:10px;'
+                    : 'flex:1;background:rgba(239,83,80,0.1);color:#ef5350;';
+                return `<div class="nav-btn" style="${style}" onclick="respondInvite(${model.partnerId}, ${model.directionId}, false)">🛑 СКАСУВАТИ ЗАПИТ</div>`;
+            }
+            if (compact) {
+                return `<div style="display:flex;gap:10px;width:100%; margin-top:10px;">
+                            <div class="nav-btn" style="flex:1;background:rgba(239,83,80,0.1);color:#ef5350;" onclick="respondInvite(${model.partnerId}, ${model.directionId}, false)">✕ НІ</div>
+                            <div class="nav-btn nav-btn-action" style="flex:1.2;" onclick="respondInvite(${model.partnerId}, ${model.directionId}, true)">✓ БЕРУ!</div>
+                        </div>`;
+            }
+            return `<div class="nav-btn" style="flex:1;background:rgba(239,83,80,0.1);color:#ef5350;border:1px solid rgba(239,83,80,0.2);" onclick="respondInvite(${model.partnerId}, ${model.directionId}, false)">✕ НІ</div>
+                    <div class="nav-btn nav-btn-action" style="flex:1.2;" onclick="respondInvite(${model.partnerId}, ${model.directionId}, true)">✓ БЕРУ!</div>`;
+        }
+
+        function buildPendingLifecycleConfig(req) {
+            const model = getPendingUiModel(req);
+            if (!model) return null;
+            return {
+                model: model,
+                cfg: {
+                    step: model.step,
+                    totalSteps: 6,
+                    phase: model.phaseShort,
+                    color: model.color,
+                    title: model.cardTitle,
+                    subtitle: `${model.actorLine} • ${model.directionTitle}`,
+                    hint: model.hint,
+                    members: (activeTrip && activeTrip.members) || [],
+                    actions: buildPendingActions(model, false)
+                }
+            };
+        }
+
+        function syncPendingInviteFromList(list = window.activePendingMatches) {
+            const all = getPendingMatchesList(list);
+            const outgoing = all.find(x => x.scope === 'outgoing');
+            if (!outgoing) {
+                pendingInvite = null;
+                return;
+            }
+            pendingInvite = {
+                target_id: Number(outgoing.target_id ?? outgoing.partner_id ?? outgoing.sender_id ?? 0),
+                direction_id: outgoing.direction_id,
+                target_name: outgoing.target_name || outgoing.partner_name || outgoing.sender_name || ''
+            };
+        }
+
         function renderHome() {
             const container = document.getElementById('home-news-container');
             if (!container) return;
@@ -3027,48 +3139,16 @@
             // ─── PRIORITY 2: MATCH CARDS (M-1/M-2 Parity) ───
             const matches = window.activePendingMatches || [];
             if (matches.length > 0) {
-                const req = matches[0];
-                const isOutgoing = req.scope === 'outgoing';
-                const partnerName = (isOutgoing ? req.target_name : req.partner_name) || 'Користувач';
-                const partnerId = isOutgoing ? req.target_id : req.partner_id;
-                const color = isOutgoing ? '#42a5f5' : '#ffca3a';
-                const phase = isOutgoing ? 'Очікування' : 'Запит в екіпаж';
-
-                const actions = isOutgoing
-                    ? `<div class="btn-confirm" style="background:rgba(239,83,80,0.1);color:#ef5350;border:1px solid rgba(239,83,80,0.2);" onclick="respondInvite(${partnerId}, ${req.direction_id}, false)">🛑 СКАСУВАТИ ЗАПИТ</div>`
-                    : `<div style="display:flex;gap:10px;width:100%;">
-                        <div class="nav-btn" style="flex:1;background:rgba(239,83,80,0.1);color:#ef5350;" onclick="respondInvite(${partnerId}, ${req.direction_id}, false)">✕ НІ</div>
-                        <div class="nav-btn nav-btn-action" style="flex:1.2;" onclick="respondInvite(${partnerId}, ${req.direction_id}, true)">✓ БЕРУ!</div>
-                       </div>`;
-
-                container.innerHTML = `
-                    <div class="lifecycle-container animate-in" style="padding:0; --glow-color: ${color}44;">
-                        ${buildStateStrip(isOutgoing ? 2 : 3, 6, phase, color)}
-                        <div class="trip-card trip-card-active-glow" style="border:1.5px solid ${color}; background:rgba(255,255,255,0.03); margin-top:10px; padding:20px;">
-                            <div style="display:flex; flex-direction:column; align-items:center; text-align:center; gap:12px;">
-                                <div class="user-av" style="width:64px; height:64px; font-size:24px; background:linear-gradient(135deg,#42a5f5,#ab47bc); box-shadow: 0 8px 24px rgba(0,0,0,0.3);">
-                                    ${(partnerName || '?')[0].toUpperCase()}
-                                </div>
-                                <div>
-                                    <div style="font-size:20px; font-weight:800; margin-bottom:4px;">${partnerName}</div>
-                                    <div style="font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px;">
-                                        ${isOutgoing ? 'Ваша пропозиція' : 'Хоче до вашого екіпажу'}
-                                    </div>
-                                </div>
-                                <div style="font-size:14px; color:var(--text); background:rgba(255,255,255,0.05); padding:8px 16px; border-radius:12px;">
-                                    📌 ${flatDiscoveryMap[String(req.direction_id)]?.title || 'Напрямок'}
-                                </div>
-                                <div style="font-size:13px; color:var(--text-muted); margin-top:8px; line-height:1.4;">
-                                    ${isOutgoing ? 'Очікуйте рішення партнера. Кнопка «🛑 Скасувати» зупиняє очікування.' : 'Натисніть «✕ НІ» або «✓ БЕРУ!». Після прийняття відкриється резервація.'}
-                                </div>
-                                <div style="width:100%; margin-top:10px;">
-                                    ${actions}
-                                </div>
-                            </div>
+                const pending = getPrimaryPendingMatch(matches);
+                const prepared = buildPendingLifecycleConfig(pending);
+                if (prepared) {
+                    container.innerHTML = `
+                        <div class="animate-in">
+                            ${buildLifecycleCard(prepared.cfg)}
+                            ${buildPendingQueueLabel(matches)}
                         </div>
-                        ${matches.length > 1 ? `<div style="text-align:center; font-size:10px; color:var(--text-muted); margin-top:12px; font-weight:800;">+ ЩЕ ${matches.length - 1} ЗАПИТИ В ЧЕРЗІ</div>` : ''}
-                    </div>
-                `;
+                    `;
+                }
                 return;
             }
 
@@ -3580,10 +3660,11 @@
                         haptic('success');
                         showToast('Ви в екіпажі');
                         closeModal();
-                        hydrateTrips();
+                        requestPendingFastRefresh('invite_mutual', 50);
                     } else {
-                        pendingInvite = { target_id: orgId, direction_id: dirId };
+                        pendingInvite = { target_id: orgId, direction_id: dirId, target_name: `Організатор #${orgId}` };
                         showPendingInvite();
+                        requestPendingFastRefresh('invite_sent', 80);
                     }
                     return;
                 }
@@ -3607,12 +3688,13 @@
                     if (res.mutual) {
                         haptic('success');
                         showToast('✓ Взаємна згода — екіпаж створено');
+                        requestPendingFastRefresh('map_invite_mutual', 50);
                     } else {
                         haptic('light');
-                        pendingInvite = { target_id: orgId, direction_id: dirId };
+                        pendingInvite = { target_id: orgId, direction_id: dirId, target_name: `Організатор #${orgId}` };
                         showToast('⏳ Запит надіслано. Очікуйте рішення у картці зверху.');
+                        requestPendingFastRefresh('map_invite_sent', 80);
                     }
-                    hydrateTrips();
                     return;
                 }
                 showToast('Помилка запиту');
@@ -3626,20 +3708,18 @@
             if (subNav) subNav.style.display = 'none';
             const title = document.getElementById('modal-title');
             const content = document.getElementById('modal-content-area');
-            const dirTitle = pendingInvite
-                ? (flatDiscoveryMap[String(pendingInvite.direction_id)]?.title || 'Напрямок')
-                : 'Напрямок';
+            const draftReq = pendingInvite
+                ? {
+                    scope: 'outgoing',
+                    target_id: pendingInvite.target_id,
+                    target_name: pendingInvite.target_name || pendingInvite.partner_name || '',
+                    direction_id: pendingInvite.direction_id
+                }
+                : null;
+            const prepared = buildPendingLifecycleConfig(draftReq);
             if (title) title.innerText = 'ОЧІКУВАННЯ';
-            if (content) {
-                content.innerHTML = `
-                    ${buildStateStrip(3, 6, 'Крок 3 · Очікування', '#ffca3a')}
-                    <div style="flex:1"></div>
-                    <div style="text-align:center; padding:20px 0 16px;">
-                        <div class="pulse-icon" style="font-size:52px; margin-bottom:14px;">⏳</div>
-                        <h2 class="hero-title" style="font-size:20px; margin-bottom:6px;">${dirTitle}</h2>
-                    </div>
-                    <div class="what-happened">✅ Що сталось: Ваш запит надіслано організатору. Очікуємо підтвердження.</div>
-                    <div class="what-next" style="margin-top:10px;">⏭ Що далі: За прийняття — ви автоматично потрапляєте в екіпаж. Скасування доступне до відповіді організатора.</div>`;
+            if (content && prepared) {
+                content.innerHTML = buildLifecycleCard(prepared.cfg);
             }
             navAction = { type: 'tired_waiting' };
             updateNavState('context', '⏹️ ЗУПИНИТИ ПОШУК');
@@ -3665,7 +3745,7 @@
                 showToast('Заявку скасовано');
                 pendingInvite = null;
                 closeModal();
-                hydrateTrips();
+                requestPendingFastRefresh('tired_waiting', 50);
             } finally {
                 isApiBusy = false;
             }
@@ -4361,19 +4441,19 @@
 
             // 4. Check Pending Invitations (Outgoing)
             let outgoing = [];
-            if (incoming.length === 0) {
-                if (Array.isArray(outgoingHyd)) {
-                    outgoing = outgoingHyd;
-                } else if (shouldFetchOutgoing) {
-                    const out = await api(`/api/v3/match/pending?scope=outgoing&user_id=${currentUserId}`);
-                    outgoing = out || [];
-                }
+            if (Array.isArray(outgoingHyd)) {
+                outgoing = outgoingHyd;
+            } else if (shouldFetchOutgoing) {
+                const out = await api(`/api/v3/match/pending?scope=outgoing&user_id=${currentUserId}`);
+                outgoing = out || [];
             }
 
             const allPending = [...incoming, ...outgoing];
             window.activePendingMatches = allPending;
+            syncPendingInviteFromList(allPending);
 
             if (incoming.length > lastIncomingRequestsCount) {
+                activatePendingFastSync();
                 showLoudPush('👋', 'НОВИЙ ЗАПИТ В ЕКІПАЖ!');
                 setTimeout(() => hideLoudPush(), 6000);
 
@@ -4392,6 +4472,10 @@
             lastIncomingRequestsCount = incoming.length;
 
             renderTripsPending(allPending);
+            if (document.querySelector('.nav-item.active[onclick*="home"]')) {
+                renderHome();
+            }
+            updateMapOverlay();
 
             // 5. Auto-refresh Direction Modal if open (throttled)
             const top = discoveryStack[discoveryStack.length - 1];
@@ -4419,6 +4503,19 @@
         let syncTimer = null;
         let lastDirectionModalRefreshAt = 0;
         const syncAux = { newsAt: 0, subsAt: 0, mapAt: 0 };
+        let pendingFastSyncUntil = 0;
+
+        function activatePendingFastSync(ms = 14000) {
+            pendingFastSyncUntil = Math.max(pendingFastSyncUntil, Date.now() + ms);
+        }
+
+        function requestPendingFastRefresh(reason = 'pending', delayMs = 0) {
+            activatePendingFastSync();
+            setTimeout(() => {
+                console.log(`⚡ Pending fast refresh: ${reason}`);
+                hydrateTrips({ fullPendingScan: true });
+            }, Math.max(0, Number(delayMs || 0)));
+        }
 
         function syncJitterFactor() {
             const uid = Math.abs(Number(currentUserId || 0));
@@ -4436,8 +4533,11 @@
             else if (userSubscriptions.size > 0) base = 6000; // Fast poll if waiting for matches
             else if (ctx.isMapActive) base = 12000;
             else if (ctx.isBoardActive || ctx.isHomeActive) base = 18000;
+            if (!ctx.hidden && !ctx.offline && Date.now() < pendingFastSyncUntil) {
+                base = Math.min(base, 1600);
+            }
             const jittered = Math.round(base * (1 + syncJitterFactor()));
-            return Math.max(1600, Math.min(60000, jittered));
+            return Math.max(1200, Math.min(60000, jittered));
         }
 
         async function startSyncEngine() {
@@ -4456,7 +4556,8 @@
                 try {
                     if (!isHidden) {
                         const pendingKnown = Array.isArray(window.activePendingMatches) && window.activePendingMatches.length > 0;
-                        const fullPendingScan = pendingKnown || !!pendingInvite || (syncCycle % 4 === 0);
+                        const boosted = Date.now() < pendingFastSyncUntil;
+                        const fullPendingScan = pendingKnown || !!pendingInvite || userSubscriptions.size > 0 || boosted || (syncCycle % 3 === 0);
                         hasActivity = await hydrateTrips({ fullPendingScan });
                         checkGeoProximity(); // Geo-proximity toasts — повідомляє пасажира про наближення водія
 
@@ -4640,46 +4741,28 @@
                 return;
             }
 
-            const req = list[0];
-            const isOutgoing = req.scope === 'outgoing';
-            const partnerName = (isOutgoing ? req.target_name : req.partner_name) || 'Користувач';
-            const partnerId = isOutgoing ? req.target_id : req.partner_id;
-
-            const cfg = {
-                step: isOutgoing ? 2 : 3,
-                totalSteps: 6,
-                phase: isOutgoing ? 'Запит надіслано' : 'Вхідний запит',
-                color: isOutgoing ? '#42a5f5' : '#ffca3a',
-                title: isOutgoing ? 'Очікування відповіді' : 'Новий попутник',
-                subtitle: `${partnerName} • ${flatDiscoveryMap[String(req.direction_id)]?.title || 'Напрямок'}`,
-                hint: isOutgoing
-                    ? `Ви запропонували поїздку. Очікуємо рішення ${partnerName}. Кнопка «🛑 Скасувати» зупиняє очікування.`
-                    : `${partnerName} хоче приєднатись до вашого екіпажу. Натисніть: «✕ НІ» або «✓ БЕРУ!».`,
-                members: (activeTrip && activeTrip.members) || [],
-                actions: isOutgoing
-                    ? `<div class="nav-btn" style="flex:1;background:rgba(239,83,80,0.1);color:#ef5350;" onclick="console.log('Click: Cancel', ${partnerId}); respondInvite(${partnerId}, ${req.direction_id}, false)">🛑 СКАСУВАТИ ЗАПИТ</div>`
-                    : `<div class="nav-btn" style="flex:1;background:rgba(239,83,80,0.1);color:#ef5350;border:1px solid rgba(239,83,80,0.2);" onclick="console.log('Click: No', ${partnerId}); respondInvite(${partnerId}, ${req.direction_id}, false)">✕ НІ</div>
-                       <div class="nav-btn nav-btn-action" style="flex:1.2;" onclick="console.log('Click: Accept', ${partnerId}); respondInvite(${partnerId}, ${req.direction_id}, true)">✓ БЕРУ!</div>`
-            };
-
-            const html = buildLifecycleCard(cfg);
-            hero.innerHTML = html;
+            const req = getPrimaryPendingMatch(list);
+            const prepared = buildPendingLifecycleConfig(req);
+            if (!prepared) return;
+            const model = prepared.model;
+            const html = buildLifecycleCard(prepared.cfg);
+            hero.innerHTML = html + buildPendingQueueLabel(list);
             hero.onclick = null;
             feed.innerHTML = ''; // Full focus mode
 
             // Smart lifecycle nav + автоперехід на карту для вхідного запиту
-            setLifecycleNav(isOutgoing ? 'waiting_out' : 'incoming',
-                !isOutgoing ? { partnerId, directionId: req.direction_id } : null);
-            if (req.direction_id) {
-                selectedDirectionId = req.direction_id;
-                mapFilterDirectionId = req.direction_id;
+            setLifecycleNav(model.isOutgoing ? 'waiting_out' : 'incoming',
+                !model.isOutgoing ? { partnerId: model.partnerId, directionId: model.directionId } : null);
+            if (model.directionId) {
+                selectedDirectionId = model.directionId;
+                mapFilterDirectionId = model.directionId;
             }
             // Перемикаємо на карту + оверлей з точкою збору (якщо модалка не відкрита)
             if (!document.getElementById('layer-modal')?.classList.contains('state-modal-active')) {
                 const mapEl = document.querySelector('.nav-item[onclick*="map"]');
                 if (mapEl) { // увесь цикл запитів ведемо через карту
                     switchContext('map', mapEl); // updateMapOverlay викличеться всередині switchContext
-                    if (req.direction_id) {
+                    if (model.directionId) {
                         setTimeout(() => setMapFilter('goal'), 40);
                     }
                 } else {
@@ -5395,6 +5478,7 @@
                     window.activePendingMatches = (window.activePendingMatches || []).filter(x =>
                         !(String(x.direction_id) === String(directionId) && String((x.partner_id ?? x.target_id ?? x.sender_id)) === String(partnerId))
                     );
+                    syncPendingInviteFromList(window.activePendingMatches);
 
                     // Зняти блокування + повернути навігацію
                     releaseTripsFocus();
@@ -5407,16 +5491,17 @@
                         setTimeout(() => updateMapOverlay(), 500);
                     }
 
-                    setTimeout(() => hydrateTrips({ fullPendingScan: true }), 150);
+                    requestPendingFastRefresh('respond_invite_ok', 80);
                     return;
                 }
                 if (res && res.reason === 'action_forbidden') {
                     showToast('Після старту поїздки доступний тільки фініш');
+                    requestPendingFastRefresh('respond_invite_forbidden', 100);
                     return;
                 }
                 if (res && res.reason === 'expired') {
                     showToast('Запит уже неактуальний, оновлюємо стан');
-                    hydrateTrips();
+                    requestPendingFastRefresh('respond_invite_expired', 60);
                     return;
                 }
                 showToast('Помилка відповіді');
@@ -6154,30 +6239,16 @@
         // ─── MAP LIFECYCLE OVERLAY: карта як головний екран поїздки (Google Maps pattern) ───
         function buildMapOverlay(trip, pending) {
             if (pending) {
-                const req = pending;
-                const isOut = req.scope === 'outgoing';
-                const name = (isOut ? req.target_name : req.partner_name) || 'Користувач';
-                const dirTitle = flatDiscoveryMap[String(req.direction_id)]?.title || 'Напрямок';
-                const partnerId = isOut ? req.target_id : (req.partner_id || req.sender_id);
-                const color = isOut ? '#42a5f5' : '#ffca3a';
-                const step = isOut ? 2 : 3;
-                const phase = isOut ? 'Крок 2 · Запит надіслано' : 'Крок 3 · Вхідний запит';
-                const title = isOut ? 'Очікуємо рішення' : name;
-                const hint = isOut
-                    ? `Ваш запит до ${name} надіслано. Кнопка «🛑 Скасувати» зупиняє очікування.`
-                    : `${name} хоче приєднатись до вашого екіпажу на ${dirTitle}. Натисніть «✕ НІ» або «✓ БЕРУ!».`;
-                const actions = isOut
-                    ? `<div class="nav-btn" style="background:rgba(239,83,80,0.1);color:#ef5350; margin-top:10px;" onclick="console.log('Overlay Click: Cancel', ${partnerId}); respondInvite(${partnerId}, ${req.direction_id}, false)">🛑 СКАСУВАТИ ЗАПИТ</div>`
-                    : `<div style="display:flex;gap:10px;width:100%; margin-top:10px;">
-                        <div class="nav-btn" style="flex:1;background:rgba(239,83,80,0.1);color:#ef5350;" onclick="console.log('Overlay Click: No', ${partnerId}); respondInvite(${partnerId}, ${req.direction_id}, false)">✕ НІ</div>
-                        <div class="nav-btn nav-btn-action" style="flex:1.2;" onclick="console.log('Overlay Click: Accept', ${partnerId}); respondInvite(${partnerId}, ${req.direction_id}, true)">✓ БЕРУ!</div>
-                       </div>`;
-
-                return `<div class="mlo-row"><div class="mlo-dot" style="background:${color};box-shadow:0 0 8px ${color}"></div><span class="mlo-phase" style="color:${color}">${phase}</span></div>
-                        <div class="mlo-title">${title}</div>
-                        <div class="mlo-sub">📍 ${dirTitle}</div>
-                        <div class="mlo-hint-wait">⏳ ${hint}</div>
-                        ${actions}`;
+                const prepared = buildPendingLifecycleConfig(pending);
+                if (prepared) {
+                    const model = prepared.model;
+                    const actions = buildPendingActions(model, true);
+                    return `<div class="mlo-row"><div class="mlo-dot" style="background:${model.color};box-shadow:0 0 8px ${model.color}"></div><span class="mlo-phase" style="color:${model.color}">${model.phaseFull}</span></div>
+                            <div class="mlo-title">${model.cardTitle}</div>
+                            <div class="mlo-sub">${model.actorLine} • 📍 ${model.directionTitle}</div>
+                            <div class="mlo-hint-wait">⏳ ${model.hint}</div>
+                            ${actions}`;
+                }
             }
             if (!trip) return '';
             const isStarted = !!trip.is_started;
@@ -6240,7 +6311,7 @@
             const onMap = !!document.querySelector('[data-tab="map"].active-content') || (window.currentTab === 'map');
             if (!onMap) return;
             // Pending має пріоритет
-            const pending = window.activePendingMatches?.[0] || null;
+            const pending = getPrimaryPendingMatch(window.activePendingMatches);
             if (activeTrip || pending) {
                 // BUGFIX: activeTrip must have priority over pending match overlay
                 overlay.innerHTML = buildMapOverlay(activeTrip, activeTrip ? null : pending);
