@@ -224,6 +224,24 @@
             stroke-linejoin: round;
         }
 
+        .nav.board-deep {
+            justify-content: center;
+        }
+
+        .nav.board-deep .nav-item[data-tab="board"] {
+            flex-direction: row;
+            gap: 8px;
+            min-width: 176px;
+            padding: 10px 18px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+        }
+
+        .nav.board-deep .nav-item[data-tab="board"] span {
+            font-size: 12px;
+            font-weight: 800;
+        }
+
         .nav-badge {
             position: absolute;
             top: 2px;
@@ -605,6 +623,7 @@
             background: linear-gradient(transparent, var(--bg) 30%);
             z-index: 500;
             pointer-events: none;
+            display: none;
         }
 
         .map-overlay-cards>* {
@@ -708,6 +727,34 @@
             padding-bottom: 20px;
         }
 
+        .board-breadcrumb {
+            margin: 10px 16px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 30px;
+        }
+
+        .board-crumb-back {
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text);
+            border-radius: 10px;
+            padding: 6px 10px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .board-crumb-path {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 700;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
         .board-search {
             margin: 12px 16px;
             padding: 12px 16px;
@@ -760,6 +807,17 @@
             flex-shrink: 0;
         }
 
+        .dir-card-icon svg {
+            width: 22px;
+            height: 22px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            opacity: 0.95;
+        }
+
         .dir-card-info {
             flex: 1;
             min-width: 0;
@@ -779,6 +837,19 @@
             gap: 8px;
         }
 
+        .dir-card-total {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 32px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-secondary);
+            font-weight: 700;
+        }
+
         .dir-card-arrow {
             color: var(--text-muted);
             font-size: 18px;
@@ -787,6 +858,71 @@
         .dir-card.subscribed {
             border-color: rgba(52, 211, 153, 0.25);
             background: rgba(52, 211, 153, 0.04);
+        }
+
+        /* ═══════ SCREEN: NEWS ═══════ */
+        #screen-news {
+            padding-bottom: 20px;
+        }
+
+        .news-banners {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+            margin: 8px 16px 12px;
+        }
+
+        .news-banner {
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            border-radius: var(--radius-md);
+            padding: 10px 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.2s, transform 0.15s;
+        }
+
+        .news-banner:active {
+            transform: scale(0.98);
+        }
+
+        .news-banner.active {
+            border-color: rgba(163, 230, 53, 0.45);
+            background: rgba(163, 230, 53, 0.08);
+        }
+
+        .news-banner-title {
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--text);
+        }
+
+        .news-banner-count {
+            margin-top: 4px;
+            font-size: 12px;
+            font-weight: 900;
+            color: var(--accent);
+        }
+
+        .news-feed {
+            margin: 0 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .news-feed-item {
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            border-radius: var(--radius-md);
+            padding: 12px;
+        }
+
+        .news-feed-meta {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 6px;
+            font-weight: 600;
         }
 
         /* ═══════ SCREEN: PROFILE ═══════ */
@@ -1130,7 +1266,7 @@
         <div class="main">
             <!-- EXPLORE (Map + Crews) -->
             <div class="screen active" id="screen-explore">
-                <div class="news-strip" id="news-strip"></div>
+                <div class="news-strip" id="news-strip" style="display:none;"></div>
                 <div id="map-container">
                     <div id="map"></div>
                     <div class="map-overlay-cards" id="map-overlay-cards"></div>
@@ -1141,7 +1277,15 @@
             <div class="screen" id="screen-board">
                 <input class="board-search" id="board-search" placeholder="🔍 Пошук напрямку..."
                     oninput="filterBoard(this.value)">
+                <div class="board-breadcrumb" id="board-breadcrumb"></div>
                 <div id="board-list"></div>
+            </div>
+
+            <!-- NEWS -->
+            <div class="screen" id="screen-news">
+                <div class="section-label">Стрічка Новин</div>
+                <div class="news-banners" id="news-banners"></div>
+                <div class="news-feed" id="news-feed"></div>
             </div>
 
             <!-- TRIPS (Active + Handshakes) -->
@@ -1154,7 +1298,7 @@
                 <div class="profile-header">
                     <div class="profile-avatar" id="profile-avatar">?</div>
                     <div class="profile-name" id="profile-name">Користувач</div>
-                    <div class="profile-id" id="profile-id">ID: —</div>
+                    <div class="profile-id" id="profile-id">Telegram: —</div>
                 </div>
                 <div class="settings-group">
                     <div class="settings-row" onclick="openRoleSelector()">
@@ -1163,13 +1307,13 @@
                         <div class="settings-value" id="settings-role">Не обрано</div>
                         <div class="settings-arrow">›</div>
                     </div>
-                    <div class="settings-row" onclick="openCarSettings()">
+                    <div class="settings-row" id="settings-row-car" onclick="openCarSettings()">
                         <div class="settings-icon">🚗</div>
                         <div class="settings-label">Авто</div>
                         <div class="settings-value" id="settings-car">—</div>
                         <div class="settings-arrow">›</div>
                     </div>
-                    <div class="settings-row" onclick="openSeatsSettings()">
+                    <div class="settings-row" id="settings-row-seats" onclick="openSeatsSettings()">
                         <div class="settings-icon">💺</div>
                         <div class="settings-label">Місць</div>
                         <div class="settings-value" id="settings-seats">4</div>
@@ -1221,12 +1365,13 @@
                 <span>Поїздки</span>
                 <div class="nav-badge" id="nav-trips-badge" style="display:none;">0</div>
             </div>
-            <div class="nav-item" data-tab="profile" onclick="switchScreen('profile')">
+            <div class="nav-item" data-tab="news" onclick="switchScreen('news')" id="nav-news">
                 <svg viewBox="0 0 24 24">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                    <circle cx="12" cy="7" r="4" />
+                    <path d="M18 8a6 6 0 0 0-12 0v5l-2 2v1h16v-1l-2-2z" />
+                    <path d="M10 19a2 2 0 0 0 4 0" />
                 </svg>
-                <span>Профіль</span>
+                <span>Новини</span>
+                <div class="nav-badge" id="nav-news-badge" style="display:none;">0</div>
             </div>
         </nav>
     </div>
@@ -1281,7 +1426,10 @@
             activeTrip: null, pendingMatches: [], directions: [], news: [],
             map: null, mapMarkers: [], currentScreen: 'explore',
             chatRequestId: null, chatPartnerId: null, busy: false,
+            boardParentId: null, boardStack: [], boardSubSet: new Set(),
+            newsFilter: 'all', mapNewsFilter: 'all', newsMarkers: [],
         };
+        let boardNavDefaults = null;
 
         document.addEventListener('DOMContentLoaded', async () => {
             resolveUser();
@@ -1292,6 +1440,26 @@
         });
 
         // ─── USER RESOLUTION ───
+        function _pickTelegramName(tgUser, fallbackName = '') {
+            const user = tgUser || {};
+            const username = String(user.username || '').trim();
+            if (username) return username;
+            const first = String(user.first_name || '').trim();
+            const last = String(user.last_name || '').trim();
+            const full = `${first} ${last}`.trim();
+            if (full) return full;
+            return String(fallbackName || '').trim();
+        }
+
+        function syncIdentityUI() {
+            const displayName = String(S.userName || '').trim();
+            const firstChar = (displayName || '?')[0].toUpperCase();
+            document.getElementById('profile-avatar').textContent = firstChar;
+            document.getElementById('profile-name').textContent = displayName || 'Користувач';
+            document.getElementById('profile-id').textContent = displayName ? `Telegram: ${displayName}` : 'Telegram: —';
+            document.getElementById('avatar-btn').textContent = firstChar;
+        }
+
         function resolveUser() {
             const tg = window.Telegram?.WebApp;
             const qp = new URLSearchParams(location.search);
@@ -1305,18 +1473,16 @@
                 localStorage.setItem('wt_api', S.apiBase);
             }
 
-            if (tg?.initDataUnsafe?.user?.id) {
-                S.userId = tg.initDataUnsafe.user.id;
-                S.userName = tg.initDataUnsafe.user.first_name || '';
+            const tgUser = tg?.initDataUnsafe?.user;
+            if (tgUser?.id) {
+                S.userId = tgUser.id;
+                S.userName = _pickTelegramName(tgUser, qp.get('name') || '');
                 tg.ready(); tg.expand();
             } else {
                 S.userId = parseInt(qp.get('user_id') || '0');
-                S.userName = qp.get('name') || '';
+                S.userName = String(qp.get('name') || '').trim();
             }
-            document.getElementById('profile-avatar').textContent = (S.userName || '?')[0].toUpperCase();
-            document.getElementById('profile-name').textContent = S.userName || 'Користувач';
-            document.getElementById('profile-id').textContent = S.userName ? `@${S.userName}` : `ID: ${S.userId || '—'}`;
-            document.getElementById('avatar-btn').textContent = (S.userName || '?')[0].toUpperCase();
+            syncIdentityUI();
             try {
                 const saved = JSON.parse(localStorage.getItem('wt_profile_' + S.userId) || '{}');
                 if (saved.role) S.userRole = saved.role;
@@ -1351,9 +1517,13 @@
             if (!S.apiBase || !S.userId) { renderNews(); renderBoard(); renderTrips(); return; }
             const data = await api(`/api/v3/hydrate?user_id=${S.userId}`);
             if (!data) return;
-            if (data.profile) { S.userRole = data.profile.role || S.userRole; S.userName = data.profile.name || S.userName; }
+            if (data.profile) {
+                S.userRole = data.profile.role || S.userRole;
+                if (!String(S.userName || '').trim()) S.userName = data.profile.name || S.userName;
+            }
             if (data.active_trip) S.activeTrip = data.active_trip;
             if (data.pending) S.pendingMatches = data.pending;
+            syncIdentityUI();
             updateRolePill(); updateBadges(); renderNews(); renderBoard(); renderTrips(); refreshMap();
         }
 
@@ -1365,8 +1535,10 @@
                 S.activeTrip = trip?.found ? trip : null;
                 const pend = await api(`/api/v3/match/pending?user_id=${S.userId}`);
                 S.pendingMatches = Array.isArray(pend?.matches) ? pend.matches : [];
+                renderNews();
                 updateBadges();
                 if (S.currentScreen === 'trips') renderTrips();
+                if (S.currentScreen === 'news') renderNewsScreen();
             }, 8000);
         }
 
@@ -1380,14 +1552,32 @@
         // ─── ROLE ───
         function initRolePill() { updateRolePill(); }
 
+        function _isDriverRole(role) {
+            return String(role || '') === 'driver';
+        }
+
+        function _isPassengerRole(role) {
+            const r = String(role || '');
+            return r === 'passenger' || r === 'client';
+        }
+
+        function syncProfileSettingsByRole() {
+            const carRow = document.getElementById('settings-row-car');
+            const seatsRow = document.getElementById('settings-row-seats');
+            const isDriver = _isDriverRole(S.userRole);
+            if (carRow) carRow.style.display = isDriver ? '' : 'none';
+            if (seatsRow) seatsRow.style.display = isDriver ? '' : 'none';
+        }
+
         function updateRolePill() {
             const pill = document.getElementById('role-pill');
             const sr = document.getElementById('settings-role');
-            if (S.userRole === 'driver') { pill.className = 'role-pill driver'; pill.textContent = '🚗 Водій'; sr.textContent = 'Водій'; }
-            else if (S.userRole === 'passenger') { pill.className = 'role-pill passenger'; pill.textContent = '👤 Попутник'; sr.textContent = 'Попутник'; }
+            if (_isDriverRole(S.userRole)) { pill.className = 'role-pill driver'; pill.textContent = '🚗 Водій'; sr.textContent = 'Водій'; }
+            else if (_isPassengerRole(S.userRole)) { pill.className = 'role-pill passenger'; pill.textContent = '👤 Попутник'; sr.textContent = 'Попутник'; }
             else { pill.className = 'role-pill none'; pill.textContent = 'Обрати роль'; sr.textContent = 'Не обрано'; }
             document.getElementById('settings-car').textContent = S.car || '—';
             document.getElementById('settings-seats').textContent = S.seats;
+            syncProfileSettingsByRole();
         }
 
         function openRoleSelector() {
@@ -1415,9 +1605,50 @@
             document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
             document.getElementById('screen-' + name).classList.add('active');
             document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.tab === name));
+            if (name === 'profile') updateRolePill();
             if (name === 'explore') refreshMap();
             if (name === 'board') renderBoard();
+            if (name === 'news') renderNewsScreen();
             if (name === 'trips') renderTrips();
+            updateBottomNavForBoardDepth();
+        }
+
+        function updateBottomNavForBoardDepth() {
+            const nav = document.querySelector('.nav');
+            const boardItem = document.querySelector('.nav-item[data-tab="board"]');
+            if (!nav || !boardItem) return;
+
+            const boardLabel = boardItem.querySelector('span');
+            const boardIcon = boardItem.querySelector('svg');
+            if (!boardNavDefaults) {
+                boardNavDefaults = {
+                    label: boardLabel?.textContent || 'Каталог',
+                    icon: boardIcon?.innerHTML || '',
+                };
+            }
+
+            const deepInBoard = S.currentScreen === 'board' && S.boardStack.length > 0;
+            const navItems = Array.from(nav.querySelectorAll('.nav-item'));
+            nav.classList.toggle('board-deep', deepInBoard);
+
+            navItems.forEach(item => {
+                if (item === boardItem) return;
+                item.style.display = deepInBoard ? 'none' : '';
+            });
+
+            if (deepInBoard) {
+                if (boardLabel) boardLabel.textContent = 'Назад';
+                if (boardIcon) boardIcon.innerHTML = '<polyline points="15 18 9 12 15 6"></polyline><line x1="9" y1="12" x2="21" y2="12"></line>';
+                boardItem.onclick = (e) => { e?.preventDefault?.(); boardGoUp(); };
+                boardItem.classList.add('active');
+                return;
+            }
+
+            if (boardLabel) boardLabel.textContent = boardNavDefaults.label || 'Каталог';
+            if (boardIcon && boardNavDefaults.icon) boardIcon.innerHTML = boardNavDefaults.icon;
+            boardItem.onclick = () => switchScreen('board');
+            navItems.forEach(item => item.style.display = '');
+            navItems.forEach(item => item.classList.toggle('active', item.dataset.tab === S.currentScreen));
         }
 
         // ─── MAP ───
@@ -1437,15 +1668,94 @@
             if (!crews) return;
             S.mapMarkers.forEach(m => S.map.removeLayer(m));
             S.mapMarkers = [];
+            S.newsMarkers.forEach(m => S.map.removeLayer(m));
+            S.newsMarkers = [];
             crews.forEach(c => {
                 if (!c.lat || !c.lng) return;
                 const marker = L.marker([c.lat, c.lng], {
                     icon: L.divIcon({ className: '', html: `<div style="width:32px;height:32px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 12px var(--accent-glow);border:2px solid rgba(0,0,0,0.3);">🚗</div>`, iconSize: [32, 32], iconAnchor: [16, 16] })
                 }).addTo(S.map);
-                marker.bindPopup(`<div style="text-align:center;min-width:140px;"><div style="font-weight:800;font-size:14px;margin-bottom:4px;">${c.driver_name || c.organizer_name || 'Екіпаж'}</div><div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">${c.direction_title || ''}</div>${S.userId && String(S.userId) !== String(c.organizer_id) ? `<button onclick="requestJoin(${c.organizer_id}, '${c.direction_id}')" style="width:100%;padding:8px;border-radius:10px;background:rgba(163,230,53,0.15);color:#a3e635;border:1px solid rgba(163,230,53,0.3);font-weight:700;font-size:12px;cursor:pointer;">✓ Запит</button>` : ''}</div>`);
+                const canRequest = S.userId && String(S.userId) !== String(c.organizer_id);
+                marker.bindPopup(`<div style="text-align:center;min-width:180px;"><div style="font-weight:800;font-size:14px;margin-bottom:4px;">${c.driver_name || c.organizer_name || 'Екіпаж'}</div><div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">${c.direction_title || ''}</div><div style="display:flex;gap:8px;">${canRequest ? `<button onclick="requestJoin(${c.organizer_id}, '${c.direction_id}')" style="flex:1;padding:8px;border-radius:10px;background:rgba(163,230,53,0.15);color:#a3e635;border:1px solid rgba(163,230,53,0.3);font-weight:700;font-size:12px;cursor:pointer;">✓ Запит</button>` : ''}<button onclick="openDirectionFromMap('${c.direction_id}')" style="flex:1;padding:8px;border-radius:10px;background:rgba(56,189,248,0.14);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-weight:700;font-size:12px;cursor:pointer;">→ Напрямок</button></div></div>`);
                 S.mapMarkers.push(marker);
             });
-            renderMapOverlay(crews.slice(0, 3));
+            renderNewsPointsOnMap(crews);
+            renderMapOverlay([]);
+        }
+
+        function _newsMarkerPalette(kind) {
+            if (kind === 'theocracy') return { emoji: '⛪', color: '#a78bfa', glow: 'rgba(167,139,250,0.45)' };
+            if (kind === 'leisure') return { emoji: '🏖️', color: '#34d399', glow: 'rgba(52,211,153,0.45)' };
+            if (kind === 'work') return { emoji: '💼', color: '#38bdf8', glow: 'rgba(56,189,248,0.45)' };
+            return { emoji: '🧭', color: '#fbbf24', glow: 'rgba(251,191,36,0.45)' };
+        }
+
+        function renderNewsPointsOnMap(crews) {
+            if (!S.map) return;
+            const items = Array.isArray(S.news) ? S.news : [];
+            if (!items.length) return;
+
+            const byDirection = new Map();
+            (crews || []).forEach(c => {
+                if (!c || c.direction_id == null || c.lat == null || c.lng == null) return;
+                const key = String(c.direction_id);
+                if (!byDirection.has(key)) byDirection.set(key, { lat: Number(c.lat), lng: Number(c.lng), dirTitle: c.direction_title || '' });
+            });
+
+            const uniqueNews = [];
+            const seenDir = new Set();
+            for (const n of items) {
+                const dId = Number(n?.direction_id || 0);
+                if (!dId) continue;
+                const kind = classifyNewsItem(n);
+                if (S.mapNewsFilter !== 'all' && kind !== S.mapNewsFilter) continue;
+                const key = String(dId);
+                if (!byDirection.has(key)) continue;
+                if (seenDir.has(key)) continue;
+                seenDir.add(key);
+                uniqueNews.push(n);
+            }
+
+            uniqueNews.slice(0, 80).forEach(n => {
+                const dId = Number(n?.direction_id || 0);
+                const key = String(dId);
+                const geo = byDirection.get(key);
+                if (!geo) return;
+                const kind = classifyNewsItem(n);
+                const pal = _newsMarkerPalette(kind);
+                const icon = L.divIcon({
+                    className: '',
+                    html: `<div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:${pal.color};color:#081018;font-size:14px;font-weight:900;border:2px solid rgba(0,0,0,0.35);box-shadow:0 0 16px ${pal.glow};">${pal.emoji}</div>`,
+                    iconSize: [28, 28],
+                    iconAnchor: [14, 14],
+                });
+                const marker = L.marker([geo.lat, geo.lng], { icon }).addTo(S.map);
+                marker.bindPopup(`
+                    <div style="min-width:190px;">
+                        <div style="font-weight:800;font-size:13px;margin-bottom:6px;">${escapeHtml(n?.dir_title || geo.dirTitle || 'Новина')}</div>
+                        <div style="font-size:12px;color:#94a3b8;line-height:1.35;margin-bottom:8px;">${escapeHtml(n?.text || '')}</div>
+                        <div style="display:flex;gap:8px;">
+                            <button onclick="subscribeFromNewsMap(${dId})" style="flex:1;padding:7px 9px;border-radius:9px;border:1px solid rgba(163,230,53,0.35);background:rgba(163,230,53,0.14);color:#a3e635;font-weight:800;font-size:11px;cursor:pointer;">✓ Підписка</button>
+                            <button onclick="openDirectionFromNewsMap(${dId})" style="flex:1;padding:7px 9px;border-radius:9px;border:1px solid rgba(56,189,248,0.35);background:rgba(56,189,248,0.14);color:#38bdf8;font-weight:800;font-size:11px;cursor:pointer;">→ Відкрити</button>
+                        </div>
+                    </div>
+                `);
+                S.newsMarkers.push(marker);
+            });
+        }
+
+        async function subscribeFromNewsMap(dirId) {
+            await subscribeDir(dirId);
+        }
+
+        async function openDirectionFromNewsMap(dirId) {
+            switchScreen('board');
+            setTimeout(() => openDirection(dirId), 120);
+        }
+
+        async function openDirectionFromMap(dirId) {
+            switchScreen('board');
+            setTimeout(() => openDirection(dirId), 120);
         }
 
         function renderMapOverlay(crews) {
@@ -1475,45 +1785,219 @@
         }
 
         // ─── NEWS ───
-        function renderNews() {
-            const strip = document.getElementById('news-strip');
-            strip.innerHTML = `<div class="news-chip" onclick="switchScreen('board')">🧭 Нові напрямки</div><div class="news-chip" onclick="switchScreen('trips')">📋 Мої поїздки</div>`;
-            if (S.apiBase) {
-                api('/api/v3/news?limit=5').then(data => {
-                    const items = data?.news || [];
-                    if (items.length) strip.innerHTML = items.slice(0, 4).map(n => `<div class="news-chip">${n.text || ''}</div>`).join('') + strip.innerHTML;
-                });
+        function classifyNewsItem(n) {
+            const txt = `${n?.dir_title || ''} ${n?.text || ''}`.toLowerCase();
+            if (txt.includes('теократ')) return 'theocracy';
+            if (txt.includes('відпоч') || txt.includes('релакс') || txt.includes('тур')) return 'leisure';
+            if (txt.includes('робот') || txt.includes('work') || txt.includes('career')) return 'work';
+            return 'other';
+        }
+
+        function formatNewsTime(ts) {
+            if (!ts) return '—';
+            try {
+                const dt = new Date(Number(ts) * 1000);
+                return dt.toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+            } catch (_) {
+                return '—';
             }
+        }
+
+        function updateNewsBadge() {
+            const badge = document.getElementById('nav-news-badge');
+            if (!badge) return;
+            const count = Math.min(99, (S.news || []).length);
+            if (count > 0) { badge.style.display = 'flex'; badge.textContent = count; }
+            else { badge.style.display = 'none'; }
+        }
+
+        function renderNewsStrip() {
+            const strip = document.getElementById('news-strip');
+            if (!strip) return;
+            const allItems = Array.isArray(S.news) ? S.news : [];
+            const buckets = { theocracy: 0, leisure: 0, work: 0 };
+            allItems.forEach(n => {
+                const kind = classifyNewsItem(n);
+                if (kind in buckets) buckets[kind] += 1;
+            });
+            const cards = [
+                { key: 'theocracy', title: 'Теократія', color: '#a78bfa', count: buckets.theocracy || 0 },
+                { key: 'leisure', title: 'Відпочинок', color: '#34d399', count: buckets.leisure || 0 },
+                { key: 'work', title: 'Робота', color: '#38bdf8', count: buckets.work || 0 },
+            ];
+            strip.style.display = 'grid';
+            strip.style.gridTemplateColumns = 'repeat(3, minmax(0, 1fr))';
+            strip.innerHTML = cards.map(c => {
+                const active = S.mapNewsFilter === c.key;
+                const nextFilter = active ? 'all' : c.key;
+                const bg = active ? `${c.color}22` : 'var(--bg-card)';
+                const border = active ? c.color : 'var(--border)';
+                return `<div class="news-banner ${active ? 'active' : ''}" onclick="setMapNewsFilter('${nextFilter}')" style="background:${bg};border-color:${border};">
+                    <div class="news-banner-title">${c.title}</div>
+                    <div class="news-banner-count">${c.count}</div>
+                </div>`;
+            }).join('');
+        }
+
+        async function setMapNewsFilter(filter) {
+            S.mapNewsFilter = filter || 'all';
+            renderNewsStrip();
+            if (S.currentScreen === 'explore') await refreshMap();
+        }
+
+        function setNewsFilter(filter) {
+            S.newsFilter = filter || 'all';
+            renderNewsScreen();
+        }
+
+        function renderNewsScreen() {
+            const banners = document.getElementById('news-banners');
+            const feed = document.getElementById('news-feed');
+            if (!banners || !feed) return;
+            const allItems = Array.isArray(S.news) ? S.news : [];
+            const buckets = { theocracy: 0, leisure: 0, work: 0, other: 0 };
+            allItems.forEach(n => { buckets[classifyNewsItem(n)] = (buckets[classifyNewsItem(n)] || 0) + 1; });
+            const cards = [
+                { key: 'theocracy', title: 'Теократія', color: '#a78bfa', count: buckets.theocracy || 0 },
+                { key: 'leisure', title: 'Відпочинок', color: '#34d399', count: buckets.leisure || 0 },
+                { key: 'work', title: 'Робота', color: '#38bdf8', count: buckets.work || 0 },
+            ];
+            banners.style.display = 'grid';
+            banners.style.gridTemplateColumns = 'repeat(3, minmax(0, 1fr))';
+            banners.innerHTML = cards.map(c => {
+                const active = S.newsFilter === c.key;
+                const nextFilter = active ? 'all' : c.key;
+                const bg = active ? `${c.color}22` : 'var(--bg-card)';
+                const border = active ? c.color : 'var(--border)';
+                return `<div class="news-banner ${active ? 'active' : ''}" onclick="setNewsFilter('${nextFilter}')" style="background:${bg};border-color:${border};">
+                    <div class="news-banner-title">${c.title}</div>
+                    <div class="news-banner-count">${c.count}</div>
+                </div>`;
+            }).join('');
+
+            const items = S.newsFilter === 'all'
+                ? allItems
+                : allItems.filter(n => classifyNewsItem(n) === S.newsFilter);
+            if (!items.length) {
+                feed.innerHTML = '<div class="empty"><div class="empty-icon">🗞️</div><div class="empty-title">Поки тихо</div><div class="empty-sub">Нові події з\'являться незабаром</div></div>';
+                return;
+            }
+            feed.innerHTML = items.slice(0, 60).map(n => `
+                <div class="news-feed-item">
+                    <div style="font-size:13px;font-weight:700;line-height:1.45;">${escapeHtml(n.text || 'Новина')}</div>
+                    <div class="news-feed-meta">${escapeHtml(n.dir_title || 'Без напряму')} • ${formatNewsTime(n.created_at)}</div>
+                </div>
+            `).join('');
+        }
+
+        function renderNews() {
+            if (!S.apiBase) {
+                S.news = [];
+                renderNewsStrip();
+                renderNewsScreen();
+                updateNewsBadge();
+                return;
+            }
+            api('/api/v3/news?limit=60').then(data => {
+                S.news = data?.news || [];
+                renderNewsStrip();
+                renderNewsScreen();
+                updateNewsBadge();
+            });
         }
 
         // ─── BOARD ───
         let allDirections = [];
 
+        function isFolderNode(d) {
+            if (!d || typeof d !== 'object') return false;
+            const kind = String(d.kind || '').toLowerCase();
+            return !!d.is_folder || !!d.has_kids || kind === 'folder' || kind === 'topic' || kind === 'category';
+        }
+
+        function renderBoardBreadcrumb() {
+            const el = document.getElementById('board-breadcrumb');
+            if (!el) return;
+            if (!S.boardStack.length) {
+                el.innerHTML = '';
+                updateBottomNavForBoardDepth();
+                return;
+            }
+            const path = S.boardStack.map(x => x?.title || `#${x?.id || '?'}`);
+            const safePath = path.map(p => escapeHtml(String(p))).join(' / ');
+            el.innerHTML = `<div class="board-crumb-path" onclick="boardGoRoot()" title="До кореня">${safePath}</div>`;
+            updateBottomNavForBoardDepth();
+        }
+
+        async function boardGoRoot() {
+            S.boardStack = [];
+            S.boardParentId = null;
+            const search = document.getElementById('board-search');
+            if (search) search.value = '';
+            await renderBoard();
+        }
+
+        async function boardGoUp() {
+            if (!S.boardStack.length) return;
+            S.boardStack.pop();
+            S.boardParentId = S.boardStack.length ? S.boardStack[S.boardStack.length - 1].id : null;
+            const search = document.getElementById('board-search');
+            if (search) search.value = '';
+            await renderBoard();
+        }
+
+        async function boardOpenFolder(dirId) {
+            const dir = allDirections.find(d => String(d.id) === String(dirId));
+            if (!dir) return;
+            if (!isFolderNode(dir)) return;
+            S.boardParentId = dir.id;
+            S.boardStack.push({ id: dir.id, title: dir.title || `#${dir.id}` });
+            const search = document.getElementById('board-search');
+            if (search) search.value = '';
+            await renderBoard();
+        }
+
         async function renderBoard() {
             const list = document.getElementById('board-list');
             list.innerHTML = '<div class="skeleton" style="height:60px;margin:12px 16px;"></div>'.repeat(3);
-            if (!S.apiBase) { list.innerHTML = '<div class="empty"><div class="empty-icon">🧭</div><div class="empty-title">Підключіть API</div><div class="empty-sub">Вкажіть адресу сервера в налаштуваннях</div></div>'; return; }
-            const data = await api(`/api/v3/board?lang=${S.lang}&user_id=${S.userId || ''}`);
+            if (!S.apiBase) {
+                renderBoardBreadcrumb();
+                list.innerHTML = '<div class="empty"><div class="empty-icon">🧭</div><div class="empty-title">Підключіть API</div><div class="empty-sub">Вкажіть адресу сервера в налаштуваннях</div></div>';
+                return;
+            }
+            renderBoardBreadcrumb();
+            const qp = new URLSearchParams({ lang: S.lang });
+            if (S.userId) qp.set('user_id', String(S.userId));
+            if (S.boardParentId !== null && S.boardParentId !== undefined) qp.set('parent_id', String(S.boardParentId));
+            const data = await api(`/api/v3/board?${qp.toString()}`);
             allDirections = Array.isArray(data) ? data : (data?.directions || []);
-            const subs = await api(`/api/v3/user/subscriptions?user_id=${S.userId}`);
-            const subSet = new Set((subs?.subscriptions || []).map(s => String(s.direction_id)));
-            renderBoardList(allDirections, subSet);
+            let subSet = new Set();
+            if (S.userId) {
+                const subs = await api(`/api/v3/user/subscriptions?user_id=${S.userId}`);
+                subSet = new Set((subs?.subscriptions || []).map(s => String(s.direction_id)));
+            }
+            S.boardSubSet = subSet;
+            renderBoardList(allDirections, S.boardSubSet);
         }
 
         function renderBoardList(dirs, subSet) {
             const list = document.getElementById('board-list');
             if (!dirs.length) { list.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">Немає напрямків</div></div>'; return; }
             list.innerHTML = dirs.map(d => {
-                const id = String(d.id); const isSub = subSet?.has(id);
-                const icon = d.kind === 'folder' ? '📁' : (d.kind === 'topic' ? '💬' : '🧭');
+                const id = String(d.id);
+                const isFolder = isFolderNode(d);
+                const isSub = !isFolder && subSet?.has(id);
                 const total = (d.drivers || 0) + (d.passengers || 0);
-                return `<div class="dir-card ${isSub ? 'subscribed' : ''}" onclick="openDirection(${d.id})">
-            <div class="dir-card-icon" style="background:${isSub ? 'var(--green-dim)' : 'rgba(255,255,255,0.04)'};">${icon}</div>
+                const sigil = isFolder
+                    ? `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 4.5v9L12 21l-7-4.5v-9L12 3z"></path><path d="M12 7v10"></path><path d="M8 12h8"></path></svg>`
+                    : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 9-8 9-8-9 8-9z"></path><circle cx="12" cy="12" r="2.5"></circle></svg>`;
+                const click = isFolder ? `boardOpenFolder(${d.id})` : `openDirection(${d.id})`;
+                return `<div class="dir-card ${isSub ? 'subscribed' : ''}" onclick="${click}">
+            <div class="dir-card-icon" style="background:${isSub ? 'var(--green-dim)' : 'rgba(255,255,255,0.04)'};color:${isSub ? 'var(--green)' : (isFolder ? 'var(--text-secondary)' : 'var(--accent)')};">${sigil}</div>
             <div class="dir-card-info">
                 <div class="dir-card-name">${d.title || 'Напрямок'}</div>
-                <div class="dir-card-stats"><span>🚗 ${d.drivers || 0}</span><span>👤 ${d.passengers || 0}</span>${d.has_kids ? '<span>📂</span>' : ''}</div>
+                <div class="dir-card-stats"><span class="dir-card-total">${total}</span></div>
             </div>
-            ${isSub ? '<span class="tag tag-green" style="font-size:10px;">Відстежується</span>' : ''}
             <div class="dir-card-arrow">›</div>
         </div>`;
             }).join('');
@@ -1521,17 +2005,29 @@
 
         function filterBoard(query) {
             const q = query.toLowerCase().trim();
-            renderBoardList(q ? allDirections.filter(d => (d.title || '').toLowerCase().includes(q)) : allDirections);
+            renderBoardList(q ? allDirections.filter(d => (d.title || '').toLowerCase().includes(q)) : allDirections, S.boardSubSet);
         }
 
         async function openDirection(dirId) {
-            const dir = allDirections.find(d => String(d.id) === String(dirId));
-            if (!dir) return;
             const data = await api(`/api/v3/fractal/organizers?direction_id=${dirId}&lang=${S.lang}&user_id=${S.userId || ''}`);
+            let dir = allDirections.find(d => String(d.id) === String(dirId));
+            if (!dir && data?.direction && typeof data.direction === 'object') {
+                dir = {
+                    id: data.direction.id ?? dirId,
+                    title: data.direction.title || data.direction.name || 'Напрямок',
+                    drivers: Number(data.direction.drivers || data.direction.drivers_count || 0),
+                    passengers: Number(data.direction.passengers || data.direction.passengers_count || 0),
+                    is_folder: !!data.direction.is_folder,
+                    has_kids: !!data.direction.has_kids,
+                    kind: data.direction.kind || '',
+                };
+            }
+            if (!dir) { showToast('Напрямок недоступний', 'error'); return; }
+            if (isFolderNode(dir)) { await boardOpenFolder(dirId); return; }
             const orgs = data?.organizers || []; const isSub = data?.user_status?.subscribed;
             openSheet(`
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;">
-            <div style="font-size:32px;">${dir.kind === 'folder' ? '📁' : '🧭'}</div>
+            <div style="font-size:32px;">🧭</div>
             <div><div class="sheet-title" style="margin-bottom:0;">${dir.title || 'Напрямок'}</div>
             <div style="font-size:12px;color:var(--text-secondary);font-weight:600;">${orgs.length} організаторів • ${(dir.drivers || 0) + (dir.passengers || 0)} учасників</div></div>
         </div>
@@ -1550,11 +2046,15 @@
         }
 
         async function subscribeDir(dirId) {
+            const dir = allDirections.find(d => String(d.id) === String(dirId));
+            if (isFolderNode(dir)) { showToast('Підписка доступна тільки на напрямок', 'error'); return; }
             await api('/api/v3/board/subscribe', { method: 'POST', body: JSON.stringify({ user_id: S.userId, direction_id: dirId, role: S.userRole || 'passenger' }) });
             showToast('✓ Підписано!', 'success'); closeSheet(); renderBoard();
         }
 
         async function unsubscribeDir(dirId) {
+            const dir = allDirections.find(d => String(d.id) === String(dirId));
+            if (isFolderNode(dir)) { showToast('Це каталог, не підписка', 'error'); return; }
             await api('/api/v3/board/unsubscribe', { method: 'POST', body: JSON.stringify({ user_id: S.userId, direction_id: dirId }) });
             showToast('Відписано'); closeSheet(); renderBoard();
         }
@@ -1723,12 +2223,14 @@
 
         // ─── PROFILE SETTINGS ───
         function openCarSettings() {
+            if (!_isDriverRole(S.userRole)) { showToast('Доступно тільки для ролі Водій', 'error'); return; }
             openSheet(`<div class="sheet-title">Авто</div><div class="sheet-sub">Модель вашого авто</div><input class="board-search" id="car-input" placeholder="Toyota Camry" value="${S.car}" style="margin:0 0 16px;"><button class="btn btn-primary" onclick="saveCar()">Зберегти</button>`);
             setTimeout(() => document.getElementById('car-input')?.focus(), 300);
         }
         function saveCar() { S.car = document.getElementById('car-input')?.value?.trim() || ''; saveProfile(); updateRolePill(); closeSheet(); if (S.apiBase) api('/api/v3/driver/register', { method: 'POST', body: JSON.stringify({ user_id: S.userId, car_model: S.car, seats_total: S.seats }) }); showToast('Авто збережено', 'success'); }
 
         function openSeatsSettings() {
+            if (!_isDriverRole(S.userRole)) { showToast('Доступно тільки для ролі Водій', 'error'); return; }
             openSheet(`<div class="sheet-title">Місця</div><div class="sheet-sub">Кількість пасажирських місць</div><div style="display:flex;align-items:center;justify-content:center;gap:24px;margin:20px 0;"><div style="width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;" onclick="changeSeats(-1)">−</div><div style="font-size:40px;font-weight:900;min-width:60px;text-align:center;" id="seats-display">${S.seats}</div><div style="width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;" onclick="changeSeats(1)">+</div></div><button class="btn btn-primary" onclick="saveSeats()">Зберегти</button>`);
         }
         function changeSeats(d) { S.seats = Math.max(1, Math.min(8, S.seats + d)); const el = document.getElementById('seats-display'); if (el) el.textContent = S.seats; }
