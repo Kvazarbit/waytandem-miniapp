@@ -1632,6 +1632,322 @@
             padding: 9px 13px;
             line-height: 1.45;
         }
+
+        /* ══════════════════════════════════════════════════════════════
+           🤝 HANDSHAKE BOTTOM SHEET — Modern Telegram-bot style
+           ══════════════════════════════════════════════════════════════ */
+
+        /* Backdrop overlay */
+        .hs-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            z-index: 4999;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+        .hs-backdrop.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Sheet container */
+        .hs-sheet {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            max-width: 500px;
+            margin: 0 auto;
+            z-index: 5000;
+            transform: translateY(100%);
+            transition: transform 0.45s cubic-bezier(0.32, 0.72, 0, 1);
+            will-change: transform;
+            pointer-events: none;
+            touch-action: none;
+        }
+        .hs-sheet.active {
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        /* Inner card */
+        .hs-card {
+            margin: 0 12px;
+            margin-bottom: max(12px, env(safe-area-inset-bottom));
+            background: rgba(18, 22, 32, 0.97);
+            backdrop-filter: blur(40px) saturate(1.6);
+            -webkit-backdrop-filter: blur(40px) saturate(1.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 28px 28px 22px 22px;
+            overflow: hidden;
+            box-shadow:
+                0 -4px 30px rgba(0, 0, 0, 0.5),
+                0 0 0 0.5px rgba(255, 255, 255, 0.06) inset,
+                0 1px 0 rgba(255, 255, 255, 0.05) inset;
+        }
+
+        /* Drag handle */
+        .hs-handle-area {
+            display: flex;
+            justify-content: center;
+            padding: 12px 0 6px;
+            cursor: grab;
+        }
+        .hs-handle {
+            width: 36px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+            transition: width 0.2s, background 0.2s;
+        }
+        .hs-handle-area:active .hs-handle {
+            width: 48px;
+            background: rgba(255, 255, 255, 0.4);
+        }
+
+        /* Telegram-bot style message header */
+        .hs-header {
+            padding: 4px 20px 12px;
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+        }
+        .hs-avatar {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Unbounded', sans-serif;
+            font-weight: 900;
+            font-size: 20px;
+            color: #fff;
+            position: relative;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+        }
+        .hs-avatar.incoming {
+            background: linear-gradient(135deg, #ffca3a, #ff9800);
+        }
+        .hs-avatar.outgoing {
+            background: linear-gradient(135deg, #42a5f5, #7e57c2);
+        }
+        .hs-avatar-badge {
+            position: absolute;
+            bottom: -2px;
+            right: -2px;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #0d1117;
+            border: 2px solid rgba(18, 22, 32, 0.97);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+        }
+        .hs-meta {
+            flex: 1;
+            min-width: 0;
+        }
+        .hs-sender {
+            font-size: 15px;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 2px;
+            line-height: 1.2;
+        }
+        .hs-subtitle {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.5);
+            font-weight: 600;
+        }
+        .hs-time {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.3);
+            font-weight: 600;
+            padding-top: 4px;
+        }
+
+        /* Telegram bot bubble style */
+        .hs-bubble {
+            margin: 0 16px 6px;
+            padding: 14px 18px;
+            border-radius: 18px 18px 18px 4px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 0.5px solid rgba(255, 255, 255, 0.08);
+            position: relative;
+        }
+        .hs-bubble.incoming-bubble {
+            border-radius: 18px 18px 18px 4px;
+            background: rgba(255, 202, 58, 0.06);
+            border-color: rgba(255, 202, 58, 0.12);
+        }
+        .hs-bubble.outgoing-bubble {
+            border-radius: 18px 18px 4px 18px;
+            background: rgba(66, 165, 245, 0.06);
+            border-color: rgba(66, 165, 245, 0.12);
+        }
+        .hs-bubble-text {
+            font-size: 14px;
+            line-height: 1.5;
+            color: rgba(255, 255, 255, 0.88);
+        }
+        .hs-bubble-text b {
+            color: #fff;
+            font-weight: 800;
+        }
+        .hs-bubble-text .hs-highlight {
+            color: var(--lime);
+            font-weight: 700;
+        }
+
+        /* Inline direction badge */
+        .hs-dir-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 8px;
+            padding: 6px 12px;
+            border-radius: 12px;
+            background: rgba(138, 201, 38, 0.08);
+            border: 0.5px solid rgba(138, 201, 38, 0.2);
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--lime);
+        }
+
+        /* Action buttons — Telegram inline keyboard style */
+        .hs-actions {
+            padding: 12px 16px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .hs-btn-row {
+            display: flex;
+            gap: 10px;
+        }
+        .hs-btn {
+            flex: 1;
+            padding: 14px 16px;
+            border-radius: 14px;
+            font-family: 'Unbounded', sans-serif;
+            font-size: 12px;
+            font-weight: 900;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.2, 1, 0.2, 1);
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .hs-btn:active {
+            transform: scale(0.96);
+        }
+
+        /* Primary — accept (lime) */
+        .hs-btn-accept {
+            background: var(--lime);
+            color: #000;
+            box-shadow: 0 8px 24px rgba(138, 201, 38, 0.35);
+        }
+        .hs-btn-accept:active {
+            background: #9ddb3a;
+            box-shadow: 0 4px 12px rgba(138, 201, 38, 0.25);
+        }
+
+        /* Secondary — decline */
+        .hs-btn-decline {
+            background: rgba(239, 83, 80, 0.1);
+            color: #ef5350;
+            border: 0.5px solid rgba(239, 83, 80, 0.2);
+        }
+        .hs-btn-decline:active {
+            background: rgba(239, 83, 80, 0.2);
+        }
+
+        /* Tertiary — cancel outgoing */
+        .hs-btn-cancel {
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--text-muted);
+            border: 0.5px solid rgba(255, 255, 255, 0.08);
+        }
+        .hs-btn-cancel:active {
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        /* Ghost — dismiss */
+        .hs-btn-ghost {
+            background: transparent;
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 11px;
+            padding: 10px;
+            min-height: 36px;
+        }
+
+        /* Queue badge */
+        .hs-queue-badge {
+            margin: 0 16px 4px;
+            padding: 8px 14px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 0.5px solid rgba(255, 255, 255, 0.06);
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .hs-queue-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--gold);
+            animation: hs-dot-pulse 1.5s infinite;
+        }
+        @keyframes hs-dot-pulse {
+            0%, 100% { opacity: 0.4; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+
+        /* Swipe-to-dismiss hint */
+        .hs-swipe-hint {
+            text-align: center;
+            padding: 8px 0 14px;
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.2);
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        /* Slide-up animation for entrance */
+        @keyframes hs-slide-up {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+        @keyframes hs-fade-in {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .hs-sheet.animating {
+            animation: hs-slide-up 0.45s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+        }
+        .hs-backdrop.animating {
+            animation: hs-fade-in 0.3s ease forwards;
+        }
     </style>
 </head>
 
@@ -1902,8 +2218,22 @@
                 </div>
             </div>
 
+        </div><!-- /z-stack-container -->
+
+        <!-- ═══ 🤝 HANDSHAKE BOTTOM SHEET ═══ -->
+        <div id="hs-backdrop" class="hs-backdrop" onclick="hideHandshakeSheet()"></div>
+        <div id="hs-sheet" class="hs-sheet">
+            <div class="hs-card" id="hs-card">
+                <div class="hs-handle-area" id="hs-handle-area">
+                    <div class="hs-handle"></div>
+                </div>
+                <div id="hs-body">
+                    <!-- Dynamic content injected by JS -->
+                </div>
+                <div class="hs-swipe-hint">Проведіть вниз, щоб закрити</div>
+            </div>
         </div>
-    </div>
+    </div><!-- /phone-container -->
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
@@ -2048,6 +2378,7 @@
                     return null;
                 }
                 _apiErrorCount = 0;
+                setOffline(false);
                 return await r.json();
             } catch (e) {
                 _apiErrorCount++;
@@ -3051,6 +3382,203 @@
                     <div class="nav-btn nav-btn-action" style="flex:1.2;" onclick="respondInvite(${model.partnerId}, ${model.directionId}, true)">✓ БЕРУ!</div>`;
         }
 
+        /* ══════════════════════════════════════════════════════════════
+           🤝 HANDSHAKE BOTTOM SHEET — Modern UI Controller
+           ══════════════════════════════════════════════════════════════ */
+
+        let hsSwipeStartY = 0;
+        let hsSwipeCurrentY = 0;
+        let hsIsSwiping = false;
+
+        /**
+         * Show a modern bottom sheet for incoming/outgoing handshake.
+         * Replaces the old inline lifecycle card for match invites.
+         * Telegram-bot style: sender avatar, message bubble, inline buttons.
+         */
+        function showHandshakeSheet(model) {
+            if (!model) return;
+            const backdrop = document.getElementById('hs-backdrop');
+            const sheet = document.getElementById('hs-sheet');
+            const body = document.getElementById('hs-body');
+            const handleArea = document.getElementById('hs-handle-area');
+            if (!backdrop || !sheet || !body) return;
+
+            const isIncoming = !model.isOutgoing;
+            const avatarClass = isIncoming ? 'incoming' : 'outgoing';
+            const bubbleClass = isIncoming ? 'incoming-bubble' : 'outgoing-bubble';
+            const initial = (model.partnerName || '?')[0].toUpperCase();
+            const now = new Date();
+            const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+
+            // Telegram-bot style message text
+            let bubbleHtml;
+            if (isIncoming) {
+                bubbleHtml = `
+                    <b>${model.partnerName}</b> хоче приєднатись до вашого екіпажу!
+                    <br><br>
+                    🎯 Напрямок: <span class="hs-highlight">${model.directionTitle}</span>
+                    <br>
+                    Оберіть дію нижче:
+                `;
+            } else {
+                bubbleHtml = `
+                    Ви надіслали запит до <b>${model.partnerName}</b>
+                    <br><br>
+                    🎯 Напрямок: <span class="hs-highlight">${model.directionTitle}</span>
+                    <br>
+                    Очікуємо відповіді...
+                `;
+            }
+
+            // Action buttons — Telegram inline keyboard style
+            let actionsHtml;
+            if (isIncoming) {
+                actionsHtml = `
+                    <div class="hs-btn-row">
+                        <div class="hs-btn hs-btn-accept" onclick="handshakeAccept(${model.partnerId}, ${model.directionId})">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px"><polyline points="20 6 9 17 4 12"/></svg>
+                            Прийняти
+                        </div>
+                        <div class="hs-btn hs-btn-decline" onclick="handshakeDecline(${model.partnerId}, ${model.directionId})">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            Відхилити
+                        </div>
+                    </div>
+                `;
+            } else {
+                actionsHtml = `
+                    <div class="hs-btn-row">
+                        <div class="hs-btn hs-btn-cancel" onclick="handshakeCancel(${model.partnerId}, ${model.directionId})">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                            Скасувати запит
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Queue badge if multiple pending
+            const allPending = window.activePendingMatches || [];
+            const queueHtml = allPending.length > 1
+                ? `<div class="hs-queue-badge"><div class="hs-queue-dot"></div>В черзі запитів: ${allPending.length}</div>`
+                : '';
+
+            body.innerHTML = `
+                <!-- Header: Avatar + Name + Time (like Telegram msg header) -->
+                <div class="hs-header">
+                    <div class="hs-avatar ${avatarClass}">
+                        ${initial}
+                        <div class="hs-avatar-badge">${isIncoming ? '📩' : '📤'}</div>
+                    </div>
+                    <div class="hs-meta">
+                        <div class="hs-sender">${model.partnerName}</div>
+                        <div class="hs-subtitle">${isIncoming ? 'Вхідний запит' : 'Очікування відповіді'}</div>
+                    </div>
+                    <div class="hs-time">${timeStr}</div>
+                </div>
+
+                <!-- Message bubble (Telegram bot style) -->
+                <div class="hs-bubble ${bubbleClass}">
+                    <div class="hs-bubble-text">${bubbleHtml}</div>
+                    <div class="hs-dir-badge">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                        ${model.directionTitle}
+                    </div>
+                </div>
+
+                ${queueHtml}
+
+                <!-- Action buttons -->
+                <div class="hs-actions">
+                    ${actionsHtml}
+                    <div class="hs-btn hs-btn-ghost" onclick="hideHandshakeSheet()">Закрити</div>
+                </div>
+            `;
+
+            // Show
+            backdrop.classList.add('active');
+            sheet.classList.add('active');
+            haptic('light');
+
+            // Setup swipe-to-dismiss
+            setupHsSwipeDismiss(sheet, handleArea);
+        }
+
+        function hideHandshakeSheet() {
+            const backdrop = document.getElementById('hs-backdrop');
+            const sheet = document.getElementById('hs-sheet');
+            if (backdrop) backdrop.classList.remove('active');
+            if (sheet) {
+                sheet.classList.remove('active');
+                sheet.style.transform = '';
+            }
+            window._hsSheetShown = false;
+        }
+
+        function setupHsSwipeDismiss(sheet, handleArea) {
+            if (!handleArea) return;
+            const onStart = (e) => {
+                hsSwipeStartY = e.touches ? e.touches[0].clientY : e.clientY;
+                hsIsSwiping = true;
+                sheet.style.transition = 'none';
+            };
+            const onMove = (e) => {
+                if (!hsIsSwiping) return;
+                hsSwipeCurrentY = e.touches ? e.touches[0].clientY : e.clientY;
+                const diff = hsSwipeCurrentY - hsSwipeStartY;
+                if (diff > 0) {
+                    sheet.style.transform = `translateY(${diff}px)`;
+                }
+            };
+            const onEnd = () => {
+                if (!hsIsSwiping) return;
+                hsIsSwiping = false;
+                sheet.style.transition = '';
+                const diff = hsSwipeCurrentY - hsSwipeStartY;
+                if (diff > 100) {
+                    hideHandshakeSheet();
+                } else {
+                    sheet.style.transform = '';
+                }
+            };
+            handleArea.addEventListener('touchstart', onStart, { passive: true });
+            handleArea.addEventListener('touchmove', onMove, { passive: true });
+            handleArea.addEventListener('touchend', onEnd);
+            // Mouse fallback for desktop testing
+            handleArea.addEventListener('mousedown', onStart);
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onEnd);
+        }
+
+        /** Accept handshake — delegates to respondInvite, then hides sheet */
+        async function handshakeAccept(partnerId, directionId) {
+            haptic('success');
+            hideHandshakeSheet();
+            await respondInvite(partnerId, directionId, true);
+        }
+
+        /** Decline handshake — delegates to respondInvite, then hides sheet */
+        async function handshakeDecline(partnerId, directionId) {
+            haptic('warning');
+            hideHandshakeSheet();
+            await respondInvite(partnerId, directionId, false);
+        }
+
+        /** Cancel outgoing handshake */
+        async function handshakeCancel(partnerId, directionId) {
+            haptic('warning');
+            hideHandshakeSheet();
+            await respondInvite(partnerId, directionId, false);
+        }
+
+        /** Auto-show bottom sheet when pending matches arrive (hooks into renderHome / renderTripsPending) */
+        function autoShowHandshakeIfNew(list) {
+            const all = getPendingMatchesList(list);
+            const incoming = all.find(x => x.scope === 'incoming');
+            if (!incoming) return;
+            const model = getPendingUiModel(incoming);
+            if (model) showHandshakeSheet(model);
+        }
+
         function buildPendingLifecycleConfig(req) {
             const model = getPendingUiModel(req);
             if (!model) return null;
@@ -3136,18 +3664,24 @@
                 return;
             }
 
-            // ─── PRIORITY 2: MATCH CARDS (M-1/M-2 Parity) ───
+            // ─── PRIORITY 2: MATCH CARDS (M-1/M-2 Parity) → Bottom Sheet ───
             const matches = window.activePendingMatches || [];
             if (matches.length > 0) {
                 const pending = getPrimaryPendingMatch(matches);
                 const prepared = buildPendingLifecycleConfig(pending);
                 if (prepared) {
+                    // Keep the inline card for context, but ALSO pop up the bottom sheet
                     container.innerHTML = `
                         <div class="animate-in">
                             ${buildLifecycleCard(prepared.cfg)}
                             ${buildPendingQueueLabel(matches)}
                         </div>
                     `;
+                    // Auto-show bottom sheet for incoming matches (debounced to avoid spam)
+                    if (!window._hsSheetShown) {
+                        window._hsSheetShown = true;
+                        setTimeout(() => autoShowHandshakeIfNew(matches), 400);
+                    }
                 }
                 return;
             }
@@ -3692,7 +4226,15 @@
                     } else {
                         haptic('light');
                         pendingInvite = { target_id: orgId, direction_id: dirId, target_name: `Організатор #${orgId}` };
-                        showToast('⏳ Запит надіслано. Очікуйте рішення у картці зверху.');
+                        // 🤝 Show outgoing invite in bottom sheet
+                        const dirTitle = flatDiscoveryMap[String(dirId)]?.title || 'Напрямок';
+                        showHandshakeSheet({
+                            isOutgoing: true,
+                            partnerId: orgId,
+                            partnerName: `Організатор #${orgId}`,
+                            directionId: dirId,
+                            directionTitle: dirTitle
+                        });
                         requestPendingFastRefresh('map_invite_sent', 80);
                     }
                     return;
@@ -4749,6 +5291,12 @@
             hero.innerHTML = html + buildPendingQueueLabel(list);
             hero.onclick = null;
             feed.innerHTML = ''; // Full focus mode
+
+            // 🤝 Auto-show bottom sheet for incoming handshake
+            if (!window._hsSheetShown) {
+                window._hsSheetShown = true;
+                setTimeout(() => autoShowHandshakeIfNew(list), 300);
+            }
 
             // Smart lifecycle nav + автоперехід на карту для вхідного запиту
             setLifecycleNav(model.isOutgoing ? 'waiting_out' : 'incoming',
