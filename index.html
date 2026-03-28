@@ -1,10 +1,13 @@
 <!DOCTYPE html>
 <html lang="uk">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>WayTandem</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <style>
         /* ═══════ DESIGN TOKENS ═══════ */
@@ -39,8 +42,20 @@
             --safe-top: env(safe-area-inset-top, 0px);
             --header-height: 52px;
         }
-        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        html, body { height: 100%; overflow: hidden; }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html,
+        body {
+            height: 100%;
+            overflow: hidden;
+        }
+
         body {
             font-family: 'Inter', -apple-system, sans-serif;
             background: var(--bg);
@@ -51,605 +66,1322 @@
 
         /* ═══════ LAYOUT SHELL ═══════ */
         #app {
-            width: 100%; max-width: 500px; height: 100vh; height: 100dvh;
-            margin: 0 auto; position: relative; display: flex; flex-direction: column;
-            overflow: hidden; background: var(--bg);
+            width: 100%;
+            max-width: 500px;
+            height: 100vh;
+            height: 100dvh;
+            margin: 0 auto;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: var(--bg);
         }
+
         .header {
-            flex-shrink: 0; height: var(--header-height); padding: 0 16px;
-            padding-top: var(--safe-top); display: flex; align-items: center;
-            justify-content: space-between; background: var(--bg-glass);
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border-bottom: 1px solid var(--border); z-index: 100;
+            flex-shrink: 0;
+            height: var(--header-height);
+            padding: 0 16px;
+            padding-top: var(--safe-top);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--bg-glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            z-index: 100;
         }
-        .header-title { font-weight: 800; font-size: 18px; letter-spacing: -0.5px; }
-        .header-title .accent { color: var(--accent); }
-        .header-right { display: flex; align-items: center; gap: 10px; }
+
+        .header-title {
+            font-weight: 800;
+            font-size: 18px;
+            letter-spacing: -0.5px;
+        }
+
+        .header-title .accent {
+            color: var(--accent);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
         .role-pill {
-            font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px;
-            text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer; transition: all 0.2s;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.2s;
         }
-        .role-pill.driver { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(163,230,53,0.25); }
-        .role-pill.passenger { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(56,189,248,0.25); }
-        .role-pill.none { background: rgba(255,255,255,0.05); color: var(--text-muted); border: 1px solid var(--border); }
+
+        .role-pill.driver {
+            background: var(--accent-dim);
+            color: var(--accent);
+            border: 1px solid rgba(163, 230, 53, 0.25);
+        }
+
+        .role-pill.passenger {
+            background: var(--blue-dim);
+            color: var(--blue);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+        }
+
+        .role-pill.none {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+        }
+
         .avatar-btn {
-            width: 36px; height: 36px; border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
             background: linear-gradient(135deg, #6366f1, #8b5cf6);
-            display: flex; align-items: center; justify-content: center;
-            font-weight: 800; font-size: 14px; color: #fff; cursor: pointer;
-            border: 2px solid rgba(255,255,255,0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 14px;
+            color: #fff;
+            cursor: pointer;
+            border: 2px solid rgba(255, 255, 255, 0.15);
         }
-        .main { flex: 1; overflow: hidden; position: relative; }
+
+        .main {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
         .screen {
-            position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden;
-            -webkit-overflow-scrolling: touch; scrollbar-width: none;
-            opacity: 0; pointer-events: none; transition: opacity 0.25s ease;
+            position: absolute;
+            inset: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
         }
-        .screen.active { opacity: 1; pointer-events: auto; }
-        .screen::-webkit-scrollbar { display: none; }
+
+        .screen.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .screen::-webkit-scrollbar {
+            display: none;
+        }
+
         .nav {
-            flex-shrink: 0; height: calc(var(--nav-height) + var(--safe-bottom));
-            padding-bottom: var(--safe-bottom); background: var(--bg-glass);
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border-top: 1px solid var(--border); display: flex; align-items: center;
-            justify-content: space-around; z-index: 100;
+            flex-shrink: 0;
+            height: calc(var(--nav-height) + var(--safe-bottom));
+            padding-bottom: var(--safe-bottom);
+            background: var(--bg-glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            z-index: 100;
         }
+
         .nav-item {
-            display: flex; flex-direction: column; align-items: center; gap: 3px;
-            padding: 8px 16px; border-radius: var(--radius-md); color: var(--text-muted);
-            font-size: 10px; font-weight: 700; text-decoration: none; transition: all 0.2s;
-            position: relative; cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            padding: 8px 16px;
+            border-radius: var(--radius-md);
+            color: var(--text-muted);
+            font-size: 10px;
+            font-weight: 700;
+            text-decoration: none;
+            transition: all 0.2s;
+            position: relative;
+            cursor: pointer;
         }
-        .nav-item.active { color: var(--accent); }
-        .nav-item svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+        .nav-item.active {
+            color: var(--accent);
+        }
+
+        .nav-item svg {
+            width: 22px;
+            height: 22px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
         .nav-badge {
-            position: absolute; top: 2px; right: 6px; min-width: 16px; height: 16px;
-            border-radius: 8px; background: var(--red); color: #fff;
-            font-size: 9px; font-weight: 800; display: flex; align-items: center;
-            justify-content: center; padding: 0 4px;
+            position: absolute;
+            top: 2px;
+            right: 6px;
+            min-width: 16px;
+            height: 16px;
+            border-radius: 8px;
+            background: var(--red);
+            color: #fff;
+            font-size: 9px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 4px;
         }
 
         /* ═══════ REUSABLE COMPONENTS ═══════ */
         .card {
-            background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: var(--radius-lg); padding: 16px; margin: 0 16px 12px;
-            backdrop-filter: blur(10px); transition: border-color 0.2s;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 16px;
+            margin: 0 16px 12px;
+            backdrop-filter: blur(10px);
+            transition: border-color 0.2s;
         }
-        .card:active { border-color: var(--border-active); }
-        .card-title { font-weight: 800; font-size: 16px; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
-        .card-meta { font-size: 12px; color: var(--text-secondary); font-weight: 600; }
+
+        .card:active {
+            border-color: var(--border-active);
+        }
+
+        .card-title {
+            font-weight: 800;
+            font-size: 16px;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-meta {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
         .hero {
-            margin: 12px 16px; border-radius: var(--radius-xl); padding: 20px;
-            position: relative; overflow: hidden;
+            margin: 12px 16px;
+            border-radius: var(--radius-xl);
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
         }
+
         .hero.reservation {
-            background: linear-gradient(135deg, rgba(251,191,36,0.12) 0%, rgba(17,24,39,0.9) 100%);
-            border: 1px solid rgba(251,191,36,0.3);
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.12) 0%, rgba(17, 24, 39, 0.9) 100%);
+            border: 1px solid rgba(251, 191, 36, 0.3);
         }
+
         .hero.driving {
-            background: linear-gradient(135deg, rgba(163,230,53,0.12) 0%, rgba(17,24,39,0.9) 100%);
-            border: 1px solid rgba(163,230,53,0.3);
+            background: linear-gradient(135deg, rgba(163, 230, 53, 0.12) 0%, rgba(17, 24, 39, 0.9) 100%);
+            border: 1px solid rgba(163, 230, 53, 0.3);
         }
+
         .hero-label {
-            font-size: 10px; font-weight: 800; text-transform: uppercase;
-            letter-spacing: 1.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
-        .hero-title { font-weight: 900; font-size: 22px; line-height: 1.2; margin-bottom: 6px; }
-        .hero-sub { font-size: 13px; color: var(--text-secondary); font-weight: 600; }
+
+        .hero-title {
+            font-weight: 900;
+            font-size: 22px;
+            line-height: 1.2;
+            margin-bottom: 6px;
+        }
+
+        .hero-sub {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
         .btn {
-            display: flex; align-items: center; justify-content: center; gap: 8px;
-            padding: 14px 20px; border-radius: var(--radius-md); font-family: inherit;
-            font-weight: 800; font-size: 13px; cursor: pointer; transition: all 0.15s;
-            border: none; min-height: 48px; user-select: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 14px 20px;
+            border-radius: var(--radius-md);
+            font-family: inherit;
+            font-weight: 800;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.15s;
+            border: none;
+            min-height: 48px;
+            user-select: none;
         }
-        .btn:active { transform: scale(0.97); }
-        .btn-primary { background: var(--accent); color: #000; box-shadow: 0 4px 16px var(--accent-glow); }
-        .btn-secondary { background: rgba(255,255,255,0.06); color: var(--text); border: 1px solid var(--border); }
-        .btn-danger { background: var(--red-dim); color: var(--red); border: 1px solid rgba(248,113,113,0.2); }
-        .btn-success { background: var(--green-dim); color: var(--green); border: 1px solid rgba(52,211,153,0.2); }
-        .btn-ghost { background: transparent; color: var(--text-muted); padding: 10px 16px; min-height: 40px; }
-        .btn-row { display: flex; gap: 10px; margin: 12px 16px; }
-        .btn-row .btn { flex: 1; }
+
+        .btn:active {
+            transform: scale(0.97);
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #000;
+            box-shadow: 0 4px 16px var(--accent-glow);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .btn-danger {
+            background: var(--red-dim);
+            color: var(--red);
+            border: 1px solid rgba(248, 113, 113, 0.2);
+        }
+
+        .btn-success {
+            background: var(--green-dim);
+            color: var(--green);
+            border: 1px solid rgba(52, 211, 153, 0.2);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-muted);
+            padding: 10px 16px;
+            min-height: 40px;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 10px;
+            margin: 12px 16px;
+        }
+
+        .btn-row .btn {
+            flex: 1;
+        }
+
         .section-label {
-            font-size: 11px; font-weight: 800; text-transform: uppercase;
-            letter-spacing: 1px; color: var(--text-muted); padding: 16px 16px 8px;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            padding: 16px 16px 8px;
         }
+
         .tag {
-            display: inline-flex; align-items: center; gap: 4px;
-            font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 6px;
         }
-        .tag-accent { background: var(--accent-dim); color: var(--accent); }
-        .tag-amber { background: var(--amber-dim); color: var(--amber); }
-        .tag-blue { background: var(--blue-dim); color: var(--blue); }
-        .tag-red { background: var(--red-dim); color: var(--red); }
-        .tag-green { background: var(--green-dim); color: var(--green); }
-        .seats-row { display: flex; align-items: center; gap: 3px; margin-top: 8px; }
+
+        .tag-accent {
+            background: var(--accent-dim);
+            color: var(--accent);
+        }
+
+        .tag-amber {
+            background: var(--amber-dim);
+            color: var(--amber);
+        }
+
+        .tag-blue {
+            background: var(--blue-dim);
+            color: var(--blue);
+        }
+
+        .tag-red {
+            background: var(--red-dim);
+            color: var(--red);
+        }
+
+        .tag-green {
+            background: var(--green-dim);
+            color: var(--green);
+        }
+
+        .seats-row {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            margin-top: 8px;
+        }
+
         .seat-dot {
-            width: 22px; height: 22px; border-radius: 6px;
-            display: flex; align-items: center; justify-content: center; font-size: 12px;
+            width: 22px;
+            height: 22px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
         }
-        .seat-dot.taken { background: rgba(255,255,255,0.1); color: var(--text-muted); }
-        .seat-dot.free { background: var(--accent-dim); color: var(--accent); border: 1px dashed rgba(163,230,53,0.3); }
-        .seat-dot.driver-seat { background: var(--blue-dim); color: var(--blue); }
+
+        .seat-dot.taken {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-muted);
+        }
+
+        .seat-dot.free {
+            background: var(--accent-dim);
+            color: var(--accent);
+            border: 1px dashed rgba(163, 230, 53, 0.3);
+        }
+
+        .seat-dot.driver-seat {
+            background: var(--blue-dim);
+            color: var(--blue);
+        }
+
         .empty {
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            padding: 48px 32px; text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 48px 32px;
+            text-align: center;
         }
-        .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.6; }
-        .empty-title { font-weight: 800; font-size: 16px; margin-bottom: 6px; }
-        .empty-sub { font-size: 13px; color: var(--text-muted); max-width: 240px; }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.6;
+        }
+
+        .empty-title {
+            font-weight: 800;
+            font-size: 16px;
+            margin-bottom: 6px;
+        }
+
+        .empty-sub {
+            font-size: 13px;
+            color: var(--text-muted);
+            max-width: 240px;
+        }
+
         .skeleton {
-            background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.03) 75%);
-            background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: var(--radius-md);
+            background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 25%, rgba(255, 255, 255, 0.06) 50%, rgba(255, 255, 255, 0.03) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: var(--radius-md);
         }
-        @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+        @keyframes shimmer {
+            0% {
+                background-position: 200% 0
+            }
+
+            100% {
+                background-position: -200% 0
+            }
+        }
 
         /* ═══════ BOTTOM SHEET ═══════ */
         .sheet-backdrop {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.5);
-            backdrop-filter: blur(4px); z-index: 9000; opacity: 0;
-            pointer-events: none; transition: opacity 0.25s;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            z-index: 9000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s;
         }
-        .sheet-backdrop.open { opacity: 1; pointer-events: auto; }
+
+        .sheet-backdrop.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
         .sheet {
-            position: fixed; bottom: 0; left: 0; right: 0; max-width: 500px;
-            margin: 0 auto; z-index: 9001; transform: translateY(100%);
-            transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1); pointer-events: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            max-width: 500px;
+            margin: 0 auto;
+            z-index: 9001;
+            transform: translateY(100%);
+            transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+            pointer-events: none;
         }
-        .sheet.open { transform: translateY(0); pointer-events: auto; }
+
+        .sheet.open {
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
         .sheet-card {
-            margin: 0 8px; margin-bottom: max(8px, var(--safe-bottom));
-            background: var(--bg-elevated); border: 1px solid var(--border);
-            border-radius: var(--radius-xl); overflow: hidden;
-            box-shadow: 0 -8px 40px rgba(0,0,0,0.5);
+            margin: 0 8px;
+            margin-bottom: max(8px, var(--safe-bottom));
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xl);
+            overflow: hidden;
+            box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.5);
         }
-        .sheet-handle { display: flex; justify-content: center; padding: 14px 0 8px; cursor: grab; }
-        .sheet-handle-bar { width: 36px; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.15); }
-        .sheet-body { padding: 0 20px 20px; }
-        .sheet-title { font-weight: 900; font-size: 20px; margin-bottom: 8px; }
-        .sheet-sub { font-size: 13px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 16px; }
-        .sheet-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+
+        .sheet-handle {
+            display: flex;
+            justify-content: center;
+            padding: 14px 0 8px;
+            cursor: grab;
+        }
+
+        .sheet-handle-bar {
+            width: 36px;
+            height: 4px;
+            border-radius: 2px;
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .sheet-body {
+            padding: 0 20px 20px;
+        }
+
+        .sheet-title {
+            font-weight: 900;
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+
+        .sheet-sub {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+
+        .sheet-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 8px;
+        }
 
         /* ═══════ SCREEN: EXPLORE ═══════ */
-        #screen-explore { display: flex; flex-direction: column; }
-        #map-container { flex: 1; min-height: 200px; position: relative; }
-        #map { width: 100%; height: 100%; }
+        #screen-explore {
+            display: flex;
+            flex-direction: column;
+        }
+
+        #map-container {
+            flex: 1;
+            min-height: 200px;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
         .map-overlay-cards {
-            position: absolute; bottom: 0; left: 0; right: 0; padding: 12px 16px;
-            background: linear-gradient(transparent, var(--bg) 30%); z-index: 500; pointer-events: none;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 12px 16px;
+            background: linear-gradient(transparent, var(--bg) 30%);
+            z-index: 500;
+            pointer-events: none;
         }
-        .map-overlay-cards > * { pointer-events: auto; }
+
+        .map-overlay-cards>* {
+            pointer-events: auto;
+        }
+
         .crew-mini-card {
-            background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: var(--radius-lg); padding: 14px 16px; margin-bottom: 8px;
-            display: flex; align-items: center; gap: 12px; backdrop-filter: blur(10px);
-            cursor: pointer; transition: border-color 0.2s;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 14px 16px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            backdrop-filter: blur(10px);
+            cursor: pointer;
+            transition: border-color 0.2s;
         }
-        .crew-mini-card:active { border-color: var(--accent); }
+
+        .crew-mini-card:active {
+            border-color: var(--accent);
+        }
+
         .crew-mini-avatar {
-            width: 40px; height: 40px; border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
             background: linear-gradient(135deg, var(--accent), #22c55e);
-            display: flex; align-items: center; justify-content: center;
-            font-weight: 900; font-size: 16px; color: #000; flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 16px;
+            color: #000;
+            flex-shrink: 0;
         }
-        .crew-mini-info { flex: 1; min-width: 0; }
-        .crew-mini-name { font-weight: 800; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .crew-mini-dir { font-size: 11px; color: var(--text-secondary); font-weight: 600; }
+
+        .crew-mini-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .crew-mini-name {
+            font-weight: 800;
+            font-size: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .crew-mini-dir {
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
         .crew-mini-seats {
-            font-size: 11px; font-weight: 800; padding: 4px 8px; border-radius: 8px;
-            background: var(--accent-dim); color: var(--accent); white-space: nowrap;
+            font-size: 11px;
+            font-weight: 800;
+            padding: 4px 8px;
+            border-radius: 8px;
+            background: var(--accent-dim);
+            color: var(--accent);
+            white-space: nowrap;
         }
+
         .news-strip {
-            position: absolute; top: 12px; left: 12px; right: 12px; z-index: 500;
-            display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            right: 12px;
+            z-index: 500;
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            scrollbar-width: none;
             -webkit-overflow-scrolling: touch;
         }
-        .news-strip::-webkit-scrollbar { display: none; }
+
+        .news-strip::-webkit-scrollbar {
+            display: none;
+        }
+
         .news-chip {
-            flex-shrink: 0; padding: 8px 14px; border-radius: 20px;
-            background: var(--bg-glass); backdrop-filter: blur(16px);
-            border: 1px solid var(--border); font-size: 12px; font-weight: 700;
-            color: var(--text-secondary); white-space: nowrap; cursor: pointer;
+            flex-shrink: 0;
+            padding: 8px 14px;
+            border-radius: 20px;
+            background: var(--bg-glass);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border);
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            cursor: pointer;
         }
 
         /* ═══════ SCREEN: BOARD ═══════ */
-        #screen-board { padding-bottom: 20px; }
+        #screen-board {
+            padding-bottom: 20px;
+        }
+
         .board-search {
-            margin: 12px 16px; padding: 12px 16px; border-radius: var(--radius-md);
-            background: rgba(255,255,255,0.04); border: 1px solid var(--border);
-            color: var(--text); font-family: inherit; font-size: 14px; font-weight: 600;
-            outline: none; width: calc(100% - 32px); transition: border-color 0.2s;
+            margin: 12px 16px;
+            padding: 12px 16px;
+            border-radius: var(--radius-md);
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 600;
+            outline: none;
+            width: calc(100% - 32px);
+            transition: border-color 0.2s;
         }
-        .board-search::placeholder { color: var(--text-muted); }
-        .board-search:focus { border-color: var(--accent); }
+
+        .board-search::placeholder {
+            color: var(--text-muted);
+        }
+
+        .board-search:focus {
+            border-color: var(--accent);
+        }
+
         .dir-card {
-            display: flex; align-items: center; gap: 14px; padding: 14px 16px;
-            margin: 0 16px 8px; background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: var(--radius-lg); cursor: pointer; transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 16px;
+            margin: 0 16px 8px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            cursor: pointer;
+            transition: all 0.15s;
         }
-        .dir-card:active { border-color: var(--accent); transform: scale(0.98); }
+
+        .dir-card:active {
+            border-color: var(--accent);
+            transform: scale(0.98);
+        }
+
         .dir-card-icon {
-            width: 44px; height: 44px; border-radius: var(--radius-md);
-            display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0;
+            width: 44px;
+            height: 44px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            flex-shrink: 0;
         }
-        .dir-card-info { flex: 1; min-width: 0; }
-        .dir-card-name { font-weight: 800; font-size: 15px; }
-        .dir-card-stats { font-size: 11px; color: var(--text-secondary); font-weight: 600; margin-top: 2px; display: flex; gap: 8px; }
-        .dir-card-arrow { color: var(--text-muted); font-size: 18px; }
-        .dir-card.subscribed { border-color: rgba(52,211,153,0.25); background: rgba(52,211,153,0.04); }
+
+        .dir-card-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .dir-card-name {
+            font-weight: 800;
+            font-size: 15px;
+        }
+
+        .dir-card-stats {
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            margin-top: 2px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .dir-card-arrow {
+            color: var(--text-muted);
+            font-size: 18px;
+        }
+
+        .dir-card.subscribed {
+            border-color: rgba(52, 211, 153, 0.25);
+            background: rgba(52, 211, 153, 0.04);
+        }
 
         /* ═══════ SCREEN: PROFILE ═══════ */
-        #screen-profile { padding-bottom: 20px; }
+        #screen-profile {
+            padding-bottom: 20px;
+        }
+
         .profile-header {
-            display: flex; flex-direction: column; align-items: center; padding: 24px 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 24px 16px;
         }
+
         .profile-avatar {
-            width: 72px; height: 72px; border-radius: 50%;
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
             background: linear-gradient(135deg, #6366f1, #8b5cf6);
-            display: flex; align-items: center; justify-content: center;
-            font-weight: 900; font-size: 28px; color: #fff; margin-bottom: 12px;
-            border: 3px solid rgba(255,255,255,0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 28px;
+            color: #fff;
+            margin-bottom: 12px;
+            border: 3px solid rgba(255, 255, 255, 0.15);
         }
-        .profile-name { font-weight: 900; font-size: 20px; margin-bottom: 4px; }
-        .profile-id { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+
+        .profile-name {
+            font-weight: 900;
+            font-size: 20px;
+            margin-bottom: 4px;
+        }
+
+        .profile-id {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
         .settings-group {
-            margin: 0 16px 16px; background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: var(--radius-lg); overflow: hidden;
+            margin: 0 16px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
         }
+
         .settings-row {
-            display: flex; align-items: center; gap: 12px; padding: 14px 16px;
-            border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: background 0.15s;
         }
-        .settings-row:last-child { border-bottom: none; }
-        .settings-row:active { background: rgba(255,255,255,0.03); }
+
+        .settings-row:last-child {
+            border-bottom: none;
+        }
+
+        .settings-row:active {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
         .settings-icon {
-            width: 36px; height: 36px; border-radius: var(--radius-sm);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 18px; background: rgba(255,255,255,0.04);
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            background: rgba(255, 255, 255, 0.04);
         }
-        .settings-label { flex: 1; font-weight: 600; font-size: 14px; }
-        .settings-value { font-size: 13px; color: var(--text-muted); font-weight: 600; }
-        .settings-arrow { color: var(--text-muted); font-size: 14px; }
+
+        .settings-label {
+            flex: 1;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .settings-value {
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .settings-arrow {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
         .toggle {
-            width: 44px; height: 24px; border-radius: 12px;
-            background: rgba(255,255,255,0.1); position: relative; cursor: pointer; transition: background 0.2s;
+            width: 44px;
+            height: 24px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            position: relative;
+            cursor: pointer;
+            transition: background 0.2s;
         }
-        .toggle.on { background: var(--accent); }
+
+        .toggle.on {
+            background: var(--accent);
+        }
+
         .toggle::after {
-            content: ''; position: absolute; width: 20px; height: 20px; border-radius: 50%;
-            background: #fff; top: 2px; left: 2px; transition: transform 0.2s;
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #fff;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.2s;
         }
-        .toggle.on::after { transform: translateX(20px); }
+
+        .toggle.on::after {
+            transform: translateX(20px);
+        }
 
         /* ═══════ CHAT ═══════ */
-        .chat-container { display: flex; flex-direction: column; height: 100%; }
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
         .chat-feed {
-            flex: 1; overflow-y: auto; padding: 12px 16px;
-            display: flex; flex-direction: column; gap: 8px;
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
         }
-        .chat-msg { max-width: 80%; animation: msg-in 0.2s ease; }
-        @keyframes msg-in { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
-        .chat-msg.mine { align-self: flex-end; }
-        .chat-msg.theirs { align-self: flex-start; }
+
+        .chat-msg {
+            max-width: 80%;
+            animation: msg-in 0.2s ease;
+        }
+
+        @keyframes msg-in {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .chat-msg.mine {
+            align-self: flex-end;
+        }
+
+        .chat-msg.theirs {
+            align-self: flex-start;
+        }
+
         .chat-bubble {
-            padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.45;
+            padding: 10px 14px;
+            border-radius: 16px;
+            font-size: 14px;
+            line-height: 1.45;
         }
+
         .chat-msg.mine .chat-bubble {
-            background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: #fff;
             border-bottom-right-radius: 4px;
         }
+
         .chat-msg.theirs .chat-bubble {
-            background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--border);
             border-bottom-left-radius: 4px;
         }
-        .chat-meta { font-size: 10px; color: var(--text-muted); margin-bottom: 2px; padding: 0 4px; }
-        .chat-msg.mine .chat-meta { text-align: right; }
+
+        .chat-meta {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-bottom: 2px;
+            padding: 0 4px;
+        }
+
+        .chat-msg.mine .chat-meta {
+            text-align: right;
+        }
+
         .chat-input-bar {
-            display: flex; gap: 8px; padding: 8px 16px;
-            padding-bottom: max(8px, var(--safe-bottom)); border-top: 1px solid var(--border);
+            display: flex;
+            gap: 8px;
+            padding: 8px 16px;
+            padding-bottom: max(8px, var(--safe-bottom));
+            border-top: 1px solid var(--border);
             background: var(--bg-glass);
         }
+
         .chat-input {
-            flex: 1; padding: 10px 16px; border-radius: 20px;
-            background: rgba(255,255,255,0.06); border: 1px solid var(--border);
-            color: var(--text); font-family: inherit; font-size: 14px; outline: none;
+            flex: 1;
+            padding: 10px 16px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-family: inherit;
+            font-size: 14px;
+            outline: none;
         }
+
         .chat-send {
-            width: 40px; height: 40px; border-radius: 50%; background: var(--accent);
-            border: none; display: flex; align-items: center; justify-content: center;
-            cursor: pointer; color: #000; font-size: 18px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--accent);
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #000;
+            font-size: 18px;
         }
 
         /* ═══════ TOAST ═══════ */
         .toast {
-            position: fixed; top: calc(var(--safe-top) + 12px); left: 50%;
-            transform: translateX(-50%) translateY(-120%); max-width: 420px;
-            width: calc(100% - 32px); padding: 12px 20px; border-radius: var(--radius-md);
-            background: var(--bg-elevated); border: 1px solid var(--border);
-            font-size: 13px; font-weight: 700; z-index: 10000; opacity: 0;
+            position: fixed;
+            top: calc(var(--safe-top) + 12px);
+            left: 50%;
+            transform: translateX(-50%) translateY(-120%);
+            max-width: 420px;
+            width: calc(100% - 32px);
+            padding: 12px 20px;
+            border-radius: var(--radius-md);
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            font-size: 13px;
+            font-weight: 700;
+            z-index: 10000;
+            opacity: 0;
             transition: all 0.35s cubic-bezier(0.32, 0.72, 0, 1);
-            box-shadow: 0 8px 32px rgba(0,0,0,0.4); text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            text-align: center;
         }
-        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-        .toast.error { border-color: rgba(248,113,113,0.3); color: var(--red); }
-        .toast.success { border-color: rgba(52,211,153,0.3); color: var(--green); }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .toast.error {
+            border-color: rgba(248, 113, 113, 0.3);
+            color: var(--red);
+        }
+
+        .toast.success {
+            border-color: rgba(52, 211, 153, 0.3);
+            color: var(--green);
+        }
 
         /* ═══════ ANIMATIONS ═══════ */
-        @keyframes fade-up { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-in { animation: fade-up 0.35s ease; }
-        @keyframes pulse-dot { 0%,100%{opacity:0.4;transform:scale(0.8)} 50%{opacity:1;transform:scale(1.2)} }
-        .pulse-dot { width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse-dot 1.5s infinite;display:inline-block; }
+        @keyframes fade-up {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-in {
+            animation: fade-up 0.35s ease;
+        }
+
+        @keyframes pulse-dot {
+
+            0%,
+            100% {
+                opacity: 0.4;
+                transform: scale(0.8)
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1.2)
+            }
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent);
+            animation: pulse-dot 1.5s infinite;
+            display: inline-block;
+        }
 
         /* ═══════ LEAFLET CUSTOM ═══════ */
         .leaflet-popup-content-wrapper {
-            background: var(--bg-elevated) !important; border: 1px solid var(--border) !important;
-            border-radius: var(--radius-md) !important; color: var(--text) !important;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+            background: var(--bg-elevated) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: var(--radius-md) !important;
+            color: var(--text) !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
         }
-        .leaflet-popup-tip { background: var(--bg-elevated) !important; border: 1px solid var(--border) !important; }
-        .leaflet-popup-content { margin: 8px 12px !important; }
+
+        .leaflet-popup-tip {
+            background: var(--bg-elevated) !important;
+            border: 1px solid var(--border) !important;
+        }
+
+        .leaflet-popup-content {
+            margin: 8px 12px !important;
+        }
     </style>
 </head>
+
 <body>
 
-<div id="app">
-    <!-- HEADER -->
-    <div class="header">
-        <div class="header-title"><span class="accent">Way</span>Tandem</div>
-        <div class="header-right">
-            <div class="role-pill none" id="role-pill" onclick="openRoleSelector()"></div>
-            <div class="avatar-btn" id="avatar-btn" onclick="switchScreen('profile')"></div>
+    <div id="app">
+        <!-- HEADER -->
+        <div class="header">
+            <div class="header-title"><span class="accent">Way</span>Tandem</div>
+            <div class="header-right">
+                <div class="role-pill none" id="role-pill" onclick="openRoleSelector()"></div>
+                <div class="avatar-btn" id="avatar-btn" onclick="switchScreen('profile')"></div>
+            </div>
+        </div>
+
+        <!-- MAIN SCREENS -->
+        <div class="main">
+            <!-- EXPLORE (Map + Crews) -->
+            <div class="screen active" id="screen-explore">
+                <div class="news-strip" id="news-strip"></div>
+                <div id="map-container">
+                    <div id="map"></div>
+                    <div class="map-overlay-cards" id="map-overlay-cards"></div>
+                </div>
+            </div>
+
+            <!-- BOARD (Directions) -->
+            <div class="screen" id="screen-board">
+                <input class="board-search" id="board-search" placeholder="🔍 Пошук напрямку..."
+                    oninput="filterBoard(this.value)">
+                <div id="board-list"></div>
+            </div>
+
+            <!-- TRIPS (Active + Handshakes) -->
+            <div class="screen" id="screen-trips">
+                <div id="trips-content"></div>
+            </div>
+
+            <!-- PROFILE -->
+            <div class="screen" id="screen-profile">
+                <div class="profile-header">
+                    <div class="profile-avatar" id="profile-avatar">?</div>
+                    <div class="profile-name" id="profile-name">Користувач</div>
+                    <div class="profile-id" id="profile-id">ID: —</div>
+                </div>
+                <div class="settings-group">
+                    <div class="settings-row" onclick="openRoleSelector()">
+                        <div class="settings-icon">👤</div>
+                        <div class="settings-label">Роль</div>
+                        <div class="settings-value" id="settings-role">Не обрано</div>
+                        <div class="settings-arrow">›</div>
+                    </div>
+                    <div class="settings-row" onclick="openCarSettings()">
+                        <div class="settings-icon">🚗</div>
+                        <div class="settings-label">Авто</div>
+                        <div class="settings-value" id="settings-car">—</div>
+                        <div class="settings-arrow">›</div>
+                    </div>
+                    <div class="settings-row" onclick="openSeatsSettings()">
+                        <div class="settings-icon">💺</div>
+                        <div class="settings-label">Місць</div>
+                        <div class="settings-value" id="settings-seats">4</div>
+                        <div class="settings-arrow">›</div>
+                    </div>
+                </div>
+                <div class="settings-group">
+                    <div class="settings-row" onclick="openLangSelector()">
+                        <div class="settings-icon">🌐</div>
+                        <div class="settings-label">Мова</div>
+                        <div class="settings-value" id="settings-lang">Українська</div>
+                        <div class="settings-arrow">›</div>
+                    </div>
+                    <div class="settings-row">
+                        <div class="settings-icon">🔔</div>
+                        <div class="settings-label">Сповіщення</div>
+                        <div class="toggle on" id="toggle-notifications" onclick="this.classList.toggle('on')"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BOTTOM NAV -->
+        <nav class="nav">
+            <div class="nav-item active" data-tab="explore" onclick="switchScreen('explore')">
+                <svg viewBox="0 0 24 24">
+                    <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
+                    <line x1="8" y1="2" x2="8" y2="18" />
+                    <line x1="16" y1="6" x2="16" y2="22" />
+                </svg>
+                <span>Мапа</span>
+            </div>
+            <div class="nav-item" data-tab="board" onclick="switchScreen('board')">
+                <svg viewBox="0 0 24 24">
+                    <rect x="3" y="3" width="7" height="7" rx="1" />
+                    <rect x="14" y="3" width="7" height="7" rx="1" />
+                    <rect x="3" y="14" width="7" height="7" rx="1" />
+                    <rect x="14" y="14" width="7" height="7" rx="1" />
+                </svg>
+                <span>Каталог</span>
+            </div>
+            <div class="nav-item" data-tab="trips" onclick="switchScreen('trips')" id="nav-trips">
+                <svg viewBox="0 0 24 24">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="16" y1="13" x2="8" y2="13" />
+                    <line x1="16" y1="17" x2="8" y2="17" />
+                </svg>
+                <span>Поїздки</span>
+                <div class="nav-badge" id="nav-trips-badge" style="display:none;">0</div>
+            </div>
+            <div class="nav-item" data-tab="profile" onclick="switchScreen('profile')">
+                <svg viewBox="0 0 24 24">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                </svg>
+                <span>Профіль</span>
+            </div>
+        </nav>
+    </div>
+
+    <!-- BOTTOM SHEET -->
+    <div class="sheet-backdrop" id="sheet-backdrop" onclick="closeSheet()"></div>
+    <div class="sheet" id="sheet">
+        <div class="sheet-card">
+            <div class="sheet-handle" id="sheet-handle">
+                <div class="sheet-handle-bar"></div>
+            </div>
+            <div class="sheet-body" id="sheet-body"></div>
         </div>
     </div>
 
-    <!-- MAIN SCREENS -->
-    <div class="main">
-        <!-- EXPLORE (Map + Crews) -->
-        <div class="screen active" id="screen-explore">
-            <div class="news-strip" id="news-strip"></div>
-            <div id="map-container">
-                <div id="map"></div>
-                <div class="map-overlay-cards" id="map-overlay-cards"></div>
-            </div>
-        </div>
-
-        <!-- BOARD (Directions) -->
-        <div class="screen" id="screen-board">
-            <input class="board-search" id="board-search" placeholder="🔍 Пошук напрямку..." oninput="filterBoard(this.value)">
-            <div id="board-list"></div>
-        </div>
-
-        <!-- TRIPS (Active + Handshakes) -->
-        <div class="screen" id="screen-trips">
-            <div id="trips-content"></div>
-        </div>
-
-        <!-- PROFILE -->
-        <div class="screen" id="screen-profile">
-            <div class="profile-header">
-                <div class="profile-avatar" id="profile-avatar">?</div>
-                <div class="profile-name" id="profile-name">Користувач</div>
-                <div class="profile-id" id="profile-id">ID: —</div>
-            </div>
-            <div class="settings-group">
-                <div class="settings-row" onclick="openRoleSelector()">
-                    <div class="settings-icon">👤</div>
-                    <div class="settings-label">Роль</div>
-                    <div class="settings-value" id="settings-role">Не обрано</div>
-                    <div class="settings-arrow">›</div>
+    <!-- CHAT OVERLAY -->
+    <div class="sheet-backdrop" id="chat-backdrop" onclick="closeChat()" style="z-index:8999;"></div>
+    <div class="sheet" id="chat-sheet" style="z-index:9000; top:0; bottom:0; transform:translateY(100%);">
+        <div class="sheet-card" style="margin:0; height:100%; border-radius:0; display:flex; flex-direction:column;">
+            <div class="chat-container">
+                <div
+                    style="display:flex; align-items:center; gap:12px; padding:14px 16px; border-bottom:1px solid var(--border);">
+                    <div style="cursor:pointer; font-size:20px;" onclick="closeChat()">←</div>
+                    <div style="flex:1;">
+                        <div style="font-weight:800; font-size:15px;" id="chat-title">Чат</div>
+                        <div style="font-size:11px; color:var(--text-muted);" id="chat-subtitle"></div>
+                    </div>
                 </div>
-                <div class="settings-row" onclick="openCarSettings()">
-                    <div class="settings-icon">🚗</div>
-                    <div class="settings-label">Авто</div>
-                    <div class="settings-value" id="settings-car">—</div>
-                    <div class="settings-arrow">›</div>
-                </div>
-                <div class="settings-row" onclick="openSeatsSettings()">
-                    <div class="settings-icon">💺</div>
-                    <div class="settings-label">Місць</div>
-                    <div class="settings-value" id="settings-seats">4</div>
-                    <div class="settings-arrow">›</div>
-                </div>
-            </div>
-            <div class="settings-group">
-                <div class="settings-row" onclick="openApiSettings()">
-                    <div class="settings-icon">🔗</div>
-                    <div class="settings-label">API Сервер</div>
-                    <div class="settings-value" id="settings-api">Не вказано</div>
-                    <div class="settings-arrow">›</div>
-                </div>
-                <div class="settings-row" onclick="openLangSelector()">
-                    <div class="settings-icon">🌐</div>
-                    <div class="settings-label">Мова</div>
-                    <div class="settings-value" id="settings-lang">Українська</div>
-                    <div class="settings-arrow">›</div>
-                </div>
-                <div class="settings-row">
-                    <div class="settings-icon">🔔</div>
-                    <div class="settings-label">Сповіщення</div>
-                    <div class="toggle on" id="toggle-notifications" onclick="this.classList.toggle('on')"></div>
+                <div class="chat-feed" id="chat-feed"></div>
+                <div class="chat-input-bar">
+                    <input class="chat-input" id="chat-input" placeholder="Написати..."
+                        onkeydown="if(event.key==='Enter')sendChat()">
+                    <button class="chat-send" onclick="sendChat()">➤</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- BOTTOM NAV -->
-    <nav class="nav">
-        <div class="nav-item active" data-tab="explore" onclick="switchScreen('explore')">
-            <svg viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
-            <span>Мапа</span>
-        </div>
-        <div class="nav-item" data-tab="board" onclick="switchScreen('board')">
-            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-            <span>Каталог</span>
-        </div>
-        <div class="nav-item" data-tab="trips" onclick="switchScreen('trips')" id="nav-trips">
-            <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-            <span>Поїздки</span>
-            <div class="nav-badge" id="nav-trips-badge" style="display:none;">0</div>
-        </div>
-        <div class="nav-item" data-tab="profile" onclick="switchScreen('profile')">
-            <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            <span>Профіль</span>
-        </div>
-    </nav>
-</div>
+    <!-- TOAST -->
+    <div class="toast" id="toast"></div>
 
-<!-- BOTTOM SHEET -->
-<div class="sheet-backdrop" id="sheet-backdrop" onclick="closeSheet()"></div>
-<div class="sheet" id="sheet">
-    <div class="sheet-card">
-        <div class="sheet-handle" id="sheet-handle"><div class="sheet-handle-bar"></div></div>
-        <div class="sheet-body" id="sheet-body"></div>
-    </div>
-</div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        /* ══════════════════════════════════════════════════════════════════
+           WAYTANDEM v3.0 — "Compass" Engine
+           Philosophy: Every screen tells you WHERE you are, WHAT to do next.
+           ══════════════════════════════════════════════════════════════════ */
 
-<!-- CHAT OVERLAY -->
-<div class="sheet-backdrop" id="chat-backdrop" onclick="closeChat()" style="z-index:8999;"></div>
-<div class="sheet" id="chat-sheet" style="z-index:9000; top:0; bottom:0; transform:translateY(100%);">
-    <div class="sheet-card" style="margin:0; height:100%; border-radius:0; display:flex; flex-direction:column;">
-        <div class="chat-container">
-            <div style="display:flex; align-items:center; gap:12px; padding:14px 16px; border-bottom:1px solid var(--border);">
-                <div style="cursor:pointer; font-size:20px;" onclick="closeChat()">←</div>
-                <div style="flex:1;">
-                    <div style="font-weight:800; font-size:15px;" id="chat-title">Чат</div>
-                    <div style="font-size:11px; color:var(--text-muted);" id="chat-subtitle"></div>
-                </div>
-            </div>
-            <div class="chat-feed" id="chat-feed"></div>
-            <div class="chat-input-bar">
-                <input class="chat-input" id="chat-input" placeholder="Написати..." onkeydown="if(event.key==='Enter')sendChat()">
-                <button class="chat-send" onclick="sendChat()">➤</button>
-            </div>
-        </div>
-    </div>
-</div>
+        const S = {
+            userId: 0, userName: '', userRole: '', car: '', seats: 4, lang: 'uk',
+            apiBase: localStorage.getItem('wt_api') || '',
+            activeTrip: null, pendingMatches: [], directions: [], news: [],
+            map: null, mapMarkers: [], currentScreen: 'explore',
+            chatRequestId: null, chatPartnerId: null, busy: false,
+        };
 
-<!-- TOAST -->
-<div class="toast" id="toast"></div>
+        document.addEventListener('DOMContentLoaded', async () => {
+            resolveUser();
+            initRolePill();
+            initMap();
+            await hydrate();
+            startPolling();
+        });
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script>
-/* ══════════════════════════════════════════════════════════════════
-   WAYTANDEM v3.0 — "Compass" Engine
-   Philosophy: Every screen tells you WHERE you are, WHAT to do next.
-   ══════════════════════════════════════════════════════════════════ */
+        // ─── USER RESOLUTION ───
+        function resolveUser() {
+            const tg = window.Telegram?.WebApp;
+            if (tg?.initDataUnsafe?.user?.id) {
+                S.userId = tg.initDataUnsafe.user.id;
+                S.userName = tg.initDataUnsafe.user.first_name || '';
+                tg.ready(); tg.expand();
+            } else {
+                const qp = new URLSearchParams(location.search);
+                S.userId = parseInt(qp.get('user_id') || '0');
+                S.userName = qp.get('name') || '';
+            }
+            document.getElementById('profile-avatar').textContent = (S.userName || '?')[0].toUpperCase();
+            document.getElementById('profile-name').textContent = S.userName || 'Користувач';
+            document.getElementById('profile-id').textContent = `ID: ${S.userId || '—'}`;
+            document.getElementById('avatar-btn').textContent = (S.userName || '?')[0].toUpperCase();
+            try {
+                const saved = JSON.parse(localStorage.getItem('wt_profile_' + S.userId) || '{}');
+                if (saved.role) S.userRole = saved.role;
+                if (saved.car) S.car = saved.car;
+                if (saved.seats) S.seats = saved.seats;
+                if (saved.lang) S.lang = saved.lang;
+            } catch (_) { }
+            updateRolePill();
+        }
 
-const S = {
-    userId: 0, userName: '', userRole: '', car: '', seats: 4, lang: 'uk',
-    apiBase: (new URLSearchParams(location.search)).get('api') || localStorage.getItem('wt_api') || '',
-    activeTrip: null, pendingMatches: [], directions: [], news: [],
-    map: null, mapMarkers: [], currentScreen: 'explore',
-    chatRequestId: null, chatPartnerId: null, busy: false,
-};
+        function saveProfile() {
+            localStorage.setItem('wt_profile_' + S.userId, JSON.stringify({
+                role: S.userRole, car: S.car, seats: S.seats, lang: S.lang
+            }));
+        }
 
-document.addEventListener('DOMContentLoaded', async () => {
-    resolveUser();
-    initRolePill();
-    initMap();
-    await hydrate();
-    startPolling();
-});
+        // ─── API ───
+        async function api(path, opts = {}) {
+            if (!S.apiBase) return null;
+            const headers = { 'Content-Type': 'application/json' };
+            const initData = window.Telegram?.WebApp?.initData || '';
+            if (initData) headers['Authorization'] = 'tma ' + initData;
+            try {
+                const r = await fetch(S.apiBase + path, { ...opts, headers: { ...headers, ...opts.headers } });
+                if (!r.ok) return null;
+                return await r.json();
+            } catch (e) { console.warn('API err:', path, e); return null; }
+        }
 
-// ─── USER RESOLUTION ───
-function resolveUser() {
-    const tg = window.Telegram?.WebApp;
-    const qp = new URLSearchParams(location.search);
-    const urlApi = qp.get('api');
-    if (urlApi) {
-        S.apiBase = urlApi.replace(/\/$/, "");
-        localStorage.setItem('wt_api', S.apiBase);
-    }
-    document.getElementById('settings-api').textContent = S.apiBase ? (S.apiBase.split('//')[1]?.substring(0, 15) + '...') : 'Не вказано';
+        // ─── HYDRATE ───
+        async function hydrate() {
+            if (!S.apiBase || !S.userId) { renderNews(); renderBoard(); renderTrips(); return; }
+            const data = await api(`/api/v3/hydrate?user_id=${S.userId}`);
+            if (!data) return;
+            if (data.profile) { S.userRole = data.profile.role || S.userRole; S.userName = data.profile.name || S.userName; }
+            if (data.active_trip) S.activeTrip = data.active_trip;
+            if (data.pending) S.pendingMatches = data.pending;
+            updateRolePill(); updateBadges(); renderNews(); renderBoard(); renderTrips(); refreshMap();
+        }
 
-    if (tg?.initDataUnsafe?.user?.id) {
-        S.userId = tg.initDataUnsafe.user.id;
-        S.userName = tg.initDataUnsafe.user.first_name || '';
-        tg.ready(); tg.expand();
-    } else {
-        const qp = new URLSearchParams(location.search);
-        S.userId = parseInt(qp.get('user_id') || '0');
-        S.userName = qp.get('name') || '';
-    }
-    document.getElementById('profile-avatar').textContent = (S.userName || '?')[0].toUpperCase();
-    document.getElementById('profile-name').textContent = S.userName || 'Користувач';
-    document.getElementById('profile-id').textContent = `ID: ${S.userId || '—'}`;
-    document.getElementById('avatar-btn').textContent = (S.userName || '?')[0].toUpperCase();
-    try {
-        const saved = JSON.parse(localStorage.getItem('wt_profile_' + S.userId) || '{}');
-        if (saved.role) S.userRole = saved.role;
-        if (saved.car) S.car = saved.car;
-        if (saved.seats) S.seats = saved.seats;
-        if (saved.lang) S.lang = saved.lang;
-    } catch(_) {}
-    updateRolePill();
-}
+        // ─── POLLING ───
+        function startPolling() {
+            setInterval(async () => {
+                if (!S.apiBase || !S.userId) return;
+                const trip = await api(`/api/v3/trip/active?user_id=${S.userId}`);
+                S.activeTrip = trip?.found ? trip : null;
+                const pend = await api(`/api/v3/match/pending?user_id=${S.userId}`);
+                S.pendingMatches = Array.isArray(pend?.matches) ? pend.matches : [];
+                updateBadges();
+                if (S.currentScreen === 'trips') renderTrips();
+            }, 8000);
+        }
 
-function saveProfile() {
-    localStorage.setItem('wt_profile_' + S.userId, JSON.stringify({
-        role: S.userRole, car: S.car, seats: S.seats, lang: S.lang
-    }));
-}
+        function updateBadges() {
+            const badge = document.getElementById('nav-trips-badge');
+            const count = S.pendingMatches.length;
+            if (count > 0) { badge.style.display = 'flex'; badge.textContent = count; }
+            else { badge.style.display = 'none'; }
+        }
 
-// ─── API ───
-async function api(path, opts = {}) {
-    if (!S.apiBase) return null;
-    const headers = { 'Content-Type': 'application/json' };
-    const initData = window.Telegram?.WebApp?.initData || '';
-    if (initData) headers['Authorization'] = 'tma ' + initData;
-    try {
-        const r = await fetch(S.apiBase + path, { ...opts, headers: { ...headers, ...opts.headers } });
-        if (!r.ok) return null;
-        return await r.json();
-    } catch (e) { console.warn('API err:', path, e); return null; }
-}
+        // ─── ROLE ───
+        function initRolePill() { updateRolePill(); }
 
-// ─── HYDRATE ───
-async function hydrate() {
-    if (!S.apiBase || !S.userId) { renderNews(); renderBoard(); renderTrips(); return; }
-    const data = await api(`/api/v3/hydrate?user_id=${S.userId}`);
-    if (!data) return;
-    if (data.profile) { S.userRole = data.profile.role || S.userRole; S.userName = data.profile.name || S.userName; }
-    if (data.active_trip) S.activeTrip = data.active_trip;
-    if (data.pending) S.pendingMatches = data.pending;
-    updateRolePill(); updateBadges(); renderNews(); renderBoard(); renderTrips(); refreshMap();
-}
+        function updateRolePill() {
+            const pill = document.getElementById('role-pill');
+            const sr = document.getElementById('settings-role');
+            if (S.userRole === 'driver') { pill.className = 'role-pill driver'; pill.textContent = '🚗 Водій'; sr.textContent = 'Водій'; }
+            else if (S.userRole === 'passenger') { pill.className = 'role-pill passenger'; pill.textContent = '👤 Попутник'; sr.textContent = 'Попутник'; }
+            else { pill.className = 'role-pill none'; pill.textContent = 'Обрати роль'; sr.textContent = 'Не обрано'; }
+            document.getElementById('settings-car').textContent = S.car || '—';
+            document.getElementById('settings-seats').textContent = S.seats;
+        }
 
-// ─── POLLING ───
-function startPolling() {
-    setInterval(async () => {
-        if (!S.apiBase || !S.userId) return;
-        const trip = await api(`/api/v3/trip/active?user_id=${S.userId}`);
-        S.activeTrip = trip?.found ? trip : null;
-        const pend = await api(`/api/v3/match/pending?user_id=${S.userId}`);
-        S.pendingMatches = Array.isArray(pend?.matches) ? pend.matches : [];
-        updateBadges();
-        if (S.currentScreen === 'trips') renderTrips();
-    }, 8000);
-}
-
-function updateBadges() {
-    const badge = document.getElementById('nav-trips-badge');
-    const count = S.pendingMatches.length;
-    if (count > 0) { badge.style.display = 'flex'; badge.textContent = count; }
-    else { badge.style.display = 'none'; }
-}
-
-// ─── ROLE ───
-function initRolePill() { updateRolePill(); }
-
-function updateRolePill() {
-    const pill = document.getElementById('role-pill');
-    const sr = document.getElementById('settings-role');
-    if (S.userRole === 'driver') { pill.className = 'role-pill driver'; pill.textContent = '🚗 Водій'; sr.textContent = 'Водій'; }
-    else if (S.userRole === 'passenger') { pill.className = 'role-pill passenger'; pill.textContent = '👤 Попутник'; sr.textContent = 'Попутник'; }
-    else { pill.className = 'role-pill none'; pill.textContent = 'Обрати роль'; sr.textContent = 'Не обрано'; }
-    document.getElementById('settings-car').textContent = S.car || '—';
-    document.getElementById('settings-seats').textContent = S.seats;
-}
-
-function openRoleSelector() {
-    openSheet(`
+        function openRoleSelector() {
+            openSheet(`
         <div class="sheet-title">Оберіть роль</div>
         <div class="sheet-sub">Водій має авто та місця. Попутник шукає поїздку.</div>
         <div class="sheet-actions">
@@ -658,58 +1390,58 @@ function openRoleSelector() {
             <button class="btn btn-ghost" onclick="closeSheet()">Скасувати</button>
         </div>
     `);
-}
+        }
 
-async function setRole(role) {
-    S.userRole = role; saveProfile(); updateRolePill(); closeSheet();
-    if (S.apiBase) await api('/api/v3/user/role', { method: 'POST', body: JSON.stringify({ user_id: S.userId, role }) });
-    showToast(role === 'driver' ? '🚗 Ви водій!' : '👤 Ви попутник!', 'success');
-    if (S.currentScreen === 'explore') refreshMap();
-}
+        async function setRole(role) {
+            S.userRole = role; saveProfile(); updateRolePill(); closeSheet();
+            if (S.apiBase) await api('/api/v3/user/role', { method: 'POST', body: JSON.stringify({ user_id: S.userId, role }) });
+            showToast(role === 'driver' ? '🚗 Ви водій!' : '👤 Ви попутник!', 'success');
+            if (S.currentScreen === 'explore') refreshMap();
+        }
 
-// ─── NAVIGATION ───
-function switchScreen(name) {
-    S.currentScreen = name;
-    document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
-    document.getElementById('screen-' + name).classList.add('active');
-    document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.tab === name));
-    if (name === 'explore') refreshMap();
-    if (name === 'board') renderBoard();
-    if (name === 'trips') renderTrips();
-}
+        // ─── NAVIGATION ───
+        function switchScreen(name) {
+            S.currentScreen = name;
+            document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+            document.getElementById('screen-' + name).classList.add('active');
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.tab === name));
+            if (name === 'explore') refreshMap();
+            if (name === 'board') renderBoard();
+            if (name === 'trips') renderTrips();
+        }
 
-// ─── MAP ───
-function initMap() {
-    S.map = L.map('map', { zoomControl: false, attributionControl: false }).setView([50.45, 30.52], 11);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(S.map);
-    const locBtn = document.createElement('div');
-    locBtn.style.cssText = 'position:absolute;bottom:120px;right:16px;z-index:500;width:44px;height:44px;border-radius:50%;background:var(--bg-card);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:20px;backdrop-filter:blur(10px);';
-    locBtn.textContent = '📍';
-    locBtn.onclick = () => { if (navigator.geolocation) navigator.geolocation.getCurrentPosition(p => S.map.flyTo([p.coords.latitude, p.coords.longitude], 14, { duration: 1 })); };
-    document.getElementById('map-container').appendChild(locBtn);
-}
+        // ─── MAP ───
+        function initMap() {
+            S.map = L.map('map', { zoomControl: false, attributionControl: false }).setView([50.45, 30.52], 11);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(S.map);
+            const locBtn = document.createElement('div');
+            locBtn.style.cssText = 'position:absolute;bottom:120px;right:16px;z-index:500;width:44px;height:44px;border-radius:50%;background:var(--bg-card);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:20px;backdrop-filter:blur(10px);';
+            locBtn.textContent = '📍';
+            locBtn.onclick = () => { if (navigator.geolocation) navigator.geolocation.getCurrentPosition(p => S.map.flyTo([p.coords.latitude, p.coords.longitude], 14, { duration: 1 })); };
+            document.getElementById('map-container').appendChild(locBtn);
+        }
 
-async function refreshMap() {
-    if (!S.apiBase) return;
-    const crews = await api('/api/v3/map/crews');
-    if (!crews) return;
-    S.mapMarkers.forEach(m => S.map.removeLayer(m));
-    S.mapMarkers = [];
-    crews.forEach(c => {
-        if (!c.lat || !c.lng) return;
-        const marker = L.marker([c.lat, c.lng], {
-            icon: L.divIcon({ className: '', html: `<div style="width:32px;height:32px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 12px var(--accent-glow);border:2px solid rgba(0,0,0,0.3);">🚗</div>`, iconSize: [32, 32], iconAnchor: [16, 16] })
-        }).addTo(S.map);
-        marker.bindPopup(`<div style="text-align:center;min-width:140px;"><div style="font-weight:800;font-size:14px;margin-bottom:4px;">${c.driver_name || c.organizer_name || 'Екіпаж'}</div><div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">${c.direction_title || ''}</div>${S.userId && String(S.userId) !== String(c.organizer_id) ? `<button onclick="requestJoin(${c.organizer_id}, '${c.direction_id}')" style="width:100%;padding:8px;border-radius:10px;background:rgba(163,230,53,0.15);color:#a3e635;border:1px solid rgba(163,230,53,0.3);font-weight:700;font-size:12px;cursor:pointer;">✓ Запит</button>` : ''}</div>`);
-        S.mapMarkers.push(marker);
-    });
-    renderMapOverlay(crews.slice(0, 3));
-}
+        async function refreshMap() {
+            if (!S.apiBase) return;
+            const crews = await api('/api/v3/map/crews');
+            if (!crews) return;
+            S.mapMarkers.forEach(m => S.map.removeLayer(m));
+            S.mapMarkers = [];
+            crews.forEach(c => {
+                if (!c.lat || !c.lng) return;
+                const marker = L.marker([c.lat, c.lng], {
+                    icon: L.divIcon({ className: '', html: `<div style="width:32px;height:32px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 12px var(--accent-glow);border:2px solid rgba(0,0,0,0.3);">🚗</div>`, iconSize: [32, 32], iconAnchor: [16, 16] })
+                }).addTo(S.map);
+                marker.bindPopup(`<div style="text-align:center;min-width:140px;"><div style="font-weight:800;font-size:14px;margin-bottom:4px;">${c.driver_name || c.organizer_name || 'Екіпаж'}</div><div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">${c.direction_title || ''}</div>${S.userId && String(S.userId) !== String(c.organizer_id) ? `<button onclick="requestJoin(${c.organizer_id}, '${c.direction_id}')" style="width:100%;padding:8px;border-radius:10px;background:rgba(163,230,53,0.15);color:#a3e635;border:1px solid rgba(163,230,53,0.3);font-weight:700;font-size:12px;cursor:pointer;">✓ Запит</button>` : ''}</div>`);
+                S.mapMarkers.push(marker);
+            });
+            renderMapOverlay(crews.slice(0, 3));
+        }
 
-function renderMapOverlay(crews) {
-    const c = document.getElementById('map-overlay-cards');
-    if (!crews.length) { c.innerHTML = ''; return; }
-    c.innerHTML = crews.map(cr => `
+        function renderMapOverlay(crews) {
+            const c = document.getElementById('map-overlay-cards');
+            if (!crews.length) { c.innerHTML = ''; return; }
+            c.innerHTML = crews.map(cr => `
         <div class="crew-mini-card" onclick="requestJoin(${cr.organizer_id}, '${cr.direction_id}')">
             <div class="crew-mini-avatar">${(cr.driver_name || '?')[0].toUpperCase()}</div>
             <div class="crew-mini-info">
@@ -719,53 +1451,53 @@ function renderMapOverlay(crews) {
             <div class="crew-mini-seats">${cr.passengers || 0} пас.</div>
         </div>
     `).join('');
-}
+        }
 
-async function requestJoin(orgId, dirId) {
-    if (S.busy) return; S.busy = true;
-    try {
-        const res = await api('/api/v3/match/invite', { method: 'POST', body: JSON.stringify({ user_id: S.userId, target_id: orgId, direction_id: dirId }) });
-        if (res?.status === 'ok') {
-            if (res.mutual) { showToast('✓ Екіпаж створено!', 'success'); await hydrate(); }
-            else { showToast('Запит надіслано', 'success'); await hydrate(); }
-        } else { showToast('Помилка запиту', 'error'); }
-    } finally { S.busy = false; }
-}
+        async function requestJoin(orgId, dirId) {
+            if (S.busy) return; S.busy = true;
+            try {
+                const res = await api('/api/v3/match/invite', { method: 'POST', body: JSON.stringify({ user_id: S.userId, target_id: orgId, direction_id: dirId }) });
+                if (res?.status === 'ok') {
+                    if (res.mutual) { showToast('✓ Екіпаж створено!', 'success'); await hydrate(); }
+                    else { showToast('Запит надіслано', 'success'); await hydrate(); }
+                } else { showToast('Помилка запиту', 'error'); }
+            } finally { S.busy = false; }
+        }
 
-// ─── NEWS ───
-function renderNews() {
-    const strip = document.getElementById('news-strip');
-    strip.innerHTML = `<div class="news-chip" onclick="switchScreen('board')">🧭 Нові напрямки</div><div class="news-chip" onclick="switchScreen('trips')">📋 Мої поїздки</div>`;
-    if (S.apiBase) {
-        api('/api/v3/news?limit=5').then(data => {
-            const items = data?.news || [];
-            if (items.length) strip.innerHTML = items.slice(0, 4).map(n => `<div class="news-chip">${n.text || ''}</div>`).join('') + strip.innerHTML;
-        });
-    }
-}
+        // ─── NEWS ───
+        function renderNews() {
+            const strip = document.getElementById('news-strip');
+            strip.innerHTML = `<div class="news-chip" onclick="switchScreen('board')">🧭 Нові напрямки</div><div class="news-chip" onclick="switchScreen('trips')">📋 Мої поїздки</div>`;
+            if (S.apiBase) {
+                api('/api/v3/news?limit=5').then(data => {
+                    const items = data?.news || [];
+                    if (items.length) strip.innerHTML = items.slice(0, 4).map(n => `<div class="news-chip">${n.text || ''}</div>`).join('') + strip.innerHTML;
+                });
+            }
+        }
 
-// ─── BOARD ───
-let allDirections = [];
+        // ─── BOARD ───
+        let allDirections = [];
 
-async function renderBoard() {
-    const list = document.getElementById('board-list');
-    list.innerHTML = '<div class="skeleton" style="height:60px;margin:12px 16px;"></div>'.repeat(3);
-    if (!S.apiBase) { list.innerHTML = '<div class="empty"><div class="empty-icon">🧭</div><div class="empty-title">Підключіть API</div><div class="empty-sub">Вкажіть адресу сервера в налаштуваннях</div></div>'; return; }
-    const data = await api(`/api/v3/board?lang=${S.lang}`);
-    allDirections = data?.directions || [];
-    const subs = await api(`/api/v3/user/subscriptions?user_id=${S.userId}`);
-    const subSet = new Set((subs?.subscriptions || []).map(s => String(s.direction_id)));
-    renderBoardList(allDirections, subSet);
-}
+        async function renderBoard() {
+            const list = document.getElementById('board-list');
+            list.innerHTML = '<div class="skeleton" style="height:60px;margin:12px 16px;"></div>'.repeat(3);
+            if (!S.apiBase) { list.innerHTML = '<div class="empty"><div class="empty-icon">🧭</div><div class="empty-title">Підключіть API</div><div class="empty-sub">Вкажіть адресу сервера в налаштуваннях</div></div>'; return; }
+            const data = await api(`/api/v3/board?lang=${S.lang}`);
+            allDirections = data?.directions || [];
+            const subs = await api(`/api/v3/user/subscriptions?user_id=${S.userId}`);
+            const subSet = new Set((subs?.subscriptions || []).map(s => String(s.direction_id)));
+            renderBoardList(allDirections, subSet);
+        }
 
-function renderBoardList(dirs, subSet) {
-    const list = document.getElementById('board-list');
-    if (!dirs.length) { list.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">Немає напрямків</div></div>'; return; }
-    list.innerHTML = dirs.map(d => {
-        const id = String(d.id); const isSub = subSet?.has(id);
-        const icon = d.kind === 'folder' ? '📁' : (d.kind === 'topic' ? '💬' : '🧭');
-        const total = (d.drivers || 0) + (d.passengers || 0);
-        return `<div class="dir-card ${isSub ? 'subscribed' : ''}" onclick="openDirection(${d.id})">
+        function renderBoardList(dirs, subSet) {
+            const list = document.getElementById('board-list');
+            if (!dirs.length) { list.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">Немає напрямків</div></div>'; return; }
+            list.innerHTML = dirs.map(d => {
+                const id = String(d.id); const isSub = subSet?.has(id);
+                const icon = d.kind === 'folder' ? '📁' : (d.kind === 'topic' ? '💬' : '🧭');
+                const total = (d.drivers || 0) + (d.passengers || 0);
+                return `<div class="dir-card ${isSub ? 'subscribed' : ''}" onclick="openDirection(${d.id})">
             <div class="dir-card-icon" style="background:${isSub ? 'var(--green-dim)' : 'rgba(255,255,255,0.04)'};">${icon}</div>
             <div class="dir-card-info">
                 <div class="dir-card-name">${d.title || 'Напрямок'}</div>
@@ -774,24 +1506,24 @@ function renderBoardList(dirs, subSet) {
             ${isSub ? '<span class="tag tag-green" style="font-size:10px;">Відстежується</span>' : ''}
             <div class="dir-card-arrow">›</div>
         </div>`;
-    }).join('');
-}
+            }).join('');
+        }
 
-function filterBoard(query) {
-    const q = query.toLowerCase().trim();
-    renderBoardList(q ? allDirections.filter(d => (d.title || '').toLowerCase().includes(q)) : allDirections);
-}
+        function filterBoard(query) {
+            const q = query.toLowerCase().trim();
+            renderBoardList(q ? allDirections.filter(d => (d.title || '').toLowerCase().includes(q)) : allDirections);
+        }
 
-async function openDirection(dirId) {
-    const dir = allDirections.find(d => String(d.id) === String(dirId));
-    if (!dir) return;
-    const data = await api(`/api/v3/fractal/organizers?direction_id=${dirId}&lang=${S.lang}&user_id=${S.userId || ''}`);
-    const orgs = data?.organizers || []; const isSub = data?.user_status?.subscribed;
-    openSheet(`
+        async function openDirection(dirId) {
+            const dir = allDirections.find(d => String(d.id) === String(dirId));
+            if (!dir) return;
+            const data = await api(`/api/v3/fractal/organizers?direction_id=${dirId}&lang=${S.lang}&user_id=${S.userId || ''}`);
+            const orgs = data?.organizers || []; const isSub = data?.user_status?.subscribed;
+            openSheet(`
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;">
             <div style="font-size:32px;">${dir.kind === 'folder' ? '📁' : '🧭'}</div>
             <div><div class="sheet-title" style="margin-bottom:0;">${dir.title || 'Напрямок'}</div>
-            <div style="font-size:12px;color:var(--text-secondary);font-weight:600;">${orgs.length} організаторів • ${(dir.drivers||0)+(dir.passengers||0)} учасників</div></div>
+            <div style="font-size:12px;color:var(--text-secondary);font-weight:600;">${orgs.length} організаторів • ${(dir.drivers || 0) + (dir.passengers || 0)} учасників</div></div>
         </div>
         <div style="margin:16px 0 12px;display:flex;gap:8px;">
             ${isSub ? `<button class="btn btn-danger" style="flex:1;" onclick="unsubscribeDir(${dirId})">🚫 Відписатись</button>` : `<button class="btn btn-primary" style="flex:1;" onclick="subscribeDir(${dirId})">✓ Підписатись</button>`}
@@ -799,226 +1531,212 @@ async function openDirection(dirId) {
         </div>
         ${orgs.length ? `<div style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--text-muted);letter-spacing:1px;margin:8px 0;">Організатори</div>
             ${orgs.slice(0, 5).map(o => `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">
-                <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#a78bfa,#6366f1);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;color:#fff;">${(o.name||'?')[0].toUpperCase()}</div>
+                <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#a78bfa,#6366f1);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;color:#fff;">${(o.name || '?')[0].toUpperCase()}</div>
                 <div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:13px;">${o.name || '?'}</div><div style="font-size:11px;color:var(--text-muted);">${o.car || ''} • ⭐ ${o.rating || 0}</div></div>
                 <div class="tag ${o.seats_free > 0 ? 'tag-accent' : 'tag-amber'}">${o.seats_free > 0 ? o.seats_free + ' місць' : 'Заповнено'}</div>
                 ${o.seats_free > 0 ? `<button class="btn btn-primary" style="padding:8px 12px;font-size:11px;min-height:36px;" onclick="requestJoin(${o.user_id}, ${dirId});closeSheet();">✓ Запит</button>` : ''}
             </div>`).join('')}` : '<div style="text-align:center;padding:20px;color:var(--text-muted);">Поки немає організаторів</div>'}
     `);
-}
+        }
 
-async function subscribeDir(dirId) {
-    await api('/api/v3/board/subscribe', { method: 'POST', body: JSON.stringify({ user_id: S.userId, direction_id: dirId, role: S.userRole || 'passenger' }) });
-    showToast('✓ Підписано!', 'success'); closeSheet(); renderBoard();
-}
+        async function subscribeDir(dirId) {
+            await api('/api/v3/board/subscribe', { method: 'POST', body: JSON.stringify({ user_id: S.userId, direction_id: dirId, role: S.userRole || 'passenger' }) });
+            showToast('✓ Підписано!', 'success'); closeSheet(); renderBoard();
+        }
 
-async function unsubscribeDir(dirId) {
-    await api('/api/v3/board/unsubscribe', { method: 'POST', body: JSON.stringify({ user_id: S.userId, direction_id: dirId }) });
-    showToast('Відписано'); closeSheet(); renderBoard();
-}
+        async function unsubscribeDir(dirId) {
+            await api('/api/v3/board/unsubscribe', { method: 'POST', body: JSON.stringify({ user_id: S.userId, direction_id: dirId }) });
+            showToast('Відписано'); closeSheet(); renderBoard();
+        }
 
-// ─── TRIPS ───
-async function renderTrips() {
-    const container = document.getElementById('trips-content');
+        // ─── TRIPS ───
+        async function renderTrips() {
+            const container = document.getElementById('trips-content');
 
-    if (S.activeTrip) {
-        const t = S.activeTrip; const isDriver = t.viewer_role === 'driver'; const isStarted = !!t.is_started;
-        container.innerHTML = `
+            if (S.activeTrip) {
+                const t = S.activeTrip; const isDriver = t.viewer_role === 'driver'; const isStarted = !!t.is_started;
+                container.innerHTML = `
             <div class="hero ${isStarted ? 'driving' : 'reservation'} animate-in">
                 <div class="hero-label" style="color:${isStarted ? 'var(--accent)' : 'var(--amber)'};">${isStarted ? '🚀 В ДОРОЗІ' : '⏳ РЕЗЕРВАЦІЯ'}</div>
                 <div class="hero-title">${t.direction_title || 'Поїздка'}</div>
                 <div class="hero-sub">Екіпаж #${t.crew_id || '—'} • ${isDriver ? '🚗 Ви водій' : '👤 Ви попутник'}</div>
-                <div class="seats-row" style="margin-top:12px;">${(t.members || []).map(m => `<div class="seat-dot ${m.role === 'driver' ? 'driver-seat' : 'taken'}" title="${m.name}">${m.role === 'driver' ? '🚗' : (m.name||'?')[0]}</div>`).join('')}</div>
+                <div class="seats-row" style="margin-top:12px;">${(t.members || []).map(m => `<div class="seat-dot ${m.role === 'driver' ? 'driver-seat' : 'taken'}" title="${m.name}">${m.role === 'driver' ? '🚗' : (m.name || '?')[0]}</div>`).join('')}</div>
                 <div style="margin-top:16px;display:flex;flex-direction:column;gap:10px;">
                     ${!isStarted && isDriver ? `<button class="btn btn-primary" onclick="startTrip()">🚀 Поїхали!</button>` : ''}
-                    ${isStarted ? `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="openChat(${t.id || t.request_id}, ${isDriver ? (t.client_id||0) : (t.driver_id||0)})">💬 Чат</button><button class="btn btn-primary" style="flex:1;" onclick="finishTrip()">🏁 Фініш</button></div>` : ''}
+                    ${isStarted ? `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="openChat(${t.id || t.request_id}, ${isDriver ? (t.client_id || 0) : (t.driver_id || 0)})">💬 Чат</button><button class="btn btn-primary" style="flex:1;" onclick="finishTrip()">🏁 Фініш</button></div>` : ''}
                     ${!isStarted ? `<button class="btn btn-danger" onclick="cancelTrip()">🚫 Скасувати</button>` : ''}
                 </div>
             </div>
             <div class="section-label">Деталі</div>
             <div class="card"><div class="card-meta">Водій: ${t.driver_name || '—'}</div><div class="card-meta">Пасажир: ${t.client_name || '—'}</div><div class="card-meta">Статус: ${t.status}</div></div>`;
-        return;
-    }
+                return;
+            }
 
-    if (S.pendingMatches.length > 0) {
-        container.innerHTML = `<div class="section-label">Запити (${S.pendingMatches.length})</div>
+            if (S.pendingMatches.length > 0) {
+                container.innerHTML = `<div class="section-label">Запити (${S.pendingMatches.length})</div>
             ${S.pendingMatches.map(m => {
-                const isIncoming = m.scope === 'incoming';
-                const partnerName = isIncoming ? (m.partner_name || m.sender_name || `#${m.partner_id}`) : (m.target_name || m.partner_name || `#${m.target_id}`);
-                const partnerId = isIncoming ? (m.partner_id || m.sender_id) : (m.target_id || m.partner_id);
-                return `<div class="card animate-in" style="border-left:3px solid ${isIncoming ? 'var(--amber)' : 'var(--blue)'};">
+                    const isIncoming = m.scope === 'incoming';
+                    const partnerName = isIncoming ? (m.partner_name || m.sender_name || `#${m.partner_id}`) : (m.target_name || m.partner_name || `#${m.target_id}`);
+                    const partnerId = isIncoming ? (m.partner_id || m.sender_id) : (m.target_id || m.partner_id);
+                    return `<div class="card animate-in" style="border-left:3px solid ${isIncoming ? 'var(--amber)' : 'var(--blue)'};">
                     <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
-                        <div style="width:40px;height:40px;border-radius:50%;background:${isIncoming ? 'linear-gradient(135deg,#fbbf24,#f59e0b)' : 'linear-gradient(135deg,#38bdf8,#0284c7)'};display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;color:#fff;">${(partnerName||'?')[0].toUpperCase()}</div>
+                        <div style="width:40px;height:40px;border-radius:50%;background:${isIncoming ? 'linear-gradient(135deg,#fbbf24,#f59e0b)' : 'linear-gradient(135deg,#38bdf8,#0284c7)'};display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;color:#fff;">${(partnerName || '?')[0].toUpperCase()}</div>
                         <div style="flex:1;"><div style="font-weight:800;font-size:14px;">${partnerName}</div><div style="font-size:11px;color:var(--text-secondary);">${m.direction || m.direction_title || 'Напрямок'}</div></div>
                         <div class="tag ${isIncoming ? 'tag-amber' : 'tag-blue'}">${isIncoming ? '📩 Вхідний' : '📤 Очікування'}</div>
                     </div>
                     ${isIncoming ? `<div style="display:flex;gap:10px;"><button class="btn btn-primary" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, true)">✓ Прийняти</button><button class="btn btn-danger" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false)">✕ Відхилити</button></div>`
-                        : `<button class="btn btn-secondary" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false)">🛑 Скасувати запит</button>`}
+                            : `<button class="btn btn-secondary" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false)">🛑 Скасувати запит</button>`}
                 </div>`;
-            }).join('')}`;
-        return;
-    }
+                }).join('')}`;
+                return;
+            }
 
-    container.innerHTML = `<div class="empty" style="padding-top:80px;"><div class="empty-icon">🧭</div><div class="empty-title">Немає активних поїздок</div><div class="empty-sub">Знайдіть напрямок в каталозі або на мапі</div><button class="btn btn-primary" style="margin-top:20px;" onclick="switchScreen('board')">Каталог</button></div>`;
-}
+            container.innerHTML = `<div class="empty" style="padding-top:80px;"><div class="empty-icon">🧭</div><div class="empty-title">Немає активних поїздок</div><div class="empty-sub">Знайдіть напрямок в каталозі або на мапі</div><button class="btn btn-primary" style="margin-top:20px;" onclick="switchScreen('board')">Каталог</button></div>`;
+        }
 
-async function respondHandshake(partnerId, dirId, accept) {
-    if (S.busy) return; S.busy = true;
-    try {
-        const res = await api('/api/v3/match/respond', { method: 'POST', body: JSON.stringify({ user_id: S.userId, target_id: partnerId, direction_id: dirId, accept }) });
-        if (res?.status === 'ok') { showToast(accept ? '✓ Екіпаж створено!' : 'Запит відхилено', accept ? 'success' : ''); await hydrate(); }
-        else if (res?.reason === 'action_forbidden') showToast('Після старту — тільки фініш', 'error');
-        else showToast('Помилка', 'error');
-    } finally { S.busy = false; }
-}
+        async function respondHandshake(partnerId, dirId, accept) {
+            if (S.busy) return; S.busy = true;
+            try {
+                const res = await api('/api/v3/match/respond', { method: 'POST', body: JSON.stringify({ user_id: S.userId, target_id: partnerId, direction_id: dirId, accept }) });
+                if (res?.status === 'ok') { showToast(accept ? '✓ Екіпаж створено!' : 'Запит відхилено', accept ? 'success' : ''); await hydrate(); }
+                else if (res?.reason === 'action_forbidden') showToast('Після старту — тільки фініш', 'error');
+                else showToast('Помилка', 'error');
+            } finally { S.busy = false; }
+        }
 
-async function startTrip() {
-    if (!S.activeTrip || S.busy) return; S.busy = true;
-    try {
-        const res = await api('/api/v3/trip/start', { method: 'POST', body: JSON.stringify({ request_id: S.activeTrip.id || S.activeTrip.request_id, caller_id: S.userId }) });
-        if (res?.ok || res?.status === 'ok') { showToast('🚀 Поїхали!', 'success'); await hydrate(); }
-        else showToast('Помилка старту', 'error');
-    } finally { S.busy = false; }
-}
+        async function startTrip() {
+            if (!S.activeTrip || S.busy) return; S.busy = true;
+            try {
+                const res = await api('/api/v3/trip/start', { method: 'POST', body: JSON.stringify({ request_id: S.activeTrip.id || S.activeTrip.request_id, caller_id: S.userId }) });
+                if (res?.ok || res?.status === 'ok') { showToast('🚀 Поїхали!', 'success'); await hydrate(); }
+                else showToast('Помилка старту', 'error');
+            } finally { S.busy = false; }
+        }
 
-async function finishTrip() {
-    if (!S.activeTrip || S.busy) return; S.busy = true;
-    try {
-        const res = await api('/api/v3/trip/done', { method: 'POST', body: JSON.stringify({ request_id: S.activeTrip.id || S.activeTrip.request_id, user_id: S.userId, role: S.activeTrip.viewer_role || S.userRole }) });
-        if (res?.status === 'ok') { showToast('🏁 Поїздка завершена!', 'success'); openRatingSheet(); await hydrate(); }
-        else showToast('Помилка', 'error');
-    } finally { S.busy = false; }
-}
+        async function finishTrip() {
+            if (!S.activeTrip || S.busy) return; S.busy = true;
+            try {
+                const res = await api('/api/v3/trip/done', { method: 'POST', body: JSON.stringify({ request_id: S.activeTrip.id || S.activeTrip.request_id, user_id: S.userId, role: S.activeTrip.viewer_role || S.userRole }) });
+                if (res?.status === 'ok') { showToast('🏁 Поїздка завершена!', 'success'); openRatingSheet(); await hydrate(); }
+                else showToast('Помилка', 'error');
+            } finally { S.busy = false; }
+        }
 
-async function cancelTrip() {
-    if (!S.activeTrip) return;
-    openSheet(`<div class="sheet-title">Скасувати поїздку?</div><div class="sheet-sub">Ви впевнені?</div><div class="sheet-actions"><button class="btn btn-danger" onclick="doCancelTrip()">🚫 Скасувати</button><button class="btn btn-ghost" onclick="closeSheet()">Повернутись</button></div>`);
-}
+        async function cancelTrip() {
+            if (!S.activeTrip) return;
+            openSheet(`<div class="sheet-title">Скасувати поїздку?</div><div class="sheet-sub">Ви впевнені?</div><div class="sheet-actions"><button class="btn btn-danger" onclick="doCancelTrip()">🚫 Скасувати</button><button class="btn btn-ghost" onclick="closeSheet()">Повернутись</button></div>`);
+        }
 
-async function doCancelTrip() {
-    closeSheet(); if (S.busy) return; S.busy = true;
-    try { await api('/api/v3/trip/cancel', { method: 'POST', body: JSON.stringify({ request_id: S.activeTrip?.id, user_id: S.userId }) }); showToast('Скасовано'); await hydrate(); }
-    finally { S.busy = false; }
-}
+        async function doCancelTrip() {
+            closeSheet(); if (S.busy) return; S.busy = true;
+            try { await api('/api/v3/trip/cancel', { method: 'POST', body: JSON.stringify({ request_id: S.activeTrip?.id, user_id: S.userId }) }); showToast('Скасовано'); await hydrate(); }
+            finally { S.busy = false; }
+        }
 
-function openRatingSheet() {
-    openSheet(`<div class="sheet-title">Оцініть поїздку</div><div class="sheet-sub">Як вам досвід?</div><div style="display:flex;justify-content:center;gap:16px;margin:20px 0;"><div style="font-size:40px;cursor:pointer;opacity:0.4;" onclick="submitRating(-1)">👎</div><div style="font-size:40px;cursor:pointer;" onclick="submitRating(1)">👍</div></div><button class="btn btn-ghost" onclick="closeSheet()" style="width:100%;">Пропустити</button>`);
-}
+        function openRatingSheet() {
+            openSheet(`<div class="sheet-title">Оцініть поїздку</div><div class="sheet-sub">Як вам досвід?</div><div style="display:flex;justify-content:center;gap:16px;margin:20px 0;"><div style="font-size:40px;cursor:pointer;opacity:0.4;" onclick="submitRating(-1)">👎</div><div style="font-size:40px;cursor:pointer;" onclick="submitRating(1)">👍</div></div><button class="btn btn-ghost" onclick="closeSheet()" style="width:100%;">Пропустити</button>`);
+        }
 
-async function submitRating(score) {
-    const pid = S.activeTrip?.viewer_role === 'driver' ? S.activeTrip?.client_id : S.activeTrip?.driver_id;
-    if (pid) await api('/api/v3/rating', { method: 'POST', body: JSON.stringify({ from_user_id: S.userId, to_user_id: pid, request_id: S.activeTrip?.id, score }) });
-    showToast('Дякуємо!', 'success'); closeSheet();
-}
+        async function submitRating(score) {
+            const pid = S.activeTrip?.viewer_role === 'driver' ? S.activeTrip?.client_id : S.activeTrip?.driver_id;
+            if (pid) await api('/api/v3/rating', { method: 'POST', body: JSON.stringify({ from_user_id: S.userId, to_user_id: pid, request_id: S.activeTrip?.id, score }) });
+            showToast('Дякуємо!', 'success'); closeSheet();
+        }
 
-// ─── CHAT ───
-async function openChat(requestId, partnerId) {
-    S.chatRequestId = requestId; S.chatPartnerId = partnerId;
-    document.getElementById('chat-backdrop').classList.add('open');
-    document.getElementById('chat-sheet').classList.add('open');
-    document.getElementById('chat-title').textContent = 'Чат екіпажу';
-    document.getElementById('chat-subtitle').textContent = `#${requestId}`;
-    await loadChatMessages();
-}
+        // ─── CHAT ───
+        async function openChat(requestId, partnerId) {
+            S.chatRequestId = requestId; S.chatPartnerId = partnerId;
+            document.getElementById('chat-backdrop').classList.add('open');
+            document.getElementById('chat-sheet').classList.add('open');
+            document.getElementById('chat-title').textContent = 'Чат екіпажу';
+            document.getElementById('chat-subtitle').textContent = `#${requestId}`;
+            await loadChatMessages();
+        }
 
-function closeChat() {
-    document.getElementById('chat-backdrop').classList.remove('open');
-    document.getElementById('chat-sheet').classList.remove('open');
-    S.chatRequestId = null;
-}
+        function closeChat() {
+            document.getElementById('chat-backdrop').classList.remove('open');
+            document.getElementById('chat-sheet').classList.remove('open');
+            S.chatRequestId = null;
+        }
 
-async function loadChatMessages() {
-    if (!S.chatRequestId) return;
-    const feed = document.getElementById('chat-feed');
-    const data = await api(`/api/v3/trip/messages?request_id=${S.chatRequestId}&user_id=${S.userId}&limit=50`);
-    const msgs = data?.messages || [];
-    if (!msgs.length) { feed.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);font-size:13px;">Повідомлень поки немає 👋</div>'; return; }
-    feed.innerHTML = msgs.map(m => {
-        const mine = m.user_id == S.userId;
-        return `<div class="chat-msg ${mine ? 'mine' : 'theirs'}">${!mine ? `<div class="chat-meta">${m.name || 'Учасник'}</div>` : ''}<div class="chat-bubble">${escapeHtml(m.text || '')}</div></div>`;
-    }).join('');
-    feed.scrollTop = feed.scrollHeight;
-}
+        async function loadChatMessages() {
+            if (!S.chatRequestId) return;
+            const feed = document.getElementById('chat-feed');
+            const data = await api(`/api/v3/trip/messages?request_id=${S.chatRequestId}&user_id=${S.userId}&limit=50`);
+            const msgs = data?.messages || [];
+            if (!msgs.length) { feed.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);font-size:13px;">Повідомлень поки немає 👋</div>'; return; }
+            feed.innerHTML = msgs.map(m => {
+                const mine = m.user_id == S.userId;
+                return `<div class="chat-msg ${mine ? 'mine' : 'theirs'}">${!mine ? `<div class="chat-meta">${m.name || 'Учасник'}</div>` : ''}<div class="chat-bubble">${escapeHtml(m.text || '')}</div></div>`;
+            }).join('');
+            feed.scrollTop = feed.scrollHeight;
+        }
 
-async function sendChat() {
-    const input = document.getElementById('chat-input'); const text = input.value.trim();
-    if (!text || !S.chatRequestId) return; input.value = '';
-    const feed = document.getElementById('chat-feed');
-    const div = document.createElement('div'); div.className = 'chat-msg mine';
-    div.innerHTML = `<div class="chat-bubble">${escapeHtml(text)}</div>`;
-    feed.appendChild(div); feed.scrollTop = feed.scrollHeight;
-    await api('/api/v3/trip/message', { method: 'POST', body: JSON.stringify({ request_id: S.chatRequestId, user_id: S.userId, text }) });
-}
+        async function sendChat() {
+            const input = document.getElementById('chat-input'); const text = input.value.trim();
+            if (!text || !S.chatRequestId) return; input.value = '';
+            const feed = document.getElementById('chat-feed');
+            const div = document.createElement('div'); div.className = 'chat-msg mine';
+            div.innerHTML = `<div class="chat-bubble">${escapeHtml(text)}</div>`;
+            feed.appendChild(div); feed.scrollTop = feed.scrollHeight;
+            await api('/api/v3/trip/message', { method: 'POST', body: JSON.stringify({ request_id: S.chatRequestId, user_id: S.userId, text }) });
+        }
 
-function escapeHtml(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
+        function escapeHtml(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
 
-// ─── SHEET ───
-function openSheet(html) {
-    document.getElementById('sheet-body').innerHTML = html;
-    document.getElementById('sheet-backdrop').classList.add('open');
-    document.getElementById('sheet').classList.add('open');
-    const handle = document.getElementById('sheet-handle');
-    const sheet = document.getElementById('sheet');
-    let startY = 0, currentY = 0, isSwiping = false;
-    const onStart = (e) => { startY = e.touches?.[0]?.clientY || e.clientY; isSwiping = true; sheet.style.transition = 'none'; };
-    const onMove = (e) => { if (!isSwiping) return; currentY = e.touches?.[0]?.clientY || e.clientY; if (currentY - startY > 0) sheet.style.transform = `translateY(${currentY - startY}px)`; };
-    const onEnd = () => { if (!isSwiping) return; isSwiping = false; sheet.style.transition = ''; if (currentY - startY > 100) closeSheet(); else sheet.style.transform = ''; };
-    handle.ontouchstart = onStart; handle.ontouchmove = onMove; handle.ontouchend = onEnd;
-    handle.onmousedown = onStart; document.onmousemove = onMove; document.onmouseup = onEnd;
-}
+        // ─── SHEET ───
+        function openSheet(html) {
+            document.getElementById('sheet-body').innerHTML = html;
+            document.getElementById('sheet-backdrop').classList.add('open');
+            document.getElementById('sheet').classList.add('open');
+            const handle = document.getElementById('sheet-handle');
+            const sheet = document.getElementById('sheet');
+            let startY = 0, currentY = 0, isSwiping = false;
+            const onStart = (e) => { startY = e.touches?.[0]?.clientY || e.clientY; isSwiping = true; sheet.style.transition = 'none'; };
+            const onMove = (e) => { if (!isSwiping) return; currentY = e.touches?.[0]?.clientY || e.clientY; if (currentY - startY > 0) sheet.style.transform = `translateY(${currentY - startY}px)`; };
+            const onEnd = () => { if (!isSwiping) return; isSwiping = false; sheet.style.transition = ''; if (currentY - startY > 100) closeSheet(); else sheet.style.transform = ''; };
+            handle.ontouchstart = onStart; handle.ontouchmove = onMove; handle.ontouchend = onEnd;
+            handle.onmousedown = onStart; document.onmousemove = onMove; document.onmouseup = onEnd;
+        }
 
-function closeSheet() {
-    document.getElementById('sheet-backdrop').classList.remove('open');
-    const sheet = document.getElementById('sheet'); sheet.classList.remove('open'); sheet.style.transform = '';
-}
+        function closeSheet() {
+            document.getElementById('sheet-backdrop').classList.remove('open');
+            const sheet = document.getElementById('sheet'); sheet.classList.remove('open'); sheet.style.transform = '';
+        }
 
-// ─── TOAST ───
-let toastTimer = null;
-function showToast(msg, type = '') {
-    const el = document.getElementById('toast'); el.textContent = msg; el.className = 'toast show ' + type;
-    clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
-}
+        // ─── TOAST ───
+        let toastTimer = null;
+        function showToast(msg, type = '') {
+            const el = document.getElementById('toast'); el.textContent = msg; el.className = 'toast show ' + type;
+            clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+        }
 
-// ─── PROFILE SETTINGS ───
-function openCarSettings() {
-    openSheet(`<div class="sheet-title">Авто</div><div class="sheet-sub">Модель вашого авто</div><input class="board-search" id="car-input" placeholder="Toyota Camry" value="${S.car}" style="margin:0 0 16px;"><button class="btn btn-primary" onclick="saveCar()">Зберегти</button>`);
-    setTimeout(() => document.getElementById('car-input')?.focus(), 300);
-}
-function saveCar() { S.car = document.getElementById('car-input')?.value?.trim() || ''; saveProfile(); updateRolePill(); closeSheet(); if (S.apiBase) api('/api/v3/driver/register', { method: 'POST', body: JSON.stringify({ user_id: S.userId, car_model: S.car, seats_total: S.seats }) }); showToast('Авто збережено', 'success'); }
+        // ─── PROFILE SETTINGS ───
+        function openCarSettings() {
+            openSheet(`<div class="sheet-title">Авто</div><div class="sheet-sub">Модель вашого авто</div><input class="board-search" id="car-input" placeholder="Toyota Camry" value="${S.car}" style="margin:0 0 16px;"><button class="btn btn-primary" onclick="saveCar()">Зберегти</button>`);
+            setTimeout(() => document.getElementById('car-input')?.focus(), 300);
+        }
+        function saveCar() { S.car = document.getElementById('car-input')?.value?.trim() || ''; saveProfile(); updateRolePill(); closeSheet(); if (S.apiBase) api('/api/v3/driver/register', { method: 'POST', body: JSON.stringify({ user_id: S.userId, car_model: S.car, seats_total: S.seats }) }); showToast('Авто збережено', 'success'); }
 
-function openSeatsSettings() {
-    openSheet(`<div class="sheet-title">Місця</div><div class="sheet-sub">Кількість пасажирських місць</div><div style="display:flex;align-items:center;justify-content:center;gap:24px;margin:20px 0;"><div style="width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;" onclick="changeSeats(-1)">−</div><div style="font-size:40px;font-weight:900;min-width:60px;text-align:center;" id="seats-display">${S.seats}</div><div style="width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;" onclick="changeSeats(1)">+</div></div><button class="btn btn-primary" onclick="saveSeats()">Зберегти</button>`);
-}
-function changeSeats(d) { S.seats = Math.max(1, Math.min(8, S.seats + d)); const el = document.getElementById('seats-display'); if (el) el.textContent = S.seats; }
-function saveSeats() { saveProfile(); updateRolePill(); closeSheet(); if (S.apiBase) api('/api/v3/driver/seats', { method: 'POST', body: JSON.stringify({ user_id: S.userId, seats_total: S.seats }) }); showToast('Місця збережено', 'success'); }
+        function openSeatsSettings() {
+            openSheet(`<div class="sheet-title">Місця</div><div class="sheet-sub">Кількість пасажирських місць</div><div style="display:flex;align-items:center;justify-content:center;gap:24px;margin:20px 0;"><div style="width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;" onclick="changeSeats(-1)">−</div><div style="font-size:40px;font-weight:900;min-width:60px;text-align:center;" id="seats-display">${S.seats}</div><div style="width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;" onclick="changeSeats(1)">+</div></div><button class="btn btn-primary" onclick="saveSeats()">Зберегти</button>`);
+        }
+        function changeSeats(d) { S.seats = Math.max(1, Math.min(8, S.seats + d)); const el = document.getElementById('seats-display'); if (el) el.textContent = S.seats; }
+        function saveSeats() { saveProfile(); updateRolePill(); closeSheet(); if (S.apiBase) api('/api/v3/driver/seats', { method: 'POST', body: JSON.stringify({ user_id: S.userId, seats_total: S.seats }) }); showToast('Місця збережено', 'success'); }
 
-function openLangSelector() {
-    openSheet(`<div class="sheet-title">Мова</div><div class="sheet-sub">Оберіть мову</div><div class="sheet-actions"><button class="btn ${S.lang==='uk'?'btn-primary':'btn-secondary'}" onclick="setLang('uk')">🇺🇦 Українська</button><button class="btn ${S.lang==='pl'?'btn-primary':'btn-secondary'}" onclick="setLang('pl')">🇵🇱 Polski</button><button class="btn ${S.lang==='en'?'btn-primary':'btn-secondary'}" onclick="setLang('en')">🇬🇧 English</button></div>`);
-}
+        function openLangSelector() {
+            openSheet(`<div class="sheet-title">Мова</div><div class="sheet-sub">Оберіть мову</div><div class="sheet-actions"><button class="btn ${S.lang === 'uk' ? 'btn-primary' : 'btn-secondary'}" onclick="setLang('uk')">🇺🇦 Українська</button><button class="btn ${S.lang === 'pl' ? 'btn-primary' : 'btn-secondary'}" onclick="setLang('pl')">🇵🇱 Polski</button><button class="btn ${S.lang === 'en' ? 'btn-primary' : 'btn-secondary'}" onclick="setLang('en')">🇬🇧 English</button></div>`);
+        }
 
-async function setLang(lang) {
-    S.lang = lang; saveProfile();
-    document.getElementById('settings-lang').textContent = { uk: 'Українська', pl: 'Polski', en: 'English' }[lang];
-    closeSheet();
-    if (S.apiBase) await api('/api/v3/user/lang', { method: 'POST', body: JSON.stringify({ user_id: S.userId, lang }) });
-    showToast('Мова оновлена', 'success'); renderBoard();
-}
+        async function setLang(lang) {
+            S.lang = lang; saveProfile();
+            document.getElementById('settings-lang').textContent = { uk: 'Українська', pl: 'Polski', en: 'English' }[lang];
+            closeSheet();
+            if (S.apiBase) await api('/api/v3/user/lang', { method: 'POST', body: JSON.stringify({ user_id: S.userId, lang }) });
+            showToast('Мова оновлена', 'success'); renderBoard();
+        }
 
-// ─── API SETTINGS ───
-function openApiSettings() {
-    openSheet(`<div class="sheet-title">API Сервер</div><div class="sheet-sub">Вставте URL тунелю (https://...)</div><input class="board-search" id="api-input" placeholder="https://..." value="${S.apiBase}" style="margin:0 0 16px;"><button class="btn btn-primary" onclick="saveApi()">Зберегти</button>`);
-    setTimeout(() => document.getElementById('api-input')?.focus(), 300);
-}
-function saveApi() {
-    let url = document.getElementById('api-input')?.value?.trim() || '';
-    if (url && !url.startsWith('http')) url = 'https://' + url;
-    url = url.replace(/\/$/, "");
-    localStorage.setItem('wt_api', url);
-    S.apiBase = url;
-    document.getElementById('settings-api').textContent = url ? (url.split('//')[1]?.substring(0, 15) + '...') : 'Не вказано';
-    closeSheet(); hydrate(); showToast('API оновлено', 'success');
-}
-
-</script>
+    </script>
 </body>
+
 </html>
