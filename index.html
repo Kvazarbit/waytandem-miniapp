@@ -452,6 +452,12 @@
                 </div>
             </div>
             <div class="settings-group">
+                <div class="settings-row" onclick="openApiSettings()">
+                    <div class="settings-icon">🔗</div>
+                    <div class="settings-label">API Сервер</div>
+                    <div class="settings-value" id="settings-api">Не вказано</div>
+                    <div class="settings-arrow">›</div>
+                </div>
                 <div class="settings-row" onclick="openLangSelector()">
                     <div class="settings-icon">🌐</div>
                     <div class="settings-label">Мова</div>
@@ -531,7 +537,7 @@
 
 const S = {
     userId: 0, userName: '', userRole: '', car: '', seats: 4, lang: 'uk',
-    apiBase: localStorage.getItem('wt_api') || '',
+    apiBase: (new URLSearchParams(location.search)).get('api') || localStorage.getItem('wt_api') || '',
     activeTrip: null, pendingMatches: [], directions: [], news: [],
     map: null, mapMarkers: [], currentScreen: 'explore',
     chatRequestId: null, chatPartnerId: null, busy: false,
@@ -548,6 +554,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ─── USER RESOLUTION ───
 function resolveUser() {
     const tg = window.Telegram?.WebApp;
+    const qp = new URLSearchParams(location.search);
+    const urlApi = qp.get('api');
+    if (urlApi) {
+        S.apiBase = urlApi.replace(/\/$/, "");
+        localStorage.setItem('wt_api', S.apiBase);
+    }
+    document.getElementById('settings-api').textContent = S.apiBase ? (S.apiBase.split('//')[1]?.substring(0, 15) + '...') : 'Не вказано';
+
     if (tg?.initDataUnsafe?.user?.id) {
         S.userId = tg.initDataUnsafe.user.id;
         S.userName = tg.initDataUnsafe.user.first_name || '';
@@ -988,6 +1002,21 @@ async function setLang(lang) {
     closeSheet();
     if (S.apiBase) await api('/api/v3/user/lang', { method: 'POST', body: JSON.stringify({ user_id: S.userId, lang }) });
     showToast('Мова оновлена', 'success'); renderBoard();
+}
+
+// ─── API SETTINGS ───
+function openApiSettings() {
+    openSheet(`<div class="sheet-title">API Сервер</div><div class="sheet-sub">Вставте URL тунелю (https://...)</div><input class="board-search" id="api-input" placeholder="https://..." value="${S.apiBase}" style="margin:0 0 16px;"><button class="btn btn-primary" onclick="saveApi()">Зберегти</button>`);
+    setTimeout(() => document.getElementById('api-input')?.focus(), 300);
+}
+function saveApi() {
+    let url = document.getElementById('api-input')?.value?.trim() || '';
+    if (url && !url.startsWith('http')) url = 'https://' + url;
+    url = url.replace(/\/$/, "");
+    localStorage.setItem('wt_api', url);
+    S.apiBase = url;
+    document.getElementById('settings-api').textContent = url ? (url.split('//')[1]?.substring(0, 15) + '...') : 'Не вказано';
+    closeSheet(); hydrate(); showToast('API оновлено', 'success');
 }
 
 </script>
