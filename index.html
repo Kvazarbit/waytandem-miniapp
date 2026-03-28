@@ -120,6 +120,122 @@
             transition: all 0.2s;
         }
 
+        /* ═══ SUBSCRIPTION BAR — always visible, Telegram-bot style context ═══ */
+        .sub-bar {
+            flex-shrink: 0;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(135deg, rgba(163,230,53,0.08), rgba(163,230,53,0.03));
+            border-bottom: 1px solid rgba(163,230,53,0.15);
+            z-index: 99;
+            overflow-x: auto;
+            scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
+        }
+        .sub-bar::-webkit-scrollbar { display: none; }
+        .sub-bar:empty { display: none; padding: 0; border: none; height: 0; }
+        .sub-bar-icon { font-size: 16px; flex-shrink: 0; }
+        .sub-bar-chip {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            border-radius: 14px;
+            background: rgba(163,230,53,0.12);
+            border: 1px solid rgba(163,230,53,0.2);
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--accent);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .sub-bar-chip:active { background: rgba(163,230,53,0.2); transform: scale(0.96); }
+        .sub-bar-chip .chip-x {
+            width: 16px; height: 16px; border-radius: 50%;
+            background: rgba(248,113,113,0.15); color: var(--red);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 10px; font-weight: 900;
+        }
+        .sub-bar-pending {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 5px 10px;
+            border-radius: 14px;
+            background: rgba(251,191,36,0.12);
+            border: 1px solid rgba(251,191,36,0.2);
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--amber);
+            cursor: pointer;
+        }
+        .sub-bar-crew {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            border-radius: 14px;
+            background: rgba(56,189,248,0.12);
+            border: 1px solid rgba(56,189,248,0.2);
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--blue);
+            cursor: pointer;
+        }
+        .sub-bar-text {
+            flex: 1;
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 600;
+            white-space: nowrap;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* ═══ OPEN CREW BUTTON — driver CTA ═══ */
+        .open-crew-btn {
+            margin: 12px 16px;
+            padding: 16px 20px;
+            border-radius: var(--radius-xl);
+            background: linear-gradient(135deg, rgba(56,189,248,0.15), rgba(99,102,241,0.1));
+            border: 1px solid rgba(56,189,248,0.3);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .open-crew-btn:active { transform: scale(0.98); border-color: var(--blue); }
+        .open-crew-icon {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #38bdf8, #6366f1);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px; flex-shrink: 0;
+        }
+        .open-crew-info { flex: 1; }
+        .open-crew-title { font-weight: 800; font-size: 15px; margin-bottom: 2px; }
+        .open-crew-sub { font-size: 12px; color: var(--text-secondary); }
+        .open-crew-arrow { color: var(--blue); font-size: 20px; }
+
+        /* ═══ REQUEST STATUS INDICATOR ═══ */
+        .req-pending-tag {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 3px 8px; border-radius: 6px;
+            background: var(--amber-dim); color: var(--amber);
+            font-size: 10px; font-weight: 800;
+            animation: pulse-amber 2s infinite;
+        }
+        @keyframes pulse-amber {
+            0%,100% { opacity: 0.7; }
+            50% { opacity: 1; }
+        }
+
         .role-pill.driver {
             background: var(--accent-dim);
             color: var(--accent);
@@ -1262,6 +1378,9 @@
             </div>
         </div>
 
+        <!-- SUBSCRIPTION BAR — always shows context (Telegram-bot style) -->
+        <div class="sub-bar" id="sub-bar"></div>
+
         <!-- MAIN SCREENS -->
         <div class="main">
             <!-- EXPLORE (Map + Crews) -->
@@ -1428,6 +1547,9 @@
             chatRequestId: null, chatPartnerId: null, busy: false,
             boardParentId: null, boardStack: [], boardSubSet: new Set(),
             newsFilter: 'all', mapNewsFilter: 'all', newsMarkers: [],
+            subscriptions: [],     // [{direction_id, title, ...}]
+            myCrew: null,          // driver's open crew info
+            homeCity: { lat: 52.2297, lng: 21.0122, name: 'Warsaw' }, // default Warsaw
         };
         let boardNavDefaults = null;
 
@@ -1514,7 +1636,7 @@
 
         // ─── HYDRATE ───
         async function hydrate() {
-            if (!S.apiBase || !S.userId) { renderNews(); renderBoard(); renderTrips(); return; }
+            if (!S.apiBase || !S.userId) { renderNews(); renderBoard(); renderTrips(); renderSubBar(); return; }
             const data = await api(`/api/v3/hydrate?user_id=${S.userId}`);
             if (!data) return;
             if (data.profile) {
@@ -1525,6 +1647,12 @@
             if (data.pending) S.pendingMatches = data.pending;
             syncIdentityUI();
             updateRolePill(); updateBadges(); renderNews(); renderBoard(); renderTrips(); refreshMap();
+            // Fetch subscriptions for subscription bar
+            const subs = await api(`/api/v3/user/subscriptions?user_id=${S.userId}`);
+            S.subscriptions = subs?.subscriptions || [];
+            // Build boardSubSet for quick lookup
+            S.boardSubSet = new Set(S.subscriptions.map(s => String(s.direction_id)));
+            renderSubBar();
         }
 
         // ─── POLLING ───
@@ -1537,6 +1665,7 @@
                 S.pendingMatches = Array.isArray(pend?.matches) ? pend.matches : [];
                 renderNews();
                 updateBadges();
+                renderSubBar();  // update subscription context bar
                 if (S.currentScreen === 'trips') renderTrips();
                 if (S.currentScreen === 'news') renderNewsScreen();
             }, 8000);
@@ -1597,9 +1726,122 @@
             if (S.apiBase) await api('/api/v3/user/role', { method: 'POST', body: JSON.stringify({ user_id: S.userId, role }) });
             showToast(role === 'driver' ? '🚗 Ви водій!' : '👤 Ви попутник!', 'success');
             if (S.currentScreen === 'explore') refreshMap();
+            renderSubBar();
         }
 
-        // ─── NAVIGATION ───
+        // ═══ SUBSCRIPTION BAR — Telegram-bot style context bar ═══
+        // Shows ALWAYS: subscriptions, pending requests, active crew
+        // Like Telegram bot that holds your context and limits what you see
+        function renderSubBar() {
+            const bar = document.getElementById('sub-bar');
+            if (!bar) return;
+            const parts = [];
+
+            // 1. Active trip — highest priority
+            if (S.activeTrip) {
+                const t = S.activeTrip;
+                const isDriver = t.viewer_role === 'driver';
+                parts.push(`<div class="sub-bar-crew" onclick="switchScreen('trips')">
+                    ${isDriver ? '🚗' : '👤'} ${escapeHtml(t.direction_title || 'Поїздка')} #${t.crew_id || '—'}
+                </div>`);
+            }
+
+            // 2. Pending requests (incoming)
+            const incoming = S.pendingMatches.filter(m => m.scope === 'incoming');
+            if (incoming.length > 0) {
+                parts.push(`<div class="sub-bar-pending" onclick="switchScreen('trips')">
+                    📩 ${incoming.length} запит${incoming.length > 1 ? 'ів' : ''}
+                </div>`);
+            }
+
+            // 3. Pending requests (outgoing — my requests waiting)
+            const outgoing = S.pendingMatches.filter(m => m.scope === 'outgoing');
+            if (outgoing.length > 0) {
+                parts.push(`<div class="sub-bar-pending" onclick="switchScreen('trips')">
+                    ⏳ ${outgoing.length} очікує${outgoing.length > 1 ? '' : ''}
+                </div>`);
+            }
+
+            // 4. My crew (driver has opened crew)
+            if (S.myCrew) {
+                parts.push(`<div class="sub-bar-crew" onclick="switchScreen('trips')">
+                    🚗 Екіпаж #${S.myCrew.crew_id || '—'}
+                </div>`);
+            }
+
+            // 5. Subscriptions (what I'm watching)
+            const subs = S.subscriptions || [];
+            if (subs.length > 0 && !S.activeTrip) {
+                subs.slice(0, 3).forEach(s => {
+                    const title = s.direction_title || s.title || `#${s.direction_id}`;
+                    parts.push(`<div class="sub-bar-chip" onclick="openDirection(${s.direction_id})">
+                        🧭 ${escapeHtml(title.substring(0, 20))}
+                    </div>`);
+                });
+                if (subs.length > 3) {
+                    parts.push(`<div class="sub-bar-text">+${subs.length - 3} ще</div>`);
+                }
+            }
+
+            // 6. Empty state — prompt to subscribe
+            if (parts.length === 0 && !S.activeTrip) {
+                parts.push(`<div class="sub-bar-text" onclick="switchScreen('board')">📌 Оберіть напрямок, щоб почати</div>`);
+            }
+
+            bar.innerHTML = parts.join('');
+        }
+
+        // ═══ OPEN CREW — driver creates crew for passengers to join ═══
+        async function openMyCrew() {
+            if (S.busy) return;
+            // Step 1: Pick direction
+            const dirs = S.subscriptions.length > 0 ? S.subscriptions : (await api(`/api/v3/board?lang=${S.lang}`))?.directions || [];
+            if (!dirs.length) {
+                showToast('Спочатку підпишіться на напрямок', 'error');
+                switchScreen('board');
+                return;
+            }
+            // If only 1 subscription — use it directly
+            if (dirs.length === 1) {
+                await doOpenCrew(dirs[0].direction_id || dirs[0].id);
+                return;
+            }
+            // Multiple directions — show picker
+            openSheet(`
+                <div class="sheet-title">Відкрити екіпаж</div>
+                <div class="sheet-sub">Оберіть напрямок для вашого екіпажу</div>
+                <div class="sheet-actions">
+                    ${dirs.map(d => {
+                        const did = d.direction_id || d.id;
+                        const title = d.direction_title || d.title || `#${did}`;
+                        return `<button class="btn btn-secondary" onclick="doOpenCrew(${did});closeSheet();">${escapeHtml(title)}</button>`;
+                    }).join('')}
+                    <button class="btn btn-ghost" onclick="closeSheet()">Скасувати</button>
+                </div>
+            `);
+        }
+
+        async function doOpenCrew(dirId) {
+            if (S.busy) return; S.busy = true;
+            try {
+                const res = await api('/api/v3/crews/open', {
+                    method: 'POST',
+                    body: JSON.stringify({ user_id: S.userId, direction_id: dirId, seats_total: S.seats })
+                });
+                if (res?.status === 'ok' || res?.crew_id) {
+                    S.myCrew = { crew_id: res.crew_id, direction_id: dirId };
+                    showToast('🚗 Екіпаж відкрито! Пасажири можуть приєднатись', 'success');
+                    renderSubBar();
+                    refreshMap();
+                } else {
+                    showToast('Помилка: ' + (res?.reason || 'невідома'), 'error');
+                }
+            } catch (e) {
+                showToast('Помилка створення екіпажу', 'error');
+            } finally { S.busy = false; }
+        }
+
+        // ═══ NAVIGATION ───
         function switchScreen(name) {
             S.currentScreen = name;
             document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
@@ -1653,13 +1895,30 @@
 
         // ─── MAP ───
         function initMap() {
-            S.map = L.map('map', { zoomControl: false, attributionControl: false }).setView([50.45, 30.52], 11);
+            // Try GPS first, fallback to Warsaw (S.homeCity)
+            S.map = L.map('map', { zoomControl: false, attributionControl: false })
+                .setView([S.homeCity.lat, S.homeCity.lng], 11);
             L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(S.map);
+            // Try geolocation, fly to user if available
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    p => S.map.flyTo([p.coords.latitude, p.coords.longitude], 13, { duration: 1.2 }),
+                    () => {} // stay on Warsaw
+                );
+            }
+            // Location button — fly to my GPS
             const locBtn = document.createElement('div');
             locBtn.style.cssText = 'position:absolute;bottom:120px;right:16px;z-index:500;width:44px;height:44px;border-radius:50%;background:var(--bg-card);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:20px;backdrop-filter:blur(10px);';
             locBtn.textContent = '📍';
             locBtn.onclick = () => { if (navigator.geolocation) navigator.geolocation.getCurrentPosition(p => S.map.flyTo([p.coords.latitude, p.coords.longitude], 14, { duration: 1 })); };
             document.getElementById('map-container').appendChild(locBtn);
+            // Home city button — fly to Warsaw
+            const homeBtn = document.createElement('div');
+            homeBtn.style.cssText = 'position:absolute;bottom:120px;right:70px;z-index:500;width:44px;height:44px;border-radius:50%;background:var(--bg-card);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px;backdrop-filter:blur(10px);';
+            homeBtn.textContent = '🏠';
+            homeBtn.title = S.homeCity.name;
+            homeBtn.onclick = () => S.map.flyTo([S.homeCity.lat, S.homeCity.lng], 12, { duration: 1 });
+            document.getElementById('map-container').appendChild(homeBtn);
         }
 
         async function refreshMap() {
@@ -2049,14 +2308,21 @@
             const dir = allDirections.find(d => String(d.id) === String(dirId));
             if (isFolderNode(dir)) { showToast('Підписка доступна тільки на напрямок', 'error'); return; }
             await api('/api/v3/board/subscribe', { method: 'POST', body: JSON.stringify({ user_id: S.userId, direction_id: dirId, role: S.userRole || 'passenger' }) });
-            showToast('✓ Підписано!', 'success'); closeSheet(); renderBoard();
+            // Update local state
+            const title = dir?.title || `#${dirId}`;
+            S.subscriptions.push({ direction_id: dirId, direction_title: title, title });
+            S.boardSubSet.add(String(dirId));
+            showToast('✓ Підписано!', 'success'); closeSheet(); renderBoard(); renderSubBar();
         }
 
         async function unsubscribeDir(dirId) {
             const dir = allDirections.find(d => String(d.id) === String(dirId));
             if (isFolderNode(dir)) { showToast('Це каталог, не підписка', 'error'); return; }
             await api('/api/v3/board/unsubscribe', { method: 'POST', body: JSON.stringify({ user_id: S.userId, direction_id: dirId }) });
-            showToast('Відписано'); closeSheet(); renderBoard();
+            // Update local state
+            S.subscriptions = S.subscriptions.filter(s => String(s.direction_id) !== String(dirId));
+            S.boardSubSet.delete(String(dirId));
+            showToast('Відписано'); closeSheet(); renderBoard(); renderSubBar();
         }
 
         // ─── TRIPS ───
@@ -2101,7 +2367,23 @@
                 return;
             }
 
-            container.innerHTML = `<div class="empty" style="padding-top:80px;"><div class="empty-icon">🧭</div><div class="empty-title">Немає активних поїздок</div><div class="empty-sub">Знайдіть напрямок в каталозі або на мапі</div><button class="btn btn-primary" style="margin-top:20px;" onclick="switchScreen('board')">Каталог</button></div>`;
+            // Empty state — with driver CTA if role is driver
+            const isDriver = _isDriverRole(S.userRole);
+            container.innerHTML = `
+                ${isDriver ? `<div class="open-crew-btn animate-in" onclick="openMyCrew()">
+                    <div class="open-crew-icon">🚗</div>
+                    <div class="open-crew-info">
+                        <div class="open-crew-title">Відкрити екіпаж</div>
+                        <div class="open-crew-sub">Створіть екіпаж для пасажирів</div>
+                    </div>
+                    <div class="open-crew-arrow">›</div>
+                </div>` : ''}
+                <div class="empty" style="padding-top:${isDriver ? '40px' : '80px'};">
+                    <div class="empty-icon">🧭</div>
+                    <div class="empty-title">Немає активних поїздок</div>
+                    <div class="empty-sub">${isDriver ? 'Відкрийте екіпаж вище або знайдіть напрямок в каталозі' : 'Знайдіть напрямок в каталозі або на мапі'}</div>
+                    <button class="btn btn-secondary" style="margin-top:20px;" onclick="switchScreen('board')">Перейти до каталогу</button>
+                </div>`;
         }
 
         async function respondHandshake(partnerId, dirId, accept) {
