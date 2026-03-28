@@ -1295,7 +1295,7 @@
         function resolveUser() {
             const tg = window.Telegram?.WebApp;
             const qp = new URLSearchParams(location.search);
-
+            
             // 🚀 Automatic API Resolution (Transparent)
             const urlApi = qp.get('api');
             if (urlApi) {
@@ -1494,7 +1494,7 @@
             list.innerHTML = '<div class="skeleton" style="height:60px;margin:12px 16px;"></div>'.repeat(3);
             if (!S.apiBase) { list.innerHTML = '<div class="empty"><div class="empty-icon">🧭</div><div class="empty-title">Підключіть API</div><div class="empty-sub">Вкажіть адресу сервера в налаштуваннях</div></div>'; return; }
             const data = await api(`/api/v3/board?lang=${S.lang}&user_id=${S.userId || ''}`);
-            allDirections = data?.directions || [];
+            allDirections = Array.isArray(data) ? data : (data?.directions || []);
             const subs = await api(`/api/v3/user/subscriptions?user_id=${S.userId}`);
             const subSet = new Set((subs?.subscriptions || []).map(s => String(s.direction_id)));
             renderBoardList(allDirections, subSet);
