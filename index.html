@@ -1658,7 +1658,7 @@
             const qp = new URLSearchParams(location.search);
             const urlApi = qp.get('api');
             if (urlApi) {
-                let base = urlApi.replace(/\/$ /, "");
+                let base = urlApi.replace(/\/$/, "");
                 if (base && !base.startsWith('http')) base = 'https://' + base;
                 S.apiBase = base;
                 localStorage.setItem('wt_api', S.apiBase);
@@ -1675,7 +1675,7 @@
             syncIdentityUI();
             try {
                 const saved = JSON.parse(localStorage.getItem('wt_profile_' + S.userId) || '{}');
-                if (saved.role) S.userRole = saved.role;
+                if (typeof saved.role === 'string') S.userRole = normalizeRole(saved.role);
                 if (saved.car) S.car = saved.car;
                 if (saved.seats) S.seats = saved.seats;
                 if (saved.lang) S.lang = saved.lang;
@@ -1702,17 +1702,43 @@
             } catch (e) { console.warn('API err:', path, e); return null; }
         }
 
+        function normalizeRole(role) {
+            const r = String(role ?? '').trim();
+            if (!r) return '';
+            if (r === 'passenger') return 'client';
+            return r;
+        }
+
+        function resolveActiveTripPayload(payload) {
+            if (!payload || typeof payload !== 'object') return null;
+            if (payload.active_trip && typeof payload.active_trip === 'object') return payload.active_trip;
+            if (payload.trip && typeof payload.trip === 'object') return payload.trip;
+            if (payload.found === true || payload.active === true) return payload;
+            return null;
+        }
+
+        function resolvePendingMatchesPayload(payload) {
+            if (Array.isArray(payload)) return payload;
+            if (!payload || typeof payload !== 'object') return [];
+            if (Array.isArray(payload.matches)) return payload.matches;
+            const incoming = Array.isArray(payload.incoming) ? payload.incoming.map(m => ({ ...m, scope: m?.scope || 'incoming' })) : [];
+            const outgoing = Array.isArray(payload.outgoing) ? payload.outgoing.map(m => ({ ...m, scope: m?.scope || 'outgoing' })) : [];
+            return [...incoming, ...outgoing];
+        }
+
         // ─── HYDRATE ───
         async function hydrate() {
             if (!S.apiBase || !S.userId) { renderNews(); renderBoard(); renderTrips(); renderSubBar(); return; }
-            const data = await api(`/api/v3/hydrate?user_id=${S.userId}`);
+            const data = await api(`/api/v3/hydrate?user_id=${S.userId}&include_outgoing=1`);
             if (!data) return;
             if (data.profile) {
-                S.userRole = data.profile.role || S.userRole;
+                if (Object.prototype.hasOwnProperty.call(data.profile, 'role')) {
+                    S.userRole = normalizeRole(data.profile.role);
+                }
                 if (!String(S.userName || '').trim()) S.userName = data.profile.name || S.userName;
             }
-            if (data.active_trip) S.activeTrip = data.active_trip;
-            if (data.pending) S.pendingMatches = data.pending;
+            S.activeTrip = resolveActiveTripPayload(data);
+            S.pendingMatches = resolvePendingMatchesPayload(data);
             syncIdentityUI();
             updateRolePill(); updateBadges(); renderNews(); renderBoard(); renderTrips(); refreshMap();
             const subs = await api(`/api/v3/user/subscriptions?user_id=${S.userId}`);
@@ -1727,7 +1753,7 @@
                 if (!S.apiBase || !S.userId) return;
                 const trip = await api(`/api/v3/trip/active?user_id=${S.userId}`);
                 const prevTrip = S.activeTrip;
-                S.activeTrip = trip?.found ? trip : null;
+                S.activeTrip = resolveActiveTripPayload(trip);
 
                 // If we were waiting for partner and trip is gone → both finished
                 if (waitingForPartner && !S.activeTrip && prevTrip) {
@@ -1737,7 +1763,7 @@
                 }
 
                 const pend = await api(`/api/v3/match/pending?user_id=${S.userId}`);
-                S.pendingMatches = Array.isArray(pend?.matches) ? pend.matches : [];
+                S.pendingMatches = resolvePendingMatchesPayload(pend);
                 renderNews();
                 updateBadges();
                 renderSubBar();
@@ -1783,16 +1809,17 @@
                 <div class="sheet-sub">Водій має авто та місця. Попутник шукає поїздку.</div>
                 <div class="sheet-actions">
                     <button class="btn btn-primary" onclick="setRole('driver')">🚗 Водій</button>
-                    <button class="btn btn-secondary" onclick="setRole('passenger')">👤 Попутник</button>
+                    <button class="btn btn-secondary" onclick="setRole('client')">👤 Попутник</button>
                     <button class="btn btn-ghost" onclick="closeSheet()">Скасувати</button>
                 </div>
             `);
         }
 
         async function setRole(role) {
-            S.userRole = role; saveProfile(); updateRolePill(); closeSheet();
-            if (S.apiBase) await api('/api/v3/user/role', { method: 'POST', body: JSON.stringify({ user_id: S.userId, role }) });
-            showToast(role === 'driver' ? '🚗 Ви водій!' : '👤 Ви попутник!', 'success');
+            const normalizedRole = normalizeRole(role);
+            S.userRole = normalizedRole; saveProfile(); updateRolePill(); closeSheet();
+            if (S.apiBase) await api('/api/v3/user/role', { method: 'POST', body: JSON.stringify({ user_id: S.userId, role: normalizedRole }) });
+            showToast(normalizedRole === 'driver' ? '🚗 Ви водій!' : '👤 Ви попутник!', 'success');
             if (S.currentScreen === 'explore') refreshMap();
             renderSubBar();
         }
@@ -1850,7 +1877,13 @@
         async function doOpenCrew(dirId) {
             if (S.busy) return; S.busy = true;
             try {
-                const res = await api('/api/v3/crews/open', { method: 'POST', body: JSON.stringify({ user_id: S.userId, direction_id: dirId, seats_total: S.seats }) });
+                const payload = { user_id: S.userId, direction_id: dirId, pickup: 'WEB', seats: S.seats };
+                if (S.pickupCoords?.lat && S.pickupCoords?.lng) {
+                    payload.pickup = `${S.pickupCoords.lat.toFixed(5)}, ${S.pickupCoords.lng.toFixed(5)}`;
+                    payload.pickup_lat = S.pickupCoords.lat;
+                    payload.pickup_lng = S.pickupCoords.lng;
+                }
+                const res = await api('/api/v3/crews/open', { method: 'POST', body: JSON.stringify(payload) });
                 if (res?.status === 'ok' || res?.crew_id) {
                     S.myCrew = { crew_id: res.crew_id, direction_id: dirId };
                     showToast('🚗 Екіпаж відкрито!', 'success');
@@ -2288,8 +2321,7 @@
             const container = document.getElementById('trips-content');
 
             // Waiting for partner confirmation
-            if (waitingForPartner && !S.activeTrip) { renderTripsWaiting(); return; }
-            waitingForPartner = false;
+            if (waitingForPartner) { renderTripsWaiting(); return; }
 
             if (S.activeTrip) {
                 const t = S.activeTrip;
@@ -2379,10 +2411,16 @@
             } finally { S.busy = false; }
         }
 
+        function currentRequestId() {
+            return S.activeTrip?.id || S.activeTrip?.request_id || null;
+        }
+
         async function startTrip() {
             if (!S.activeTrip || S.busy) return; S.busy = true;
             try {
-                const res = await api('/api/v3/trip/start', { method: 'POST', body: JSON.stringify({ request_id: S.activeTrip.id || S.activeTrip.request_id, caller_id: S.userId }) });
+                const reqId = currentRequestId();
+                if (!reqId) { showToast('Немає активної поїздки', 'error'); return; }
+                const res = await api('/api/v3/trip/start', { method: 'POST', body: JSON.stringify({ request_id: reqId, user_id: S.userId }) });
                 if (res?.ok || res?.status === 'ok') { showToast('🚀 Поїхали!', 'success'); await hydrate(); }
                 else showToast('Помилка старту', 'error');
             } finally { S.busy = false; }
@@ -2391,12 +2429,14 @@
         async function finishTrip() {
             if (!S.activeTrip || S.busy) return; S.busy = true;
             try {
+                const reqId = currentRequestId();
+                if (!reqId) { showToast('Немає активної поїздки', 'error'); return; }
                 const res = await api('/api/v3/trip/done', {
                     method: 'POST',
-                    body: JSON.stringify({ request_id: S.activeTrip.id || S.activeTrip.request_id, user_id: S.userId, role: S.activeTrip.viewer_role || S.userRole })
+                    body: JSON.stringify({ request_id: reqId, user_id: S.userId, role: S.activeTrip.viewer_role || S.userRole })
                 });
                 if (res?.status === 'ok') {
-                    if (res?.both_finished) {
+                    if (res?.both_finished || res?.completed) {
                         showToast('🏁 Поїздка завершена!', 'success');
                         waitingForPartner = false;
                         openRatingSheet();
@@ -2427,7 +2467,9 @@
         async function doCancelTrip() {
             closeSheet(); if (S.busy) return; S.busy = true;
             try {
-                await api('/api/v3/trip/cancel', { method: 'POST', body: JSON.stringify({ request_id: S.activeTrip?.id, user_id: S.userId }) });
+                const reqId = currentRequestId();
+                if (!reqId) { showToast('Немає активної поїздки', 'error'); return; }
+                await api('/api/v3/trip/cancel', { method: 'POST', body: JSON.stringify({ request_id: reqId, user_id: S.userId }) });
                 showToast('Поїздку скасовано'); await hydrate();
             } finally { S.busy = false; }
         }
@@ -2466,7 +2508,8 @@
             const score = S._ratingScore != null ? S._ratingScore : 1;
             const comment = document.getElementById('rating-comment')?.value?.trim() || '';
             const pid = S.activeTrip?.viewer_role === 'driver' ? S.activeTrip?.client_id : S.activeTrip?.driver_id;
-            if (pid) await api('/api/v3/rating', { method: 'POST', body: JSON.stringify({ from_user_id: S.userId, to_user_id: pid, request_id: S.activeTrip?.id, score, comment }) });
+            const reqId = currentRequestId();
+            if (pid && reqId) await api('/api/v3/rating', { method: 'POST', body: JSON.stringify({ from_user_id: S.userId, to_user_id: pid, request_id: reqId, score, comment }) });
             showToast('Дякуємо за відгук!', 'success'); closeSheet(); S._ratingScore = null;
         }
 
@@ -2553,7 +2596,7 @@
         function saveCar() {
             S.car = document.getElementById('car-input')?.value?.trim() || '';
             saveProfile(); updateRolePill(); closeSheet();
-            if (S.apiBase) api('/api/v3/driver/register', { method: 'POST', body: JSON.stringify({ user_id: S.userId, car_model: S.car, seats_total: S.seats }) });
+            if (S.apiBase) api('/api/v3/driver/register', { method: 'POST', body: JSON.stringify({ user_id: S.userId, car: S.car, seats: S.seats }) });
             showToast('Авто збережено', 'success');
         }
 
@@ -2566,7 +2609,7 @@
 
         function saveSeats() {
             saveProfile(); updateRolePill(); closeSheet();
-            if (S.apiBase) api('/api/v3/driver/seats', { method: 'POST', body: JSON.stringify({ user_id: S.userId, seats_total: S.seats }) });
+            if (S.apiBase) api('/api/v3/driver/seats', { method: 'POST', body: JSON.stringify({ user_id: S.userId, seats: S.seats }) });
             showToast('Місця збережено', 'success');
         }
 
@@ -2622,7 +2665,7 @@
             try {
                 const body = { user_id: S.userId, title, parent_id: S.boardParentId || null };
                 if (S._createDirLat && S._createDirLng) body.meeting_point = `${S._createDirLat.toFixed(5)}, ${S._createDirLng.toFixed(5)}`;
-                const res = await api('/api/v3/board/direction', { method: 'POST', body: JSON.stringify(body) });
+                const res = await api('/api/v3/board', { method: 'POST', body: JSON.stringify(body) });
                 if (res?.id || res?.status === 'ok' || res?.direction_id) {
                     showToast('✓ Напрямок створено!', 'success');
                     closeSheet(); S._createDirLat = null; S._createDirLng = null;
@@ -2651,7 +2694,7 @@
             if (!title || title.length < 3) { showToast('Назва має бути від 3 символів', 'error'); return; }
             if (S.busy) return; S.busy = true;
             try {
-                const res = await api('/api/v3/board/direction', { method: 'PATCH', body: JSON.stringify({ user_id: S.userId, direction_id: dirId, title }) });
+                const res = await api('/api/v3/board', { method: 'PATCH', body: JSON.stringify({ user_id: S.userId, direction_id: dirId, title }) });
                 if (res?.status === 'ok' || res?.id) {
                     showToast('✓ Назву оновлено', 'success');
                     // Update local list
@@ -2737,8 +2780,8 @@
         // ═══════ TRIP HISTORY ═══════
         async function openTripHistory() {
             openSheet(`<div class="sheet-title">Історія поїздок</div><div style="text-align:center;padding:24px;"><div class="pulse-dot" style="margin:0 auto 12px;"></div></div>`);
-            const data = await api(`/api/v3/trip/history?user_id=${S.userId}&limit=20`);
-            const trips = data?.trips || data?.history || [];
+            const data = await api(`/api/v3/history?user_id=${S.userId}`);
+            const trips = Array.isArray(data) ? data : (data?.trips || data?.history || []);
             if (!trips.length) {
                 document.getElementById('sheet-body').innerHTML = `
                     <div class="sheet-title">Історія поїздок</div>
@@ -2751,12 +2794,12 @@
                     ${trips.map(t => `
                         <div style="padding:12px 0;border-bottom:1px solid var(--border);">
                             <div style="display:flex;align-items:center;gap:8px;">
-                                <div style="font-size:20px;flex-shrink:0;">${t.viewer_role === 'driver' ? '🚗' : '👤'}</div>
+                                <div style="font-size:20px;flex-shrink:0;">${(t.viewer_role || t.role) === 'driver' ? '🚗' : '👤'}</div>
                                 <div style="flex:1;min-width:0;">
-                                    <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(t.direction_title || 'Поїздка')}</div>
-                                    <div style="font-size:11px;color:var(--text-muted);">${formatNewsTime(t.finished_at || t.created_at)}${t.partner_name ? ' • ' + escapeHtml(t.partner_name) : ''}</div>
+                                    <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(t.direction_title || t.dir || 'Поїздка')}</div>
+                                    <div style="font-size:11px;color:var(--text-muted);">${t.date || formatNewsTime(t.finished_at || t.created_at)}</div>
                                 </div>
-                                <div class="tag ${t.rating > 0 ? 'tag-green' : (t.rating < 0 ? 'tag-red' : 'tag-amber')}">${t.rating > 0 ? '👍' : (t.rating < 0 ? '👎' : '—')}</div>
+                                <div class="tag tag-amber">${escapeHtml(t.status || '—')}</div>
                             </div>
                         </div>`).join('')}
                 </div>`;
