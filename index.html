@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         /* ═══════ DESIGN TOKENS ═══════ */
         :root {
@@ -151,6 +152,25 @@
             color: #fff;
             cursor: pointer;
             border: 2px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .avatar-photo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+            display: block;
+        }
+
+        .avatar-inline {
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            overflow: hidden;
+            color: #fff;
+            flex-shrink: 0;
         }
 
         /* ═══ SUBSCRIPTION BAR ═══ */
@@ -824,7 +844,7 @@
             justify-content: center;
             font-weight: 900;
             font-size: 16px;
-            color: #000;
+            color: #fff;
             flex-shrink: 0;
         }
 
@@ -1607,7 +1627,7 @@
            ══════════════════════════════════════════════════════════════════ */
 
         const S = {
-            userId: 0, userName: '', userRole: '', car: '', seats: 4, lang: 'uk',
+            userId: 0, userName: '', userPhoto: '', userRole: '', car: '', seats: 4, lang: 'uk',
             apiBase: localStorage.getItem('wt_api') || '',
             activeTrip: null, pendingMatches: [], directions: [], news: [],
             map: null, mapMarkers: [], currentScreen: 'explore',
@@ -1623,11 +1643,14 @@
         };
         let boardNavDefaults = null;
         let waitingForPartner = false;
+        const POLL_INTERVAL_MS = 2500;
+        let pollInFlight = false;
 
         document.addEventListener('DOMContentLoaded', async () => {
             resolveUser();
             initRolePill();
             initMap();
+            await syncUserIdentityToServer();
             await hydrate();
             startPolling();
         });
@@ -1644,35 +1667,150 @@
             return String(fallbackName || '').trim();
         }
 
+        function _parseInitDataUser(initDataRaw) {
+            const raw = String(initDataRaw || '').trim();
+            if (!raw) return null;
+            try {
+                const params = new URLSearchParams(raw);
+                const userRaw = params.get('user');
+                if (!userRaw) return null;
+                return JSON.parse(decodeURIComponent(userRaw));
+            } catch (_) {
+                return null;
+            }
+        }
+
+        function normalizeApiBase(rawApi) {
+            let base = String(rawApi || '').trim();
+            if (!base) return '';
+            try { base = decodeURIComponent(base); } catch (_) { }
+            base = base.replace(/^['"]+|['"]+$/g, '').trim();
+            if (base && !/^https?:\/\//i.test(base)) base = 'https://' + base;
+            base = base.split('#')[0].split('?')[0].trim();
+            base = base.replace(/(https?:\/\/[^\/?#=]+)=\d+(?=\/|$)/i, '$1');
+            base = base.replace(/\/+$/, '');
+            try {
+                const u = new URL(base);
+                if (!u.hostname || u.hostname.includes('=')) return '';
+                const p = (u.pathname || '').replace(/\/+$/, '');
+                return `${u.protocol}//${u.host}${p === '/' ? '' : p}`;
+            } catch (_) {
+                return '';
+            }
+        }
+
+        function sanitizeAvatarUrl(raw) {
+            const value = String(raw || '').trim();
+            if (!value) return '';
+            try {
+                const u = new URL(value, location.origin);
+                if (u.protocol !== 'https:' && u.protocol !== 'http:') return '';
+                return u.toString();
+            } catch (_) {
+                return '';
+            }
+        }
+
+        function _avatarGradient(seedRaw) {
+            const seed = String(seedRaw || '?');
+            const palette = [
+                ['#6366f1', '#8b5cf6'],
+                ['#0ea5e9', '#0284c7'],
+                ['#10b981', '#059669'],
+                ['#f59e0b', '#f97316'],
+                ['#ec4899', '#db2777'],
+                ['#22c55e', '#16a34a']
+            ];
+            let hash = 0;
+            for (let i = 0; i < seed.length; i++) hash = ((hash << 5) - hash) + seed.charCodeAt(i);
+            const idx = Math.abs(hash) % palette.length;
+            const [a, b] = palette[idx];
+            return `linear-gradient(135deg, ${a}, ${b})`;
+        }
+
+        function applyAvatarElement(el, name, photoUrl) {
+            if (!el) return;
+            const displayName = String(name || '').trim();
+            const firstChar = (displayName || '?')[0].toUpperCase();
+            const safePhoto = sanitizeAvatarUrl(photoUrl);
+            el.innerHTML = '';
+            el.style.background = _avatarGradient(displayName || firstChar);
+            if (safePhoto) {
+                const img = document.createElement('img');
+                img.className = 'avatar-photo';
+                img.src = safePhoto;
+                img.alt = '';
+                img.loading = 'lazy';
+                img.referrerPolicy = 'no-referrer';
+                el.appendChild(img);
+            } else {
+                el.textContent = firstChar;
+            }
+        }
+
+        function renderAvatarInline(name, photoUrl, size = 40, extraClass = '') {
+            const displayName = String(name || '').trim();
+            const firstChar = (displayName || '?')[0].toUpperCase();
+            const safePhoto = sanitizeAvatarUrl(photoUrl);
+            const classes = `avatar-inline ${extraClass || ''}`.trim();
+            if (safePhoto) {
+                return `<div class="${classes}" style="width:${size}px;height:${size}px;"><img class="avatar-photo" src="${escapeAttr(safePhoto)}" alt=""></div>`;
+            }
+            const bg = _avatarGradient(displayName || firstChar);
+            return `<div class="${classes}" style="width:${size}px;height:${size}px;background:${bg};">${escapeHtml(firstChar)}</div>`;
+        }
+
         function syncIdentityUI() {
             const displayName = String(S.userName || '').trim();
-            const firstChar = (displayName || '?')[0].toUpperCase();
-            document.getElementById('profile-avatar').textContent = firstChar;
+            applyAvatarElement(document.getElementById('profile-avatar'), displayName, S.userPhoto);
             document.getElementById('profile-name').textContent = displayName || 'Користувач';
             document.getElementById('profile-id').textContent = displayName ? `Telegram: ${displayName}` : 'Telegram: —';
-            document.getElementById('avatar-btn').textContent = firstChar;
+            applyAvatarElement(document.getElementById('avatar-btn'), displayName, S.userPhoto);
         }
 
         function resolveUser() {
             const tg = window.Telegram?.WebApp;
             const qp = new URLSearchParams(location.search);
+            const storedApi = normalizeApiBase(S.apiBase);
+            S.apiBase = storedApi;
+            if (storedApi) localStorage.setItem('wt_api', storedApi);
             const urlApi = qp.get('api');
             if (urlApi) {
-                let base = urlApi.replace(/\/$/, "");
-                if (base && !base.startsWith('http')) base = 'https://' + base;
-                S.apiBase = base;
-                localStorage.setItem('wt_api', S.apiBase);
+                const base = normalizeApiBase(urlApi);
+                if (base) {
+                    S.apiBase = base;
+                    localStorage.setItem('wt_api', S.apiBase);
+                } else {
+                    console.warn('Invalid api base query param:', urlApi);
+                }
             }
-            const tgUser = tg?.initDataUnsafe?.user;
+            const initDataUser = _parseInitDataUser(tg?.initData || '');
+            const tgUser = tg?.initDataUnsafe?.user || initDataUser;
             if (tgUser?.id) {
                 S.userId = tgUser.id;
                 S.userName = _pickTelegramName(tgUser, qp.get('name') || '');
+                S.userPhoto = sanitizeAvatarUrl(tgUser.photo_url || '');
                 tg.ready(); tg.expand();
             } else {
                 S.userId = parseInt(qp.get('user_id') || '0');
                 S.userName = String(qp.get('name') || '').trim();
+                S.userPhoto = sanitizeAvatarUrl(qp.get('avatar') || '');
+            }
+            if (!String(S.userName || '').trim() && S.userId) {
+                const cachedName = String(localStorage.getItem('wt_name_' + S.userId) || '').trim();
+                if (cachedName) S.userName = cachedName;
+            }
+            if (!S.userPhoto && S.userId) {
+                const cachedPhoto = sanitizeAvatarUrl(localStorage.getItem('wt_photo_' + S.userId) || '');
+                if (cachedPhoto) S.userPhoto = cachedPhoto;
             }
             syncIdentityUI();
+            if (S.userId && String(S.userName || '').trim()) {
+                localStorage.setItem('wt_name_' + S.userId, String(S.userName || '').trim());
+            }
+            if (S.userId && S.userPhoto) {
+                localStorage.setItem('wt_photo_' + S.userId, S.userPhoto);
+            }
             try {
                 const saved = JSON.parse(localStorage.getItem('wt_profile_' + S.userId) || '{}');
                 if (typeof saved.role === 'string') S.userRole = normalizeRole(saved.role);
@@ -1690,16 +1828,42 @@
         }
 
         // ─── API ───
-        async function api(path, opts = {}) {
-            if (!S.apiBase) return null;
+        async function apiWithStatus(path, opts = {}) {
+            if (!S.apiBase) return { ok: false, status: 0, data: null };
             const headers = { 'Content-Type': 'application/json' };
             const initData = window.Telegram?.WebApp?.initData || '';
             if (initData) headers['Authorization'] = 'tma ' + initData;
             try {
                 const r = await fetch(S.apiBase + path, { ...opts, headers: { ...headers, ...opts.headers } });
-                if (!r.ok) return null;
-                return await r.json();
-            } catch (e) { console.warn('API err:', path, e); return null; }
+                let payload = null;
+                try {
+                    payload = await r.json();
+                } catch (_) {
+                    payload = null;
+                }
+                return { ok: r.ok, status: r.status, data: payload };
+            } catch (e) {
+                console.warn('API err:', path, e);
+                return { ok: false, status: 0, data: null };
+            }
+        }
+
+        async function api(path, opts = {}) {
+            const resp = await apiWithStatus(path, opts);
+            if (!resp.ok) return null;
+            return resp.data;
+        }
+
+        async function syncUserIdentityToServer() {
+            if (!S.apiBase || !S.userId || !String(S.userName || '').trim()) return;
+            try {
+                const p = await api(`/api/v3/user/profile?user_id=${S.userId}`);
+                const role = normalizeRole(p?.role || S.userRole || 'client') || 'client';
+                await apiWithStatus('/api/v3/user/register', {
+                    method: 'POST',
+                    body: JSON.stringify({ user_id: S.userId, name: S.userName, role })
+                });
+            } catch (_) { }
         }
 
         function normalizeRole(role) {
@@ -1736,6 +1900,22 @@
                     S.userRole = normalizeRole(data.profile.role);
                 }
                 if (!String(S.userName || '').trim()) S.userName = data.profile.name || S.userName;
+                if (!S.userPhoto) S.userPhoto = sanitizeAvatarUrl(data.profile.photo_url || '');
+            }
+            if (!String(S.userName || '').trim()) {
+                const prof = await api(`/api/v3/user/profile?user_id=${S.userId}`);
+                if (prof?.found && String(prof.name || '').trim()) {
+                    S.userName = String(prof.name || '').trim();
+                }
+                if (!S.userPhoto && prof?.found) {
+                    S.userPhoto = sanitizeAvatarUrl(prof.photo_url || '');
+                }
+            }
+            if (S.userId && String(S.userName || '').trim()) {
+                localStorage.setItem('wt_name_' + S.userId, String(S.userName || '').trim());
+            }
+            if (S.userId && S.userPhoto) {
+                localStorage.setItem('wt_photo_' + S.userId, S.userPhoto);
             }
             S.activeTrip = resolveActiveTripPayload(data);
             S.pendingMatches = resolvePendingMatchesPayload(data);
@@ -1751,25 +1931,34 @@
         function startPolling() {
             setInterval(async () => {
                 if (!S.apiBase || !S.userId) return;
-                const trip = await api(`/api/v3/trip/active?user_id=${S.userId}`);
+                if (pollInFlight) return;
+                pollInFlight = true;
+                const state = await api(`/api/v3/hydrate?user_id=${S.userId}&include_outgoing=1`);
                 const prevTrip = S.activeTrip;
-                S.activeTrip = resolveActiveTripPayload(trip);
+                try {
+                    if (state && state.profile && Object.prototype.hasOwnProperty.call(state.profile, 'role')) {
+                        S.userRole = normalizeRole(state.profile.role);
+                    }
+                    S.activeTrip = resolveActiveTripPayload(state);
 
-                // If we were waiting for partner and trip is gone → both finished
-                if (waitingForPartner && !S.activeTrip && prevTrip) {
-                    waitingForPartner = false;
-                    showToast('🏁 Партнер підтвердив. Поїздка завершена!', 'success');
-                    openRatingSheet();
+                    // If we were waiting for partner and trip is gone → both finished
+                    if (waitingForPartner && !S.activeTrip && prevTrip) {
+                        waitingForPartner = false;
+                        showToast('🏁 Партнер підтвердив. Поїздка завершена!', 'success');
+                        openRatingSheet();
+                    }
+
+                    S.pendingMatches = resolvePendingMatchesPayload(state);
+                    renderNews();
+                    updateBadges();
+                    updateRolePill();
+                    renderSubBar();
+                    if (S.currentScreen === 'trips') renderTrips();
+                    if (S.currentScreen === 'news') renderNewsScreen();
+                } finally {
+                    pollInFlight = false;
                 }
-
-                const pend = await api(`/api/v3/match/pending?user_id=${S.userId}`);
-                S.pendingMatches = resolvePendingMatchesPayload(pend);
-                renderNews();
-                updateBadges();
-                renderSubBar();
-                if (S.currentScreen === 'trips') renderTrips();
-                if (S.currentScreen === 'news') renderNewsScreen();
-            }, 8000);
+            }, POLL_INTERVAL_MS);
         }
 
         function updateBadges() {
@@ -1817,11 +2006,36 @@
 
         async function setRole(role) {
             const normalizedRole = normalizeRole(role);
-            S.userRole = normalizedRole; saveProfile(); updateRolePill(); closeSheet();
-            if (S.apiBase) await api('/api/v3/user/role', { method: 'POST', body: JSON.stringify({ user_id: S.userId, role: normalizedRole }) });
+            if (!normalizedRole) return;
+            if (normalizedRole === S.userRole) { closeSheet(); return; }
+
+            if (S.apiBase) {
+                const resp = await apiWithStatus('/api/v3/user/role', {
+                    method: 'POST',
+                    body: JSON.stringify({ user_id: S.userId, role: normalizedRole })
+                });
+                if (!resp.ok) {
+                    const detail = resp?.data?.detail;
+                    const reason = (detail && typeof detail === 'object') ? detail.reason : '';
+                    if (reason === 'role_change_blocked_by_opposite_interest') {
+                        showToast('Спочатку відпишіться: є зацікавлені з протилежної ролі', 'error');
+                    } else if (reason === 'role_change_blocked_active_trip') {
+                        showToast('Неможливо змінити роль під час активної поїздки', 'error');
+                    } else {
+                        showToast('Не вдалося змінити роль', 'error');
+                    }
+                    return;
+                }
+            }
+
+            S.userRole = normalizedRole;
+            saveProfile();
+            updateRolePill();
+            closeSheet();
             showToast(normalizedRole === 'driver' ? '🚗 Ви водій!' : '👤 Ви попутник!', 'success');
             if (S.currentScreen === 'explore') refreshMap();
             renderSubBar();
+            if (S.apiBase) await hydrate();
         }
 
         // ─── SUBSCRIPTION BAR ───
@@ -2029,7 +2243,7 @@
             if (!crews.length) { c.innerHTML = ''; return; }
             c.innerHTML = crews.map(cr => `
                 <div class="crew-mini-card" onclick="requestJoin(${cr.organizer_id}, '${cr.direction_id}')">
-                    <div class="crew-mini-avatar">${(cr.driver_name || '?')[0].toUpperCase()}</div>
+                    ${renderAvatarInline(cr.driver_name || cr.organizer_name || '?', cr.driver_photo_url || cr.organizer_photo_url || '', 40, 'crew-mini-avatar')}
                     <div class="crew-mini-info">
                         <div class="crew-mini-name">${cr.driver_name || cr.organizer_name || 'Екіпаж'}</div>
                         <div class="crew-mini-dir">${cr.direction_title || ''}</div>
@@ -2284,7 +2498,7 @@
                     <div style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--text-muted);letter-spacing:1px;margin:8px 0 4px;">Організатори</div>
                     ${orgs.slice(0, 6).map(o => `
                         <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">
-                            <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#a78bfa,#6366f1);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;color:#fff;flex-shrink:0;">${(o.name || '?')[0].toUpperCase()}</div>
+                            ${renderAvatarInline(o.name || 'Організатор', o.photo_url || '', 36)}
                             <div style="flex:1;min-width:0;">
                                 <div style="font-weight:700;font-size:13px;">${escapeHtml(o.name || 'Організатор')}</div>
                                 <div style="font-size:11px;color:var(--text-secondary);">${o.role === 'driver' ? '🚗 Водій' : '👤 Попутник'}${o.seats_free > 0 ? ' • <span style="color:var(--accent);">' + o.seats_free + ' місць</span>' : ''}</div>
@@ -2300,20 +2514,45 @@
         async function subscribeDir(dirId) {
             const dir = allDirections.find(d => String(d.id) === String(dirId));
             if (isFolderNode(dir)) { showToast('Підписка доступна тільки на напрямок', 'error'); return; }
-            await api('/api/v3/board/subscribe', { method: 'POST', body: JSON.stringify({ user_id: S.userId, direction_id: dirId, role: S.userRole || 'passenger' }) });
-            const title = dir?.title || `#${dirId}`;
-            S.subscriptions.push({ direction_id: dirId, direction_title: title, title });
-            S.boardSubSet.add(String(dirId));
-            showToast('✓ Підписано!', 'success'); closeSheet(); renderBoard(); renderSubBar();
+            const resp = await apiWithStatus('/api/v3/board/subscribe', {
+                method: 'POST',
+                body: JSON.stringify({ user_id: S.userId, direction_id: dirId, role: S.userRole || 'passenger' })
+            });
+            const status = String(resp?.data?.status || '');
+            if (!resp.ok || (status !== 'ok' && status !== 'already_subscribed')) {
+                showToast(resp?.data?.detail || 'Не вдалося підписатись', 'error');
+                return false;
+            }
+            await hydrate();
+            closeSheet();
+            renderBoard();
+            renderSubBar();
+            if (S.pendingMatches.length > 0) {
+                switchScreen('trips');
+                showToast('🔔 Є збіг інтересів! Перевірте вкладку Поїздки', 'success');
+            } else {
+                showToast(status === 'already_subscribed' ? 'Вже підписані' : '✓ Підписано!', 'success');
+            }
+            return true;
         }
 
         async function unsubscribeDir(dirId) {
             const dir = allDirections.find(d => String(d.id) === String(dirId));
             if (isFolderNode(dir)) { showToast('Це каталог, не підписка', 'error'); return; }
-            await api('/api/v3/board/unsubscribe', { method: 'POST', body: JSON.stringify({ user_id: S.userId, direction_id: dirId }) });
-            S.subscriptions = S.subscriptions.filter(s => String(s.direction_id) !== String(dirId));
-            S.boardSubSet.delete(String(dirId));
-            showToast('Відписано'); closeSheet(); renderBoard(); renderSubBar();
+            const resp = await apiWithStatus('/api/v3/board/unsubscribe', {
+                method: 'POST',
+                body: JSON.stringify({ user_id: S.userId, direction_id: dirId })
+            });
+            if (!resp.ok) {
+                showToast(resp?.data?.detail || 'Не вдалося відписатись', 'error');
+                return false;
+            }
+            await hydrate();
+            showToast('Відписано');
+            closeSheet();
+            renderBoard();
+            renderSubBar();
+            return true;
         }
 
         // ─── TRIPS ───
@@ -2356,7 +2595,7 @@
                     const partnerId = isIncoming ? (m.partner_id || m.sender_id) : (m.target_id || m.partner_id);
                     return `<div class="card animate-in" style="border-left:3px solid ${isIncoming ? 'var(--amber)' : 'var(--blue)'};">
                             <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
-                                <div style="width:40px;height:40px;border-radius:50%;background:${isIncoming ? 'linear-gradient(135deg,#fbbf24,#f59e0b)' : 'linear-gradient(135deg,#38bdf8,#0284c7)'};display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;color:#fff;">${(partnerName || '?')[0].toUpperCase()}</div>
+                                ${renderAvatarInline(partnerName, m.partner_photo_url || m.sender_photo_url || m.target_photo_url || '', 40)}
                                 <div style="flex:1;"><div style="font-weight:800;font-size:14px;">${escapeHtml(partnerName)}</div><div style="font-size:11px;color:var(--text-secondary);">${escapeHtml(m.direction || m.direction_title || 'Напрямок')}</div></div>
                                 <div class="tag ${isIncoming ? 'tag-amber' : 'tag-blue'}">${isIncoming ? '📩 Вхідний' : '📤 Очікування'}</div>
                             </div>
@@ -2555,6 +2794,15 @@
 
         function escapeHtml(str) {
             const d = document.createElement('div'); d.textContent = String(str ?? ''); return d.innerHTML;
+        }
+
+        function escapeAttr(str) {
+            return String(str ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
         }
 
         // ─── SHEET ───
@@ -2835,8 +3083,8 @@
         }
 
         async function subscribeAndPickup(dirId) {
-            await subscribeDir(dirId);
-            setTimeout(() => pickPickupLocation(dirId), 600);
+            const ok = await subscribeDir(dirId);
+            if (ok) setTimeout(() => pickPickupLocation(dirId), 600);
         }
 
     </script>
