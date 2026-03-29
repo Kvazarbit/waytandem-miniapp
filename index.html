@@ -3,8 +3,8 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport"
-        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no,
+        viewport-fit=cover">
     <title>WayTandem</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
         rel="stylesheet">
@@ -120,122 +120,6 @@
             transition: all 0.2s;
         }
 
-        /* ═══ SUBSCRIPTION BAR — always visible, Telegram-bot style context ═══ */
-        .sub-bar {
-            flex-shrink: 0;
-            padding: 8px 16px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            background: linear-gradient(135deg, rgba(163,230,53,0.08), rgba(163,230,53,0.03));
-            border-bottom: 1px solid rgba(163,230,53,0.15);
-            z-index: 99;
-            overflow-x: auto;
-            scrollbar-width: none;
-            -webkit-overflow-scrolling: touch;
-        }
-        .sub-bar::-webkit-scrollbar { display: none; }
-        .sub-bar:empty { display: none; padding: 0; border: none; height: 0; }
-        .sub-bar-icon { font-size: 16px; flex-shrink: 0; }
-        .sub-bar-chip {
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 5px 12px;
-            border-radius: 14px;
-            background: rgba(163,230,53,0.12);
-            border: 1px solid rgba(163,230,53,0.2);
-            font-size: 12px;
-            font-weight: 700;
-            color: var(--accent);
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .sub-bar-chip:active { background: rgba(163,230,53,0.2); transform: scale(0.96); }
-        .sub-bar-chip .chip-x {
-            width: 16px; height: 16px; border-radius: 50%;
-            background: rgba(248,113,113,0.15); color: var(--red);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 10px; font-weight: 900;
-        }
-        .sub-bar-pending {
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            padding: 5px 10px;
-            border-radius: 14px;
-            background: rgba(251,191,36,0.12);
-            border: 1px solid rgba(251,191,36,0.2);
-            font-size: 11px;
-            font-weight: 700;
-            color: var(--amber);
-            cursor: pointer;
-        }
-        .sub-bar-crew {
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 5px 12px;
-            border-radius: 14px;
-            background: rgba(56,189,248,0.12);
-            border: 1px solid rgba(56,189,248,0.2);
-            font-size: 12px;
-            font-weight: 700;
-            color: var(--blue);
-            cursor: pointer;
-        }
-        .sub-bar-text {
-            flex: 1;
-            font-size: 11px;
-            color: var(--text-muted);
-            font-weight: 600;
-            white-space: nowrap;
-            min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        /* ═══ OPEN CREW BUTTON — driver CTA ═══ */
-        .open-crew-btn {
-            margin: 12px 16px;
-            padding: 16px 20px;
-            border-radius: var(--radius-xl);
-            background: linear-gradient(135deg, rgba(56,189,248,0.15), rgba(99,102,241,0.1));
-            border: 1px solid rgba(56,189,248,0.3);
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .open-crew-btn:active { transform: scale(0.98); border-color: var(--blue); }
-        .open-crew-icon {
-            width: 48px; height: 48px; border-radius: 50%;
-            background: linear-gradient(135deg, #38bdf8, #6366f1);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 22px; flex-shrink: 0;
-        }
-        .open-crew-info { flex: 1; }
-        .open-crew-title { font-weight: 800; font-size: 15px; margin-bottom: 2px; }
-        .open-crew-sub { font-size: 12px; color: var(--text-secondary); }
-        .open-crew-arrow { color: var(--blue); font-size: 20px; }
-
-        /* ═══ REQUEST STATUS INDICATOR ═══ */
-        .req-pending-tag {
-            display: inline-flex; align-items: center; gap: 4px;
-            padding: 3px 8px; border-radius: 6px;
-            background: var(--amber-dim); color: var(--amber);
-            font-size: 10px; font-weight: 800;
-            animation: pulse-amber 2s infinite;
-        }
-        @keyframes pulse-amber {
-            0%,100% { opacity: 0.7; }
-            50% { opacity: 1; }
-        }
-
         .role-pill.driver {
             background: var(--accent-dim);
             color: var(--accent);
@@ -267,6 +151,170 @@
             color: #fff;
             cursor: pointer;
             border: 2px solid rgba(255, 255, 255, 0.15);
+        }
+
+        /* ═══ SUBSCRIPTION BAR ═══ */
+        .sub-bar {
+            flex-shrink: 0;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(135deg, rgba(163, 230, 53, 0.08), rgba(163, 230, 53, 0.03));
+            border-bottom: 1px solid rgba(163, 230, 53, 0.15);
+            z-index: 99;
+            overflow-x: auto;
+            scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .sub-bar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .sub-bar:empty {
+            display: none;
+            padding: 0;
+            border: none;
+            height: 0;
+        }
+
+        .sub-bar-chip {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            border-radius: 14px;
+            background: rgba(163, 230, 53, 0.12);
+            border: 1px solid rgba(163, 230, 53, 0.2);
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--accent);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .sub-bar-chip:active {
+            background: rgba(163, 230, 53, 0.2);
+            transform: scale(0.96);
+        }
+
+        .sub-bar-pending {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 5px 10px;
+            border-radius: 14px;
+            background: rgba(251, 191, 36, 0.12);
+            border: 1px solid rgba(251, 191, 36, 0.2);
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--amber);
+            cursor: pointer;
+        }
+
+        .sub-bar-crew {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            border-radius: 14px;
+            background: rgba(56, 189, 248, 0.12);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--blue);
+            cursor: pointer;
+        }
+
+        .sub-bar-text {
+            flex: 1;
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 600;
+            white-space: nowrap;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* ═══ OPEN CREW BUTTON ═══ */
+        .open-crew-btn {
+            margin: 12px 16px;
+            padding: 16px 20px;
+            border-radius: var(--radius-xl);
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(99, 102, 241, 0.1));
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .open-crew-btn:active {
+            transform: scale(0.98);
+            border-color: var(--blue);
+        }
+
+        .open-crew-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #38bdf8, #6366f1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            flex-shrink: 0;
+        }
+
+        .open-crew-info {
+            flex: 1;
+        }
+
+        .open-crew-title {
+            font-weight: 800;
+            font-size: 15px;
+            margin-bottom: 2px;
+        }
+
+        .open-crew-sub {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .open-crew-arrow {
+            color: var(--blue);
+            font-size: 20px;
+        }
+
+        .req-pending-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            background: var(--amber-dim);
+            color: var(--amber);
+            font-size: 10px;
+            font-weight: 800;
+            animation: pulse-amber 2s infinite;
+        }
+
+        @keyframes pulse-amber {
+
+            0%,
+            100% {
+                opacity: 0.7;
+            }
+
+            50% {
+                opacity: 1;
+            }
         }
 
         .main {
@@ -691,6 +739,8 @@
 
         .sheet-body {
             padding: 0 20px 20px;
+            max-height: 80vh;
+            overflow-y: auto;
         }
 
         .sheet-title {
@@ -1367,7 +1417,6 @@
 </head>
 
 <body>
-
     <div id="app">
         <!-- HEADER -->
         <div class="header">
@@ -1378,12 +1427,12 @@
             </div>
         </div>
 
-        <!-- SUBSCRIPTION BAR — always shows context (Telegram-bot style) -->
+        <!-- SUBSCRIPTION BAR -->
         <div class="sub-bar" id="sub-bar"></div>
 
         <!-- MAIN SCREENS -->
         <div class="main">
-            <!-- EXPLORE (Map + Crews) -->
+            <!-- EXPLORE -->
             <div class="screen active" id="screen-explore">
                 <div class="news-strip" id="news-strip" style="display:none;"></div>
                 <div id="map-container">
@@ -1392,10 +1441,15 @@
                 </div>
             </div>
 
-            <!-- BOARD (Directions) -->
+            <!-- BOARD -->
             <div class="screen" id="screen-board">
-                <input class="board-search" id="board-search" placeholder="🔍 Пошук напрямку..."
-                    oninput="filterBoard(this.value)">
+                <div style="display:flex;gap:8px;padding:12px 16px 0;">
+                    <input class="board-search" id="board-search" placeholder="🔍 Пошук напрямку..."
+                        oninput="filterBoard(this.value)" style="flex:1;">
+                    <button class="btn btn-primary" style="padding:10px
+                        14px;font-size:18px;border-radius:var(--radius-sm);flex-shrink:0;"
+                        onclick="openCreateDirection()" title="Створити напрямок">+</button>
+                </div>
                 <div class="board-breadcrumb" id="board-breadcrumb"></div>
                 <div id="board-list"></div>
             </div>
@@ -1407,7 +1461,7 @@
                 <div class="news-feed" id="news-feed"></div>
             </div>
 
-            <!-- TRIPS (Active + Handshakes) -->
+            <!-- TRIPS -->
             <div class="screen" id="screen-trips">
                 <div id="trips-content"></div>
             </div>
@@ -1440,6 +1494,18 @@
                     </div>
                 </div>
                 <div class="settings-group">
+                    <div class="settings-row" onclick="openMyIdeas()">
+                        <div class="settings-icon">💡</div>
+                        <div class="settings-label">Мої напрямки</div>
+                        <div class="settings-arrow">›</div>
+                    </div>
+                    <div class="settings-row" onclick="openTripHistory()">
+                        <div class="settings-icon">📋</div>
+                        <div class="settings-label">Історія поїздок</div>
+                        <div class="settings-arrow">›</div>
+                    </div>
+                </div>
+                <div class="settings-group">
                     <div class="settings-row" onclick="openLangSelector()">
                         <div class="settings-icon">🌐</div>
                         <div class="settings-label">Мова</div>
@@ -1449,7 +1515,8 @@
                     <div class="settings-row">
                         <div class="settings-icon">🔔</div>
                         <div class="settings-label">Сповіщення</div>
-                        <div class="toggle on" id="toggle-notifications" onclick="this.classList.toggle('on')"></div>
+                        <div class="toggle on" id="toggle-notifications" onclick="this.classList.toggle('on')">
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1509,10 +1576,11 @@
     <!-- CHAT OVERLAY -->
     <div class="sheet-backdrop" id="chat-backdrop" onclick="closeChat()" style="z-index:8999;"></div>
     <div class="sheet" id="chat-sheet" style="z-index:9000; top:0; bottom:0; transform:translateY(100%);">
-        <div class="sheet-card" style="margin:0; height:100%; border-radius:0; display:flex; flex-direction:column;">
+        <div class="sheet-card" style="margin:0; height:100%; border-radius:0; display:flex;
+            flex-direction:column;">
             <div class="chat-container">
-                <div
-                    style="display:flex; align-items:center; gap:12px; padding:14px 16px; border-bottom:1px solid var(--border);">
+                <div style="display:flex; align-items:center; gap:12px; padding:14px 16px; border-bottom:1px solid
+                    var(--border);">
                     <div style="cursor:pointer; font-size:20px;" onclick="closeChat()">←</div>
                     <div style="flex:1;">
                         <div style="font-weight:800; font-size:15px;" id="chat-title">Чат</div>
@@ -1522,7 +1590,7 @@
                 <div class="chat-feed" id="chat-feed"></div>
                 <div class="chat-input-bar">
                     <input class="chat-input" id="chat-input" placeholder="Написати..."
-                        onkeydown="if(event.key==='Enter')sendChat()">
+                        onkeydown="if(event.key==='Enter' )sendChat()">
                     <button class="chat-send" onclick="sendChat()">➤</button>
                 </div>
             </div>
@@ -1535,8 +1603,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         /* ══════════════════════════════════════════════════════════════════
-           WAYTANDEM v3.0 — "Compass" Engine
-           Philosophy: Every screen tells you WHERE you are, WHAT to do next.
+           WAYTANDEM v3.1 — E2E Complete
            ══════════════════════════════════════════════════════════════════ */
 
         const S = {
@@ -1547,11 +1614,15 @@
             chatRequestId: null, chatPartnerId: null, busy: false,
             boardParentId: null, boardStack: [], boardSubSet: new Set(),
             newsFilter: 'all', mapNewsFilter: 'all', newsMarkers: [],
-            subscriptions: [],     // [{direction_id, title, ...}]
-            myCrew: null,          // driver's open crew info
-            homeCity: { lat: 52.2297, lng: 21.0122, name: 'Warsaw' }, // default Warsaw
+            subscriptions: [],
+            myCrew: null,
+            homeCity: { lat: 52.2297, lng: 21.0122, name: 'Warsaw' },
+            pickupCoords: null,
+            _pickupMarker: null,
+            _ratingScore: null,
         };
         let boardNavDefaults = null;
+        let waitingForPartner = false;
 
         document.addEventListener('DOMContentLoaded', async () => {
             resolveUser();
@@ -1585,16 +1656,13 @@
         function resolveUser() {
             const tg = window.Telegram?.WebApp;
             const qp = new URLSearchParams(location.search);
-            
-            // 🚀 Automatic API Resolution (Transparent)
             const urlApi = qp.get('api');
             if (urlApi) {
-                let base = urlApi.replace(/\/$/, "");
+                let base = urlApi.replace(/\/$ /, "");
                 if (base && !base.startsWith('http')) base = 'https://' + base;
                 S.apiBase = base;
                 localStorage.setItem('wt_api', S.apiBase);
             }
-
             const tgUser = tg?.initDataUnsafe?.user;
             if (tgUser?.id) {
                 S.userId = tgUser.id;
@@ -1647,10 +1715,8 @@
             if (data.pending) S.pendingMatches = data.pending;
             syncIdentityUI();
             updateRolePill(); updateBadges(); renderNews(); renderBoard(); renderTrips(); refreshMap();
-            // Fetch subscriptions for subscription bar
             const subs = await api(`/api/v3/user/subscriptions?user_id=${S.userId}`);
             S.subscriptions = subs?.subscriptions || [];
-            // Build boardSubSet for quick lookup
             S.boardSubSet = new Set(S.subscriptions.map(s => String(s.direction_id)));
             renderSubBar();
         }
@@ -1660,12 +1726,21 @@
             setInterval(async () => {
                 if (!S.apiBase || !S.userId) return;
                 const trip = await api(`/api/v3/trip/active?user_id=${S.userId}`);
+                const prevTrip = S.activeTrip;
                 S.activeTrip = trip?.found ? trip : null;
+
+                // If we were waiting for partner and trip is gone → both finished
+                if (waitingForPartner && !S.activeTrip && prevTrip) {
+                    waitingForPartner = false;
+                    showToast('🏁 Партнер підтвердив. Поїздка завершена!', 'success');
+                    openRatingSheet();
+                }
+
                 const pend = await api(`/api/v3/match/pending?user_id=${S.userId}`);
                 S.pendingMatches = Array.isArray(pend?.matches) ? pend.matches : [];
                 renderNews();
                 updateBadges();
-                renderSubBar();  // update subscription context bar
+                renderSubBar();
                 if (S.currentScreen === 'trips') renderTrips();
                 if (S.currentScreen === 'news') renderNewsScreen();
             }, 8000);
@@ -1680,15 +1755,8 @@
 
         // ─── ROLE ───
         function initRolePill() { updateRolePill(); }
-
-        function _isDriverRole(role) {
-            return String(role || '') === 'driver';
-        }
-
-        function _isPassengerRole(role) {
-            const r = String(role || '');
-            return r === 'passenger' || r === 'client';
-        }
+        function _isDriverRole(role) { return String(role || '') === 'driver'; }
+        function _isPassengerRole(role) { const r = String(role || ''); return r === 'passenger' || r === 'client'; }
 
         function syncProfileSettingsByRole() {
             const carRow = document.getElementById('settings-row-car');
@@ -1711,14 +1779,14 @@
 
         function openRoleSelector() {
             openSheet(`
-        <div class="sheet-title">Оберіть роль</div>
-        <div class="sheet-sub">Водій має авто та місця. Попутник шукає поїздку.</div>
-        <div class="sheet-actions">
-            <button class="btn btn-primary" onclick="setRole('driver')">🚗 Водій</button>
-            <button class="btn btn-secondary" onclick="setRole('passenger')">👤 Попутник</button>
-            <button class="btn btn-ghost" onclick="closeSheet()">Скасувати</button>
-        </div>
-    `);
+                <div class="sheet-title">Оберіть роль</div>
+                <div class="sheet-sub">Водій має авто та місця. Попутник шукає поїздку.</div>
+                <div class="sheet-actions">
+                    <button class="btn btn-primary" onclick="setRole('driver')">🚗 Водій</button>
+                    <button class="btn btn-secondary" onclick="setRole('passenger')">👤 Попутник</button>
+                    <button class="btn btn-ghost" onclick="closeSheet()">Скасувати</button>
+                </div>
+            `);
         }
 
         async function setRole(role) {
@@ -1729,93 +1797,51 @@
             renderSubBar();
         }
 
-        // ═══ SUBSCRIPTION BAR — Telegram-bot style context bar ═══
-        // Shows ALWAYS: subscriptions, pending requests, active crew
-        // Like Telegram bot that holds your context and limits what you see
+        // ─── SUBSCRIPTION BAR ───
         function renderSubBar() {
             const bar = document.getElementById('sub-bar');
             if (!bar) return;
             const parts = [];
-
-            // 1. Active trip — highest priority
             if (S.activeTrip) {
                 const t = S.activeTrip;
                 const isDriver = t.viewer_role === 'driver';
-                parts.push(`<div class="sub-bar-crew" onclick="switchScreen('trips')">
-                    ${isDriver ? '🚗' : '👤'} ${escapeHtml(t.direction_title || 'Поїздка')} #${t.crew_id || '—'}
-                </div>`);
+                parts.push(`<div class="sub-bar-crew" onclick="switchScreen('trips')">${isDriver ? '🚗' : '👤'} ${escapeHtml(t.direction_title || 'Поїздка')} #${t.crew_id || '—'}</div>`);
             }
-
-            // 2. Pending requests (incoming)
+            if (waitingForPartner) {
+                parts.push(`<div class="sub-bar-pending" onclick="switchScreen('trips')">⏳ Очікування партнера</div>`);
+            }
             const incoming = S.pendingMatches.filter(m => m.scope === 'incoming');
-            if (incoming.length > 0) {
-                parts.push(`<div class="sub-bar-pending" onclick="switchScreen('trips')">
-                    📩 ${incoming.length} запит${incoming.length > 1 ? 'ів' : ''}
-                </div>`);
-            }
-
-            // 3. Pending requests (outgoing — my requests waiting)
+            if (incoming.length > 0) parts.push(`<div class="sub-bar-pending" onclick="switchScreen('trips')">📩 ${incoming.length} запит${incoming.length > 1 ? 'ів' : ''}</div>`);
             const outgoing = S.pendingMatches.filter(m => m.scope === 'outgoing');
-            if (outgoing.length > 0) {
-                parts.push(`<div class="sub-bar-pending" onclick="switchScreen('trips')">
-                    ⏳ ${outgoing.length} очікує${outgoing.length > 1 ? '' : ''}
-                </div>`);
-            }
-
-            // 4. My crew (driver has opened crew)
-            if (S.myCrew) {
-                parts.push(`<div class="sub-bar-crew" onclick="switchScreen('trips')">
-                    🚗 Екіпаж #${S.myCrew.crew_id || '—'}
-                </div>`);
-            }
-
-            // 5. Subscriptions (what I'm watching)
+            if (outgoing.length > 0) parts.push(`<div class="sub-bar-pending" onclick="switchScreen('trips')">⏳ ${outgoing.length} очікує</div>`);
+            if (S.myCrew) parts.push(`<div class="sub-bar-crew" onclick="switchScreen('trips')">🚗 Екіпаж #${S.myCrew.crew_id || '—'}</div>`);
             const subs = S.subscriptions || [];
             if (subs.length > 0 && !S.activeTrip) {
                 subs.slice(0, 3).forEach(s => {
                     const title = s.direction_title || s.title || `#${s.direction_id}`;
-                    parts.push(`<div class="sub-bar-chip" onclick="openDirection(${s.direction_id})">
-                        🧭 ${escapeHtml(title.substring(0, 20))}
-                    </div>`);
+                    parts.push(`<div class="sub-bar-chip" onclick="openDirection(${s.direction_id})">🧭 ${escapeHtml(title.substring(0, 20))}</div>`);
                 });
-                if (subs.length > 3) {
-                    parts.push(`<div class="sub-bar-text">+${subs.length - 3} ще</div>`);
-                }
+                if (subs.length > 3) parts.push(`<div class="sub-bar-text">+${subs.length - 3} ще</div>`);
             }
-
-            // 6. Empty state — prompt to subscribe
-            if (parts.length === 0 && !S.activeTrip) {
-                parts.push(`<div class="sub-bar-text" onclick="switchScreen('board')">📌 Оберіть напрямок, щоб почати</div>`);
-            }
-
+            if (parts.length === 0) parts.push(`<div class="sub-bar-text" onclick="switchScreen('board')">📌 Оберіть напрямок, щоб почати</div>`);
             bar.innerHTML = parts.join('');
         }
 
-        // ═══ OPEN CREW — driver creates crew for passengers to join ═══
+        // ─── OPEN CREW ───
         async function openMyCrew() {
             if (S.busy) return;
-            // Step 1: Pick direction
             const dirs = S.subscriptions.length > 0 ? S.subscriptions : (await api(`/api/v3/board?lang=${S.lang}`))?.directions || [];
-            if (!dirs.length) {
-                showToast('Спочатку підпишіться на напрямок', 'error');
-                switchScreen('board');
-                return;
-            }
-            // If only 1 subscription — use it directly
-            if (dirs.length === 1) {
-                await doOpenCrew(dirs[0].direction_id || dirs[0].id);
-                return;
-            }
-            // Multiple directions — show picker
+            if (!dirs.length) { showToast('Спочатку підпишіться на напрямок', 'error'); switchScreen('board'); return; }
+            if (dirs.length === 1) { await doOpenCrew(dirs[0].direction_id || dirs[0].id); return; }
             openSheet(`
                 <div class="sheet-title">Відкрити екіпаж</div>
                 <div class="sheet-sub">Оберіть напрямок для вашого екіпажу</div>
                 <div class="sheet-actions">
                     ${dirs.map(d => {
-                        const did = d.direction_id || d.id;
-                        const title = d.direction_title || d.title || `#${did}`;
-                        return `<button class="btn btn-secondary" onclick="doOpenCrew(${did});closeSheet();">${escapeHtml(title)}</button>`;
-                    }).join('')}
+                const did = d.direction_id || d.id;
+                const title = d.direction_title || d.title || `#${did}`;
+                return `<button class="btn btn-secondary" onclick="doOpenCrew(${did});closeSheet();">${escapeHtml(title)}</button>`;
+            }).join('')}
                     <button class="btn btn-ghost" onclick="closeSheet()">Скасувати</button>
                 </div>
             `);
@@ -1824,24 +1850,17 @@
         async function doOpenCrew(dirId) {
             if (S.busy) return; S.busy = true;
             try {
-                const res = await api('/api/v3/crews/open', {
-                    method: 'POST',
-                    body: JSON.stringify({ user_id: S.userId, direction_id: dirId, seats_total: S.seats })
-                });
+                const res = await api('/api/v3/crews/open', { method: 'POST', body: JSON.stringify({ user_id: S.userId, direction_id: dirId, seats_total: S.seats }) });
                 if (res?.status === 'ok' || res?.crew_id) {
                     S.myCrew = { crew_id: res.crew_id, direction_id: dirId };
-                    showToast('🚗 Екіпаж відкрито! Пасажири можуть приєднатись', 'success');
-                    renderSubBar();
-                    refreshMap();
-                } else {
-                    showToast('Помилка: ' + (res?.reason || 'невідома'), 'error');
-                }
-            } catch (e) {
-                showToast('Помилка створення екіпажу', 'error');
-            } finally { S.busy = false; }
+                    showToast('🚗 Екіпаж відкрито!', 'success');
+                    renderSubBar(); refreshMap();
+                } else { showToast('Помилка: ' + (res?.reason || 'невідома'), 'error'); }
+            } catch (e) { showToast('Помилка створення екіпажу', 'error'); }
+            finally { S.busy = false; }
         }
 
-        // ═══ NAVIGATION ───
+        // ─── NAVIGATION ───
         function switchScreen(name) {
             S.currentScreen = name;
             document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
@@ -1859,33 +1878,19 @@
             const nav = document.querySelector('.nav');
             const boardItem = document.querySelector('.nav-item[data-tab="board"]');
             if (!nav || !boardItem) return;
-
             const boardLabel = boardItem.querySelector('span');
             const boardIcon = boardItem.querySelector('svg');
-            if (!boardNavDefaults) {
-                boardNavDefaults = {
-                    label: boardLabel?.textContent || 'Каталог',
-                    icon: boardIcon?.innerHTML || '',
-                };
-            }
-
+            if (!boardNavDefaults) boardNavDefaults = { label: boardLabel?.textContent || 'Каталог', icon: boardIcon?.innerHTML || '' };
             const deepInBoard = S.currentScreen === 'board' && S.boardStack.length > 0;
             const navItems = Array.from(nav.querySelectorAll('.nav-item'));
             nav.classList.toggle('board-deep', deepInBoard);
-
-            navItems.forEach(item => {
-                if (item === boardItem) return;
-                item.style.display = deepInBoard ? 'none' : '';
-            });
-
+            navItems.forEach(item => { if (item === boardItem) return; item.style.display = deepInBoard ? 'none' : ''; });
             if (deepInBoard) {
                 if (boardLabel) boardLabel.textContent = 'Назад';
                 if (boardIcon) boardIcon.innerHTML = '<polyline points="15 18 9 12 15 6"></polyline><line x1="9" y1="12" x2="21" y2="12"></line>';
                 boardItem.onclick = (e) => { e?.preventDefault?.(); boardGoUp(); };
-                boardItem.classList.add('active');
-                return;
+                boardItem.classList.add('active'); return;
             }
-
             if (boardLabel) boardLabel.textContent = boardNavDefaults.label || 'Каталог';
             if (boardIcon && boardNavDefaults.icon) boardIcon.innerHTML = boardNavDefaults.icon;
             boardItem.onclick = () => switchScreen('board');
@@ -1895,28 +1900,22 @@
 
         // ─── MAP ───
         function initMap() {
-            // Try GPS first, fallback to Warsaw (S.homeCity)
-            S.map = L.map('map', { zoomControl: false, attributionControl: false })
-                .setView([S.homeCity.lat, S.homeCity.lng], 11);
+            S.map = L.map('map', { zoomControl: false, attributionControl: false }).setView([S.homeCity.lat, S.homeCity.lng], 11);
             L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(S.map);
-            // Try geolocation, fly to user if available
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     p => S.map.flyTo([p.coords.latitude, p.coords.longitude], 13, { duration: 1.2 }),
-                    () => {} // stay on Warsaw
+                    () => { }
                 );
             }
-            // Location button — fly to my GPS
             const locBtn = document.createElement('div');
             locBtn.style.cssText = 'position:absolute;bottom:120px;right:16px;z-index:500;width:44px;height:44px;border-radius:50%;background:var(--bg-card);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:20px;backdrop-filter:blur(10px);';
             locBtn.textContent = '📍';
             locBtn.onclick = () => { if (navigator.geolocation) navigator.geolocation.getCurrentPosition(p => S.map.flyTo([p.coords.latitude, p.coords.longitude], 14, { duration: 1 })); };
             document.getElementById('map-container').appendChild(locBtn);
-            // Home city button — fly to Warsaw
             const homeBtn = document.createElement('div');
             homeBtn.style.cssText = 'position:absolute;bottom:120px;right:70px;z-index:500;width:44px;height:44px;border-radius:50%;background:var(--bg-card);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px;backdrop-filter:blur(10px);';
-            homeBtn.textContent = '🏠';
-            homeBtn.title = S.homeCity.name;
+            homeBtn.textContent = '🏠'; homeBtn.title = S.homeCity.name;
             homeBtn.onclick = () => S.map.flyTo([S.homeCity.lat, S.homeCity.lng], 12, { duration: 1 });
             document.getElementById('map-container').appendChild(homeBtn);
         }
@@ -1938,6 +1937,8 @@
                 marker.bindPopup(`<div style="text-align:center;min-width:180px;"><div style="font-weight:800;font-size:14px;margin-bottom:4px;">${c.driver_name || c.organizer_name || 'Екіпаж'}</div><div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">${c.direction_title || ''}</div><div style="display:flex;gap:8px;">${canRequest ? `<button onclick="requestJoin(${c.organizer_id}, '${c.direction_id}')" style="flex:1;padding:8px;border-radius:10px;background:rgba(163,230,53,0.15);color:#a3e635;border:1px solid rgba(163,230,53,0.3);font-weight:700;font-size:12px;cursor:pointer;">✓ Запит</button>` : ''}<button onclick="openDirectionFromMap('${c.direction_id}')" style="flex:1;padding:8px;border-radius:10px;background:rgba(56,189,248,0.14);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-weight:700;font-size:12px;cursor:pointer;">→ Напрямок</button></div></div>`);
                 S.mapMarkers.push(marker);
             });
+            // Re-draw pickup marker if exists
+            if (S.pickupCoords && S._pickupMarker) { S._pickupMarker.addTo(S.map); }
             renderNewsPointsOnMap(crews);
             renderMapOverlay([]);
         }
@@ -1953,14 +1954,12 @@
             if (!S.map) return;
             const items = Array.isArray(S.news) ? S.news : [];
             if (!items.length) return;
-
             const byDirection = new Map();
             (crews || []).forEach(c => {
                 if (!c || c.direction_id == null || c.lat == null || c.lng == null) return;
                 const key = String(c.direction_id);
                 if (!byDirection.has(key)) byDirection.set(key, { lat: Number(c.lat), lng: Number(c.lng), dirTitle: c.direction_title || '' });
             });
-
             const uniqueNews = [];
             const seenDir = new Set();
             for (const n of items) {
@@ -1974,7 +1973,6 @@
                 seenDir.add(key);
                 uniqueNews.push(n);
             }
-
             uniqueNews.slice(0, 80).forEach(n => {
                 const dId = Number(n?.direction_id || 0);
                 const key = String(dId);
@@ -1982,54 +1980,30 @@
                 if (!geo) return;
                 const kind = classifyNewsItem(n);
                 const pal = _newsMarkerPalette(kind);
-                const icon = L.divIcon({
-                    className: '',
-                    html: `<div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:${pal.color};color:#081018;font-size:14px;font-weight:900;border:2px solid rgba(0,0,0,0.35);box-shadow:0 0 16px ${pal.glow};">${pal.emoji}</div>`,
-                    iconSize: [28, 28],
-                    iconAnchor: [14, 14],
-                });
+                const icon = L.divIcon({ className: '', html: `<div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:${pal.color};color:#081018;font-size:14px;font-weight:900;border:2px solid rgba(0,0,0,0.35);box-shadow:0 0 16px ${pal.glow};">${pal.emoji}</div>`, iconSize: [28, 28], iconAnchor: [14, 14] });
                 const marker = L.marker([geo.lat, geo.lng], { icon }).addTo(S.map);
-                marker.bindPopup(`
-                    <div style="min-width:190px;">
-                        <div style="font-weight:800;font-size:13px;margin-bottom:6px;">${escapeHtml(n?.dir_title || geo.dirTitle || 'Новина')}</div>
-                        <div style="font-size:12px;color:#94a3b8;line-height:1.35;margin-bottom:8px;">${escapeHtml(n?.text || '')}</div>
-                        <div style="display:flex;gap:8px;">
-                            <button onclick="subscribeFromNewsMap(${dId})" style="flex:1;padding:7px 9px;border-radius:9px;border:1px solid rgba(163,230,53,0.35);background:rgba(163,230,53,0.14);color:#a3e635;font-weight:800;font-size:11px;cursor:pointer;">✓ Підписка</button>
-                            <button onclick="openDirectionFromNewsMap(${dId})" style="flex:1;padding:7px 9px;border-radius:9px;border:1px solid rgba(56,189,248,0.35);background:rgba(56,189,248,0.14);color:#38bdf8;font-weight:800;font-size:11px;cursor:pointer;">→ Відкрити</button>
-                        </div>
-                    </div>
-                `);
+                marker.bindPopup(`<div style="min-width:190px;"><div style="font-weight:800;font-size:13px;margin-bottom:6px;">${escapeHtml(n?.dir_title || geo.dirTitle || 'Новина')}</div><div style="font-size:12px;color:#94a3b8;line-height:1.35;margin-bottom:8px;">${escapeHtml(n?.text || '')}</div><div style="display:flex;gap:8px;"><button onclick="subscribeFromNewsMap(${dId})" style="flex:1;padding:7px 9px;border-radius:9px;border:1px solid rgba(163,230,53,0.35);background:rgba(163,230,53,0.14);color:#a3e635;font-weight:800;font-size:11px;cursor:pointer;">✓ Підписка</button><button onclick="openDirectionFromNewsMap(${dId})" style="flex:1;padding:7px 9px;border-radius:9px;border:1px solid rgba(56,189,248,0.35);background:rgba(56,189,248,0.14);color:#38bdf8;font-weight:800;font-size:11px;cursor:pointer;">→ Відкрити</button></div></div>`);
                 S.newsMarkers.push(marker);
             });
         }
 
-        async function subscribeFromNewsMap(dirId) {
-            await subscribeDir(dirId);
-        }
-
-        async function openDirectionFromNewsMap(dirId) {
-            switchScreen('board');
-            setTimeout(() => openDirection(dirId), 120);
-        }
-
-        async function openDirectionFromMap(dirId) {
-            switchScreen('board');
-            setTimeout(() => openDirection(dirId), 120);
-        }
+        async function subscribeFromNewsMap(dirId) { await subscribeDir(dirId); }
+        async function openDirectionFromNewsMap(dirId) { switchScreen('board'); setTimeout(() => openDirection(dirId), 120); }
+        async function openDirectionFromMap(dirId) { switchScreen('board'); setTimeout(() => openDirection(dirId), 120); }
 
         function renderMapOverlay(crews) {
             const c = document.getElementById('map-overlay-cards');
             if (!crews.length) { c.innerHTML = ''; return; }
             c.innerHTML = crews.map(cr => `
-        <div class="crew-mini-card" onclick="requestJoin(${cr.organizer_id}, '${cr.direction_id}')">
-            <div class="crew-mini-avatar">${(cr.driver_name || '?')[0].toUpperCase()}</div>
-            <div class="crew-mini-info">
-                <div class="crew-mini-name">${cr.driver_name || cr.organizer_name || 'Екіпаж'}</div>
-                <div class="crew-mini-dir">${cr.direction_title || ''}</div>
-            </div>
-            <div class="crew-mini-seats">${cr.passengers || 0} пас.</div>
-        </div>
-    `).join('');
+                <div class="crew-mini-card" onclick="requestJoin(${cr.organizer_id}, '${cr.direction_id}')">
+                    <div class="crew-mini-avatar">${(cr.driver_name || '?')[0].toUpperCase()}</div>
+                    <div class="crew-mini-info">
+                        <div class="crew-mini-name">${cr.driver_name || cr.organizer_name || 'Екіпаж'}</div>
+                        <div class="crew-mini-dir">${cr.direction_title || ''}</div>
+                    </div>
+                    <div class="crew-mini-seats">${cr.passengers || 0} пас.</div>
+                </div>
+            `).join('');
         }
 
         async function requestJoin(orgId, dirId) {
@@ -2054,12 +2028,8 @@
 
         function formatNewsTime(ts) {
             if (!ts) return '—';
-            try {
-                const dt = new Date(Number(ts) * 1000);
-                return dt.toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-            } catch (_) {
-                return '—';
-            }
+            try { return new Date(Number(ts) * 1000).toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); }
+            catch (_) { return '—'; }
         }
 
         function updateNewsBadge() {
@@ -2075,23 +2045,18 @@
             if (!strip) return;
             const allItems = Array.isArray(S.news) ? S.news : [];
             const buckets = { theocracy: 0, leisure: 0, work: 0 };
-            allItems.forEach(n => {
-                const kind = classifyNewsItem(n);
-                if (kind in buckets) buckets[kind] += 1;
-            });
+            allItems.forEach(n => { const k = classifyNewsItem(n); if (k in buckets) buckets[k]++; });
             const cards = [
-                { key: 'theocracy', title: 'Теократія', color: '#a78bfa', count: buckets.theocracy || 0 },
-                { key: 'leisure', title: 'Відпочинок', color: '#34d399', count: buckets.leisure || 0 },
-                { key: 'work', title: 'Робота', color: '#38bdf8', count: buckets.work || 0 },
+                { key: 'theocracy', title: 'Теократія', color: '#a78bfa', count: buckets.theocracy },
+                { key: 'leisure', title: 'Відпочинок', color: '#34d399', count: buckets.leisure },
+                { key: 'work', title: 'Робота', color: '#38bdf8', count: buckets.work },
             ];
             strip.style.display = 'grid';
             strip.style.gridTemplateColumns = 'repeat(3, minmax(0, 1fr))';
             strip.innerHTML = cards.map(c => {
                 const active = S.mapNewsFilter === c.key;
                 const nextFilter = active ? 'all' : c.key;
-                const bg = active ? `${c.color}22` : 'var(--bg-card)';
-                const border = active ? c.color : 'var(--border)';
-                return `<div class="news-banner ${active ? 'active' : ''}" onclick="setMapNewsFilter('${nextFilter}')" style="background:${bg};border-color:${border};">
+                return `<div class="news-banner ${active ? 'active' : ''}" onclick="setMapNewsFilter('${nextFilter}')" style="background:${active ? c.color + '22' : 'var(--bg-card)'};border-color:${active ? c.color : 'var(--border)'};">
                     <div class="news-banner-title">${c.title}</div>
                     <div class="news-banner-count">${c.count}</div>
                 </div>`;
@@ -2104,41 +2069,30 @@
             if (S.currentScreen === 'explore') await refreshMap();
         }
 
-        function setNewsFilter(filter) {
-            S.newsFilter = filter || 'all';
-            renderNewsScreen();
-        }
+        function setNewsFilter(filter) { S.newsFilter = filter || 'all'; renderNewsScreen(); }
 
         function renderNewsScreen() {
             const banners = document.getElementById('news-banners');
             const feed = document.getElementById('news-feed');
             if (!banners || !feed) return;
             const allItems = Array.isArray(S.news) ? S.news : [];
-            const buckets = { theocracy: 0, leisure: 0, work: 0, other: 0 };
-            allItems.forEach(n => { buckets[classifyNewsItem(n)] = (buckets[classifyNewsItem(n)] || 0) + 1; });
+            const buckets = { theocracy: 0, leisure: 0, work: 0 };
+            allItems.forEach(n => { const k = classifyNewsItem(n); if (k in buckets) buckets[k]++; });
             const cards = [
                 { key: 'theocracy', title: 'Теократія', color: '#a78bfa', count: buckets.theocracy || 0 },
                 { key: 'leisure', title: 'Відпочинок', color: '#34d399', count: buckets.leisure || 0 },
                 { key: 'work', title: 'Робота', color: '#38bdf8', count: buckets.work || 0 },
             ];
-            banners.style.display = 'grid';
-            banners.style.gridTemplateColumns = 'repeat(3, minmax(0, 1fr))';
             banners.innerHTML = cards.map(c => {
                 const active = S.newsFilter === c.key;
-                const nextFilter = active ? 'all' : c.key;
-                const bg = active ? `${c.color}22` : 'var(--bg-card)';
-                const border = active ? c.color : 'var(--border)';
-                return `<div class="news-banner ${active ? 'active' : ''}" onclick="setNewsFilter('${nextFilter}')" style="background:${bg};border-color:${border};">
+                return `<div class="news-banner ${active ? 'active' : ''}" onclick="setNewsFilter('${active ? 'all' : c.key}')" style="background:${active ? c.color + '22' : 'var(--bg-card)'};border-color:${active ? c.color : 'var(--border)'};">
                     <div class="news-banner-title">${c.title}</div>
                     <div class="news-banner-count">${c.count}</div>
                 </div>`;
             }).join('');
-
-            const items = S.newsFilter === 'all'
-                ? allItems
-                : allItems.filter(n => classifyNewsItem(n) === S.newsFilter);
+            const items = S.newsFilter === 'all' ? allItems : allItems.filter(n => classifyNewsItem(n) === S.newsFilter);
             if (!items.length) {
-                feed.innerHTML = '<div class="empty"><div class="empty-icon">🗞️</div><div class="empty-title">Поки тихо</div><div class="empty-sub">Нові події з\'являться незабаром</div></div>';
+                feed.innerHTML = '<div class="empty"><div class="empty-icon">🗞️</div><div class="empty-title">Поки тихо</div><div class="empty-sub">Нові події з\'являться незабаром</div ></div > ';
                 return;
             }
             feed.innerHTML = items.slice(0, 60).map(n => `
@@ -2150,18 +2104,10 @@
         }
 
         function renderNews() {
-            if (!S.apiBase) {
-                S.news = [];
-                renderNewsStrip();
-                renderNewsScreen();
-                updateNewsBadge();
-                return;
-            }
+            if (!S.apiBase) { S.news = []; renderNewsStrip(); renderNewsScreen(); updateNewsBadge(); return; }
             api('/api/v3/news?limit=60').then(data => {
                 S.news = data?.news || [];
-                renderNewsStrip();
-                renderNewsScreen();
-                updateNewsBadge();
+                renderNewsStrip(); renderNewsScreen(); updateNewsBadge();
             });
         }
 
@@ -2177,20 +2123,14 @@
         function renderBoardBreadcrumb() {
             const el = document.getElementById('board-breadcrumb');
             if (!el) return;
-            if (!S.boardStack.length) {
-                el.innerHTML = '';
-                updateBottomNavForBoardDepth();
-                return;
-            }
+            if (!S.boardStack.length) { el.innerHTML = ''; updateBottomNavForBoardDepth(); return; }
             const path = S.boardStack.map(x => x?.title || `#${x?.id || '?'}`);
-            const safePath = path.map(p => escapeHtml(String(p))).join(' / ');
-            el.innerHTML = `<div class="board-crumb-path" onclick="boardGoRoot()" title="До кореня">${safePath}</div>`;
+            el.innerHTML = `<div class="board-crumb-path" onclick="boardGoRoot()" title="До кореня">${path.map(p => escapeHtml(String(p))).join(' / ')}</div>`;
             updateBottomNavForBoardDepth();
         }
 
         async function boardGoRoot() {
-            S.boardStack = [];
-            S.boardParentId = null;
+            S.boardStack = []; S.boardParentId = null;
             const search = document.getElementById('board-search');
             if (search) search.value = '';
             await renderBoard();
@@ -2207,8 +2147,7 @@
 
         async function boardOpenFolder(dirId) {
             const dir = allDirections.find(d => String(d.id) === String(dirId));
-            if (!dir) return;
-            if (!isFolderNode(dir)) return;
+            if (!dir || !isFolderNode(dir)) return;
             S.boardParentId = dir.id;
             S.boardStack.push({ id: dir.id, title: dir.title || `#${dir.id}` });
             const search = document.getElementById('board-search');
@@ -2248,17 +2187,17 @@
                 const isSub = !isFolder && subSet?.has(id);
                 const total = (d.drivers || 0) + (d.passengers || 0);
                 const sigil = isFolder
-                    ? `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 4.5v9L12 21l-7-4.5v-9L12 3z"></path><path d="M12 7v10"></path><path d="M8 12h8"></path></svg>`
-                    : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 9-8 9-8-9 8-9z"></path><circle cx="12" cy="12" r="2.5"></circle></svg>`;
+                    ? `<svg viewBox="0 0 24 24"><path d="M12 3l7 4.5v9L12 21l-7-4.5v-9L12 3z"></path><path d="M12 7v10"></path><path d="M8 12h8"></path></svg>`
+                    : `<svg viewBox="0 0 24 24"><path d="M12 3l8 9-8 9-8-9 8-9z"></path><circle cx="12" cy="12" r="2.5"></circle></svg>`;
                 const click = isFolder ? `boardOpenFolder(${d.id})` : `openDirection(${d.id})`;
                 return `<div class="dir-card ${isSub ? 'subscribed' : ''}" onclick="${click}">
-            <div class="dir-card-icon" style="background:${isSub ? 'var(--green-dim)' : 'rgba(255,255,255,0.04)'};color:${isSub ? 'var(--green)' : (isFolder ? 'var(--text-secondary)' : 'var(--accent)')};">${sigil}</div>
-            <div class="dir-card-info">
-                <div class="dir-card-name">${d.title || 'Напрямок'}</div>
-                <div class="dir-card-stats"><span class="dir-card-total">${total}</span></div>
-            </div>
-            <div class="dir-card-arrow">›</div>
-        </div>`;
+                    <div class="dir-card-icon" style="background:${isSub ? 'var(--green-dim)' : 'rgba(255,255,255,0.04)'};color:${isSub ? 'var(--green)' : (isFolder ? 'var(--text-secondary)' : 'var(--accent)')};">${sigil}</div>
+                    <div class="dir-card-info">
+                        <div class="dir-card-name">${escapeHtml(d.title || 'Напрямок')}</div>
+                        <div class="dir-card-stats"><span class="dir-card-total">${total}</span></div>
+                    </div>
+                    <div class="dir-card-arrow">›</div>
+                </div>`;
             }).join('');
         }
 
@@ -2267,6 +2206,7 @@
             renderBoardList(q ? allDirections.filter(d => (d.title || '').toLowerCase().includes(q)) : allDirections, S.boardSubSet);
         }
 
+        // ─── OPEN DIRECTION — full version ───
         async function openDirection(dirId) {
             const data = await api(`/api/v3/fractal/organizers?direction_id=${dirId}&lang=${S.lang}&user_id=${S.userId || ''}`);
             let dir = allDirections.find(d => String(d.id) === String(dirId));
@@ -2283,32 +2223,51 @@
             }
             if (!dir) { showToast('Напрямок недоступний', 'error'); return; }
             if (isFolderNode(dir)) { await boardOpenFolder(dirId); return; }
-            const orgs = data?.organizers || []; const isSub = data?.user_status?.subscribed;
+            const orgs = data?.organizers || [];
+            const isSub = data?.user_status?.subscribed;
+            const creatorId = data?.direction?.creator_id || data?.direction?.user_id;
+            const isMyDir = creatorId && String(creatorId) === String(S.userId);
+            const availOrgs = orgs.filter(o => String(o.user_id) !== String(S.userId) && (o.seats_free > 0 || o.role !== 'driver'));
+            const hasPickup = !!S.pickupCoords;
+
             openSheet(`
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;">
-            <div style="font-size:32px;">🧭</div>
-            <div><div class="sheet-title" style="margin-bottom:0;">${dir.title || 'Напрямок'}</div>
-            <div style="font-size:12px;color:var(--text-secondary);font-weight:600;">${orgs.length} організаторів • ${(dir.drivers || 0) + (dir.passengers || 0)} учасників</div></div>
-        </div>
-        <div style="margin:16px 0 12px;display:flex;gap:8px;">
-            ${isSub ? `<button class="btn btn-danger" style="flex:1;" onclick="unsubscribeDir(${dirId})">🚫 Відписатись</button>` : `<button class="btn btn-primary" style="flex:1;" onclick="subscribeDir(${dirId})">✓ Підписатись</button>`}
-            <button class="btn btn-secondary" style="flex:1;" onclick="closeSheet()">Закрити</button>
-        </div>
-        ${orgs.length ? `<div style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--text-muted);letter-spacing:1px;margin:8px 0;">Організатори</div>
-            ${orgs.slice(0, 5).map(o => `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">
-                <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#a78bfa,#6366f1);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;color:#fff;">${(o.name || '?')[0].toUpperCase()}</div>
-                <div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:13px;">${o.name || '?'}</div><div style="font-size:11px;color:var(--text-muted);">${o.car || ''} • ⭐ ${o.rating || 0}</div></div>
-                <div class="tag ${o.seats_free > 0 ? 'tag-accent' : 'tag-amber'}">${o.seats_free > 0 ? o.seats_free + ' місць' : 'Заповнено'}</div>
-                ${o.seats_free > 0 ? `<button class="btn btn-primary" style="padding:8px 12px;font-size:11px;min-height:36px;" onclick="requestJoin(${o.user_id}, ${dirId});closeSheet();">✓ Запит</button>` : ''}
-            </div>`).join('')}` : '<div style="text-align:center;padding:20px;color:var(--text-muted);">Поки немає організаторів</div>'}
-    `);
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;">
+                    <div style="font-size:28px;">🧭</div>
+                    <div style="flex:1;">
+                        <div class="sheet-title" style="margin-bottom:0;">${escapeHtml(dir.title || 'Напрямок')}</div>
+                        <div style="font-size:12px;color:var(--text-secondary);font-weight:600;">${orgs.length} орг. • ${(dir.drivers || 0) + (dir.passengers || 0)} учасн.</div>
+                    </div>
+                    ${isMyDir ? `<button onclick="openEditDirection(${dirId}, '${escapeHtml(String(dir.title || '')).replace(/'/g, '&#39;')}')" style="padding:6px 10px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text-secondary);font-size:14px;cursor:pointer;" title="Редагувати">✏️</button>` : ''}
+                </div>
+                <div style="display:flex;gap:8px;margin:12px 0 8px;">
+                    ${isSub
+                    ? `<button class="btn btn-danger" style="flex:1;" onclick="unsubscribeDir(${dirId})">🚫 Відписатись</button>`
+                    : `<button class="btn btn-primary" style="flex:1;" onclick="subscribeAndPickup(${dirId})">✓ Підписатись</button>`}
+                    <button class="btn btn-secondary" onclick="closeSheet()">Закрити</button>
+                </div>
+                ${isSub ? `<button class="btn btn-secondary" style="width:100%;margin-bottom:8px;font-size:12px;" onclick="pickPickupLocation(${dirId})">${hasPickup ? '📍 Точка посадки ✓' : '📍 Вказати точку посадки'}</button>` : ''}
+                ${availOrgs.length > 1 ? `<button class="btn btn-secondary" style="width:100%;margin-bottom:8px;font-size:12px;color:var(--blue);" onclick="groupJoinDirection(${dirId}, [${availOrgs.slice(0, 3).map(o => o.user_id).join(',')}])">🔀 Запит до всіх (${availOrgs.length})</button>` : ''}
+                ${orgs.length ? `
+                    <div style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--text-muted);letter-spacing:1px;margin:8px 0 4px;">Організатори</div>
+                    ${orgs.slice(0, 6).map(o => `
+                        <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">
+                            <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#a78bfa,#6366f1);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;color:#fff;flex-shrink:0;">${(o.name || '?')[0].toUpperCase()}</div>
+                            <div style="flex:1;min-width:0;">
+                                <div style="font-weight:700;font-size:13px;">${escapeHtml(o.name || 'Організатор')}</div>
+                                <div style="font-size:11px;color:var(--text-secondary);">${o.role === 'driver' ? '🚗 Водій' : '👤 Попутник'}${o.seats_free > 0 ? ' • <span style="color:var(--accent);">' + o.seats_free + ' місць</span>' : ''}</div>
+                            </div>
+                            ${String(o.user_id) !== String(S.userId)
+                            ? `<button class="btn btn-primary" style="padding:6px 12px;font-size:12px;min-height:36px;" onclick="requestJoin(${o.user_id}, ${dirId});closeSheet();">📩</button>`
+                            : '<span class="tag tag-green">Ви</span>'}
+                        </div>`).join('')}`
+                    : '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">Немає організаторів. Будьте першим!</div>'}
+            `);
         }
 
         async function subscribeDir(dirId) {
             const dir = allDirections.find(d => String(d.id) === String(dirId));
             if (isFolderNode(dir)) { showToast('Підписка доступна тільки на напрямок', 'error'); return; }
             await api('/api/v3/board/subscribe', { method: 'POST', body: JSON.stringify({ user_id: S.userId, direction_id: dirId, role: S.userRole || 'passenger' }) });
-            // Update local state
             const title = dir?.title || `#${dirId}`;
             S.subscriptions.push({ direction_id: dirId, direction_title: title, title });
             S.boardSubSet.add(String(dirId));
@@ -2319,7 +2278,6 @@
             const dir = allDirections.find(d => String(d.id) === String(dirId));
             if (isFolderNode(dir)) { showToast('Це каталог, не підписка', 'error'); return; }
             await api('/api/v3/board/unsubscribe', { method: 'POST', body: JSON.stringify({ user_id: S.userId, direction_id: dirId }) });
-            // Update local state
             S.subscriptions = S.subscriptions.filter(s => String(s.direction_id) !== String(dirId));
             S.boardSubSet.delete(String(dirId));
             showToast('Відписано'); closeSheet(); renderBoard(); renderSubBar();
@@ -2329,45 +2287,55 @@
         async function renderTrips() {
             const container = document.getElementById('trips-content');
 
+            // Waiting for partner confirmation
+            if (waitingForPartner && !S.activeTrip) { renderTripsWaiting(); return; }
+            waitingForPartner = false;
+
             if (S.activeTrip) {
-                const t = S.activeTrip; const isDriver = t.viewer_role === 'driver'; const isStarted = !!t.is_started;
+                const t = S.activeTrip;
+                const isDriver = t.viewer_role === 'driver';
+                const isStarted = !!t.is_started;
                 container.innerHTML = `
-            <div class="hero ${isStarted ? 'driving' : 'reservation'} animate-in">
-                <div class="hero-label" style="color:${isStarted ? 'var(--accent)' : 'var(--amber)'};">${isStarted ? '🚀 В ДОРОЗІ' : '⏳ РЕЗЕРВАЦІЯ'}</div>
-                <div class="hero-title">${t.direction_title || 'Поїздка'}</div>
-                <div class="hero-sub">Екіпаж #${t.crew_id || '—'} • ${isDriver ? '🚗 Ви водій' : '👤 Ви попутник'}</div>
-                <div class="seats-row" style="margin-top:12px;">${(t.members || []).map(m => `<div class="seat-dot ${m.role === 'driver' ? 'driver-seat' : 'taken'}" title="${m.name}">${m.role === 'driver' ? '🚗' : (m.name || '?')[0]}</div>`).join('')}</div>
-                <div style="margin-top:16px;display:flex;flex-direction:column;gap:10px;">
-                    ${!isStarted && isDriver ? `<button class="btn btn-primary" onclick="startTrip()">🚀 Поїхали!</button>` : ''}
-                    ${isStarted ? `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="openChat(${t.id || t.request_id}, ${isDriver ? (t.client_id || 0) : (t.driver_id || 0)})">💬 Чат</button><button class="btn btn-primary" style="flex:1;" onclick="finishTrip()">🏁 Фініш</button></div>` : ''}
-                    ${!isStarted ? `<button class="btn btn-danger" onclick="cancelTrip()">🚫 Скасувати</button>` : ''}
-                </div>
-            </div>
-            <div class="section-label">Деталі</div>
-            <div class="card"><div class="card-meta">Водій: ${t.driver_name || '—'}</div><div class="card-meta">Пасажир: ${t.client_name || '—'}</div><div class="card-meta">Статус: ${t.status}</div></div>`;
+                    <div class="hero ${isStarted ? 'driving' : 'reservation'} animate-in">
+                        <div class="hero-label" style="color:${isStarted ? 'var(--accent)' : 'var(--amber)'};">${isStarted ? '🚀 В ДОРОЗІ' : '⏳ РЕЗЕРВАЦІЯ'}</div>
+                        <div class="hero-title">${escapeHtml(t.direction_title || 'Поїздка')}</div>
+                        <div class="hero-sub">Екіпаж #${t.crew_id || '—'} • ${isDriver ? '🚗 Ви водій' : '👤 Ви попутник'}</div>
+                        <div class="seats-row" style="margin-top:12px;">${(t.members || []).map(m => `<div class="seat-dot ${m.role === 'driver' ? 'driver-seat' : 'taken'}" title="${escapeHtml(m.name || '')}">${m.role === 'driver' ? '🚗' : (m.name || '?')[0]}</div>`).join('')}</div>
+                        <div style="margin-top:16px;display:flex;flex-direction:column;gap:10px;">
+                            ${!isStarted && isDriver ? `<button class="btn btn-primary" onclick="startTrip()">🚀 Поїхали!</button>` : ''}
+                            ${isStarted ? `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="openChat(${t.id || t.request_id}, ${isDriver ? (t.client_id || 0) : (t.driver_id || 0)})">💬 Чат</button><button class="btn btn-primary" style="flex:1;" onclick="finishTrip()">🏁 Фініш</button></div>` : ''}
+                            ${!isStarted ? `<button class="btn btn-danger" onclick="cancelTrip()">🚫 Скасувати</button>` : ''}
+                        </div>
+                    </div>
+                    <div class="section-label">Деталі</div>
+                    <div class="card">
+                        <div class="card-meta">Водій: ${escapeHtml(t.driver_name || '—')}</div>
+                        <div class="card-meta">Пасажир: ${escapeHtml(t.client_name || '—')}</div>
+                        <div class="card-meta">Статус: ${t.status || '—'}</div>
+                    </div>`;
                 return;
             }
 
             if (S.pendingMatches.length > 0) {
                 container.innerHTML = `<div class="section-label">Запити (${S.pendingMatches.length})</div>
-            ${S.pendingMatches.map(m => {
+                    ${S.pendingMatches.map(m => {
                     const isIncoming = m.scope === 'incoming';
                     const partnerName = isIncoming ? (m.partner_name || m.sender_name || `#${m.partner_id}`) : (m.target_name || m.partner_name || `#${m.target_id}`);
                     const partnerId = isIncoming ? (m.partner_id || m.sender_id) : (m.target_id || m.partner_id);
                     return `<div class="card animate-in" style="border-left:3px solid ${isIncoming ? 'var(--amber)' : 'var(--blue)'};">
-                    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
-                        <div style="width:40px;height:40px;border-radius:50%;background:${isIncoming ? 'linear-gradient(135deg,#fbbf24,#f59e0b)' : 'linear-gradient(135deg,#38bdf8,#0284c7)'};display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;color:#fff;">${(partnerName || '?')[0].toUpperCase()}</div>
-                        <div style="flex:1;"><div style="font-weight:800;font-size:14px;">${partnerName}</div><div style="font-size:11px;color:var(--text-secondary);">${m.direction || m.direction_title || 'Напрямок'}</div></div>
-                        <div class="tag ${isIncoming ? 'tag-amber' : 'tag-blue'}">${isIncoming ? '📩 Вхідний' : '📤 Очікування'}</div>
-                    </div>
-                    ${isIncoming ? `<div style="display:flex;gap:10px;"><button class="btn btn-primary" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, true)">✓ Прийняти</button><button class="btn btn-danger" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false)">✕ Відхилити</button></div>`
-                            : `<button class="btn btn-secondary" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false)">🛑 Скасувати запит</button>`}
-                </div>`;
+                            <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+                                <div style="width:40px;height:40px;border-radius:50%;background:${isIncoming ? 'linear-gradient(135deg,#fbbf24,#f59e0b)' : 'linear-gradient(135deg,#38bdf8,#0284c7)'};display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;color:#fff;">${(partnerName || '?')[0].toUpperCase()}</div>
+                                <div style="flex:1;"><div style="font-weight:800;font-size:14px;">${escapeHtml(partnerName)}</div><div style="font-size:11px;color:var(--text-secondary);">${escapeHtml(m.direction || m.direction_title || 'Напрямок')}</div></div>
+                                <div class="tag ${isIncoming ? 'tag-amber' : 'tag-blue'}">${isIncoming ? '📩 Вхідний' : '📤 Очікування'}</div>
+                            </div>
+                            ${isIncoming
+                            ? `<div style="display:flex;gap:10px;"><button class="btn btn-primary" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, true)">✓ Прийняти</button><button class="btn btn-danger" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false)">✕ Відхилити</button></div>`
+                            : `<button class="btn btn-secondary" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false)">🛑 Скасувати</button>`}
+                        </div>`;
                 }).join('')}`;
                 return;
             }
 
-            // Empty state — with driver CTA if role is driver
             const isDriver = _isDriverRole(S.userRole);
             container.innerHTML = `
                 ${isDriver ? `<div class="open-crew-btn animate-in" onclick="openMyCrew()">
@@ -2381,8 +2349,23 @@
                 <div class="empty" style="padding-top:${isDriver ? '40px' : '80px'};">
                     <div class="empty-icon">🧭</div>
                     <div class="empty-title">Немає активних поїздок</div>
-                    <div class="empty-sub">${isDriver ? 'Відкрийте екіпаж вище або знайдіть напрямок в каталозі' : 'Знайдіть напрямок в каталозі або на мапі'}</div>
+                    <div class="empty-sub">${isDriver ? 'Відкрийте екіпаж або знайдіть напрямок' : 'Знайдіть напрямок в каталозі або на мапі'}</div>
                     <button class="btn btn-secondary" style="margin-top:20px;" onclick="switchScreen('board')">Перейти до каталогу</button>
+                </div>`;
+        }
+
+        function renderTripsWaiting() {
+            const container = document.getElementById('trips-content');
+            if (!container) return;
+            container.innerHTML = `
+                <div class="hero reservation animate-in">
+                    <div class="hero-label" style="color:var(--amber);">⏳ ОЧІКУВАННЯ</div>
+                    <div class="hero-title">${escapeHtml(S.activeTrip?.direction_title || 'Поїздка')}</div>
+                    <div class="hero-sub">Ви завершили. Очікуємо підтвердження партнера.</div>
+                    <div style="margin-top:20px;display:flex;align-items:center;justify-content:center;gap:8px;">
+                        <div class="pulse-dot"></div>
+                        <span style="font-size:13px;color:var(--text-secondary);">Очікування...</span>
+                    </div>
                 </div>`;
         }
 
@@ -2408,31 +2391,83 @@
         async function finishTrip() {
             if (!S.activeTrip || S.busy) return; S.busy = true;
             try {
-                const res = await api('/api/v3/trip/done', { method: 'POST', body: JSON.stringify({ request_id: S.activeTrip.id || S.activeTrip.request_id, user_id: S.userId, role: S.activeTrip.viewer_role || S.userRole }) });
-                if (res?.status === 'ok') { showToast('🏁 Поїздка завершена!', 'success'); openRatingSheet(); await hydrate(); }
-                else showToast('Помилка', 'error');
+                const res = await api('/api/v3/trip/done', {
+                    method: 'POST',
+                    body: JSON.stringify({ request_id: S.activeTrip.id || S.activeTrip.request_id, user_id: S.userId, role: S.activeTrip.viewer_role || S.userRole })
+                });
+                if (res?.status === 'ok') {
+                    if (res?.both_finished) {
+                        showToast('🏁 Поїздка завершена!', 'success');
+                        waitingForPartner = false;
+                        openRatingSheet();
+                    } else {
+                        showToast('⏳ Очікуємо підтвердження партнера...', '');
+                        waitingForPartner = true;
+                        renderTripsWaiting();
+                    }
+                    await hydrate();
+                } else if (res?.reason === 'action_forbidden') {
+                    showToast('Вже завершено — очікуємо партнера', '');
+                } else { showToast('Помилка', 'error'); }
             } finally { S.busy = false; }
         }
 
         async function cancelTrip() {
             if (!S.activeTrip) return;
-            openSheet(`<div class="sheet-title">Скасувати поїздку?</div><div class="sheet-sub">Ви впевнені?</div><div class="sheet-actions"><button class="btn btn-danger" onclick="doCancelTrip()">🚫 Скасувати</button><button class="btn btn-ghost" onclick="closeSheet()">Повернутись</button></div>`);
+            openSheet(`
+                <div class="sheet-title">Скасувати поїздку?</div>
+                <div class="sheet-sub">Ви впевнені? Цю дію не можна скасувати.</div>
+                <div class="sheet-actions">
+                    <button class="btn btn-danger" onclick="doCancelTrip()">🚫 Скасувати поїздку</button>
+                    <button class="btn btn-ghost" onclick="closeSheet()">Повернутись</button>
+                </div>
+            `);
         }
 
         async function doCancelTrip() {
             closeSheet(); if (S.busy) return; S.busy = true;
-            try { await api('/api/v3/trip/cancel', { method: 'POST', body: JSON.stringify({ request_id: S.activeTrip?.id, user_id: S.userId }) }); showToast('Скасовано'); await hydrate(); }
-            finally { S.busy = false; }
+            try {
+                await api('/api/v3/trip/cancel', { method: 'POST', body: JSON.stringify({ request_id: S.activeTrip?.id, user_id: S.userId }) });
+                showToast('Поїздку скасовано'); await hydrate();
+            } finally { S.busy = false; }
         }
 
+        // ─── RATING WITH COMMENT ───
         function openRatingSheet() {
-            openSheet(`<div class="sheet-title">Оцініть поїздку</div><div class="sheet-sub">Як вам досвід?</div><div style="display:flex;justify-content:center;gap:16px;margin:20px 0;"><div style="font-size:40px;cursor:pointer;opacity:0.4;" onclick="submitRating(-1)">👎</div><div style="font-size:40px;cursor:pointer;" onclick="submitRating(1)">👍</div></div><button class="btn btn-ghost" onclick="closeSheet()" style="width:100%;">Пропустити</button>`);
+            openSheet(`
+                <div class="sheet-title">Оцініть поїздку</div>
+                <div class="sheet-sub">Ваш відгук допомагає покращити сервіс</div>
+                <div style="display:flex;justify-content:center;gap:32px;margin:20px 0 16px;">
+                    <div style="text-align:center;cursor:pointer;" onclick="selectRating(-1)">
+                        <div id="thumb-down" style="font-size:48px;opacity:0.4;transition:all 0.15s;">👎</div>
+                        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Погано</div>
+                    </div>
+                    <div style="text-align:center;cursor:pointer;" onclick="selectRating(1)">
+                        <div id="thumb-up" style="font-size:48px;opacity:0.4;transition:all 0.15s;">👍</div>
+                        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Добре</div>
+                    </div>
+                </div>
+                <input class="board-search" id="rating-comment" placeholder="Коментар (необов'язково)..." style="margin:0 0 16px;">
+                <button class="btn btn-primary" onclick="submitRating()">Надіслати оцінку</button>
+                <button class="btn btn-ghost" style="width:100%;margin-top:8px;" onclick="closeSheet()">Пропустити</button>
+            `);
+            S._ratingScore = null;
         }
 
-        async function submitRating(score) {
+        function selectRating(score) {
+            S._ratingScore = score;
+            const up = document.getElementById('thumb-up');
+            const down = document.getElementById('thumb-down');
+            if (up) up.style.opacity = score === 1 ? '1' : '0.35';
+            if (down) down.style.opacity = score === -1 ? '1' : '0.35';
+        }
+
+        async function submitRating() {
+            const score = S._ratingScore != null ? S._ratingScore : 1;
+            const comment = document.getElementById('rating-comment')?.value?.trim() || '';
             const pid = S.activeTrip?.viewer_role === 'driver' ? S.activeTrip?.client_id : S.activeTrip?.driver_id;
-            if (pid) await api('/api/v3/rating', { method: 'POST', body: JSON.stringify({ from_user_id: S.userId, to_user_id: pid, request_id: S.activeTrip?.id, score }) });
-            showToast('Дякуємо!', 'success'); closeSheet();
+            if (pid) await api('/api/v3/rating', { method: 'POST', body: JSON.stringify({ from_user_id: S.userId, to_user_id: pid, request_id: S.activeTrip?.id, score, comment }) });
+            showToast('Дякуємо за відгук!', 'success'); closeSheet(); S._ratingScore = null;
         }
 
         // ─── CHAT ───
@@ -2459,13 +2494,14 @@
             if (!msgs.length) { feed.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);font-size:13px;">Повідомлень поки немає 👋</div>'; return; }
             feed.innerHTML = msgs.map(m => {
                 const mine = m.user_id == S.userId;
-                return `<div class="chat-msg ${mine ? 'mine' : 'theirs'}">${!mine ? `<div class="chat-meta">${m.name || 'Учасник'}</div>` : ''}<div class="chat-bubble">${escapeHtml(m.text || '')}</div></div>`;
+                return `<div class="chat-msg ${mine ? 'mine' : 'theirs'}">${!mine ? `<div class="chat-meta">${escapeHtml(m.name || 'Учасник')}</div>` : ''}<div class="chat-bubble">${escapeHtml(m.text || '')}</div></div>`;
             }).join('');
             feed.scrollTop = feed.scrollHeight;
         }
 
         async function sendChat() {
-            const input = document.getElementById('chat-input'); const text = input.value.trim();
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
             if (!text || !S.chatRequestId) return; input.value = '';
             const feed = document.getElementById('chat-feed');
             const div = document.createElement('div'); div.className = 'chat-msg mine';
@@ -2474,7 +2510,9 @@
             await api('/api/v3/trip/message', { method: 'POST', body: JSON.stringify({ request_id: S.chatRequestId, user_id: S.userId, text }) });
         }
 
-        function escapeHtml(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
+        function escapeHtml(str) {
+            const d = document.createElement('div'); d.textContent = String(str ?? ''); return d.innerHTML;
+        }
 
         // ─── SHEET ───
         function openSheet(html) {
@@ -2493,30 +2531,44 @@
 
         function closeSheet() {
             document.getElementById('sheet-backdrop').classList.remove('open');
-            const sheet = document.getElementById('sheet'); sheet.classList.remove('open'); sheet.style.transform = '';
+            const sheet = document.getElementById('sheet');
+            sheet.classList.remove('open'); sheet.style.transform = '';
         }
 
         // ─── TOAST ───
         let toastTimer = null;
         function showToast(msg, type = '') {
-            const el = document.getElementById('toast'); el.textContent = msg; el.className = 'toast show ' + type;
+            const el = document.getElementById('toast');
+            el.textContent = msg; el.className = 'toast show ' + type;
             clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
         }
 
         // ─── PROFILE SETTINGS ───
         function openCarSettings() {
             if (!_isDriverRole(S.userRole)) { showToast('Доступно тільки для ролі Водій', 'error'); return; }
-            openSheet(`<div class="sheet-title">Авто</div><div class="sheet-sub">Модель вашого авто</div><input class="board-search" id="car-input" placeholder="Toyota Camry" value="${S.car}" style="margin:0 0 16px;"><button class="btn btn-primary" onclick="saveCar()">Зберегти</button>`);
+            openSheet(`<div class="sheet-title">Авто</div><div class="sheet-sub">Модель вашого авто</div><input class="board-search" id="car-input" placeholder="Toyota Camry" value="${escapeHtml(S.car)}" style="margin:0 0 16px;"><button class="btn btn-primary" onclick="saveCar()">Зберегти</button>`);
             setTimeout(() => document.getElementById('car-input')?.focus(), 300);
         }
-        function saveCar() { S.car = document.getElementById('car-input')?.value?.trim() || ''; saveProfile(); updateRolePill(); closeSheet(); if (S.apiBase) api('/api/v3/driver/register', { method: 'POST', body: JSON.stringify({ user_id: S.userId, car_model: S.car, seats_total: S.seats }) }); showToast('Авто збережено', 'success'); }
+
+        function saveCar() {
+            S.car = document.getElementById('car-input')?.value?.trim() || '';
+            saveProfile(); updateRolePill(); closeSheet();
+            if (S.apiBase) api('/api/v3/driver/register', { method: 'POST', body: JSON.stringify({ user_id: S.userId, car_model: S.car, seats_total: S.seats }) });
+            showToast('Авто збережено', 'success');
+        }
 
         function openSeatsSettings() {
             if (!_isDriverRole(S.userRole)) { showToast('Доступно тільки для ролі Водій', 'error'); return; }
             openSheet(`<div class="sheet-title">Місця</div><div class="sheet-sub">Кількість пасажирських місць</div><div style="display:flex;align-items:center;justify-content:center;gap:24px;margin:20px 0;"><div style="width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;" onclick="changeSeats(-1)">−</div><div style="font-size:40px;font-weight:900;min-width:60px;text-align:center;" id="seats-display">${S.seats}</div><div style="width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;" onclick="changeSeats(1)">+</div></div><button class="btn btn-primary" onclick="saveSeats()">Зберегти</button>`);
         }
+
         function changeSeats(d) { S.seats = Math.max(1, Math.min(8, S.seats + d)); const el = document.getElementById('seats-display'); if (el) el.textContent = S.seats; }
-        function saveSeats() { saveProfile(); updateRolePill(); closeSheet(); if (S.apiBase) api('/api/v3/driver/seats', { method: 'POST', body: JSON.stringify({ user_id: S.userId, seats_total: S.seats }) }); showToast('Місця збережено', 'success'); }
+
+        function saveSeats() {
+            saveProfile(); updateRolePill(); closeSheet();
+            if (S.apiBase) api('/api/v3/driver/seats', { method: 'POST', body: JSON.stringify({ user_id: S.userId, seats_total: S.seats }) });
+            showToast('Місця збережено', 'success');
+        }
 
         function openLangSelector() {
             openSheet(`<div class="sheet-title">Мова</div><div class="sheet-sub">Оберіть мову</div><div class="sheet-actions"><button class="btn ${S.lang === 'uk' ? 'btn-primary' : 'btn-secondary'}" onclick="setLang('uk')">🇺🇦 Українська</button><button class="btn ${S.lang === 'pl' ? 'btn-primary' : 'btn-secondary'}" onclick="setLang('pl')">🇵🇱 Polski</button><button class="btn ${S.lang === 'en' ? 'btn-primary' : 'btn-secondary'}" onclick="setLang('en')">🇬🇧 English</button></div>`);
@@ -2528,6 +2580,220 @@
             closeSheet();
             if (S.apiBase) await api('/api/v3/user/lang', { method: 'POST', body: JSON.stringify({ user_id: S.userId, lang }) });
             showToast('Мова оновлена', 'success'); renderBoard();
+        }
+
+        // ═══════ DIRECTION CREATION ═══════
+        function openCreateDirection() {
+            const parentTitle = S.boardStack.length ? S.boardStack[S.boardStack.length - 1].title : 'Корінь';
+            S._createDirLat = null; S._createDirLng = null;
+            openSheet(`
+                <div class="sheet-title">Створити напрямок</div>
+                <div class="sheet-sub">Категорія: ${escapeHtml(parentTitle)}</div>
+                <input class="board-search" id="create-dir-title" placeholder="Назва напрямку (напр. Київ, Буковель)..." style="margin:12px 0 8px;">
+                <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;">
+                    <button class="btn btn-secondary" style="flex:1;font-size:13px;" onclick="pickGpsForDirection()">📍 Геолокація</button>
+                    <span id="create-dir-loc-label" style="flex:2;font-size:12px;color:var(--text-muted);">Не вказано</span>
+                </div>
+                <button class="btn btn-primary" onclick="doCreateDirection()">✓ Створити</button>
+            `);
+            setTimeout(() => document.getElementById('create-dir-title')?.focus(), 300);
+        }
+
+        async function pickGpsForDirection() {
+            if (!navigator.geolocation) { showToast('GPS недоступний', 'error'); return; }
+            const label = document.getElementById('create-dir-loc-label');
+            if (label) label.textContent = '📍 Визначення...';
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    S._createDirLat = pos.coords.latitude;
+                    S._createDirLng = pos.coords.longitude;
+                    if (label) label.textContent = `📍 ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`;
+                    showToast('Локацію визначено', 'success');
+                },
+                () => { if (label) label.textContent = 'Не вказано'; showToast('Не вдалося отримати GPS', 'error'); },
+                { enableHighAccuracy: true, timeout: 8000 }
+            );
+        }
+
+        async function doCreateDirection() {
+            const title = document.getElementById('create-dir-title')?.value?.trim();
+            if (!title || title.length < 3) { showToast('Назва має бути від 3 символів', 'error'); return; }
+            if (S.busy) return; S.busy = true;
+            try {
+                const body = { user_id: S.userId, title, parent_id: S.boardParentId || null };
+                if (S._createDirLat && S._createDirLng) body.meeting_point = `${S._createDirLat.toFixed(5)}, ${S._createDirLng.toFixed(5)}`;
+                const res = await api('/api/v3/board/direction', { method: 'POST', body: JSON.stringify(body) });
+                if (res?.id || res?.status === 'ok' || res?.direction_id) {
+                    showToast('✓ Напрямок створено!', 'success');
+                    closeSheet(); S._createDirLat = null; S._createDirLng = null;
+                    await renderBoard();
+                } else { showToast(res?.message || res?.error || 'Помилка створення', 'error'); }
+            } catch (e) { showToast('Помилка мережі', 'error'); }
+            finally { S.busy = false; }
+        }
+
+        // ═══════ DIRECTION EDIT / DELETE ═══════
+        function openEditDirection(dirId, currentTitle) {
+            openSheet(`
+                <div class="sheet-title">Редагувати напрямок</div>
+                <input class="board-search" id="edit-dir-title" value="${escapeHtml(currentTitle)}" placeholder="Назва напрямку" style="margin:12px 0 16px;">
+                <div class="sheet-actions">
+                    <button class="btn btn-primary" onclick="doEditDirection(${dirId})">💾 Зберегти</button>
+                    <button class="btn btn-danger" onclick="confirmDeleteDirection(${dirId})">🗑 Видалити напрямок</button>
+                    <button class="btn btn-ghost" onclick="closeSheet()">Скасувати</button>
+                </div>
+            `);
+            setTimeout(() => { const el = document.getElementById('edit-dir-title'); if (el) { el.focus(); el.select(); } }, 300);
+        }
+
+        async function doEditDirection(dirId) {
+            const title = document.getElementById('edit-dir-title')?.value?.trim();
+            if (!title || title.length < 3) { showToast('Назва має бути від 3 символів', 'error'); return; }
+            if (S.busy) return; S.busy = true;
+            try {
+                const res = await api('/api/v3/board/direction', { method: 'PATCH', body: JSON.stringify({ user_id: S.userId, direction_id: dirId, title }) });
+                if (res?.status === 'ok' || res?.id) {
+                    showToast('✓ Назву оновлено', 'success');
+                    // Update local list
+                    const d = allDirections.find(x => String(x.id) === String(dirId));
+                    if (d) d.title = title;
+                    const sub = S.subscriptions.find(s => String(s.direction_id) === String(dirId));
+                    if (sub) { sub.direction_title = title; sub.title = title; }
+                    closeSheet(); renderBoardList(allDirections, S.boardSubSet); renderSubBar();
+                } else { showToast(res?.message || 'Помилка редагування', 'error'); }
+            } catch (e) { showToast('Помилка мережі', 'error'); }
+            finally { S.busy = false; }
+        }
+
+        function confirmDeleteDirection(dirId) {
+            openSheet(`
+                <div class="sheet-title">Видалити напрямок?</div>
+                <div class="sheet-sub">Усі підписки будуть відмінені. Дію не можна скасувати.</div>
+                <div class="sheet-actions">
+                    <button class="btn btn-danger" onclick="doDeleteDirection(${dirId})">🗑 Так, видалити</button>
+                    <button class="btn btn-ghost" onclick="closeSheet()">Скасувати</button>
+                </div>
+            `);
+        }
+
+        async function doDeleteDirection(dirId) {
+            if (S.busy) return; S.busy = true;
+            try {
+                const res = await api('/api/v3/board/direction', { method: 'DELETE', body: JSON.stringify({ user_id: S.userId, direction_id: dirId }) });
+                if (res?.status === 'ok' || res?.deleted) {
+                    showToast('Напрямок видалено', 'success');
+                    allDirections = allDirections.filter(d => String(d.id) !== String(dirId));
+                    S.subscriptions = S.subscriptions.filter(s => String(s.direction_id) !== String(dirId));
+                    S.boardSubSet.delete(String(dirId));
+                    closeSheet(); renderBoardList(allDirections, S.boardSubSet); renderSubBar();
+                } else { showToast(res?.message || 'Помилка видалення', 'error'); }
+            } catch (e) { showToast('Помилка мережі', 'error'); }
+            finally { S.busy = false; }
+        }
+
+        // ═══════ GROUP JOIN ═══════
+        async function groupJoinDirection(dirId, userIds) {
+            if (!Array.isArray(userIds) || !userIds.length) { showToast('Немає доступних організаторів', 'error'); return; }
+            if (S.busy) return; S.busy = true;
+            let sent = 0;
+            try {
+                for (const uid of userIds.slice(0, 3)) {
+                    const res = await api('/api/v3/match/invite', { method: 'POST', body: JSON.stringify({ user_id: S.userId, target_id: uid, direction_id: dirId }) });
+                    if (res?.status === 'ok') sent++;
+                }
+                showToast(`📩 Надіслано запитів: ${sent}`, 'success');
+                closeSheet(); await hydrate();
+            } finally { S.busy = false; }
+        }
+
+        // ═══════ MY IDEAS (My Directions) ═══════
+        async function openMyIdeas() {
+            openSheet(`<div class="sheet-title">Мої напрямки</div><div style="text-align:center;padding:24px;"><div class="pulse-dot" style="margin:0 auto 12px;"></div><div style="font-size:13px;color:var(--text-muted);">Завантаження...</div></div>`);
+            const data = await api(`/api/v3/board/my?user_id=${S.userId}&lang=${S.lang}`);
+            const dirs = data?.directions || data?.my_directions || [];
+            if (!dirs.length) {
+                document.getElementById('sheet-body').innerHTML = `
+                    <div class="sheet-title">Мої напрямки</div>
+                    <div class="sheet-sub">Ви ще не створили жодного напрямку</div>
+                    <button class="btn btn-primary" onclick="closeSheet();switchScreen('board');setTimeout(openCreateDirection,250);">+ Створити перший</button>`;
+                return;
+            }
+            document.getElementById('sheet-body').innerHTML = `
+                <div class="sheet-title">Мої напрямки (${dirs.length})</div>
+                <div style="margin:8px 0;">
+                    ${dirs.map(d => `
+                        <div style="display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--border);">
+                            <div style="font-size:20px;flex-shrink:0;">🧭</div>
+                            <div style="flex:1;min-width:0;">
+                                <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(d.title || d.name || 'Напрямок')}</div>
+                                <div style="font-size:11px;color:var(--text-muted);">${(d.drivers || 0) + (d.passengers || 0)} учасників</div>
+                            </div>
+                            <button onclick="openEditDirection(${d.id}, '${escapeHtml(String(d.title || d.name || '')).replace(/'/g, '&#39;')}')" style="padding:6px 10px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text-secondary);font-size:14px;cursor:pointer;flex-shrink:0;">✏️</button>
+                        </div>`).join('')}
+                </div>
+                <button class="btn btn-secondary" style="margin-top:12px;" onclick="closeSheet();switchScreen('board');setTimeout(openCreateDirection,250);">+ Додати новий</button>`;
+        }
+
+        // ═══════ TRIP HISTORY ═══════
+        async function openTripHistory() {
+            openSheet(`<div class="sheet-title">Історія поїздок</div><div style="text-align:center;padding:24px;"><div class="pulse-dot" style="margin:0 auto 12px;"></div></div>`);
+            const data = await api(`/api/v3/trip/history?user_id=${S.userId}&limit=20`);
+            const trips = data?.trips || data?.history || [];
+            if (!trips.length) {
+                document.getElementById('sheet-body').innerHTML = `
+                    <div class="sheet-title">Історія поїздок</div>
+                    <div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px;">Поїздок поки немає</div>`;
+                return;
+            }
+            document.getElementById('sheet-body').innerHTML = `
+                <div class="sheet-title">Історія поїздок (${trips.length})</div>
+                <div style="margin:8px 0;">
+                    ${trips.map(t => `
+                        <div style="padding:12px 0;border-bottom:1px solid var(--border);">
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <div style="font-size:20px;flex-shrink:0;">${t.viewer_role === 'driver' ? '🚗' : '👤'}</div>
+                                <div style="flex:1;min-width:0;">
+                                    <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(t.direction_title || 'Поїздка')}</div>
+                                    <div style="font-size:11px;color:var(--text-muted);">${formatNewsTime(t.finished_at || t.created_at)}${t.partner_name ? ' • ' + escapeHtml(t.partner_name) : ''}</div>
+                                </div>
+                                <div class="tag ${t.rating > 0 ? 'tag-green' : (t.rating < 0 ? 'tag-red' : 'tag-amber')}">${t.rating > 0 ? '👍' : (t.rating < 0 ? '👎' : '—')}</div>
+                            </div>
+                        </div>`).join('')}
+                </div>`;
+        }
+
+        // ═══════ PICKUP LOCATION WITH MAP MARKER ═══════
+        async function pickPickupLocation(dirId) {
+            if (!navigator.geolocation) { showToast('GPS недоступний', 'error'); return; }
+            showToast('📍 Визначення локації...');
+            return new Promise((resolve) => {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        S.pickupCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                        // Show marker on map
+                        if (S._pickupMarker && S.map) { S.map.removeLayer(S._pickupMarker); }
+                        if (S.map) {
+                            S._pickupMarker = L.marker([pos.coords.latitude, pos.coords.longitude], {
+                                icon: L.divIcon({
+                                    className: '',
+                                    html: '<div style="width:32px;height:32px;border-radius:50%;background:#fbbf24;display:flex;align-items:center;justify-content:center;font-size:16px;border:2px solid rgba(0,0,0,0.4);box-shadow:0 2px 10px rgba(251,191,36,0.5);">📍</div>',
+                                    iconSize: [32, 32], iconAnchor: [16, 32]
+                                })
+                            }).addTo(S.map).bindPopup('Моя точка посадки');
+                            S.map.flyTo([pos.coords.latitude, pos.coords.longitude], 15, { duration: 1 });
+                        }
+                        showToast('✓ Точку посадки визначено', 'success');
+                        resolve(S.pickupCoords);
+                    },
+                    () => { showToast('Не вдалося отримати GPS', 'error'); resolve(null); },
+                    { enableHighAccuracy: true, timeout: 8000 }
+                );
+            });
+        }
+
+        async function subscribeAndPickup(dirId) {
+            await subscribeDir(dirId);
+            setTimeout(() => pickPickupLocation(dirId), 600);
         }
 
     </script>
