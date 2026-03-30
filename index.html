@@ -2105,7 +2105,6 @@
                     }
 
                     S.pendingMatches = resolvePendingMatchesPayload(state);
-                    renderNews();
                     updateBadges();
                     updateRolePill();
                     renderSubBar();
@@ -2413,16 +2412,19 @@
         function renderMapOverlay(crews) {
             const c = document.getElementById('map-overlay-cards');
             if (!crews.length) { c.innerHTML = ''; return; }
-            c.innerHTML = crews.map(cr => `
-                <div class="crew-mini-card" onclick="requestJoin(${cr.organizer_id}, '${cr.direction_id}')">
+            c.innerHTML = crews.map(cr => {
+                const orgId = parseInt(cr.organizer_id) || 0;
+                const dirId = parseInt(cr.direction_id) || 0;
+                return `
+                <div class="crew-mini-card" onclick="requestJoin(${orgId}, ${dirId})">
                     ${renderAvatarInline(cr.driver_name || cr.organizer_name || '?', cr.driver_photo_url || cr.organizer_photo_url || '', 40, 'crew-mini-avatar')}
                     <div class="crew-mini-info">
-                        <div class="crew-mini-name">${cr.driver_name || cr.organizer_name || 'Екіпаж'}</div>
-                        <div class="crew-mini-dir">${cr.direction_title || ''}</div>
+                        <div class="crew-mini-name">${escapeAttr(cr.driver_name || cr.organizer_name || 'Екіпаж')}</div>
+                        <div class="crew-mini-dir">${escapeAttr(cr.direction_title || '')}</div>
                     </div>
-                    <div class="crew-mini-seats">${cr.passengers || 0} пас.</div>
-                </div>
-            `).join('');
+                    <div class="crew-mini-seats">${parseInt(cr.passengers) || 0} пас.</div>
+                </div>`;
+            }).join('');
         }
 
         // ═══ ERROR MESSAGES — parse API error reasons for user-friendly display ═══
