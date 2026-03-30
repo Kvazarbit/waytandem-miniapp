@@ -1376,6 +1376,37 @@
             color: var(--green);
         }
 
+        /* ═══════ LOADING / BUSY STATE ═══════ */
+        .btn-primary.busy, .btn-danger.busy, .btn-secondary.busy {
+            opacity: 0.5;
+            pointer-events: none;
+            position: relative;
+        }
+        .btn-primary.busy::after, .btn-danger.busy::after {
+            content: '';
+            position: absolute;
+            width: 18px; height: 18px;
+            border: 2px solid rgba(0,0,0,0.2);
+            border-top-color: #000;
+            border-radius: 50%;
+            right: 14px;
+            top: 50%;
+            margin-top: -9px;
+            animation: spin 0.6s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ═══════ KEYBOARD HANDLING — input stays above keyboard ═══════ */
+        .keyboard-shifted {
+            position: fixed !important;
+            bottom: 0 !important;
+            left: 0; right: 0;
+            max-width: 500px;
+            margin: 0 auto;
+            z-index: 10001;
+            transition: bottom 0.1s ease-out;
+        }
+
         /* ═══════ ANIMATIONS ═══════ */
         @keyframes fade-up {
             from {
@@ -1648,27 +1679,132 @@
         const pendingOps = new Set();
         const POLL_INTERVAL_MS = 8000;
         let pollInFlight = false;
+        let pollTimer = null;
+        let isAppInBackground = false;
+
+        // ═══ STATE PERSISTENCE — survive Telegram WebApp reloads on mobile ═══
+        function _stateKey(key) { return `wt_state_${S.userId}_${key}`; }
+
+        function persistCriticalState() {
+            try {
+                if (waitingForPartner) localStorage.setItem(_stateKey('wfp'), '1');
+                else localStorage.removeItem(_stateKey('wfp'));
+                if (lastKnownTripForRating) localStorage.setItem(_stateKey('ltr'), JSON.stringify(lastKnownTripForRating));
+            } catch (_) {}
+        }
+
+        function restoreCriticalState() {
+            try {
+                waitingForPartner = localStorage.getItem(_stateKey('wfp')) === '1';
+                const ltr = localStorage.getItem(_stateKey('ltr'));
+                if (ltr) lastKnownTripForRating = JSON.parse(ltr);
+            } catch (_) { waitingForPartner = false; lastKnownTripForRating = null; }
+        }
+
+        function clearCriticalState() {
+            try { localStorage.removeItem(_stateKey('wfp')); localStorage.removeItem(_stateKey('ltr')); } catch (_) {}
+            waitingForPartner = false; lastKnownTripForRating = null;
+        }
+
+        // ═══ LOADING INDICATOR — visual feedback for busy state ═══
+        function updateBusyUI() {
+            const btns = document.querySelectorAll('.btn-primary, .btn-danger, .btn-secondary, .open-crew-btn');
+            btns.forEach(b => {
+                if (S.busy) { b.style.opacity = '0.5'; b.style.pointerEvents = 'none'; }
+                else { b.style.opacity = ''; b.style.pointerEvents = ''; }
+            });
+            // Toast for long operations
+            if (S.busy && !window._busyToastShown) {
+                window._busyToastShown = true;
+            } else if (!S.busy) {
+                window._busyToastShown = false;
+            }
+        }
 
         function beginOp(opKey) {
             if (pendingOps.has(opKey)) return false;
             pendingOps.add(opKey);
             S.busy = pendingOps.size > 0;
+            updateBusyUI();
             return true;
         }
 
         function endOp(opKey) {
             pendingOps.delete(opKey);
             S.busy = pendingOps.size > 0;
+            updateBusyUI();
         }
 
+        // ═══ BACKGROUND DETECTION — pause polling when app is backgrounded ═══
+        document.addEventListener('visibilitychange', () => {
+            isAppInBackground = document.hidden;
+            if (document.hidden) {
+                // App is backgrounded — polling will skip on next tick
+                console.log('[WT] App backgrounded — polling paused');
+            } else {
+                // App is foregrounded — immediate refresh + resume polling
+                console.log('[WT] App foregrounded — refreshing state');
+                if (S.apiBase && S.userId) {
+                    hydrate();
+                    renderSubBar();
+                }
+            }
+        });
+
         document.addEventListener('DOMContentLoaded', async () => {
+            restoreCriticalState(); // Restore state before anything else
             resolveUser();
             initRolePill();
             initMap();
             await syncUserIdentityToServer();
             await hydrate();
             startPolling();
+            initKeyboardHandler(); // Mobile keyboard handling
         });
+
+        // ═══ KEYBOARD HANDLER — keeps input visible above virtual keyboard ═══
+        function initKeyboardHandler() {
+            if (!window.visualViewport) return;
+            const vv = window.visualViewport;
+            let lastHeight = vv.height;
+
+            function adjustForKeyboard() {
+                const chatBar = document.querySelector('.chat-input-bar.keyboard-shifted');
+                if (!chatBar) return;
+
+                const heightDiff = lastHeight - vv.height;
+                if (heightDiff > 100) {
+                    // Keyboard is visible — position input above it
+                    chatBar.style.bottom = `${heightDiff}px`;
+                } else {
+                    // Keyboard hidden — reset
+                    chatBar.style.bottom = '0px';
+                }
+                lastHeight = vv.height;
+            }
+
+            vv.addEventListener('resize', adjustForKeyboard);
+            vv.addEventListener('scroll', adjustForKeyboard);
+
+            // Also handle focus/blur on input fields
+            document.addEventListener('focusin', (e) => {
+                if (e.target.matches('.chat-input, input[type="text"], textarea')) {
+                    const bar = e.target.closest('.chat-input-bar, .sheet-card');
+                    if (bar && !bar.classList.contains('keyboard-shifted')) {
+                        bar.classList.add('keyboard-shifted');
+                        setTimeout(() => adjustForKeyboard(), 100);
+                    }
+                }
+            });
+            document.addEventListener('focusout', (e) => {
+                if (e.target.matches('.chat-input, input[type="text"], textarea')) {
+                    document.querySelectorAll('.keyboard-shifted').forEach(el => {
+                        el.classList.remove('keyboard-shifted');
+                        el.style.bottom = '';
+                    });
+                }
+            });
+        }
 
         // ─── USER RESOLUTION ───
         function _pickTelegramName(tgUser, fallbackName = '') {
@@ -1945,9 +2081,10 @@
 
         // ─── POLLING ───
         function startPolling() {
-            setInterval(async () => {
+            if (pollTimer) clearInterval(pollTimer);
+            pollTimer = setInterval(async () => {
                 if (!S.apiBase || !S.userId) return;
-                if (pollInFlight) return;
+                if (pollInFlight || isAppInBackground) return; // Skip when backgrounded
                 pollInFlight = true;
                 const state = await api(`/api/v3/hydrate?user_id=${S.userId}&include_outgoing=1`);
                 const previousTrip = S.activeTrip;
@@ -1962,10 +2099,9 @@
                     // If we were waiting for partner and trip is gone → both finished
                     const completedTrip = previousTrip || lastKnownTripForRating;
                     if (waitingForPartner && !S.activeTrip && completedTrip) {
-                        waitingForPartner = false;
+                        clearCriticalState();
                         showToast('🏁 Партнер підтвердив. Поїздка завершена!', 'success');
                         openRatingSheet(buildRatingContext(completedTrip));
-                        lastKnownTripForRating = null;
                     }
 
                     S.pendingMatches = resolvePendingMatchesPayload(state);
@@ -1975,6 +2111,7 @@
                     renderSubBar();
                     if (S.currentScreen === 'trips') renderTrips();
                     if (S.currentScreen === 'news') renderNewsScreen();
+                    persistCriticalState(); // Persist after each successful poll
                 } finally {
                     pollInFlight = false;
                 }
@@ -2288,14 +2425,42 @@
             `).join('');
         }
 
+        // ═══ ERROR MESSAGES — parse API error reasons for user-friendly display ═══
+        const ERROR_MESSAGES = {
+            'already_in_trip': 'Ви вже в екіпажі — спочатку завершіть поточну поїздку',
+            'capacity_full': 'Водій вже заповнив усі місця',
+            'user_not_found': 'Користувача не знайдено',
+            'direction_closed': 'Напрямок зараз недоступний',
+            'reserved_by_in': 'Місце вже зарезервоване для іншого',
+            'self_action_forbidden': 'Неможливо запросити самого себе',
+            'rate_limited': 'Занадто багато запитів — спробуйте через хвилину',
+            'expired': 'Термін запиту минув — надішліть новий',
+            'handshake_not_found': 'Запит не знайдено',
+            'user_blocked': 'Користувач заблокував взаємодію',
+            'not_subscribed': 'Спочатку підпишіться на цей напрямок',
+            'already_subscribed': 'Ви вже підписані на цей напрямок',
+        };
+
+        function getErrorMessage(res, fallback = 'Помилка') {
+            if (!res) return 'Немає відповіді від серверу — перевірте з\'єднання';
+            const reason = res.reason || res.detail || '';
+            return ERROR_MESSAGES[reason] || (reason ? `${fallback}: ${reason}` : fallback);
+        }
+
         async function requestJoin(orgId, dirId) {
             if (!beginOp('request_join')) return;
             try {
                 const res = await api('/api/v3/match/invite', { method: 'POST', body: JSON.stringify({ user_id: S.userId, target_id: orgId, direction_id: dirId }) });
                 if (res?.status === 'ok') {
-                    if (res.mutual) { showToast('✓ Екіпаж створено!', 'success'); await hydrate(); }
-                    else { showToast('Запит надіслано', 'success'); await hydrate(); }
-                } else { showToast('Помилка запиту', 'error'); }
+                    if (res.mutual) { showToast('✓ Екіпаж створено!', 'success'); }
+                    else { showToast('⏳ Запит надіслано', 'success'); }
+                    persistCriticalState();
+                    await hydrate();
+                } else {
+                    showToast(getErrorMessage(res, 'Не вдалось надіслати запит'), 'error');
+                }
+            } catch (e) {
+                showToast('Немає з\'єднання — спробуйте ще раз', 'error');
             } finally { endOp('request_join'); }
         }
 
@@ -2678,9 +2843,17 @@
             if (!beginOp('respond_handshake')) return;
             try {
                 const res = await api('/api/v3/match/respond', { method: 'POST', body: JSON.stringify({ user_id: S.userId, target_id: partnerId, direction_id: dirId, accept }) });
-                if (res?.status === 'ok') { showToast(accept ? '✓ Екіпаж створено!' : 'Запит відхилено', accept ? 'success' : ''); await hydrate(); }
-                else if (res?.reason === 'action_forbidden') showToast('Після старту — тільки фініш', 'error');
-                else showToast('Помилка', 'error');
+                if (res?.status === 'ok') {
+                    showToast(accept ? '✓ Екіпаж створено!' : 'Запит відхилено', accept ? 'success' : '');
+                    clearCriticalState();
+                    await hydrate();
+                } else if (res?.reason === 'action_forbidden') {
+                    showToast('Після старту — тільки фініш', 'error');
+                } else {
+                    showToast(getErrorMessage(res, 'Не вдалось обробити запит'), 'error');
+                }
+            } catch (e) {
+                showToast('Немає з\'єднання — спробуйте ще раз', 'error');
             } finally { endOp('respond_handshake'); }
         }
 
@@ -2879,17 +3052,55 @@
             const handle = document.getElementById('sheet-handle');
             const sheet = document.getElementById('sheet');
             let startY = 0, currentY = 0, isSwiping = false;
-            const onStart = (e) => { startY = e.touches?.[0]?.clientY || e.clientY; isSwiping = true; sheet.style.transition = 'none'; };
-            const onMove = (e) => { if (!isSwiping) return; currentY = e.touches?.[0]?.clientY || e.clientY; if (currentY - startY > 0) sheet.style.transform = `translateY(${currentY - startY}px)`; };
-            const onEnd = () => { if (!isSwiping) return; isSwiping = false; sheet.style.transition = ''; if (currentY - startY > 100) closeSheet(); else sheet.style.transform = ''; };
-            handle.ontouchstart = onStart; handle.ontouchmove = onMove; handle.ontouchend = onEnd;
-            handle.onmousedown = onStart; document.onmousemove = onMove; document.onmouseup = onEnd;
+            const DRAG_THRESHOLD = 10;
+
+            const onStart = (e) => {
+                startY = e.touches?.[0]?.clientY || e.clientY;
+                currentY = startY;
+                isSwiping = false;
+                sheet.style.transition = 'none';
+            };
+            const onMove = (e) => {
+                const y = e.touches?.[0]?.clientY || e.clientY;
+                const diff = y - startY;
+                // Only start drag after threshold (prevents scroll/drag conflict)
+                if (!isSwiping && Math.abs(diff) > DRAG_THRESHOLD) {
+                    isSwiping = true;
+                }
+                if (!isSwiping) return;
+                currentY = y;
+                if (diff > 0) {
+                    if (e.cancelable) e.preventDefault(); // Prevent scroll while dragging
+                    sheet.style.transform = `translateY(${diff}px)`;
+                }
+            };
+            const onEnd = () => {
+                if (!isSwiping) { sheet.style.transition = ''; return; }
+                isSwiping = false;
+                sheet.style.transition = '';
+                if (currentY - startY > 120) closeSheet();
+                else sheet.style.transform = '';
+            };
+            // Handle only triggers drag (not scroll)
+            handle.ontouchstart = onStart;
+            handle.ontouchmove = onMove;
+            handle.ontouchend = onEnd;
+            handle.onmousedown = onStart;
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onEnd);
+            // Clean up on close
+            sheet._cleanupDrag = () => {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onEnd);
+            };
         }
 
         function closeSheet() {
             document.getElementById('sheet-backdrop').classList.remove('open');
             const sheet = document.getElementById('sheet');
-            sheet.classList.remove('open'); sheet.style.transform = '';
+            if (sheet._cleanupDrag) sheet._cleanupDrag();
+            sheet.classList.remove('open');
+            sheet.style.transform = '';
         }
 
         // ─── TOAST ───
