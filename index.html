@@ -2715,6 +2715,18 @@
         async function subscribeDir(dirId) {
             const dir = allDirections.find(d => String(d.id) === String(dirId));
             if (isFolderNode(dir)) { showToast('Підписка доступна тільки на напрямок', 'error'); return; }
+            
+            // Check if user is already subscribed to a different direction
+            const currentSubs = S.subscriptions || [];
+            const otherSub = currentSubs.find(s => String(s.direction_id) !== String(dirId));
+            if (otherSub) {
+                const oldTitle = otherSub.title || otherSub.direction_title || `#${otherSub.direction_id}`;
+                const newTitle = dir?.title || `#${dirId}`;
+                if (!confirm(`Ви вже підписані на "${oldTitle}".\nПереключитись на "${newTitle}"?\n\nВаша попередня підписка буде скасована.`)) {
+                    return false;
+                }
+            }
+            
             const resp = await apiWithStatus('/api/v3/board/subscribe', {
                 method: 'POST',
                 body: JSON.stringify({ user_id: S.userId, direction_id: dirId, role: S.userRole || 'passenger' })
@@ -2724,6 +2736,13 @@
                 showToast(resp?.data?.detail || 'Не вдалося підписатись', 'error');
                 return false;
             }
+            
+            // Show notification if direction was switched
+            const switchedFrom = resp?.data?.switched_from;
+            if (switchedFrom) {
+                showToast('↩️ Підписку перемкнено на новий напрямок', 'success');
+            }
+            
             await hydrate();
             closeSheet();
             renderBoard();
