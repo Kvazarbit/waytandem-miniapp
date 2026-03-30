@@ -1614,7 +1614,7 @@
     </div>
 
     <!-- BOTTOM SHEET -->
-    <div class="sheet-backdrop" id="sheet-backdrop" onclick="closeSheet()"></div>
+    <div class="sheet-backdrop" id="sheet-backdrop"></div>
     <div class="sheet" id="sheet">
         <div class="sheet-card">
             <div class="sheet-handle" id="sheet-handle">
@@ -3044,64 +3044,83 @@
                 .replace(/>/g, '&gt;');
         }
 
-        // ─── SHEET ───
+        // ═══ SHEET — mobile drag / desktop click-only ═══
         function openSheet(html) {
             document.getElementById('sheet-body').innerHTML = html;
             document.getElementById('sheet-backdrop').classList.add('open');
             document.getElementById('sheet').classList.add('open');
             const handle = document.getElementById('sheet-handle');
             const sheet = document.getElementById('sheet');
-            let startY = 0, currentY = 0, isSwiping = false;
-            const DRAG_THRESHOLD = 10;
 
-            const onStart = (e) => {
-                startY = e.touches?.[0]?.clientY || e.clientY;
-                currentY = startY;
-                isSwiping = false;
+            // Track if sheet is alive (prevents stale event fires)
+            const sheetId = Date.now();
+            sheet._sheetId = sheetId;
+
+            // ── MOBILE: drag-to-dismiss from handle only ──
+            let touchStartY = 0, touchCurrentY = 0, isTouchDragging = false;
+            const TOUCH_DISMISS_PX = 150;
+
+            const onTouchStart = (e) => {
+                touchStartY = e.touches[0].clientY;
+                touchCurrentY = touchStartY;
+                isTouchDragging = false;
                 sheet.style.transition = 'none';
             };
-            const onMove = (e) => {
-                const y = e.touches?.[0]?.clientY || e.clientY;
-                const diff = y - startY;
-                // Only start drag after threshold (prevents scroll/drag conflict)
-                if (!isSwiping && Math.abs(diff) > DRAG_THRESHOLD) {
-                    isSwiping = true;
-                }
-                if (!isSwiping) return;
-                currentY = y;
+            const onTouchMove = (e) => {
+                if (sheet._sheetId !== sheetId) return;
+                const y = e.touches[0].clientY;
+                const diff = y - touchStartY;
+                if (!isTouchDragging && diff > 25) isTouchDragging = true;
+                if (!isTouchDragging) return;
+                touchCurrentY = y;
                 if (diff > 0) {
-                    if (e.cancelable) e.preventDefault(); // Prevent scroll while dragging
-                    sheet.style.transform = `translateY(${diff}px)`;
+                    e.preventDefault();
+                    sheet.style.transform = `translateY(${diff * 0.5}px)`; // rubber-band
                 }
             };
-            const onEnd = () => {
-                if (!isSwiping) { sheet.style.transition = ''; return; }
-                isSwiping = false;
-                sheet.style.transition = '';
-                if (currentY - startY > 120) closeSheet();
-                else sheet.style.transform = '';
+            const onTouchEnd = () => {
+                if (sheet._sheetId !== sheetId) return;
+                if (!isTouchDragging) { sheet.style.transition = ''; return; }
+                isTouchDragging = false;
+                sheet.style.transition = 'transform 0.3s ease';
+                if (touchCurrentY - touchStartY > TOUCH_DISMISS_PX) {
+                    sheet.style.transform = 'translateY(100%)';
+                    setTimeout(() => { if (sheet._sheetId === sheetId) closeSheet(); }, 300);
+                } else {
+                    sheet.style.transform = '';
+                }
             };
-            // Handle only triggers drag (not scroll)
-            handle.ontouchstart = onStart;
-            handle.ontouchmove = onMove;
-            handle.ontouchend = onEnd;
-            handle.onmousedown = onStart;
-            document.addEventListener('mousemove', onMove);
-            document.addEventListener('mouseup', onEnd);
-            // Clean up on close
-            sheet._cleanupDrag = () => {
-                document.removeEventListener('mousemove', onMove);
-                document.removeEventListener('mouseup', onEnd);
-            };
+
+            // Only handle gets touch listeners
+            handle.addEventListener('touchstart', onTouchStart, { passive: true });
+            handle.addEventListener('touchmove', onTouchMove, { passive: false });
+            handle.addEventListener('touchend', onTouchEnd);
+
+            // ── DESKTOP: NO drag-to-dismiss, just backdrop click + close button ──
+            // (prevents accidental dismiss when mouse moves over sheet)
+
+            // Store cleanup
+            sheet._cleanup = () => { sheet._sheetId = null; };
         }
 
         function closeSheet() {
-            document.getElementById('sheet-backdrop').classList.remove('open');
             const sheet = document.getElementById('sheet');
-            if (sheet._cleanupDrag) sheet._cleanupDrag();
-            sheet.classList.remove('open');
-            sheet.style.transform = '';
+            if (sheet && sheet._cleanup) sheet._cleanup();
+            document.getElementById('sheet-backdrop').classList.remove('open');
+            if (sheet) {
+                sheet.classList.remove('open');
+                sheet.style.transform = '';
+                sheet.style.transition = '';
+            }
         }
+
+        // Backdrop click closes sheet (click only, not drag)
+        document.addEventListener('DOMContentLoaded', () => {
+            const backdrop = document.getElementById('sheet-backdrop');
+            if (backdrop) {
+                backdrop.addEventListener('click', () => closeSheet());
+            }
+        });
 
         // ─── TOAST ───
         let toastTimer = null;
