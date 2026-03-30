@@ -1640,11 +1640,26 @@
             pickupCoords: null,
             _pickupMarker: null,
             _ratingScore: null,
+            _ratingContext: null,
         };
         let boardNavDefaults = null;
         let waitingForPartner = false;
-        const POLL_INTERVAL_MS = 2500;
+        let lastKnownTripForRating = null;
+        const pendingOps = new Set();
+        const POLL_INTERVAL_MS = 8000;
         let pollInFlight = false;
+
+        function beginOp(opKey) {
+            if (pendingOps.has(opKey)) return false;
+            pendingOps.add(opKey);
+            S.busy = pendingOps.size > 0;
+            return true;
+        }
+
+        function endOp(opKey) {
+            pendingOps.delete(opKey);
+            S.busy = pendingOps.size > 0;
+        }
 
         document.addEventListener('DOMContentLoaded', async () => {
             resolveUser();
@@ -1918,6 +1933,7 @@
                 localStorage.setItem('wt_photo_' + S.userId, S.userPhoto);
             }
             S.activeTrip = resolveActiveTripPayload(data);
+            if (S.activeTrip) lastKnownTripForRating = { ...S.activeTrip };
             S.pendingMatches = resolvePendingMatchesPayload(data);
             syncIdentityUI();
             updateRolePill(); updateBadges(); renderNews(); renderBoard(); renderTrips(); refreshMap();
@@ -1934,18 +1950,22 @@
                 if (pollInFlight) return;
                 pollInFlight = true;
                 const state = await api(`/api/v3/hydrate?user_id=${S.userId}&include_outgoing=1`);
-                const prevTrip = S.activeTrip;
+                const previousTrip = S.activeTrip;
+                if (previousTrip) lastKnownTripForRating = { ...previousTrip };
                 try {
                     if (state && state.profile && Object.prototype.hasOwnProperty.call(state.profile, 'role')) {
                         S.userRole = normalizeRole(state.profile.role);
                     }
                     S.activeTrip = resolveActiveTripPayload(state);
+                    if (S.activeTrip) lastKnownTripForRating = { ...S.activeTrip };
 
                     // If we were waiting for partner and trip is gone → both finished
-                    if (waitingForPartner && !S.activeTrip && prevTrip) {
+                    const completedTrip = previousTrip || lastKnownTripForRating;
+                    if (waitingForPartner && !S.activeTrip && completedTrip) {
                         waitingForPartner = false;
                         showToast('🏁 Партнер підтвердив. Поїздка завершена!', 'success');
-                        openRatingSheet();
+                        openRatingSheet(buildRatingContext(completedTrip));
+                        lastKnownTripForRating = null;
                     }
 
                     S.pendingMatches = resolvePendingMatchesPayload(state);
@@ -2070,11 +2090,12 @@
 
         // ─── OPEN CREW ───
         async function openMyCrew() {
-            if (S.busy) return;
-            const dirs = S.subscriptions.length > 0 ? S.subscriptions : (await api(`/api/v3/board?lang=${S.lang}`))?.directions || [];
-            if (!dirs.length) { showToast('Спочатку підпишіться на напрямок', 'error'); switchScreen('board'); return; }
-            if (dirs.length === 1) { await doOpenCrew(dirs[0].direction_id || dirs[0].id); return; }
-            openSheet(`
+            if (!beginOp('open_crew_sheet')) return;
+            try {
+                const dirs = S.subscriptions.length > 0 ? S.subscriptions : (await api(`/api/v3/board?lang=${S.lang}`))?.directions || [];
+                if (!dirs.length) { showToast('Спочатку підпишіться на напрямок', 'error'); switchScreen('board'); return; }
+                if (dirs.length === 1) { await doOpenCrew(dirs[0].direction_id || dirs[0].id); return; }
+                openSheet(`
                 <div class="sheet-title">Відкрити екіпаж</div>
                 <div class="sheet-sub">Оберіть напрямок для вашого екіпажу</div>
                 <div class="sheet-actions">
@@ -2086,10 +2107,13 @@
                     <button class="btn btn-ghost" onclick="closeSheet()">Скасувати</button>
                 </div>
             `);
+            } finally {
+                endOp('open_crew_sheet');
+            }
         }
 
         async function doOpenCrew(dirId) {
-            if (S.busy) return; S.busy = true;
+            if (!beginOp('open_crew_submit')) return;
             try {
                 const payload = { user_id: S.userId, direction_id: dirId, pickup: 'WEB', seats: S.seats };
                 if (S.pickupCoords?.lat && S.pickupCoords?.lng) {
@@ -2104,7 +2128,7 @@
                     renderSubBar(); refreshMap();
                 } else { showToast('Помилка: ' + (res?.reason || 'невідома'), 'error'); }
             } catch (e) { showToast('Помилка створення екіпажу', 'error'); }
-            finally { S.busy = false; }
+            finally { endOp('open_crew_submit'); }
         }
 
         // ─── NAVIGATION ───
@@ -2181,7 +2205,15 @@
                     icon: L.divIcon({ className: '', html: `<div style="width:32px;height:32px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 12px var(--accent-glow);border:2px solid rgba(0,0,0,0.3);">🚗</div>`, iconSize: [32, 32], iconAnchor: [16, 16] })
                 }).addTo(S.map);
                 const canRequest = S.userId && String(S.userId) !== String(c.organizer_id);
-                marker.bindPopup(`<div style="text-align:center;min-width:180px;"><div style="font-weight:800;font-size:14px;margin-bottom:4px;">${c.driver_name || c.organizer_name || 'Екіпаж'}</div><div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">${c.direction_title || ''}</div><div style="display:flex;gap:8px;">${canRequest ? `<button onclick="requestJoin(${c.organizer_id}, '${c.direction_id}')" style="flex:1;padding:8px;border-radius:10px;background:rgba(163,230,53,0.15);color:#a3e635;border:1px solid rgba(163,230,53,0.3);font-weight:700;font-size:12px;cursor:pointer;">✓ Запит</button>` : ''}<button onclick="openDirectionFromMap('${c.direction_id}')" style="flex:1;padding:8px;border-radius:10px;background:rgba(56,189,248,0.14);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-weight:700;font-size:12px;cursor:pointer;">→ Напрямок</button></div></div>`);
+                const safeOrganizerId = Number.isFinite(Number(c.organizer_id)) ? Number(c.organizer_id) : 0;
+                const safeDirectionId = Number.isFinite(Number(c.direction_id)) ? Number(c.direction_id) : 0;
+                const popupName = escapeHtml(c.driver_name || c.organizer_name || 'Екіпаж');
+                const popupDirection = escapeHtml(c.direction_title || '');
+                const requestBtn = canRequest
+                    ? '<button onclick="requestJoin(' + safeOrganizerId + ', ' + safeDirectionId + ')" style="flex:1;padding:8px;border-radius:10px;background:rgba(163,230,53,0.15);color:#a3e635;border:1px solid rgba(163,230,53,0.3);font-weight:700;font-size:12px;cursor:pointer;">✓ Запит</button>'
+                    : '';
+                const openBtn = '<button onclick="openDirectionFromMap(' + safeDirectionId + ')" style="flex:1;padding:8px;border-radius:10px;background:rgba(56,189,248,0.14);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-weight:700;font-size:12px;cursor:pointer;">→ Напрямок</button>';
+                marker.bindPopup('<div style="text-align:center;min-width:180px;"><div style="font-weight:800;font-size:14px;margin-bottom:4px;">' + popupName + '</div><div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">' + popupDirection + '</div><div style="display:flex;gap:8px;">' + requestBtn + openBtn + '</div></div>');
                 S.mapMarkers.push(marker);
             });
             // Re-draw pickup marker if exists
@@ -2229,7 +2261,10 @@
                 const pal = _newsMarkerPalette(kind);
                 const icon = L.divIcon({ className: '', html: `<div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:${pal.color};color:#081018;font-size:14px;font-weight:900;border:2px solid rgba(0,0,0,0.35);box-shadow:0 0 16px ${pal.glow};">${pal.emoji}</div>`, iconSize: [28, 28], iconAnchor: [14, 14] });
                 const marker = L.marker([geo.lat, geo.lng], { icon }).addTo(S.map);
-                marker.bindPopup(`<div style="min-width:190px;"><div style="font-weight:800;font-size:13px;margin-bottom:6px;">${escapeHtml(n?.dir_title || geo.dirTitle || 'Новина')}</div><div style="font-size:12px;color:#94a3b8;line-height:1.35;margin-bottom:8px;">${escapeHtml(n?.text || '')}</div><div style="display:flex;gap:8px;"><button onclick="subscribeFromNewsMap(${dId})" style="flex:1;padding:7px 9px;border-radius:9px;border:1px solid rgba(163,230,53,0.35);background:rgba(163,230,53,0.14);color:#a3e635;font-weight:800;font-size:11px;cursor:pointer;">✓ Підписка</button><button onclick="openDirectionFromNewsMap(${dId})" style="flex:1;padding:7px 9px;border-radius:9px;border:1px solid rgba(56,189,248,0.35);background:rgba(56,189,248,0.14);color:#38bdf8;font-weight:800;font-size:11px;cursor:pointer;">→ Відкрити</button></div></div>`);
+                const safeNewsDirectionId = Number.isFinite(dId) ? dId : 0;
+                const newsTitle = escapeHtml(n?.dir_title || geo.dirTitle || 'Новина');
+                const newsText = escapeHtml(n?.text || '');
+                marker.bindPopup('<div style="min-width:190px;"><div style="font-weight:800;font-size:13px;margin-bottom:6px;">' + newsTitle + '</div><div style="font-size:12px;color:#94a3b8;line-height:1.35;margin-bottom:8px;">' + newsText + '</div><div style="display:flex;gap:8px;"><button onclick="subscribeFromNewsMap(' + safeNewsDirectionId + ')" style="flex:1;padding:7px 9px;border-radius:9px;border:1px solid rgba(163,230,53,0.35);background:rgba(163,230,53,0.14);color:#a3e635;font-weight:800;font-size:11px;cursor:pointer;">✓ Підписка</button><button onclick="openDirectionFromNewsMap(' + safeNewsDirectionId + ')" style="flex:1;padding:7px 9px;border-radius:9px;border:1px solid rgba(56,189,248,0.35);background:rgba(56,189,248,0.14);color:#38bdf8;font-weight:800;font-size:11px;cursor:pointer;">→ Відкрити</button></div></div>');
                 S.newsMarkers.push(marker);
             });
         }
@@ -2254,14 +2289,14 @@
         }
 
         async function requestJoin(orgId, dirId) {
-            if (S.busy) return; S.busy = true;
+            if (!beginOp('request_join')) return;
             try {
                 const res = await api('/api/v3/match/invite', { method: 'POST', body: JSON.stringify({ user_id: S.userId, target_id: orgId, direction_id: dirId }) });
                 if (res?.status === 'ok') {
                     if (res.mutual) { showToast('✓ Екіпаж створено!', 'success'); await hydrate(); }
                     else { showToast('Запит надіслано', 'success'); await hydrate(); }
                 } else { showToast('Помилка запиту', 'error'); }
-            } finally { S.busy = false; }
+            } finally { endOp('request_join'); }
         }
 
         // ─── NEWS ───
@@ -2414,13 +2449,12 @@
             const qp = new URLSearchParams({ lang: S.lang });
             if (S.userId) qp.set('user_id', String(S.userId));
             if (S.boardParentId !== null && S.boardParentId !== undefined) qp.set('parent_id', String(S.boardParentId));
-            const data = await api(`/api/v3/board?${qp.toString()}`);
+            const [data, subs] = await Promise.all([
+                api(`/api/v3/board?${qp.toString()}`),
+                S.userId ? api(`/api/v3/user/subscriptions?user_id=${S.userId}`) : Promise.resolve(null),
+            ]);
             allDirections = Array.isArray(data) ? data : (data?.directions || []);
-            let subSet = new Set();
-            if (S.userId) {
-                const subs = await api(`/api/v3/user/subscriptions?user_id=${S.userId}`);
-                subSet = new Set((subs?.subscriptions || []).map(s => String(s.direction_id)));
-            }
+            const subSet = new Set(((subs?.subscriptions) || []).map(s => String(s.direction_id)));
             S.boardSubSet = subSet;
             renderBoardList(allDirections, S.boardSubSet);
         }
@@ -2641,34 +2675,61 @@
         }
 
         async function respondHandshake(partnerId, dirId, accept) {
-            if (S.busy) return; S.busy = true;
+            if (!beginOp('respond_handshake')) return;
             try {
                 const res = await api('/api/v3/match/respond', { method: 'POST', body: JSON.stringify({ user_id: S.userId, target_id: partnerId, direction_id: dirId, accept }) });
                 if (res?.status === 'ok') { showToast(accept ? '✓ Екіпаж створено!' : 'Запит відхилено', accept ? 'success' : ''); await hydrate(); }
                 else if (res?.reason === 'action_forbidden') showToast('Після старту — тільки фініш', 'error');
                 else showToast('Помилка', 'error');
-            } finally { S.busy = false; }
+            } finally { endOp('respond_handshake'); }
+        }
+
+        function currentRequestIdFromTrip(trip) {
+            const raw = trip?.id ?? trip?.request_id ?? null;
+            const reqId = Number(raw);
+            return Number.isFinite(reqId) && reqId > 0 ? reqId : null;
+        }
+
+        function buildRatingContext(trip) {
+            if (!trip) return null;
+            const requestId = currentRequestIdFromTrip(trip);
+            if (!requestId) return null;
+            const viewerRole = String(trip.viewer_role || S.userRole || '').toLowerCase();
+            const partnerRaw = viewerRole === 'driver'
+                ? (trip.client_id ?? trip.partner_id)
+                : (trip.driver_id ?? trip.partner_id);
+            const partnerId = Number(partnerRaw);
+            if (!Number.isFinite(partnerId) || partnerId <= 0) return null;
+            return { request_id: requestId, partner_id: partnerId };
+        }
+
+        function getCurrentRatingContext() {
+            return S._ratingContext || buildRatingContext(S.activeTrip);
         }
 
         function currentRequestId() {
-            return S.activeTrip?.id || S.activeTrip?.request_id || null;
+            return currentRequestIdFromTrip(S.activeTrip);
         }
 
         async function startTrip() {
-            if (!S.activeTrip || S.busy) return; S.busy = true;
+            if (!S.activeTrip) return;
+            if (!beginOp('start_trip')) return;
             try {
                 const reqId = currentRequestId();
                 if (!reqId) { showToast('Немає активної поїздки', 'error'); return; }
                 const res = await api('/api/v3/trip/start', { method: 'POST', body: JSON.stringify({ request_id: reqId, user_id: S.userId }) });
                 if (res?.ok || res?.status === 'ok') { showToast('🚀 Поїхали!', 'success'); await hydrate(); }
                 else showToast('Помилка старту', 'error');
-            } finally { S.busy = false; }
+            } finally { endOp('start_trip'); }
         }
 
         async function finishTrip() {
-            if (!S.activeTrip || S.busy) return; S.busy = true;
+            if (!S.activeTrip) return;
+            if (!beginOp('finish_trip')) return;
             try {
                 const reqId = currentRequestId();
+                const tripSnapshot = S.activeTrip ? { ...S.activeTrip } : null;
+                const ratingContext = buildRatingContext(tripSnapshot);
                 if (!reqId) { showToast('Немає активної поїздки', 'error'); return; }
                 const res = await api('/api/v3/trip/done', {
                     method: 'POST',
@@ -2678,17 +2739,19 @@
                     if (res?.both_finished || res?.completed) {
                         showToast('🏁 Поїздка завершена!', 'success');
                         waitingForPartner = false;
-                        openRatingSheet();
+                        openRatingSheet(ratingContext);
+                        lastKnownTripForRating = null;
                     } else {
                         showToast('⏳ Очікуємо підтвердження партнера...', '');
                         waitingForPartner = true;
+                        if (tripSnapshot) lastKnownTripForRating = tripSnapshot;
                         renderTripsWaiting();
                     }
                     await hydrate();
                 } else if (res?.reason === 'action_forbidden') {
                     showToast('Вже завершено — очікуємо партнера', '');
                 } else { showToast('Помилка', 'error'); }
-            } finally { S.busy = false; }
+            } finally { endOp('finish_trip'); }
         }
 
         async function cancelTrip() {
@@ -2704,17 +2767,19 @@
         }
 
         async function doCancelTrip() {
-            closeSheet(); if (S.busy) return; S.busy = true;
+            closeSheet();
+            if (!beginOp('cancel_trip')) return;
             try {
                 const reqId = currentRequestId();
                 if (!reqId) { showToast('Немає активної поїздки', 'error'); return; }
                 await api('/api/v3/trip/cancel', { method: 'POST', body: JSON.stringify({ request_id: reqId, user_id: S.userId }) });
                 showToast('Поїздку скасовано'); await hydrate();
-            } finally { S.busy = false; }
+            } finally { endOp('cancel_trip'); }
         }
 
         // ─── RATING WITH COMMENT ───
-        function openRatingSheet() {
+        function openRatingSheet(ratingContext = null) {
+            S._ratingContext = ratingContext || getCurrentRatingContext();
             openSheet(`
                 <div class="sheet-title">Оцініть поїздку</div>
                 <div class="sheet-sub">Ваш відгук допомагає покращити сервіс</div>
@@ -2746,10 +2811,11 @@
         async function submitRating() {
             const score = S._ratingScore != null ? S._ratingScore : 1;
             const comment = document.getElementById('rating-comment')?.value?.trim() || '';
-            const pid = S.activeTrip?.viewer_role === 'driver' ? S.activeTrip?.client_id : S.activeTrip?.driver_id;
-            const reqId = currentRequestId();
+            const ctx = getCurrentRatingContext();
+            const pid = ctx?.partner_id || null;
+            const reqId = ctx?.request_id || null;
             if (pid && reqId) await api('/api/v3/rating', { method: 'POST', body: JSON.stringify({ from_user_id: S.userId, to_user_id: pid, request_id: reqId, score, comment }) });
-            showToast('Дякуємо за відгук!', 'success'); closeSheet(); S._ratingScore = null;
+            showToast('Дякуємо за відгук!', 'success'); closeSheet(); S._ratingScore = null; S._ratingContext = null;
         }
 
         // ─── CHAT ───
@@ -2909,7 +2975,7 @@
         async function doCreateDirection() {
             const title = document.getElementById('create-dir-title')?.value?.trim();
             if (!title || title.length < 3) { showToast('Назва має бути від 3 символів', 'error'); return; }
-            if (S.busy) return; S.busy = true;
+            if (!beginOp('create_direction')) return;
             try {
                 const body = { user_id: S.userId, title, parent_id: S.boardParentId || null };
                 if (S._createDirLat && S._createDirLng) body.meeting_point = `${S._createDirLat.toFixed(5)}, ${S._createDirLng.toFixed(5)}`;
@@ -2920,7 +2986,7 @@
                     await renderBoard();
                 } else { showToast(res?.message || res?.error || 'Помилка створення', 'error'); }
             } catch (e) { showToast('Помилка мережі', 'error'); }
-            finally { S.busy = false; }
+            finally { endOp('create_direction'); }
         }
 
         // ═══════ DIRECTION EDIT / DELETE ═══════
@@ -2940,7 +3006,7 @@
         async function doEditDirection(dirId) {
             const title = document.getElementById('edit-dir-title')?.value?.trim();
             if (!title || title.length < 3) { showToast('Назва має бути від 3 символів', 'error'); return; }
-            if (S.busy) return; S.busy = true;
+            if (!beginOp('edit_direction')) return;
             try {
                 const res = await api('/api/v3/board', { method: 'PATCH', body: JSON.stringify({ user_id: S.userId, direction_id: dirId, title }) });
                 if (res?.status === 'ok' || res?.id) {
@@ -2953,7 +3019,7 @@
                     closeSheet(); renderBoardList(allDirections, S.boardSubSet); renderSubBar();
                 } else { showToast(res?.message || 'Помилка редагування', 'error'); }
             } catch (e) { showToast('Помилка мережі', 'error'); }
-            finally { S.busy = false; }
+            finally { endOp('edit_direction'); }
         }
 
         function confirmDeleteDirection(dirId) {
@@ -2968,7 +3034,7 @@
         }
 
         async function doDeleteDirection(dirId) {
-            if (S.busy) return; S.busy = true;
+            if (!beginOp('delete_direction')) return;
             try {
                 const res = await api('/api/v3/board/direction', { method: 'DELETE', body: JSON.stringify({ user_id: S.userId, direction_id: dirId }) });
                 if (res?.status === 'ok' || res?.deleted) {
@@ -2979,13 +3045,13 @@
                     closeSheet(); renderBoardList(allDirections, S.boardSubSet); renderSubBar();
                 } else { showToast(res?.message || 'Помилка видалення', 'error'); }
             } catch (e) { showToast('Помилка мережі', 'error'); }
-            finally { S.busy = false; }
+            finally { endOp('delete_direction'); }
         }
 
         // ═══════ GROUP JOIN ═══════
         async function groupJoinDirection(dirId, userIds) {
             if (!Array.isArray(userIds) || !userIds.length) { showToast('Немає доступних організаторів', 'error'); return; }
-            if (S.busy) return; S.busy = true;
+            if (!beginOp('group_join')) return;
             let sent = 0;
             try {
                 for (const uid of userIds.slice(0, 3)) {
@@ -2994,7 +3060,7 @@
                 }
                 showToast(`📩 Надіслано запитів: ${sent}`, 'success');
                 closeSheet(); await hydrate();
-            } finally { S.busy = false; }
+            } finally { endOp('group_join'); }
         }
 
         // ═══════ MY IDEAS (My Directions) ═══════
