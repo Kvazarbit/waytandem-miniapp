@@ -2363,6 +2363,7 @@
                     if (S.chatRequestId) loadChatMessages();
                     
                     if (_pendingRefreshMap) refreshMap();
+                    else if (S.activeTrip?.is_started) renderCrewMembersOnMap();
                     persistCriticalState(); // Persist after each successful poll
                 } finally {
                     pollInFlight = false;
@@ -2609,6 +2610,8 @@
             });
             // Re-draw pickup marker if exists
             if (S.pickupCoords && S._pickupMarker) { S._pickupMarker.addTo(S.map); }
+            // Show live crew member markers during Phase 2
+            renderCrewMembersOnMap();
             renderNewsPointsOnMap(crews);
             renderMapOverlay([]);
         }
@@ -3076,16 +3079,22 @@
                 const t = S.activeTrip;
                 const isDriver = t.viewer_role === 'driver';
                 const isStarted = !!t.is_started;
+                const cancelBy = t.cancel_requested_by;
+                const cancelPending = cancelBy && !isStarted && String(cancelBy) !== String(S.userId);
+                // Start/stop location tracking based on trip phase
+                if (isStarted) startLocationTracking(); else stopLocationTracking();
                 container.innerHTML = `
                     <div class="hero ${isStarted ? 'driving' : 'reservation'} animate-in">
                         <div class="hero-label" style="color:${isStarted ? 'var(--accent)' : 'var(--amber)'};">${isStarted ? '🚀 В ДОРОЗІ' : '⏳ РЕЗЕРВАЦІЯ'}</div>
                         <div class="hero-title">${escapeHtml(t.direction_title || 'Поїздка')}</div>
                         <div class="hero-sub">Екіпаж #${t.crew_id || '—'} • ${isDriver ? '🚗 Ви водій' : '👤 Ви попутник'}</div>
                         <div class="seats-row" style="margin-top:12px;">${(t.members || []).map(m => `<div class="seat-dot ${m.role === 'driver' ? 'driver-seat' : 'taken'}" title="${escapeHtml(m.name || '')}">${m.role === 'driver' ? '🚗' : (m.name || '?')[0]}</div>`).join('')}</div>
+                        ${cancelPending ? `<div style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);font-size:13px;color:var(--red);">⚠️ Партнер хоче скасувати поїздку</div>` : ''}
                         <div style="margin-top:16px;display:flex;flex-direction:column;gap:10px;">
                             ${!isStarted && isDriver ? `<button class="btn btn-primary" onclick="startTrip()">🚀 Поїхали!</button>` : ''}
                             ${isStarted ? `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="openChat(${t.id || t.request_id}, ${isDriver ? (t.client_id || 0) : (t.driver_id || 0)})">💬 Чат</button><button class="btn btn-primary" style="flex:1;" onclick="finishTrip()">🏁 Фініш</button></div>` : ''}
-                            ${!isStarted ? `<button class="btn btn-danger" onclick="cancelTrip()">🚫 Скасувати</button>` : ''}
+                            ${cancelPending ? `<div style="display:flex;gap:10px;"><button class="btn btn-primary" style="flex:1;" onclick="confirmCancelTrip()">✅ Підтвердити скасування</button><button class="btn btn-secondary" style="flex:1;" onclick="rejectCancelTrip()">❌ Відхилити</button></div>` : ''}
+                            ${!isStarted && !cancelPending ? `<button class="btn btn-danger" onclick="cancelTrip()">🚫 Скасувати</button>` : ''}
                         </div>
                     </div>
                     <div class="section-label">Деталі</div>
@@ -3118,6 +3127,7 @@
             }
 
             const isDriver = _isDriverRole(S.userRole);
+            stopLocationTracking();
             container.innerHTML = `
                 ${isDriver ? `<div class="open-crew-btn animate-in" onclick="openMyCrew()">
                     <div class="open-crew-icon">🚗</div>
@@ -3298,6 +3308,36 @@
                     showToast(getErrorMessage(res, 'Не вдалося скасувати поїздку'), 'error');
                 }
             } finally { endOp('cancel_trip'); }
+        }
+
+        async function confirmCancelTrip() {
+            if (!beginOp('confirm_cancel')) return;
+            try {
+                const reqId = currentRequestId();
+                if (!reqId) { showToast('Немає активної поїздки', 'error'); return; }
+                const res = await api('/api/v3/trip/confirm-cancel', { method: 'POST', body: JSON.stringify({ request_id: reqId, user_id: S.userId }) });
+                if (res?.status === 'ok') {
+                    showToast('Поїздку скасовано', 'success');
+                    await hydrate();
+                } else {
+                    showToast(getErrorMessage(res, 'Не вдалося підтвердити скасування'), 'error');
+                }
+            } finally { endOp('confirm_cancel'); }
+        }
+
+        async function rejectCancelTrip() {
+            if (!beginOp('reject_cancel')) return;
+            try {
+                const reqId = currentRequestId();
+                if (!reqId) { showToast('Немає активної поїздки', 'error'); return; }
+                const res = await api('/api/v3/trip/reject-cancel', { method: 'POST', body: JSON.stringify({ request_id: reqId, user_id: S.userId }) });
+                if (res?.status === 'ok') {
+                    showToast('Скасування відхилено — поїздка триває', 'success');
+                    await hydrate();
+                } else {
+                    showToast(getErrorMessage(res, 'Не вдалося відхилити скасування'), 'error');
+                }
+            } finally { endOp('reject_cancel'); }
         }
 
         // ─── RATING WITH COMMENT ───
@@ -3741,6 +3781,65 @@
         async function subscribeAndPickup(dirId) {
             const ok = await subscribeDir(dirId);
             if (ok) await pickPickupLocation(dirId);
+        }
+
+        // ═══════ LIVE LOCATION TRACKING (Phase 2 — In Route) ═══════
+        let _locationTrackInterval = null;
+
+        function startLocationTracking() {
+            if (_locationTrackInterval) return;
+            if (!navigator.geolocation) return;
+            // Send immediately, then every 10 seconds
+            _sendMyLocation();
+            _locationTrackInterval = setInterval(_sendMyLocation, 10000);
+        }
+
+        function stopLocationTracking() {
+            if (_locationTrackInterval) {
+                clearInterval(_locationTrackInterval);
+                _locationTrackInterval = null;
+            }
+        }
+
+        function _sendMyLocation() {
+            if (!navigator.geolocation || !S.apiBase || !S.userId) return;
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    api('/api/v3/user/location', {
+                        method: 'POST',
+                        body: JSON.stringify({ user_id: S.userId, lat: pos.coords.latitude, lng: pos.coords.longitude })
+                    }).catch(() => {});
+                },
+                () => {},
+                { enableHighAccuracy: true, timeout: 5000 }
+            );
+        }
+
+        function renderCrewMembersOnMap() {
+            if (!S.map) return;
+            // Remove old crew member markers
+            (S._crewMemberMarkers || []).forEach(m => S.map.removeLayer(m));
+            S._crewMemberMarkers = [];
+            // Show crew members if trip is active (Phase 2)
+            const t = S.activeTrip;
+            if (!t || !t.is_started || !t.members) return;
+            t.members.forEach(m => {
+                if (!m.lat || !m.lng) return;
+                const isMe = String(m.user_id) === String(S.userId);
+                const emoji = m.role === 'driver' ? '🚗' : '👤';
+                const color = isMe ? '#34d399' : '#38bdf8';
+                const marker = L.marker([m.lat, m.lng], {
+                    icon: L.divIcon({
+                        className: '',
+                        html: `<div style="width:36px;height:36px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;font-size:16px;border:2px solid rgba(0,0,0,0.4);box-shadow:0 2px 12px ${color}66;">${emoji}</div>`,
+                        iconSize: [36, 36], iconAnchor: [18, 18]
+                    })
+                }).addTo(S.map).bindPopup(isMe ? 'Ви' : escapeHtml(m.name || '?'));
+                S._crewMemberMarkers.push(marker);
+            });
+            // Fit bounds to show all members
+            const validCoords = (t.members || []).filter(m => m.lat && m.lng).map(m => [m.lat, m.lng]);
+            if (validCoords.length > 1) S.map.fitBounds(validCoords, { padding: [40, 40], maxZoom: 14 });
         }
 
     </script>
