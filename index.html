@@ -1377,16 +1377,29 @@
         }
 
         /* ═══════ LOADING / BUSY STATE ═══════ */
-        .btn-primary.busy, .btn-danger.busy, .btn-secondary.busy {
+        .app-busy .btn-primary,
+        .app-busy .btn-danger,
+        .app-busy .btn-secondary,
+        .app-busy .open-crew-btn {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .btn-primary.busy,
+        .btn-danger.busy,
+        .btn-secondary.busy {
             opacity: 0.5;
             pointer-events: none;
             position: relative;
         }
-        .btn-primary.busy::after, .btn-danger.busy::after {
+
+        .btn-primary.busy::after,
+        .btn-danger.busy::after {
             content: '';
             position: absolute;
-            width: 18px; height: 18px;
-            border: 2px solid rgba(0,0,0,0.2);
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(0, 0, 0, 0.2);
             border-top-color: #000;
             border-radius: 50%;
             right: 14px;
@@ -1394,13 +1407,227 @@
             margin-top: -9px;
             animation: spin 0.6s linear infinite;
         }
-        @keyframes spin { to { transform: rotate(360deg); } }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
 
         /* ═══════ KEYBOARD HANDLING — input stays above keyboard ═══════ */
         .keyboard-shifted {
             position: fixed !important;
             bottom: 0 !important;
-            left: 0; right: 0;
+            left: 0;
+            right: 0;
+            max-width: 500px;
+            margin: 0 auto;
+            z-index: 10001;
+            transition: bottom 0.1s ease-out;
+        }
+
+        /* ═══════ ANIMATIONS ═══════ */
+        @keyframes fade-up {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-in {
+            animation: fade-up 0.35s ease;
+        }
+
+        @keyframes pulse-dot {
+
+            0%,
+            100% {
+                opacity: 0.4;
+                transform: scale(0.8)
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1.2)
+            }
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent);
+            animation: pulse-dot 1.5s infinite;
+            display: inline-block;
+        }
+
+        /* ═══════ LEAFLET CUSTOM ═══════ */
+        .leaflet-popup-content-wrapper {
+            background: var(--bg-elevated) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: var(--radius-md) !important;
+            color: var(--text) !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+        }
+
+        .chat-msg.mine {
+            align-self: flex-end;
+        }
+
+        .chat-msg.theirs {
+            align-self: flex-start;
+        }
+
+        .chat-bubble {
+            padding: 10px 14px;
+            border-radius: 16px;
+            font-size: 14px;
+            line-height: 1.45;
+        }
+
+        .chat-msg.mine .chat-bubble {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: #fff;
+            border-bottom-right-radius: 4px;
+        }
+
+        .chat-msg.theirs .chat-bubble {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--border);
+            border-bottom-left-radius: 4px;
+        }
+
+        .chat-meta {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-bottom: 2px;
+            padding: 0 4px;
+        }
+
+        .chat-msg.mine .chat-meta {
+            text-align: right;
+        }
+
+        .chat-input-bar {
+            display: flex;
+            gap: 8px;
+            padding: 8px 16px;
+            padding-bottom: max(8px, var(--safe-bottom));
+            border-top: 1px solid var(--border);
+            background: var(--bg-glass);
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 10px 16px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-family: inherit;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .chat-send {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--accent);
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #000;
+            font-size: 18px;
+        }
+
+        /* ═══════ TOAST ═══════ */
+        .toast {
+            position: fixed;
+            top: calc(var(--safe-top) + 12px);
+            left: 50%;
+            transform: translateX(-50%) translateY(-120%);
+            max-width: 420px;
+            width: calc(100% - 32px);
+            padding: 12px 20px;
+            border-radius: var(--radius-md);
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            font-size: 13px;
+            font-weight: 700;
+            z-index: 10000;
+            opacity: 0;
+            transition: all 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            text-align: center;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .toast.error {
+            border-color: rgba(248, 113, 113, 0.3);
+            color: var(--red);
+        }
+
+        .toast.success {
+            border-color: rgba(52, 211, 153, 0.3);
+            color: var(--green);
+        }
+
+        /* ═══════ LOADING / BUSY STATE ═══════ */
+        .app-busy .btn-primary,
+        .app-busy .btn-danger,
+        .app-busy .btn-secondary,
+        .app-busy .open-crew-btn {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .btn-primary.busy,
+        .btn-danger.busy,
+        .btn-secondary.busy {
+            opacity: 0.5;
+            pointer-events: none;
+            position: relative;
+        }
+
+        .btn-primary.busy::after,
+        .btn-danger.busy::after {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(0, 0, 0, 0.2);
+            border-top-color: #000;
+            border-radius: 50%;
+            right: 14px;
+            top: 50%;
+            margin-top: -9px;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ═══════ KEYBOARD HANDLING — input stays above keyboard ═══════ */
+        .keyboard-shifted {
+            position: fixed !important;
+            bottom: 0 !important;
+            left: 0;
+            right: 0;
             max-width: 500px;
             margin: 0 auto;
             z-index: 10001;
@@ -1463,6 +1690,28 @@
 
         .leaflet-popup-content {
             margin: 8px 12px !important;
+        }
+
+        /* ═══════ HANDSHAKE PANEL (Persistent Overlay) ═══════ */
+        #handshake-panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 10000;
+            background: var(--bg-elevated);
+            border-top: 1px solid var(--accent);
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
+            padding: 16px;
+            padding-bottom: max(16px, var(--safe-bottom));
+            box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.6);
+            transform: translateY(110%);
+            transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+        }
+
+        #handshake-panel.open {
+            transform: translateY(0);
         }
     </style>
 </head>
@@ -1613,6 +1862,9 @@
         </nav>
     </div>
 
+    <!-- PERSISTENT HANDSHAKE PANEL -->
+    <div id="handshake-panel"></div>
+
     <!-- BOTTOM SHEET -->
     <div class="sheet-backdrop" id="sheet-backdrop"></div>
     <div class="sheet" id="sheet">
@@ -1690,7 +1942,8 @@
                 if (waitingForPartner) localStorage.setItem(_stateKey('wfp'), '1');
                 else localStorage.removeItem(_stateKey('wfp'));
                 if (lastKnownTripForRating) localStorage.setItem(_stateKey('ltr'), JSON.stringify(lastKnownTripForRating));
-            } catch (_) {}
+                else localStorage.removeItem(_stateKey('ltr'));
+            } catch (_) { }
         }
 
         function restoreCriticalState() {
@@ -1702,23 +1955,14 @@
         }
 
         function clearCriticalState() {
-            try { localStorage.removeItem(_stateKey('wfp')); localStorage.removeItem(_stateKey('ltr')); } catch (_) {}
-            waitingForPartner = false; lastKnownTripForRating = null;
+            try { localStorage.removeItem(_stateKey('wfp')); } catch (_) { }
+            waitingForPartner = false;
+            // Keep lastKnownTripForRating — renderTrips needs it to show rating sheet
         }
 
         // ═══ LOADING INDICATOR — visual feedback for busy state ═══
         function updateBusyUI() {
-            const btns = document.querySelectorAll('.btn-primary, .btn-danger, .btn-secondary, .open-crew-btn');
-            btns.forEach(b => {
-                if (S.busy) { b.style.opacity = '0.5'; b.style.pointerEvents = 'none'; }
-                else { b.style.opacity = ''; b.style.pointerEvents = ''; }
-            });
-            // Toast for long operations
-            if (S.busy && !window._busyToastShown) {
-                window._busyToastShown = true;
-            } else if (!S.busy) {
-                window._busyToastShown = false;
-            }
+            document.getElementById('app').classList.toggle('app-busy', S.busy);
         }
 
         function beginOp(opKey) {
@@ -1746,7 +1990,6 @@
                 console.log('[WT] App foregrounded — refreshing state');
                 if (S.apiBase && S.userId) {
                     hydrate();
-                    renderSubBar();
                 }
             }
         });
@@ -1941,12 +2184,12 @@
                 S.userId = tgUser.id;
                 S.userName = _pickTelegramName(tgUser, qp.get('name') || '');
                 S.userPhoto = sanitizeAvatarUrl(tgUser.photo_url || '');
-                tg.ready(); tg.expand();
             } else {
                 S.userId = parseInt(qp.get('user_id') || '0');
                 S.userName = String(qp.get('name') || '').trim();
                 S.userPhoto = sanitizeAvatarUrl(qp.get('avatar') || '');
             }
+            if (tg) { tg.ready(); tg.expand(); }
             if (!String(S.userName || '').trim() && S.userId) {
                 const cachedName = String(localStorage.getItem('wt_name_' + S.userId) || '').trim();
                 if (cachedName) S.userName = cachedName;
@@ -1984,6 +2227,7 @@
             const headers = { 'Content-Type': 'application/json' };
             const initData = window.Telegram?.WebApp?.initData || '';
             if (initData) headers['Authorization'] = 'tma ' + initData;
+            const silent = opts.silent || false;
             try {
                 const r = await fetch(S.apiBase + path, { ...opts, headers: { ...headers, ...opts.headers } });
                 let payload = null;
@@ -1994,7 +2238,7 @@
                 }
                 return { ok: r.ok, status: r.status, data: payload };
             } catch (e) {
-                console.warn('API err:', path, e);
+                if (!silent) console.warn('API err:', path, e);
                 return { ok: false, status: 0, data: null };
             }
         }
@@ -2028,7 +2272,8 @@
             if (!payload || typeof payload !== 'object') return null;
             if (payload.active_trip && typeof payload.active_trip === 'object') return payload.active_trip;
             if (payload.trip && typeof payload.trip === 'object') return payload.trip;
-            if (payload.found === true || payload.active === true) return payload;
+            if (payload.found === true && (payload.crew_id || payload.id || payload.request_id)) return payload;
+            if (payload.active === true && (payload.crew_id || payload.id || payload.request_id)) return payload;
             return null;
         }
 
@@ -2072,44 +2317,52 @@
             if (S.activeTrip) lastKnownTripForRating = { ...S.activeTrip };
             S.pendingMatches = resolvePendingMatchesPayload(data);
             syncIdentityUI();
-            updateRolePill(); updateBadges(); renderNews(); renderBoard(); renderTrips(); refreshMap();
+            updateRolePill(); updateBadges(); renderBoard(); renderTrips(); renderSubBar(); refreshMap();
+            if (S.currentScreen === 'news' || S.currentScreen === 'explore') renderNews();
             const subs = await api(`/api/v3/user/subscriptions?user_id=${S.userId}`);
             S.subscriptions = subs?.subscriptions || [];
             S.boardSubSet = new Set(S.subscriptions.map(s => String(s.direction_id)));
-            renderSubBar();
+            // Check handshake panel logic after hydration
+            verifyHandshakePanelState();
         }
 
-        // ─── POLLING ───
         function startPolling() {
-            if (pollTimer) clearInterval(pollTimer);
-            pollTimer = setInterval(async () => {
-                if (!S.apiBase || !S.userId) return;
-                if (pollInFlight || isAppInBackground) return; // Skip when backgrounded
+            if (!S.apiBase || !S.userId) return;
+            setInterval(async () => {
+                if (!S.apiBase || !S.userId || pollInFlight) return;
                 pollInFlight = true;
-                const state = await api(`/api/v3/hydrate?user_id=${S.userId}&include_outgoing=1`);
-                const previousTrip = S.activeTrip;
-                if (previousTrip) lastKnownTripForRating = { ...previousTrip };
                 try {
-                    if (state && state.profile && Object.prototype.hasOwnProperty.call(state.profile, 'role')) {
-                        S.userRole = normalizeRole(state.profile.role);
-                    }
-                    S.activeTrip = resolveActiveTripPayload(state);
+                    const data = await api(`/api/v3/hydrate?user_id=${S.userId}&include_outgoing=1`, { silent: true });
+                    if (!data) return;
+
+                    const oldPendingRaw = JSON.stringify(S.pendingMatches);
+                    const oldTripId = S.activeTrip ? S.activeTrip.id : null;
+                    const oldStatus = S.activeTrip ? S.activeTrip.status : null;
+                    const wasStarted = S.activeTrip ? S.activeTrip.is_started : 0;
+
+                    S.activeTrip = resolveActiveTripPayload(data);
                     if (S.activeTrip) lastKnownTripForRating = { ...S.activeTrip };
+                    S.pendingMatches = resolvePendingMatchesPayload(data);
+                    
+                    syncIdentityUI();
+                    verifyHandshakePanelState();
 
-                    // If we were waiting for partner and trip is gone → both finished
-                    const completedTrip = previousTrip || lastKnownTripForRating;
-                    if (waitingForPartner && !S.activeTrip && completedTrip) {
-                        clearCriticalState();
-                        showToast('🏁 Партнер підтвердив. Поїздка завершена!', 'success');
-                        openRatingSheet(buildRatingContext(completedTrip));
+                    const newPendingRaw = JSON.stringify(S.pendingMatches);
+                    if (oldPendingRaw !== newPendingRaw) updateBadges();
+                    let _pendingRefreshMap = false;
+                    if (oldTripId !== (S.activeTrip ? S.activeTrip.id : null) || 
+                        oldStatus !== (S.activeTrip ? S.activeTrip.status : null) ||
+                        wasStarted !== (S.activeTrip ? S.activeTrip.is_started : 0)) {
+                        _pendingRefreshMap = true;
                     }
 
-                    S.pendingMatches = resolvePendingMatchesPayload(state);
-                    updateBadges();
                     updateRolePill();
                     renderSubBar();
                     if (S.currentScreen === 'trips') renderTrips();
                     if (S.currentScreen === 'news') renderNewsScreen();
+                    if (S.chatRequestId) loadChatMessages();
+                    
+                    if (_pendingRefreshMap) refreshMap();
                     persistCriticalState(); // Persist after each successful poll
                 } finally {
                     pollInFlight = false;
@@ -2229,17 +2482,17 @@
             if (!beginOp('open_crew_sheet')) return;
             try {
                 const dirs = S.subscriptions.length > 0 ? S.subscriptions : (await api(`/api/v3/board?lang=${S.lang}`))?.directions || [];
-                if (!dirs.length) { showToast('Спочатку підпишіться на напрямок', 'error'); switchScreen('board'); return; }
+                if (!dirs.length) { endOp('open_crew_sheet'); showToast('Спочатку підпишіться на напрямок', 'error'); switchScreen('board'); return; }
                 if (dirs.length === 1) { await doOpenCrew(dirs[0].direction_id || dirs[0].id); return; }
                 openSheet(`
                 <div class="sheet-title">Відкрити екіпаж</div>
                 <div class="sheet-sub">Оберіть напрямок для вашого екіпажу</div>
                 <div class="sheet-actions">
                     ${dirs.map(d => {
-                const did = d.direction_id || d.id;
-                const title = d.direction_title || d.title || `#${did}`;
-                return `<button class="btn btn-secondary" onclick="doOpenCrew(${did});closeSheet();">${escapeHtml(title)}</button>`;
-            }).join('')}
+                    const did = d.direction_id || d.id;
+                    const title = d.direction_title || d.title || `#${did}`;
+                    return `<button class="btn btn-secondary" onclick="doOpenCrew(${did});closeSheet();">${escapeHtml(title)}</button>`;
+                }).join('')}
                     <button class="btn btn-ghost" onclick="closeSheet()">Скасувати</button>
                 </div>
             `);
@@ -2261,7 +2514,7 @@
                 if (res?.status === 'ok' || res?.crew_id) {
                     S.myCrew = { crew_id: res.crew_id, direction_id: dirId };
                     showToast('🚗 Екіпаж відкрито!', 'success');
-                    renderSubBar(); refreshMap();
+                    await hydrate();
                 } else { showToast('Помилка: ' + (res?.reason || 'невідома'), 'error'); }
             } catch (e) { showToast('Помилка створення екіпажу', 'error'); }
             finally { endOp('open_crew_submit'); }
@@ -2273,6 +2526,8 @@
             document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
             document.getElementById('screen-' + name).classList.add('active');
             document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.tab === name));
+            // Clear handshake panel padding when leaving trips screen
+            if (name !== 'trips') { document.body.style.paddingBottom = ''; }
             if (name === 'profile') updateRolePill();
             if (name === 'explore') refreshMap();
             if (name === 'board') renderBoard();
@@ -2652,6 +2907,15 @@
         function filterBoard(query) {
             const q = query.toLowerCase().trim();
             renderBoardList(q ? allDirections.filter(d => (d.title || '').toLowerCase().includes(q)) : allDirections, S.boardSubSet);
+            const el = document.getElementById('board-breadcrumb');
+            if (el) {
+                if (q) {
+                    const count = allDirections.filter(d => (d.title || '').toLowerCase().includes(q)).length;
+                    el.innerHTML = `<div class="board-crumb-path" style="color:var(--accent);">🔍 ${count} результат${count !== 1 ? 'ів' : ''}</div>`;
+                } else {
+                    renderBoardBreadcrumb();
+                }
+            }
         }
 
         // ─── OPEN DIRECTION — full version ───
@@ -2715,18 +2979,28 @@
         async function subscribeDir(dirId) {
             const dir = allDirections.find(d => String(d.id) === String(dirId));
             if (isFolderNode(dir)) { showToast('Підписка доступна тільки на напрямок', 'error'); return; }
-            
+
             // Check if user is already subscribed to a different direction
             const currentSubs = S.subscriptions || [];
             const otherSub = currentSubs.find(s => String(s.direction_id) !== String(dirId));
             if (otherSub) {
                 const oldTitle = otherSub.title || otherSub.direction_title || `#${otherSub.direction_id}`;
                 const newTitle = dir?.title || `#${dirId}`;
-                if (!confirm(`Ви вже підписані на "${oldTitle}".\nПереключитись на "${newTitle}"?\n\nВаша попередня підписка буде скасована.`)) {
-                    return false;
-                }
+                const confirmed = await new Promise(resolve => {
+                    openSheet(`
+                        <div class="sheet-title">Перемкнути підписку?</div>
+                        <div class="sheet-sub">Ви вже підписані на "${escapeHtml(oldTitle)}".<br>Переключитись на "${escapeHtml(newTitle)}"?<br><br>Попередня підписка буде скасована.</div>
+                        <div class="sheet-actions">
+                            <button class="btn btn-primary" id="confirm-switch-yes">✓ Так, перемкнути</button>
+                            <button class="btn btn-ghost" id="confirm-switch-no">Скасувати</button>
+                        </div>
+                    `);
+                    document.getElementById('confirm-switch-yes').onclick = () => { closeSheet(); resolve(true); };
+                    document.getElementById('confirm-switch-no').onclick = () => { closeSheet(); resolve(false); };
+                });
+                if (!confirmed) return false;
             }
-            
+
             const resp = await apiWithStatus('/api/v3/board/subscribe', {
                 method: 'POST',
                 body: JSON.stringify({ user_id: S.userId, direction_id: dirId, role: S.userRole || 'passenger' })
@@ -2736,17 +3010,15 @@
                 showToast(resp?.data?.detail || 'Не вдалося підписатись', 'error');
                 return false;
             }
-            
+
             // Show notification if direction was switched
             const switchedFrom = resp?.data?.switched_from;
             if (switchedFrom) {
                 showToast('↩️ Підписку перемкнено на новий напрямок', 'success');
             }
-            
+
             await hydrate();
             closeSheet();
-            renderBoard();
-            renderSubBar();
             if (S.pendingMatches.length > 0) {
                 switchScreen('trips');
                 showToast('🔔 Є збіг інтересів! Перевірте вкладку Поїздки', 'success');
@@ -2770,14 +3042,24 @@
             await hydrate();
             showToast('Відписано');
             closeSheet();
-            renderBoard();
-            renderSubBar();
             return true;
         }
 
         // ─── TRIPS ───
         async function renderTrips() {
             const container = document.getElementById('trips-content');
+
+            // Rating gate: if partner already finished and we have a cached trip
+            if (!S.activeTrip && !S.pendingMatches.length && lastKnownTripForRating && !waitingForPartner) {
+                const ratingContext = buildRatingContext(lastKnownTripForRating);
+                if (ratingContext) {
+                    openRatingSheet(ratingContext);
+                    lastKnownTripForRating = null;
+                    try { localStorage.removeItem(_stateKey('ltr')); } catch (_) { }
+                    container.innerHTML = '<div class="empty" style="padding-top:80px;"><div class="empty-icon">🏁</div><div class="empty-title">Поїздка завершена</div><div class="empty-sub">Оцініть вашого партнера у вікні зверху</div></div>';
+                    return;
+                }
+            }
 
             // Waiting for partner confirmation
             if (waitingForPartner) { renderTripsWaiting(); return; }
@@ -2878,6 +3160,40 @@
             } finally { endOp('respond_handshake'); }
         }
 
+        function verifyHandshakePanelState() {
+            const panel = document.getElementById('handshake-panel');
+            if (!panel) return;
+            
+            // Only show panel if we have incoming matches and NO active trip
+            const incoming = S.pendingMatches.filter(m => m.scope === 'incoming');
+            
+            if (incoming.length === 0 || S.activeTrip || waitingForPartner) {
+                panel.classList.remove('open');
+                panel.innerHTML = '';
+                document.body.style.paddingBottom = '';
+                return;
+            }
+            
+            const m = incoming[0];
+            const partnerName = m.partner_name || m.sender_name || `#${m.partner_id}`;
+            const partnerId = m.partner_id || m.sender_id;
+            const dirTitle = m.direction || m.direction_title || 'Напрямок';
+
+            document.body.style.paddingBottom = '110px';
+            
+            panel.innerHTML = `
+                <div style="font-weight:800;font-size:14px;margin-bottom:4px;color:var(--accent);">🟢 Вхідний запит!</div>
+                <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-bottom:12px;">
+                    <b>${escapeHtml(partnerName)}</b> • ${escapeHtml(dirTitle)}
+                </div>
+                <div style="display:flex;gap:10px;">
+                    <button class="btn btn-primary" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, true)">✓ Прийняти</button>
+                    <button class="btn btn-danger" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false)">✕ Відхилити</button>
+                </div>
+            `;
+            panel.classList.add('open');
+        }
+
         function currentRequestIdFromTrip(trip) {
             const raw = trip?.id ?? trip?.request_id ?? null;
             const reqId = Number(raw);
@@ -2912,7 +3228,7 @@
                 const reqId = currentRequestId();
                 if (!reqId) { showToast('Немає активної поїздки', 'error'); return; }
                 const res = await api('/api/v3/trip/start', { method: 'POST', body: JSON.stringify({ request_id: reqId, user_id: S.userId }) });
-                if (res?.ok || res?.status === 'ok') { showToast('🚀 Поїхали!', 'success'); await hydrate(); }
+                if (res?.status === 'ok') { showToast('🚀 Поїхали!', 'success'); await hydrate(); }
                 else showToast('Помилка старту', 'error');
             } finally { endOp('start_trip'); }
         }
@@ -2966,8 +3282,13 @@
             try {
                 const reqId = currentRequestId();
                 if (!reqId) { showToast('Немає активної поїздки', 'error'); return; }
-                await api('/api/v3/trip/cancel', { method: 'POST', body: JSON.stringify({ request_id: reqId, user_id: S.userId }) });
-                showToast('Поїздку скасовано'); await hydrate();
+                const res = await api('/api/v3/trip/cancel', { method: 'POST', body: JSON.stringify({ request_id: reqId, user_id: S.userId }) });
+                if (res?.status === 'ok' || res?.cancelled) {
+                    showToast('Поїздку скасовано', 'success');
+                    await hydrate();
+                } else {
+                    showToast(getErrorMessage(res, 'Не вдалося скасувати поїздку'), 'error');
+                }
             } finally { endOp('cancel_trip'); }
         }
 
@@ -3044,12 +3365,18 @@
         async function sendChat() {
             const input = document.getElementById('chat-input');
             const text = input.value.trim();
-            if (!text || !S.chatRequestId) return; input.value = '';
+            if (!text || !S.chatRequestId) return;
+            input.value = '';
             const feed = document.getElementById('chat-feed');
             const div = document.createElement('div'); div.className = 'chat-msg mine';
             div.innerHTML = `<div class="chat-bubble">${escapeHtml(text)}</div>`;
             feed.appendChild(div); feed.scrollTop = feed.scrollHeight;
-            await api('/api/v3/trip/message', { method: 'POST', body: JSON.stringify({ request_id: S.chatRequestId, user_id: S.userId, text }) });
+            const res = await api('/api/v3/trip/message', { method: 'POST', body: JSON.stringify({ request_id: S.chatRequestId, user_id: S.userId, text }) });
+            if (!res) {
+                if (div.parentNode) div.remove();
+                input.value = text;
+                showToast('Не вдалося надіслати — текст відновлено', 'error');
+            }
         }
 
         function escapeHtml(str) {
@@ -3309,8 +3636,12 @@
                     const res = await api('/api/v3/match/invite', { method: 'POST', body: JSON.stringify({ user_id: S.userId, target_id: uid, direction_id: dirId }) });
                     if (res?.status === 'ok') sent++;
                 }
-                showToast(`📩 Надіслано запитів: ${sent}`, 'success');
-                closeSheet(); await hydrate();
+                if (sent > 0) {
+                    showToast(`📩 Надіслано запитів: ${sent}`, 'success');
+                    closeSheet(); await hydrate();
+                } else {
+                    showToast('Не вдалося надіслати жодного запиту', 'error');
+                }
             } finally { endOp('group_join'); }
         }
 
@@ -3401,7 +3732,7 @@
 
         async function subscribeAndPickup(dirId) {
             const ok = await subscribeDir(dirId);
-            if (ok) setTimeout(() => pickPickupLocation(dirId), 600);
+            if (ok) await pickPickupLocation(dirId);
         }
 
     </script>
