@@ -3033,6 +3033,9 @@
                     if (S.pendingMatches.length > 0 && !S.activeTrip) {
                         switchScreen('trips');
                         showToast('🔔 Є збіг інтересів!', 'success');
+                    } else {
+                        // No match yet — show lifecycle feedback
+                        switchScreen('trips');
                     }
                 }, 1500);
             }
@@ -3138,9 +3141,15 @@
                     <div class="open-crew-arrow">›</div>
                 </div>` : ''}
                 <div class="empty" style="padding-top:${isDriver ? '40px' : '80px'};">
-                    <div class="empty-icon">🧭</div>
-                    <div class="empty-title">Немає активних поїздок</div>
-                    <div class="empty-sub">${isDriver ? 'Відкрийте екіпаж або знайдіть напрямок' : 'Знайдіть напрямок в каталозі або на мапі'}</div>
+                    ${S.subscriptions && S.subscriptions.length > 0
+                        ? `<div class="empty-icon">⏳</div>
+                           <div class="empty-title">Ви підписані</div>
+                           <div class="empty-sub">Ми повідомимо вас коли знайдемо ${isDriver ? 'пасажира' : 'водія'}</div>
+                           <div style="margin-top:12px;font-size:12px;color:var(--text-muted);">${escapeHtml(S.subscriptions[0]?.title || S.subscriptions[0]?.direction_title || '')}</div>`
+                        : `<div class="empty-icon">🧭</div>
+                           <div class="empty-title">Немає активних поїздок</div>
+                           <div class="empty-sub">${isDriver ? 'Відкрийте екіпаж або знайдіть напрямок' : 'Знайдіть напрямок в каталозі або на мапі'}</div>`
+                    }
                     <button class="btn btn-secondary" style="margin-top:20px;" onclick="switchScreen('board')">Перейти до каталогу</button>
                 </div>`;
         }
