@@ -2342,6 +2342,10 @@
 
                     S.activeTrip = resolveActiveTripPayload(data);
                     if (S.activeTrip) lastKnownTripForRating = { ...S.activeTrip };
+                    // If waiting for partner and trip is gone — partner finished, show rating
+                    if (waitingForPartner && !S.activeTrip && lastKnownTripForRating) {
+                        waitingForPartner = false;
+                    }
                     S.pendingMatches = resolvePendingMatchesPayload(data);
                     
                     syncIdentityUI();
@@ -3157,10 +3161,11 @@
         function renderTripsWaiting() {
             const container = document.getElementById('trips-content');
             if (!container) return;
+            const title = S.activeTrip?.direction_title || lastKnownTripForRating?.direction_title || 'Поїздка';
             container.innerHTML = `
                 <div class="hero reservation animate-in">
                     <div class="hero-label" style="color:var(--amber);">⏳ ОЧІКУВАННЯ</div>
-                    <div class="hero-title">${escapeHtml(S.activeTrip?.direction_title || 'Поїздка')}</div>
+                    <div class="hero-title">${escapeHtml(title)}</div>
                     <div class="hero-sub">Ви завершили. Очікуємо підтвердження партнера.</div>
                     <div style="margin-top:20px;display:flex;align-items:center;justify-content:center;gap:8px;">
                         <div class="pulse-dot"></div>
@@ -3273,7 +3278,7 @@
                     body: JSON.stringify({ request_id: reqId, user_id: S.userId, role: S.activeTrip.viewer_role || S.userRole })
                 });
                 if (res?.status === 'ok') {
-                    if (res?.both_finished || res?.completed) {
+                    if (res?.completed) {
                         showToast('🏁 Поїздка завершена!', 'success');
                         waitingForPartner = false;
                         openRatingSheet(ratingContext);
@@ -3386,8 +3391,13 @@
             const ctx = getCurrentRatingContext();
             const pid = ctx?.partner_id || null;
             const reqId = ctx?.request_id || null;
-            if (pid && reqId) await api('/api/v3/rating', { method: 'POST', body: JSON.stringify({ from_user_id: S.userId, to_user_id: pid, request_id: reqId, score, comment }) });
-            showToast('Дякуємо за відгук!', 'success'); closeSheet(); S._ratingScore = null; S._ratingContext = null;
+            if (pid && reqId) {
+                await api('/api/v3/rating', { method: 'POST', body: JSON.stringify({ from_user_id: S.userId, to_user_id: pid, request_id: reqId, score, comment }) });
+                showToast('Дякуємо за відгук!', 'success');
+            } else {
+                showToast('Контекст оцінки втрачено', 'error');
+            }
+            closeSheet(); S._ratingScore = null; S._ratingContext = null;
         }
 
         // ─── CHAT ───
