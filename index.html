@@ -3024,6 +3024,14 @@
                 showToast('🔔 Є збіг інтересів! Перевірте вкладку Поїздки', 'success');
             } else {
                 showToast(status === 'already_subscribed' ? 'Вже підписані' : '✓ Підписано!', 'success');
+                // Re-hydrate after delay to catch handshakes created by async matching task
+                setTimeout(async () => {
+                    await hydrate();
+                    if (S.pendingMatches.length > 0 && !S.activeTrip) {
+                        switchScreen('trips');
+                        showToast('🔔 Є збіг інтересів!', 'success');
+                    }
+                }, 1500);
             }
             return true;
         }
