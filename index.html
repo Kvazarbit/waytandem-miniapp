@@ -515,6 +515,77 @@
             font-weight: 600;
         }
 
+        .lifecycle-progress {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            margin-top: 14px;
+            padding: 0 4px;
+        }
+        .lifecycle-step {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+        .lifecycle-step.active { color: var(--accent); font-weight: 600; }
+        .lifecycle-step.done { color: var(--green); }
+        .lifecycle-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--border);
+            flex-shrink: 0;
+        }
+        .lifecycle-step.active .lifecycle-dot { background: var(--accent); }
+        .lifecycle-step.done .lifecycle-dot { background: var(--green); }
+        .lifecycle-arrow {
+            flex: 1;
+            height: 2px;
+            background: var(--border);
+            min-width: 8px;
+        }
+        .lifecycle-step.done + .lifecycle-arrow,
+        .lifecycle-step.done ~ .lifecycle-arrow { background: var(--green); }
+
+        .crew-tree {
+            margin-top: 12px;
+            padding: 10px 12px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 10px;
+        }
+        .crew-member {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 0;
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+        .crew-member.is-self { color: var(--accent); font-weight: 600; }
+        .crew-member .crew-icon { font-size: 16px; flex-shrink: 0; }
+        .crew-member .crew-connector {
+            color: var(--text-muted);
+            font-family: monospace;
+            font-size: 12px;
+            margin-right: 2px;
+        }
+        .crew-member .crew-role {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-left: auto;
+        }
+        .crew-empty {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 0;
+            font-size: 14px;
+            color: var(--text-muted);
+            opacity: 0.6;
+        }
+
         .btn {
             display: flex;
             align-items: center;
@@ -1746,6 +1817,9 @@
                 <div style="display:flex;gap:8px;padding:12px 16px 0;">
                     <input class="board-search" id="board-search" placeholder="🔍 Пошук напрямку..."
                         oninput="filterBoard(this.value)" style="flex:1;">
+                    <button class="btn btn-secondary" style="padding:10px
+                        14px;font-size:16px;border-radius:var(--radius-sm);flex-shrink:0;"
+                        onclick="openCreateEvent()" title="Створити подію">🎯</button>
                     <button class="btn btn-primary" style="padding:10px
                         14px;font-size:18px;border-radius:var(--radius-sm);flex-shrink:0;"
                         onclick="openCreateDirection()" title="Створити напрямок">+</button>
@@ -2446,7 +2520,7 @@
             saveProfile();
             updateRolePill();
             closeSheet();
-            showToast(normalizedRole === 'driver' ? '🚗 Ви водій!' : '👤 Ви попутник!', 'success');
+            showToast(normalizedRole === 'driver' ? '🚗 Ви мандрівник!' : '👤 Ви попутник!', 'success');
             if (S.currentScreen === 'explore') refreshMap();
             renderSubBar();
             if (S.apiBase) await hydrate();
@@ -2597,8 +2671,13 @@
             S.newsMarkers = [];
             crews.forEach(c => {
                 if (!c.lat || !c.lng) return;
+                // Highlight crews going to the same direction as active trip
+                const isSameDirection = S.activeTrip && c.direction_id && String(c.direction_id) === String(S.activeTrip.direction_id);
+                const bgColor = isSameDirection ? '#fbbf24' : 'var(--accent)';
+                const glow = isSameDirection ? '0 2px 12px rgba(251,191,36,0.5)' : '0 2px 12px var(--accent-glow)';
+                const emoji = isSameDirection ? '🎯' : '🚗';
                 const marker = L.marker([c.lat, c.lng], {
-                    icon: L.divIcon({ className: '', html: `<div style="width:32px;height:32px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 12px var(--accent-glow);border:2px solid rgba(0,0,0,0.3);">🚗</div>`, iconSize: [32, 32], iconAnchor: [16, 16] })
+                    icon: L.divIcon({ className: '', html: `<div style="width:32px;height:32px;border-radius:50%;background:${bgColor};display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:${glow};border:2px solid rgba(0,0,0,0.3);">${emoji}</div>`, iconSize: [32, 32], iconAnchor: [16, 16] })
                 }).addTo(S.map);
                 const canRequest = S.userId && String(S.userId) !== String(c.organizer_id);
                 const safeOrganizerId = Number.isFinite(Number(c.organizer_id)) ? Number(c.organizer_id) : 0;
@@ -3074,7 +3153,7 @@
                     openRatingSheet(ratingContext);
                     lastKnownTripForRating = null;
                     try { localStorage.removeItem(_stateKey('ltr')); } catch (_) { }
-                    container.innerHTML = '<div class="empty" style="padding-top:80px;"><div class="empty-icon">🏁</div><div class="empty-title">Поїздка завершена</div><div class="empty-sub">Оцініть вашого партнера у вікні зверху</div></div>';
+                    container.innerHTML = '<div class="empty" style="padding-top:80px;"><div class="empty-icon">🏁</div><div class="empty-title">Подорож завершена</div><div class="empty-sub">Оцініть вашого партнера у вікні зверху</div></div>';
                     return;
                 }
             }
@@ -3088,20 +3167,36 @@
                 const isStarted = !!t.is_started;
                 const cancelBy = t.cancel_requested_by;
                 const cancelPending = cancelBy && !isStarted && String(cancelBy) !== String(S.userId);
+                const cancelRequested = cancelBy && !isStarted && String(cancelBy) === String(S.userId);
                 // Start/stop location tracking based on trip phase
                 if (isStarted) startLocationTracking(); else stopLocationTracking();
                 container.innerHTML = `
                     <div class="hero ${isStarted ? 'driving' : 'reservation'} animate-in">
                         <div class="hero-label" style="color:${isStarted ? 'var(--accent)' : 'var(--amber)'};">${isStarted ? '🚀 В ДОРОЗІ' : '⏳ РЕЗЕРВАЦІЯ'}</div>
                         <div class="hero-title">${escapeHtml(t.direction_title || 'Поїздка')}</div>
-                        <div class="hero-sub">Екіпаж #${t.crew_id || '—'} • ${isDriver ? '🚗 Ви водій' : '👤 Ви попутник'}</div>
-                        <div class="seats-row" style="margin-top:12px;">${(t.members || []).map(m => `<div class="seat-dot ${m.role === 'driver' ? 'driver-seat' : 'taken'}" title="${escapeHtml(m.name || '')}">${m.role === 'driver' ? '🚗' : (m.name || '?')[0]}</div>`).join('')}</div>
+                        <div class="hero-sub">Екіпаж #${t.crew_id || '—'} • ${isDriver ? '🚗 Ви мандрівник' : '👤 Ви попутник'}</div>
+                        ${buildCrewTree(t)}
+                        <div class="lifecycle-progress">
+                            <div class="lifecycle-step done"><div class="lifecycle-dot"></div>Збіг</div>
+                            <div class="lifecycle-arrow"></div>
+                            <div class="lifecycle-step ${isStarted ? 'done' : 'active'}"><div class="lifecycle-dot"></div>Резервація</div>
+                            <div class="lifecycle-arrow"></div>
+                            <div class="lifecycle-step ${isStarted ? 'active' : ''}"><div class="lifecycle-dot"></div>В дорозі</div>
+                            <div class="lifecycle-arrow"></div>
+                            <div class="lifecycle-step"><div class="lifecycle-dot"></div>Завершення</div>
+                        </div>
+                        ${isStarted ? `<div style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);font-size:13px;color:var(--text-secondary);display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="switchScreen('explore')">
+                            <span style="font-size:18px;">🗺️</span>
+                            <span>Відкрити карту з маркерами екіпажу</span>
+                            <span style="margin-left:auto;color:var(--accent);">→</span>
+                        </div>` : ''}
                         ${cancelPending ? `<div style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);font-size:13px;color:var(--red);">⚠️ Партнер хоче скасувати поїздку</div>` : ''}
+                        ${cancelRequested ? `<div style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(255,193,7,0.1);border:1px solid rgba(255,193,7,0.3);font-size:13px;color:var(--amber);">⏳ Очікуємо підтвердження партнера</div>` : ''}
                         <div style="margin-top:16px;display:flex;flex-direction:column;gap:10px;">
-                            ${!isStarted && isDriver ? `<button class="btn btn-primary" onclick="startTrip()">🚀 Поїхали!</button>` : ''}
-                            ${isStarted ? `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="openChat(${t.id || t.request_id}, ${isDriver ? (t.client_id || 0) : (t.driver_id || 0)})">💬 Чат</button><button class="btn btn-primary" style="flex:1;" onclick="finishTrip()">🏁 Фініш</button></div>` : ''}
-                            ${cancelPending ? `<div style="display:flex;gap:10px;"><button class="btn btn-primary" style="flex:1;" onclick="confirmCancelTrip()">✅ Підтвердити скасування</button><button class="btn btn-secondary" style="flex:1;" onclick="rejectCancelTrip()">❌ Відхилити</button></div>` : ''}
-                            ${!isStarted && !cancelPending ? `<button class="btn btn-danger" onclick="cancelTrip()">🚫 Скасувати</button>` : ''}
+                            ${!isStarted && isDriver && !cancelRequested ? `<button class="btn btn-primary" onclick="startTrip()">🚀 Поїхали!</button>` : ''}
+                            ${isStarted ? `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="openChat(${t.id || t.request_id}, ${isDriver ? (t.client_id || 0) : (t.driver_id || 0)})">💬 Чат</button><button class="btn btn-primary" style="flex:1;" onclick="finishTrip()">✅ Завершити подорож</button></div>` : ''}
+                            ${cancelPending ? `<div style="display:flex;gap:10px;"><button class="btn btn-primary" style="flex:1;" onclick="confirmCancelTrip()">✅ Згоден скасувати</button><button class="btn btn-secondary" style="flex:1;" onclick="rejectCancelTrip()">❌ Відмовити</button></div>` : ''}
+                            ${!isStarted && !cancelPending && !cancelRequested ? `<button class="btn btn-danger" onclick="cancelTrip()">❌ Покинути резервацію</button>` : ''}
                         </div>
                     </div>
                     <div class="section-label">Деталі</div>
@@ -3161,12 +3256,12 @@
         function renderTripsWaiting() {
             const container = document.getElementById('trips-content');
             if (!container) return;
-            const title = S.activeTrip?.direction_title || lastKnownTripForRating?.direction_title || 'Поїздка';
+            const title = S.activeTrip?.direction_title || lastKnownTripForRating?.direction_title || 'Подорож';
             container.innerHTML = `
                 <div class="hero reservation animate-in">
                     <div class="hero-label" style="color:var(--amber);">⏳ ОЧІКУВАННЯ</div>
                     <div class="hero-title">${escapeHtml(title)}</div>
-                    <div class="hero-sub">Ви завершили. Очікуємо підтвердження партнера.</div>
+                    <div class="hero-sub">Ви відмітили завершення. Очікуємо підтвердження партнера.</div>
                     <div style="margin-top:20px;display:flex;align-items:center;justify-content:center;gap:8px;">
                         <div class="pulse-dot"></div>
                         <span style="font-size:13px;color:var(--text-secondary);">Очікування...</span>
@@ -3232,6 +3327,45 @@
             return Number.isFinite(reqId) && reqId > 0 ? reqId : null;
         }
 
+        function buildCrewTree(trip) {
+            if (!trip || !trip.members) return '';
+            const isDriver = trip.viewer_role === 'driver';
+            // Sort: driver first, then passengers, then empty seats
+            const sorted = [...trip.members].sort((a, b) => {
+                if (a.role === 'driver') return -1;
+                if (b.role === 'driver') return 1;
+                return 0;
+            });
+            const totalSeats = trip.total_seats || sorted.length + 1;
+            const emptySeats = Math.max(0, totalSeats - sorted.length);
+            let html = '<div class="crew-tree">';
+            sorted.forEach((m, i) => {
+                const isLast = i === sorted.length - 1 && emptySeats === 0;
+                const connector = i === 0 ? '' : (isLast ? '└' : '├');
+                const isMe = String(m.user_id) === String(S.userId);
+                const icon = m.role === 'driver' ? '🚗' : '👤';
+                const name = escapeHtml(m.name || `#${m.user_id || '?'}`);
+                const roleLabel = m.role === 'driver' ? 'мандрівник' : (isMe ? 'Ви' : '');
+                html += `<div class="crew-member${isMe ? ' is-self' : ''}">
+                    ${connector ? `<span class="crew-connector">${connector} </span>` : ''}
+                    <span class="crew-icon">${icon}</span>
+                    <span>${name}</span>
+                    ${roleLabel ? `<span class="crew-role">${roleLabel}</span>` : ''}
+                </div>`;
+            });
+            for (let e = 0; e < emptySeats; e++) {
+                const isLastE = e === emptySeats - 1;
+                const connector = sorted.length === 0 && e === 0 ? '' : (isLastE ? '└' : '├');
+                html += `<div class="crew-empty">
+                    ${connector ? `<span class="crew-connector">${connector} </span>` : ''}
+                    <span class="crew-icon">⬜</span>
+                    <span>Вільне місце</span>
+                </div>`;
+            }
+            html += '</div>';
+            return html;
+        }
+
         function buildRatingContext(trip) {
             if (!trip) return null;
             const requestId = currentRequestIdFromTrip(trip);
@@ -3279,7 +3413,7 @@
                 });
                 if (res?.status === 'ok') {
                     if (res?.completed) {
-                        showToast('🏁 Поїздка завершена!', 'success');
+                        showToast('🎉 Подорож завершена! Дякуємо.', 'success');
                         waitingForPartner = false;
                         openRatingSheet(ratingContext);
                         lastKnownTripForRating = null;
@@ -3298,25 +3432,36 @@
 
         async function cancelTrip() {
             if (!S.activeTrip) return;
+            const t = S.activeTrip;
+            const crewLabel = t.crew_id ? `#${t.crew_id}` : '';
+            const isDriver = t.viewer_role === 'driver';
             openSheet(`
-                <div class="sheet-title">Скасувати поїздку?</div>
-                <div class="sheet-sub">Ви впевнені? Цю дію не можна скасувати.</div>
-                <div class="sheet-actions">
-                    <button class="btn btn-danger" onclick="doCancelTrip()">🚫 Скасувати поїздку</button>
-                    <button class="btn btn-ghost" onclick="closeSheet()">Повернутись</button>
+                <div class="sheet-title">❌ Покинути резервацію ${crewLabel}?</div>
+                <div class="sheet-sub">${isDriver ? 'Ваш екіпаж буде розформовано. Всі попутники отримають сповіщення.' : 'Ви вийдете з екіпажу. Мандрівник та інші попутники залишаться.'}</div>
+                <div class="sheet-sub" style="margin-top:8px;font-weight:600;">Вкажіть причину:</div>
+                <div class="sheet-actions" style="flex-direction:column;">
+                    <button class="btn btn-secondary" onclick="doCancelTrip('plans')">📅 Змінилися плани</button>
+                    <button class="btn btn-secondary" onclick="doCancelTrip('wait')">⏳ Довго чекати</button>
+                    <button class="btn btn-secondary" onclick="doCancelTrip('force')">🤕 Захворів / Форс-мажор</button>
+                    <button class="btn btn-ghost" style="margin-top:8px;" onclick="closeSheet()">Скасувати вихід</button>
                 </div>
             `);
         }
 
-        async function doCancelTrip() {
+        async function doCancelTrip(reason) {
             closeSheet();
             if (!beginOp('cancel_trip')) return;
             try {
                 const reqId = currentRequestId();
                 if (!reqId) { showToast('Немає активної поїздки', 'error'); return; }
-                const res = await api('/api/v3/trip/cancel', { method: 'POST', body: JSON.stringify({ request_id: reqId, user_id: S.userId }) });
+                const res = await api('/api/v3/trip/cancel', { method: 'POST', body: JSON.stringify({ request_id: reqId, user_id: S.userId, reason: reason || '' }) });
                 if (res?.status === 'ok' || res?.cancelled) {
-                    showToast('Поїздку скасовано', 'success');
+                    if (res?.cancel_requested_by) {
+                        // Mutual consent: waiting for partner
+                        showToast('⏳ Очікуємо підтвердження партнера', '');
+                    } else {
+                        showToast('✅ Екіпаж розформовано', 'success');
+                    }
                     await hydrate();
                 } else {
                     showToast(getErrorMessage(res, 'Не вдалося скасувати поїздку'), 'error');
@@ -3584,6 +3729,65 @@
             showToast('Мова оновлена', 'success'); renderBoard();
         }
 
+        // ═══════ EVENT CREATION ═══════
+        function openCreateEvent() {
+            const today = new Date().toISOString().split('T')[0];
+            openSheet(`
+                <div class="sheet-title">🎯 Створити подію</div>
+                <div class="sheet-sub">Запросіть друзів у спільну подорож</div>
+                <input class="board-search" id="event-title" placeholder="Назва події (напр. Закопане Weekend)..." style="margin:12px 0 8px;">
+                <input class="board-search" id="event-date" type="date" min="${today}" value="${today}" style="margin-bottom:8px;">
+                <input class="board-search" id="event-time" type="time" value="07:00" style="margin-bottom:8px;">
+                <input class="board-search" id="event-direction" placeholder="Напрямок (напр. Закопане)..." style="margin-bottom:8px;">
+                <div style="display:flex;gap:8px;margin-bottom:8px;">
+                    <input class="board-search" id="event-from" placeholder="Звідки (напр. Варшава)" style="flex:1;margin:0;">
+                    <span style="align-self:center;color:var(--text-muted);">→</span>
+                    <input class="board-search" id="event-to" placeholder="Куди (напр. Закопане)" style="flex:1;margin:0;">
+                </div>
+                <div style="display:flex;gap:8px;margin-bottom:16px;">
+                    <input class="board-search" id="event-seats" type="number" min="2" max="8" value="4" placeholder="Місць" style="flex:1;margin:0;">
+                    <input class="board-search" id="event-desc" placeholder="Опис (необов'язково)" style="flex:2;margin:0;">
+                </div>
+                <button class="btn btn-primary" onclick="doCreateEvent()">✅ Створити подію</button>
+            `);
+            setTimeout(() => document.getElementById('event-title')?.focus(), 300);
+        }
+
+        async function doCreateEvent() {
+            const title = document.getElementById('event-title')?.value?.trim();
+            const date = document.getElementById('event-date')?.value;
+            const time = document.getElementById('event-time')?.value || '07:00';
+            const from = document.getElementById('event-from')?.value?.trim();
+            const to = document.getElementById('event-to')?.value?.trim();
+            const seats = parseInt(document.getElementById('event-seats')?.value || '4');
+            const desc = document.getElementById('event-desc')?.value?.trim() || '';
+            if (!title) { showToast('Вкажіть назву події', 'error'); return; }
+            if (!from && !to) { showToast('Вкажіть маршрут', 'error'); return; }
+            const directionText = [from, to].filter(Boolean).join(' → ');
+            if (!beginOp('create_event')) return;
+            try {
+                const res = await api('/api/v3/groups', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        user_id: S.userId,
+                        name: title,
+                        departure_date: `${date} ${time}`,
+                        max_participants: seats,
+                        description: desc || directionText,
+                        direction_title: directionText
+                    })
+                });
+                if (res?.status === 'ok' || res?.id) {
+                    closeSheet();
+                    showToast('🎯 Подію створено!', 'success');
+                    await hydrate();
+                    switchScreen('trips');
+                } else {
+                    showToast(getErrorMessage(res, 'Не вдалося створити подію'), 'error');
+                }
+            } finally { endOp('create_event'); }
+        }
+
         // ═══════ DIRECTION CREATION ═══════
         function openCreateDirection() {
             const parentTitle = S.boardStack.length ? S.boardStack[S.boardStack.length - 1].title : 'Корінь';
@@ -3836,29 +4040,37 @@
 
         function renderCrewMembersOnMap() {
             if (!S.map) return;
-            // Remove old crew member markers
+            // Remove old crew member markers and route
             (S._crewMemberMarkers || []).forEach(m => S.map.removeLayer(m));
             S._crewMemberMarkers = [];
+            if (S._routePolyline) { S.map.removeLayer(S._routePolyline); S._routePolyline = null; }
             // Show crew members if trip is active (Phase 2)
             const t = S.activeTrip;
             if (!t || !t.is_started || !t.members) return;
+            const coords = [];
             t.members.forEach(m => {
                 if (!m.lat || !m.lng) return;
+                coords.push([m.lat, m.lng]);
                 const isMe = String(m.user_id) === String(S.userId);
                 const emoji = m.role === 'driver' ? '🚗' : '👤';
                 const color = isMe ? '#34d399' : '#38bdf8';
+                const name = isMe ? 'Ви' : escapeHtml(m.name || '?');
+                const statusLabel = m.role === 'driver' ? 'мандрівник' : 'попутник';
                 const marker = L.marker([m.lat, m.lng], {
                     icon: L.divIcon({
                         className: '',
                         html: `<div style="width:36px;height:36px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;font-size:16px;border:2px solid rgba(0,0,0,0.4);box-shadow:0 2px 12px ${color}66;">${emoji}</div>`,
                         iconSize: [36, 36], iconAnchor: [18, 18]
                     })
-                }).addTo(S.map).bindPopup(isMe ? 'Ви' : escapeHtml(m.name || '?'));
+                }).addTo(S.map).bindPopup(`<b>${name}</b><br>${statusLabel}`);
                 S._crewMemberMarkers.push(marker);
             });
-            // Fit bounds to show all members
-            const validCoords = (t.members || []).filter(m => m.lat && m.lng).map(m => [m.lat, m.lng]);
-            if (validCoords.length > 1) S.map.fitBounds(validCoords, { padding: [40, 40], maxZoom: 14 });
+            // Draw route polyline between crew members
+            if (coords.length >= 2) {
+                S._routePolyline = L.polyline(coords, { color: '#38bdf8', weight: 3, opacity: 0.6, dashArray: '8 4' }).addTo(S.map);
+            }
+            // Fit bounds
+            if (coords.length >= 1) S.map.fitBounds(coords, { padding: [40, 40], maxZoom: 14 });
         }
 
     </script>
