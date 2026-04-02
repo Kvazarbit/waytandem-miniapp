@@ -3194,7 +3194,7 @@
                         ${cancelRequested ? `<div style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(255,193,7,0.1);border:1px solid rgba(255,193,7,0.3);font-size:13px;color:var(--amber);">⏳ Очікуємо підтвердження партнера</div>` : ''}
                         <div style="margin-top:16px;display:flex;flex-direction:column;gap:10px;">
                             ${!isStarted && isDriver && !cancelRequested ? `<button class="btn btn-primary" onclick="startTrip()">🚀 Поїхали!</button>` : ''}
-                            ${isStarted ? `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="openChat(${t.id || t.request_id}, ${isDriver ? (t.client_id || 0) : (t.driver_id || 0)})">💬 Чат</button><button class="btn btn-primary" style="flex:1;" onclick="finishTrip()">✅ Завершити подорож</button></div>` : ''}
+                            ${isStarted ? `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="openChat(${t.request_id || t.id || 0}, ${isDriver ? (t.client_id || 0) : (t.driver_id || 0)})">💬 Чат</button><button class="btn btn-primary" style="flex:1;" onclick="finishTrip()">✅ Завершити подорож</button></div>` : ''}
                             ${cancelPending ? `<div style="display:flex;gap:10px;"><button class="btn btn-primary" style="flex:1;" onclick="confirmCancelTrip()">✅ Згоден скасувати</button><button class="btn btn-secondary" style="flex:1;" onclick="rejectCancelTrip()">❌ Відмовити</button></div>` : ''}
                             ${!isStarted && !cancelPending && !cancelRequested ? `<button class="btn btn-danger" onclick="cancelTrip()">❌ Покинути резервацію</button>` : ''}
                         </div>
@@ -3294,7 +3294,7 @@
             // Only show panel if we have incoming matches and NO active trip
             const incoming = S.pendingMatches.filter(m => m.scope === 'incoming');
             
-            if (incoming.length === 0 || S.activeTrip || waitingForPartner) {
+            if (incoming.length === 0 || (S.activeTrip && S.activeTrip.is_started) || waitingForPartner) {
                 panel.classList.remove('open');
                 panel.innerHTML = '';
                 document.body.style.paddingBottom = '';
@@ -3763,6 +3763,9 @@
             const desc = document.getElementById('event-desc')?.value?.trim() || '';
             if (!title) { showToast('Вкажіть назву події', 'error'); return; }
             if (!from && !to) { showToast('Вкажіть маршрут', 'error'); return; }
+            if (!date || new Date(date) < new Date(new Date().toISOString().split('T')[0])) {
+                showToast('Дата має бути сьогодні або пізніше', 'error'); return;
+            }
             const directionText = [from, to].filter(Boolean).join(' → ');
             if (!beginOp('create_event')) return;
             try {
