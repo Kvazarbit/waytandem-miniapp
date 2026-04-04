@@ -2526,12 +2526,14 @@
         }
 
         function openRoleSelector() {
+            const isDriver = S.userRole === 'driver';
+            const isClient = S.userRole === 'client';
             openSheet(`
                 <div class="sheet-title">Оберіть роль</div>
                 <div class="sheet-sub">Водій має авто та місця. Попутник шукає поїздку.</div>
                 <div class="sheet-actions">
-                    <button class="btn btn-primary" onclick="setRole('driver')">🚗 Водій</button>
-                    <button class="btn btn-secondary" onclick="setRole('client')">👤 Попутник</button>
+                    <button class="btn ${isDriver ? 'btn-primary' : 'btn-secondary'}" onclick="setRole('driver')">🚗 Водій</button>
+                    <button class="btn ${isClient ? 'btn-primary' : 'btn-secondary'}" onclick="setRole('client')">👤 Попутник</button>
                     <button class="btn btn-ghost" onclick="closeSheet()">Скасувати</button>
                 </div>
             `);
