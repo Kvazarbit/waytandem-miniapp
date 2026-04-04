@@ -1789,6 +1789,16 @@
 
 <body>
     <div id="app">
+        <!-- SKELETON OVERLAY -->
+        <div id="skeleton-overlay" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:9998;padding-top:60px;">
+            <div style="padding:16px;">
+                <div class="skeleton" style="height:48px;margin-bottom:12px;border-radius:8px;"></div>
+                <div class="skeleton" style="height:32px;width:60%;margin-bottom:24px;border-radius:6px;"></div>
+                <div class="skeleton" style="height:120px;margin-bottom:12px;border-radius:12px;"></div>
+                <div class="skeleton" style="height:120px;margin-bottom:12px;border-radius:12px;"></div>
+                <div class="skeleton" style="height:120px;border-radius:12px;"></div>
+            </div>
+        </div>
         <!-- HEADER -->
         <div class="header">
             <div class="header-title"><span class="accent">Way</span>Tandem</div>
@@ -2077,6 +2087,7 @@
             await hydrate();
             startPolling();
             initKeyboardHandler(); // Mobile keyboard handling
+            initWelcome(); // Welcome page for new users
         });
 
         // ═══ KEYBOARD HANDLER — keeps input visible above virtual keyboard ═══
@@ -2121,6 +2132,24 @@
                     });
                 }
             });
+        }
+
+        // ─── WELCOME INIT ───
+        function initWelcome() {
+            // Attach click handler to logo
+            const logo = document.querySelector('.header-title');
+            if (logo) {
+                logo.style.cursor = 'pointer';
+                logo.addEventListener('click', () => {
+                    showWelcomeSheet();
+                });
+            }
+            // Auto-show welcome for new users (if not seen before)
+            if (!localStorage.getItem('wt_welcome_seen') && S.apiBase && S.userId) {
+                setTimeout(() => {
+                    showWelcomeSheet();
+                }, 1000);
+            }
         }
 
         // ─── USER RESOLUTION ───
@@ -2360,11 +2389,25 @@
             return [...incoming, ...outgoing];
         }
 
+        // ─── SKELETON ───
+        let _skeletonShown = false;
+        function showSkeleton() {
+            const overlay = document.getElementById('skeleton-overlay');
+            if (overlay) overlay.style.display = 'block';
+            _skeletonShown = true;
+        }
+        function hideSkeleton() {
+            const overlay = document.getElementById('skeleton-overlay');
+            if (overlay) overlay.style.display = 'none';
+            _skeletonShown = false;
+        }
+
         // ─── HYDRATE ───
         async function hydrate() {
             if (!S.apiBase || !S.userId) { renderNews(); renderBoard(); renderTrips(); renderSubBar(); return; }
+            showSkeleton();
             const data = await api(`/api/v3/hydrate?user_id=${S.userId}&include_outgoing=1`);
-            if (!data) return;
+            if (!data) { hideSkeleton(); return; }
             if (data.profile) {
                 if (Object.prototype.hasOwnProperty.call(data.profile, 'role')) {
                     S.userRole = normalizeRole(data.profile.role);
@@ -2398,6 +2441,7 @@
             S.boardSubSet = new Set(S.subscriptions.map(s => String(s.direction_id)));
             // Check handshake panel logic after hydration
             verifyHandshakePanelState();
+            hideSkeleton();
         }
 
         function startPolling() {
@@ -3681,6 +3725,26 @@
                 backdrop.addEventListener('click', () => closeSheet());
             }
         });
+
+        // ─── WELCOME SHEET ───
+        function showWelcomeSheet() {
+            const welcomeText = `
+                <div class="sheet-title">Вітаємо у WayTandem!</div>
+                <div class="sheet-sub" style="text-align:left; margin: 12px 0;">
+                    <p>Сервіс спільних подорожей.</p>
+                    <p><strong>Як почати:</strong></p>
+                    <ol style="padding-left: 20px; margin: 8px 0;">
+                        <li>Оберіть свою роль: <strong>Мандрівник</strong> (водій) або <strong>Попутник</strong> (пасажир).</li>
+                        <li>Підпишіться на напрямок подорожі на дошці.</li>
+                        <li>Знайдіть екіпаж або створіть свій.</li>
+                        <li>Спілкуйтесь, домовляйтесь, подорожуйте разом!</li>
+                    </ol>
+                    <p>Натисніть на логотип WayTandem у верхньому лівому куті, щоб переглянути цю інструкцію знову.</p>
+                </div>
+                <button class="btn btn-primary" onclick="closeSheet(); localStorage.setItem('wt_welcome_seen', '1');">Зрозуміло</button>
+            `;
+            openSheet(welcomeText);
+        }
 
         // ─── TOAST ───
         let toastTimer = null;
