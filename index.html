@@ -2908,6 +2908,13 @@
 
         function setNewsFilter(filter) { S.newsFilter = filter || 'all'; renderNewsScreen(); }
 
+        async function openNewsDirection(dirId) {
+            if (!dirId) return;
+            // Try to open direction in board (catalog)
+            switchScreen('board');
+            setTimeout(() => openDirection(dirId), 150);
+        }
+
         function renderNewsScreen() {
             const banners = document.getElementById('news-banners');
             const feed = document.getElementById('news-feed');
@@ -2932,12 +2939,16 @@
                 feed.innerHTML = '<div class="empty"><div class="empty-icon">🗞️</div><div class="empty-title">Поки тихо</div><div class="empty-sub">Нові події з\'являться незабаром</div ></div > ';
                 return;
             }
-            feed.innerHTML = items.slice(0, 60).map(n => `
-                <div class="news-feed-item">
+            feed.innerHTML = items.slice(0, 60).map(n => {
+                const dId = Number(n?.direction_id || 0);
+                const clickHandler = dId > 0 ? `onclick="openNewsDirection(${dId})"` : '';
+                const cursorStyle = dId > 0 ? 'cursor:pointer;' : '';
+                return `
+                <div class="news-feed-item" ${clickHandler} style="${cursorStyle}">
                     <div style="font-size:13px;font-weight:700;line-height:1.45;">${escapeHtml(n.text || 'Новина')}</div>
                     <div class="news-feed-meta">${escapeHtml(n.dir_title || 'Без напряму')} • ${formatNewsTime(n.created_at)}</div>
                 </div>
-            `).join('');
+            `}).join('');
         }
 
         function renderNews() {
