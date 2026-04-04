@@ -3037,7 +3037,7 @@
 
         function filterBoard(query) {
             clearTimeout(searchTimer);
-            const q = query.trim();
+            const q = sanitizeSearchInput(query).trim();
             if (!q) {
                 // Clear search, reload current level
                 renderBoard();
@@ -3669,6 +3669,11 @@
                 .replace(/'/g, '&#39;')
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;');
+        }
+
+        function sanitizeSearchInput(str) {
+            // Remove HTML tags and limit length
+            return String(str || '').replace(/[<>]/g, '').slice(0, 100);
         }
 
         // ═══ SHEET — mobile drag / desktop click-only ═══
