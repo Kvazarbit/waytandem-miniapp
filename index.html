@@ -2910,9 +2910,41 @@
 
         async function openNewsDirection(dirId) {
             if (!dirId) return;
-            // Try to open direction in board (catalog)
+            // Find the news item to get parent_id
+            const newsItem = S.news.find(n => Number(n.direction_id) === Number(dirId));
+            const parentId = newsItem?.parent_id;
+
+            // Navigate to board screen first
             switchScreen('board');
-            setTimeout(() => openDirection(dirId), 150);
+
+            // If news has parent folder, navigate through the tree hierarchy
+            if (parentId) {
+                // Build path from root to parent by walking up the tree
+                const path = [];
+                let currentId = parentId;
+                const maxDepth = 20; // safety limit
+                let depth = 0;
+                while (currentId && depth < maxDepth) {
+                    const dir = allDirections.find(d => String(d.id) === String(currentId));
+                    if (!dir) break;
+                    path.unshift({ id: dir.id, title: dir.title || `#${dir.id}` });
+                    currentId = dir.parent_id;
+                    depth++;
+                }
+                // Now navigate through the path
+                S.boardStack = [];
+                S.boardParentId = null;
+                for (const folder of path) {
+                    S.boardStack.push(folder);
+                    S.boardParentId = folder.id;
+                }
+                // Render the board at the parent folder level, then open the direction
+                await renderBoard();
+                setTimeout(() => openDirection(dirId), 200);
+            } else {
+                // No parent — just open the direction detail
+                setTimeout(() => openDirection(dirId), 150);
+            }
         }
 
         function renderNewsScreen() {
