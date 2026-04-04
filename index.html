@@ -2016,6 +2016,7 @@
         const POLL_INTERVAL_MS = 8000;
         let pollInFlight = false;
         let pollTimer = null;
+        let searchTimer = null;
         let isAppInBackground = false;
 
         // ═══ STATE PERSISTENCE — survive Telegram WebApp reloads on mobile ═══
@@ -3035,17 +3036,25 @@
         }
 
         function filterBoard(query) {
-            const q = query.toLowerCase().trim();
-            renderBoardList(q ? allDirections.filter(d => (d.title || '').toLowerCase().includes(q)) : allDirections, S.boardSubSet);
-            const el = document.getElementById('board-breadcrumb');
-            if (el) {
-                if (q) {
-                    const count = allDirections.filter(d => (d.title || '').toLowerCase().includes(q)).length;
-                    el.innerHTML = `<div class="board-crumb-path" style="color:var(--accent);">🔍 ${count} результат${count !== 1 ? 'ів' : ''}</div>`;
-                } else {
-                    renderBoardBreadcrumb();
-                }
+            clearTimeout(searchTimer);
+            const q = query.trim();
+            if (!q) {
+                // Clear search, reload current level
+                renderBoard();
+                return;
             }
+            // Debounce search
+            searchTimer = setTimeout(async () => {
+                const qp = new URLSearchParams({ lang: S.lang, q });
+                if (S.userId) qp.set('user_id', String(S.userId));
+                const data = await api(`/api/v3/board?${qp.toString()}`);
+                const searchResults = Array.isArray(data) ? data : (data?.directions || []);
+                renderBoardList(searchResults, S.boardSubSet);
+                const el = document.getElementById('board-breadcrumb');
+                if (el) {
+                    el.innerHTML = `<div class="board-crumb-path" style="color:var(--accent);">🔍 ${searchResults.length} результат${searchResults.length !== 1 ? 'ів' : ''}</div>`;
+                }
+            }, 300);
         }
 
         // ─── OPEN DIRECTION — full version ───
