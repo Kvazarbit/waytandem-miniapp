@@ -3043,16 +3043,30 @@
                 renderBoard();
                 return;
             }
-            // Debounce search
+            // First, filter locally (current level)
+            const localResults = allDirections.filter(d => (d.title || '').toLowerCase().includes(q.toLowerCase()));
+            if (localResults.length > 0) {
+                renderBoardList(localResults, S.boardSubSet);
+                const el = document.getElementById('board-breadcrumb');
+                if (el) {
+                    el.innerHTML = `<div class="board-crumb-path" style="color:var(--accent);">🔍 ${localResults.length} результат${localResults.length !== 1 ? 'ів' : ''} (поточний рівень)</div>`;
+                }
+                return;
+            }
+            // No local results, perform deep search (debounced)
             searchTimer = setTimeout(async () => {
+                // Show loading indicator
+                const el = document.getElementById('board-breadcrumb');
+                if (el) {
+                    el.innerHTML = `<div class="board-crumb-path" style="color:var(--accent);">🔍 Шукаю по всій дошці...</div>`;
+                }
                 const qp = new URLSearchParams({ lang: S.lang, q });
                 if (S.userId) qp.set('user_id', String(S.userId));
                 const data = await api(`/api/v3/board?${qp.toString()}`);
                 const searchResults = Array.isArray(data) ? data : (data?.directions || []);
                 renderBoardList(searchResults, S.boardSubSet);
-                const el = document.getElementById('board-breadcrumb');
                 if (el) {
-                    el.innerHTML = `<div class="board-crumb-path" style="color:var(--accent);">🔍 ${searchResults.length} результат${searchResults.length !== 1 ? 'ів' : ''}</div>`;
+                    el.innerHTML = `<div class="board-crumb-path" style="color:var(--accent);">🔍 ${searchResults.length} результат${searchResults.length !== 1 ? 'ів' : ''} (вся дошка)</div>`;
                 }
             }, 300);
         }
