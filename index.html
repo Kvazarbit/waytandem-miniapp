@@ -2326,31 +2326,47 @@
         }
 
         // ─── API ───
+        // Centralized API wrapper (I-FRONT-2, I-FRONT-3)
         async function apiWithStatus(path, opts = {}) {
             if (!S.apiBase) return { ok: false, status: 0, data: null };
+
+            // Handle busy state if not silent
+            const opKey = opts.opKey || path;
+            if (!opts.silent) beginOp(opKey);
+
             const headers = { 'Content-Type': 'application/json' };
             const initData = window.Telegram?.WebApp?.initData || '';
             if (initData) headers['Authorization'] = 'tma ' + initData;
-            const silent = opts.silent || false;
+
             try {
                 const r = await fetch(S.apiBase + path, { ...opts, headers: { ...headers, ...opts.headers } });
                 let payload = null;
                 try {
                     payload = await r.json();
-                } catch (_) {
-                    payload = null;
+                } catch (_) { /* payload remains null */ }
+
+                if (!r.ok) {
+                    if (!opts.silent) {
+                        showToast(payload?.detail || `Помилка ${r.status}`, 'error');
+                    }
+                    return { ok: false, status: r.status, data: payload };
                 }
-                return { ok: r.ok, status: r.status, data: payload };
+
+                return { ok: true, status: r.status, data: payload };
             } catch (e) {
-                if (!silent) console.warn('API err:', path, e);
+                if (!opts.silent) {
+                    showToast('Помилка з’єднання', 'error');
+                    console.error('API Error:', path, e);
+                }
                 return { ok: false, status: 0, data: null };
+            } finally {
+                if (!opts.silent) endOp(opKey);
             }
         }
 
         async function api(path, opts = {}) {
             const resp = await apiWithStatus(path, opts);
-            if (!resp.ok) return null;
-            return resp.data;
+            return resp.ok ? resp.data : null;
         }
 
         async function syncUserIdentityToServer() {
@@ -3284,7 +3300,9 @@
                 if (isStarted) startLocationTracking(); else stopLocationTracking();
                 container.innerHTML = `
                     <div class="hero ${isStarted ? 'driving' : 'reservation'} animate-in">
-                        <div class="hero-label" style="color:${isStarted ? 'var(--accent)' : 'var(--amber)'};">${isStarted ? '🚀 В ДОРОЗІ' : '⏳ РЕЗЕРВАЦІЯ'}</div>
+                        <div class="hero-label" style="color:${isStarted ? 'var(--accent)' : 'var(--amber)'};">
+                            ${isStarted ? '🚀 В ДОРОЗІ' : '⏳ РЕЗЕРВАЦІЯ'}
+                        </div>
                         <div class="hero-title">${escapeHtml(t.direction_title || 'Поїздка')}</div>
                         <div class="hero-sub">Екіпаж #${t.crew_id || '—'} • ${isDriver ? '🚗 Ви мандрівник' : '👤 Ви попутник'}</div>
                         ${buildCrewTree(t)}
@@ -3306,7 +3324,7 @@
                         ${cancelRequested ? `<div style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(255,193,7,0.1);border:1px solid rgba(255,193,7,0.3);font-size:13px;color:var(--amber);">⏳ Очікуємо підтвердження партнера</div>` : ''}
                         <div style="margin-top:16px;display:flex;flex-direction:column;gap:10px;">
                             ${!isStarted && isDriver && !cancelRequested ? `<button class="btn btn-primary" onclick="startTrip()">🚀 Поїхали!</button>` : ''}
-                            ${isStarted ? `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="openChat(${t.request_id || t.id || 0}, ${isDriver ? (t.client_id || 0) : (t.driver_id || 0)})">💬 Чат</button><button class="btn btn-primary" style="flex:1;" onclick="finishTrip()">✅ Завершити подорож</button></div>` : ''}
+                            ${isStarted ? `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="openChat(${t.request_id || t.id || 0}, ${isDriver ? (t.client_id || 0) : (t.driver_id || 0)})">💬 Чат</button><button class="btn btn-success" style="flex:1;" onclick="finishTrip()">✅ Завершити подорож</button></div>` : ''}
                             ${cancelPending ? `<div style="display:flex;gap:10px;"><button class="btn btn-primary" style="flex:1;" onclick="confirmCancelTrip()">✅ Згоден скасувати</button><button class="btn btn-secondary" style="flex:1;" onclick="rejectCancelTrip()">❌ Відмовити</button></div>` : ''}
                             ${!isStarted && !cancelPending && !cancelRequested ? `<button class="btn btn-danger" onclick="cancelTrip()">❌ Покинути резервацію</button>` : ''}
                         </div>
