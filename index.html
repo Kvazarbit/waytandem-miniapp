@@ -596,6 +596,9 @@
             font-family: inherit;
             font-weight: 800;
             font-size: 13px;
+            text-align: center;
+            line-height: 1.2;
+            white-space: normal;
             cursor: pointer;
             transition: all 0.15s;
             border: none;
@@ -1832,7 +1835,7 @@
                         onclick="openCreateEvent()" title="Створити подію">🎯</button>
                     <button class="btn btn-primary" style="padding:10px
                         14px;font-size:18px;border-radius:var(--radius-sm);flex-shrink:0;"
-                        onclick="openCreateDirection()" title="Створити напрямок">+</button>
+                        onclick="openCreateDirection()" title="Створити напрямок-ідею">+</button>
                 </div>
                 <div class="board-breadcrumb" id="board-breadcrumb"></div>
                 <div id="board-list"></div>
@@ -1880,7 +1883,7 @@
                 <div class="settings-group">
                     <div class="settings-row" onclick="openMyIdeas()">
                         <div class="settings-icon">💡</div>
-                        <div class="settings-label">Мої напрямки</div>
+                        <div class="settings-label">Мої ідеї</div>
                         <div class="settings-arrow">›</div>
                     </div>
                     <div class="settings-row" onclick="openTripHistory()">
@@ -2482,14 +2485,14 @@
                         waitingForPartner = false;
                     }
                     S.pendingMatches = resolvePendingMatchesPayload(data);
-                    
+
                     syncIdentityUI();
                     verifyHandshakePanelState();
 
                     const newPendingRaw = JSON.stringify(S.pendingMatches);
                     if (oldPendingRaw !== newPendingRaw) updateBadges();
                     let _pendingRefreshMap = false;
-                    if (oldTripId !== (S.activeTrip ? S.activeTrip.id : null) || 
+                    if (oldTripId !== (S.activeTrip ? S.activeTrip.id : null) ||
                         oldStatus !== (S.activeTrip ? S.activeTrip.status : null) ||
                         wasStarted !== (S.activeTrip ? S.activeTrip.is_started : 0)) {
                         _pendingRefreshMap = true;
@@ -2500,7 +2503,7 @@
                     if (S.currentScreen === 'trips') renderTrips();
                     if (S.currentScreen === 'news') renderNewsScreen();
                     if (S.chatRequestId) loadChatMessages();
-                    
+
                     if (_pendingRefreshMap) refreshMap();
                     else if (S.activeTrip?.is_started) renderCrewMembersOnMap();
                     persistCriticalState(); // Persist after each successful poll
@@ -2546,7 +2549,7 @@
             const isClient = S.userRole === 'client';
             openSheet(`
                 <div class="sheet-title">Оберіть роль</div>
-                <div class="sheet-sub">Водій має авто та місця. Попутник шукає поїздку.</div>
+                <div class="sheet-sub">Створювати напрямки можуть обидві ролі. Далі дії залежать від ролі.</div>
                 <div class="sheet-actions">
                     <button class="btn ${isDriver ? 'btn-primary' : 'btn-secondary'}" onclick="setRole('driver')">🚗 Водій</button>
                     <button class="btn ${isClient ? 'btn-primary' : 'btn-secondary'}" onclick="setRole('client')">👤 Попутник</button>
@@ -2583,7 +2586,7 @@
             saveProfile();
             updateRolePill();
             closeSheet();
-            showToast(normalizedRole === 'driver' ? '🚗 Ви мандрівник!' : '👤 Ви попутник!', 'success');
+            showToast(normalizedRole === 'driver' ? '🚗 Ви водій!' : '👤 Ви попутник!', 'success');
             if (S.currentScreen === 'explore') refreshMap();
             renderSubBar();
             if (S.apiBase) await hydrate();
@@ -2627,8 +2630,8 @@
                 if (!dirs.length) { endOp('open_crew_sheet'); showToast('Спочатку підпишіться на напрямок', 'error'); switchScreen('board'); return; }
                 if (dirs.length === 1) { await doOpenCrew(dirs[0].direction_id || dirs[0].id); return; }
                 openSheet(`
-                <div class="sheet-title">Відкрити екіпаж</div>
-                <div class="sheet-sub">Оберіть напрямок для вашого екіпажу</div>
+                <div class="sheet-title">Я водій: відкрити місця</div>
+                <div class="sheet-sub">Оберіть напрямок, де готові взяти попутників.</div>
                 <div class="sheet-actions">
                     ${dirs.map(d => {
                     const did = d.direction_id || d.id;
@@ -2748,7 +2751,7 @@
                 const popupName = escapeHtml(c.driver_name || c.organizer_name || 'Екіпаж');
                 const popupDirection = escapeHtml(c.direction_title || '');
                 const requestBtn = canRequest
-                    ? '<button onclick="requestJoin(' + safeOrganizerId + ', ' + safeDirectionId + ')" style="flex:1;padding:8px;border-radius:10px;background:rgba(163,230,53,0.15);color:#a3e635;border:1px solid rgba(163,230,53,0.3);font-weight:700;font-size:12px;cursor:pointer;">✓ Запит</button>'
+                    ? '<button onclick="requestJoin(' + safeOrganizerId + ', ' + safeDirectionId + ')" style="flex:1;padding:8px;border-radius:10px;background:rgba(163,230,53,0.15);color:#a3e635;border:1px solid rgba(163,230,53,0.3);font-weight:700;font-size:12px;cursor:pointer;">✓ Запроситись</button>'
                     : '';
                 const openBtn = '<button onclick="openDirectionFromMap(' + safeDirectionId + ')" style="flex:1;padding:8px;border-radius:10px;background:rgba(56,189,248,0.14);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-weight:700;font-size:12px;cursor:pointer;">→ Напрямок</button>';
                 marker.bindPopup('<div style="text-align:center;min-width:180px;"><div style="font-weight:800;font-size:14px;margin-bottom:4px;">' + popupName + '</div><div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">' + popupDirection + '</div><div style="display:flex;gap:8px;">' + requestBtn + openBtn + '</div></div>');
@@ -2804,7 +2807,7 @@
                 const safeNewsDirectionId = Number.isFinite(dId) ? dId : 0;
                 const newsTitle = escapeHtml(n?.dir_title || geo.dirTitle || 'Новина');
                 const newsText = escapeHtml(n?.text || '');
-                marker.bindPopup('<div style="min-width:190px;"><div style="font-weight:800;font-size:13px;margin-bottom:6px;">' + newsTitle + '</div><div style="font-size:12px;color:#94a3b8;line-height:1.35;margin-bottom:8px;">' + newsText + '</div><div style="display:flex;gap:8px;"><button onclick="subscribeFromNewsMap(' + safeNewsDirectionId + ')" style="flex:1;padding:7px 9px;border-radius:9px;border:1px solid rgba(163,230,53,0.35);background:rgba(163,230,53,0.14);color:#a3e635;font-weight:800;font-size:11px;cursor:pointer;">✓ Підписка</button><button onclick="openDirectionFromNewsMap(' + safeNewsDirectionId + ')" style="flex:1;padding:7px 9px;border-radius:9px;border:1px solid rgba(56,189,248,0.35);background:rgba(56,189,248,0.14);color:#38bdf8;font-weight:800;font-size:11px;cursor:pointer;">→ Відкрити</button></div></div>');
+                marker.bindPopup('<div style="min-width:190px;"><div style="font-weight:800;font-size:13px;margin-bottom:6px;">' + newsTitle + '</div><div style="font-size:12px;color:#94a3b8;line-height:1.35;margin-bottom:8px;">' + newsText + '</div><div style="display:flex;gap:8px;"><button onclick="subscribeFromNewsMap(' + safeNewsDirectionId + ')" style="flex:1;padding:7px 9px;border-radius:9px;border:1px solid rgba(163,230,53,0.35);background:rgba(163,230,53,0.14);color:#a3e635;font-weight:800;font-size:11px;cursor:pointer;">✓ В чергу</button><button onclick="openDirectionFromNewsMap(' + safeNewsDirectionId + ')" style="flex:1;padding:7px 9px;border-radius:9px;border:1px solid rgba(56,189,248,0.35);background:rgba(56,189,248,0.14);color:#38bdf8;font-weight:800;font-size:11px;cursor:pointer;">→ Відкрити</button></div></div>');
                 S.newsMarkers.push(marker);
             });
         }
@@ -2844,7 +2847,7 @@
             'handshake_not_found': 'Запит не знайдено',
             'user_blocked': 'Користувач заблокував взаємодію',
             'not_subscribed': 'Спочатку підпишіться на цей напрямок',
-            'already_subscribed': 'Ви вже підписані на цей напрямок',
+            'already_subscribed': 'Ви вже в черзі на цей напрямок',
         };
 
         function getErrorMessage(res, fallback = 'Помилка') {
@@ -2853,15 +2856,50 @@
             return ERROR_MESSAGES[reason] || (reason ? `${fallback}: ${reason}` : fallback);
         }
 
-        async function requestJoin(orgId, dirId) {
+        function getOutgoingForDirection(dirId) {
+            return (S.pendingMatches || []).find(m => {
+                if (m.scope !== 'outgoing') return false;
+                return String(m.direction_id) === String(dirId);
+            });
+        }
+
+        async function confirmOutgoingSwitchIfNeeded(orgId, dirId) {
+            const current = getOutgoingForDirection(dirId);
+            if (!current) return true;
+            const currentTarget = current.target_id || current.partner_id;
+            if (String(currentTarget) === String(orgId)) return true;
+
+            const currentName = current.target_name || current.partner_name || `#${currentTarget}`;
+            return await new Promise(resolve => {
+                openSheet(`
+                    <div class="sheet-title">Перемкнути запит?</div>
+                    <div class="sheet-sub">Ви вже запросились до "${escapeHtml(String(currentName))}".<br>Перейти до іншого екіпажу?<br><br>Попередній запит буде скасовано.</div>
+                    <div class="sheet-actions">
+                        <button class="btn btn-primary" id="confirm-request-switch-yes">✓ Так, перемкнути</button>
+                        <button class="btn btn-ghost" id="confirm-request-switch-no">Скасувати</button>
+                    </div>
+                `);
+                document.getElementById('confirm-request-switch-yes').onclick = () => { closeSheet(); resolve(true); };
+                document.getElementById('confirm-request-switch-no').onclick = () => { closeSheet(); resolve(false); };
+            });
+        }
+
+        async function requestJoin(orgId, dirId, opts = {}) {
+            const confirmed = await confirmOutgoingSwitchIfNeeded(orgId, dirId);
+            if (!confirmed) return;
             if (!beginOp('request_join')) return;
             try {
-                const res = await api('/api/v3/match/invite', { method: 'POST', body: JSON.stringify({ user_id: S.userId, target_id: orgId, direction_id: dirId }) });
+                const res = await api('/api/v3/match/invite', {
+                    method: 'POST',
+                    body: JSON.stringify({ user_id: S.userId, target_id: orgId, direction_id: dirId, replace_existing: true })
+                });
                 if (res?.status === 'ok') {
                     if (res.mutual) { showToast('✓ Екіпаж створено!', 'success'); }
-                    else { showToast('⏳ Запит надіслано', 'success'); }
+                    else if (Array.isArray(res.switched_from) && res.switched_from.length) { showToast('↪ Запит перемкнено. Статус у Поїздках', 'success'); }
+                    else { showToast('⏳ Запит надіслано. Статус у Поїздках', 'success'); }
                     persistCriticalState();
                     await hydrate();
+                    if (opts.closeSheetOnSuccess) closeSheet();
                 } else {
                     showToast(getErrorMessage(res, 'Не вдалось надіслати запит'), 'error');
                 }
@@ -3161,38 +3199,39 @@
                     <div style="font-size:28px;">🧭</div>
                     <div style="flex:1;">
                         <div class="sheet-title" style="margin-bottom:0;">${escapeHtml(dir.title || 'Напрямок')}</div>
-                        <div style="font-size:12px;color:var(--text-secondary);font-weight:600;">${orgs.length} орг. • ${(dir.drivers || 0) + (dir.passengers || 0)} учасн.</div>
+                        <div style="font-size:12px;color:var(--text-secondary);font-weight:600;">${orgs.length} екіп. • у черзі ${(dir.drivers || 0) + (dir.passengers || 0)}</div>
                     </div>
-                    ${isMyDir ? `<button onclick="openEditDirection(${dirId}, '${escapeHtml(String(dir.title || '')).replace(/'/g, '&#39;')}')" style="padding:6px 10px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text-secondary);font-size:14px;cursor:pointer;" title="Редагувати">✏️</button>` : ''}
+                    ${isMyDir ? `<button data-dir-id="${parseInt(dirId) || 0}" data-dir-title="${escapeAttr(String(dir.title || ''))}" onclick="openEditDirectionFromButton(this)" style="padding:6px 10px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text-secondary);font-size:14px;cursor:pointer;" title="Редагувати">✏️</button>` : ''}
                 </div>
                 <div style="display:flex;gap:8px;margin:12px 0 8px;">
                     ${isSub
                     ? `<button class="btn btn-danger" style="flex:1;" onclick="unsubscribeDir(${dirId})">🚫 Відписатись</button>`
-                    : `<button class="btn btn-primary" style="flex:1;" onclick="subscribeAndPickup(${dirId})">✓ Підписатись</button>`}
+                    : `<button class="btn btn-primary" style="flex:1;" onclick="subscribeAndPickup(${dirId})">Стати в чергу</button>`}
                     <button class="btn btn-secondary" onclick="closeSheet()">Закрити</button>
                 </div>
-                ${isSub ? `<button class="btn btn-secondary" style="width:100%;margin-bottom:8px;font-size:12px;" onclick="pickPickupLocation(${dirId})">${hasPickup ? '📍 Точка посадки ✓' : '📍 Вказати точку посадки'}</button>` : ''}
-                ${availOrgs.length > 1 ? `<button class="btn btn-secondary" style="width:100%;margin-bottom:8px;font-size:12px;color:var(--blue);" onclick="groupJoinDirection(${dirId}, [${availOrgs.slice(0, 3).map(o => o.user_id).join(',')}])">🔀 Запит до всіх (${availOrgs.length})</button>` : ''}
+                <div style="font-size:12px;color:var(--text-secondary);line-height:1.45;margin:-2px 0 10px;">${isSub ? 'Ви ще не в поїздці. Очікуйте запит або запросіться до водія.' : 'Напрямок може створити водій або попутник. Після підписки ви дієте за своєю роллю.'}</div>
+                ${isSub ? `<button class="btn btn-secondary" style="width:100%;margin-bottom:8px;font-size:12px;" onclick="pickPickupLocation(${dirId})">${hasPickup ? '📍 Моя точка посадки ✓' : '📍 Додати точку посадки'}</button>` : ''}
+                ${availOrgs.length > 1 ? `<button class="btn btn-secondary" style="width:100%;margin-bottom:8px;font-size:12px;color:var(--blue);" onclick="groupJoinDirection(${dirId}, [${availOrgs.map(o => o.user_id).join(',')}])">🔀 Запроситись до доступного екіпажу (${availOrgs.length})</button>` : ''}
                 ${orgs.length ? `
-                    <div style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--text-muted);letter-spacing:1px;margin:8px 0 4px;">Організатори</div>
+                    <div style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--text-muted);letter-spacing:1px;margin:8px 0 4px;">Водії та екіпажі</div>
                     ${orgs.slice(0, 6).map(o => `
                         <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">
-                            ${renderAvatarInline(o.name || 'Організатор', o.photo_url || '', 36)}
+                            ${renderAvatarInline(o.name || 'Водій', o.photo_url || '', 36)}
                             <div style="flex:1;min-width:0;">
-                                <div style="font-weight:700;font-size:13px;">${escapeHtml(o.name || 'Організатор')}</div>
-                                <div style="font-size:11px;color:var(--text-secondary);">${o.role === 'driver' ? '🚗 Водій' : '👤 Попутник'}${o.seats_free > 0 ? ' • <span style="color:var(--accent);">' + o.seats_free + ' місць</span>' : ''}</div>
+                                <div style="font-weight:700;font-size:13px;">${escapeHtml(o.name || 'Водій')}</div>
+                                <div style="font-size:11px;color:var(--text-secondary);">${normalizeRole(o.role || 'driver') === 'driver' ? '🚗 Водій' : '👤 Попутник'}${o.seats_free > 0 ? ' • <span style="color:var(--accent);">' + o.seats_free + ' місць</span>' : ''}</div>
                             </div>
                             ${String(o.user_id) !== String(S.userId)
-                            ? `<button class="btn btn-primary" style="padding:6px 12px;font-size:12px;min-height:36px;" onclick="requestJoin(${o.user_id}, ${dirId});closeSheet();">📩</button>`
+                            ? `<button class="btn btn-primary" style="padding:6px 10px;font-size:12px;min-height:36px;" onclick="requestJoin(${o.user_id}, ${dirId}, { closeSheetOnSuccess: true })">Запроситись</button>`
                             : '<span class="tag tag-green">Ви</span>'}
                         </div>`).join('')}`
-                    : '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">Немає організаторів. Будьте першим!</div>'}
+                    : '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">Поки немає відкритих екіпажів. Можете стати в чергу.</div>'}
             `);
         }
 
         async function subscribeDir(dirId) {
             const dir = allDirections.find(d => String(d.id) === String(dirId));
-            if (isFolderNode(dir)) { showToast('Підписка доступна тільки на напрямок', 'error'); return; }
+            if (isFolderNode(dir)) { showToast('Оберіть конкретний напрямок, не каталог', 'error'); return; }
 
             // Check if user is already subscribed to a different direction
             const currentSubs = S.subscriptions || [];
@@ -3202,8 +3241,8 @@
                 const newTitle = dir?.title || `#${dirId}`;
                 const confirmed = await new Promise(resolve => {
                     openSheet(`
-                        <div class="sheet-title">Перемкнути підписку?</div>
-                        <div class="sheet-sub">Ви вже підписані на "${escapeHtml(oldTitle)}".<br>Переключитись на "${escapeHtml(newTitle)}"?<br><br>Попередня підписка буде скасована.</div>
+                        <div class="sheet-title">Перемкнути чергу?</div>
+                        <div class="sheet-sub">Ви вже в черзі на "${escapeHtml(oldTitle)}".<br>Перейти на "${escapeHtml(newTitle)}"?<br><br>Попередня черга буде скасована.</div>
                         <div class="sheet-actions">
                             <button class="btn btn-primary" id="confirm-switch-yes">✓ Так, перемкнути</button>
                             <button class="btn btn-ghost" id="confirm-switch-no">Скасувати</button>
@@ -3221,14 +3260,14 @@
             });
             const status = String(resp?.data?.status || '');
             if (!resp.ok || (status !== 'ok' && status !== 'already_subscribed')) {
-                showToast(resp?.data?.detail || 'Не вдалося підписатись', 'error');
+                showToast(resp?.data?.detail || 'Не вдалося стати в чергу', 'error');
                 return false;
             }
 
             // Show notification if direction was switched
             const switchedFrom = resp?.data?.switched_from;
             if (switchedFrom) {
-                showToast('↩️ Підписку перемкнено на новий напрямок', 'success');
+                showToast('↩️ Чергу перемкнено на новий напрямок', 'success');
             }
 
             await hydrate();
@@ -3237,7 +3276,7 @@
                 switchScreen('trips');
                 showToast('🔔 Є збіг інтересів! Перевірте вкладку Поїздки', 'success');
             } else {
-                showToast(status === 'already_subscribed' ? 'Вже підписані' : '✓ Підписано!', 'success');
+                showToast(status === 'already_subscribed' ? 'Ви вже в черзі' : '✓ Ви в черзі. Поїздку ще не підтверджено.', 'success');
                 // Re-hydrate after delay to catch handshakes created by async matching task
                 setTimeout(async () => {
                     await hydrate();
@@ -3255,7 +3294,7 @@
 
         async function unsubscribeDir(dirId) {
             const dir = allDirections.find(d => String(d.id) === String(dirId));
-            if (isFolderNode(dir)) { showToast('Це каталог, не підписка', 'error'); return; }
+            if (isFolderNode(dir)) { showToast('Це каталог, оберіть напрямок', 'error'); return; }
             const resp = await apiWithStatus('/api/v3/board/unsubscribe', {
                 method: 'POST',
                 body: JSON.stringify({ user_id: S.userId, direction_id: dirId })
@@ -3304,7 +3343,7 @@
                             ${isStarted ? '🚀 В ДОРОЗІ' : '⏳ РЕЗЕРВАЦІЯ'}
                         </div>
                         <div class="hero-title">${escapeHtml(t.direction_title || 'Поїздка')}</div>
-                        <div class="hero-sub">Екіпаж #${t.crew_id || '—'} • ${isDriver ? '🚗 Ви мандрівник' : '👤 Ви попутник'}</div>
+                        <div class="hero-sub">Екіпаж #${t.crew_id || '—'} • ${isDriver ? '🚗 Ви водій' : '👤 Ви попутник'}</div>
                         ${buildCrewTree(t)}
                         <div class="lifecycle-progress">
                             <div class="lifecycle-step done"><div class="lifecycle-dot"></div>Збіг</div>
@@ -3364,16 +3403,16 @@
                 ${isDriver ? `<div class="open-crew-btn animate-in" onclick="openMyCrew()">
                     <div class="open-crew-icon">🚗</div>
                     <div class="open-crew-info">
-                        <div class="open-crew-title">Відкрити екіпаж</div>
-                        <div class="open-crew-sub">Створіть екіпаж для пасажирів</div>
+                        <div class="open-crew-title">Я водій: відкрити місця</div>
+                        <div class="open-crew-sub">Попутники зможуть запроситись</div>
                     </div>
                     <div class="open-crew-arrow">›</div>
                 </div>` : ''}
                 <div class="empty" style="padding-top:${isDriver ? '40px' : '80px'};">
                     ${S.subscriptions && S.subscriptions.length > 0
                         ? `<div class="empty-icon">⏳</div>
-                           <div class="empty-title">Ви підписані</div>
-                           <div class="empty-sub">Ми повідомимо вас коли знайдемо ${isDriver ? 'пасажира' : 'водія'}</div>
+                           <div class="empty-title">Ви в черзі</div>
+                           <div class="empty-sub">Це ще не поїздка. ${isDriver ? 'Відкрийте місця або очікуйте попутника.' : 'Очікуйте запит або запросіться до водія.'}</div>
                            <div style="margin-top:12px;font-size:12px;color:var(--text-muted);">${escapeHtml(S.subscriptions[0]?.title || S.subscriptions[0]?.direction_title || '')}</div>`
                         : `<div class="empty-icon">🧭</div>
                            <div class="empty-title">Немає активних поїздок</div>
@@ -3420,24 +3459,24 @@
         function verifyHandshakePanelState() {
             const panel = document.getElementById('handshake-panel');
             if (!panel) return;
-            
+
             // Only show panel if we have incoming matches and NO active trip
             const incoming = S.pendingMatches.filter(m => m.scope === 'incoming');
-            
+
             if (incoming.length === 0 || (S.activeTrip && S.activeTrip.is_started) || waitingForPartner) {
                 panel.classList.remove('open');
                 panel.innerHTML = '';
                 document.body.style.paddingBottom = '';
                 return;
             }
-            
+
             const m = incoming[0];
             const partnerName = m.partner_name || m.sender_name || `#${m.partner_id}`;
             const partnerId = m.partner_id || m.sender_id;
             const dirTitle = m.direction || m.direction_title || 'Напрямок';
 
             document.body.style.paddingBottom = '110px';
-            
+
             panel.innerHTML = `
                 <div style="font-weight:800;font-size:14px;margin-bottom:4px;color:var(--accent);">🟢 Вхідний запит!</div>
                 <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-bottom:12px;">
@@ -3475,7 +3514,7 @@
                 const isMe = String(m.user_id) === String(S.userId);
                 const icon = m.role === 'driver' ? '🚗' : '👤';
                 const name = escapeHtml(m.name || `#${m.user_id || '?'}`);
-                const roleLabel = m.role === 'driver' ? 'мандрівник' : (isMe ? 'Ви' : '');
+                const roleLabel = m.role === 'driver' ? 'водій' : (isMe ? 'Ви' : '');
                 html += `<div class="crew-member${isMe ? ' is-self' : ''}">
                     ${connector ? `<span class="crew-connector">${connector} </span>` : ''}
                     <span class="crew-icon">${icon}</span>
@@ -3567,7 +3606,7 @@
             const isDriver = t.viewer_role === 'driver';
             openSheet(`
                 <div class="sheet-title">❌ Покинути резервацію ${crewLabel}?</div>
-                <div class="sheet-sub">${isDriver ? 'Ваш екіпаж буде розформовано. Всі попутники отримають сповіщення.' : 'Ви вийдете з екіпажу. Мандрівник та інші попутники залишаться.'}</div>
+                <div class="sheet-sub">${isDriver ? 'Ваш екіпаж буде розформовано. Всі попутники отримають сповіщення.' : 'Ви вийдете з екіпажу. Водій та інші попутники залишаться.'}</div>
                 <div class="sheet-sub" style="margin-top:8px;font-weight:600;">Вкажіть причину:</div>
                 <div class="sheet-actions" style="flex-direction:column;">
                     <button class="btn btn-secondary" onclick="doCancelTrip('plans')">📅 Змінилися плани</button>
@@ -3825,9 +3864,9 @@
                     <p>Сервіс спільних подорожей.</p>
                     <p><strong>Як почати:</strong></p>
                     <ol style="padding-left: 20px; margin: 8px 0;">
-                        <li>Оберіть свою роль: <strong>Мандрівник</strong> (водій) або <strong>Попутник</strong> (пасажир).</li>
-                        <li>Підпишіться на напрямок подорожі на дошці.</li>
-                        <li>Знайдіть екіпаж або створіть свій.</li>
+                        <li>Оберіть свою роль: <strong>Водій</strong> або <strong>Попутник</strong>.</li>
+                        <li>Створіть або оберіть напрямок подорожі на дошці.</li>
+                        <li>Станьте в чергу, потім запросіться до екіпажу або відкрийте свої місця.</li>
                         <li>Спілкуйтесь, домовляйтесь, подорожуйте разом!</li>
                     </ol>
                     <p>Натисніть на логотип WayTandem у верхньому лівому куті, щоб переглянути цю інструкцію знову.</p>
@@ -3951,14 +3990,14 @@
             const parentTitle = S.boardStack.length ? S.boardStack[S.boardStack.length - 1].title : 'Корінь';
             S._createDirLat = null; S._createDirLng = null;
             openSheet(`
-                <div class="sheet-title">Створити напрямок</div>
-                <div class="sheet-sub">Категорія: ${escapeHtml(parentTitle)}</div>
-                <input class="board-search" id="create-dir-title" placeholder="Назва напрямку (напр. Київ, Буковель)..." style="margin:12px 0 8px;">
+                <div class="sheet-title">Створити напрямок-ідею</div>
+                <div class="sheet-sub">Категорія: ${escapeHtml(parentTitle)}. Створити може і водій, і попутник.</div>
+                <input class="board-search" id="create-dir-title" placeholder="Назва напрямку або подорожі..." style="margin:12px 0 8px;">
                 <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;">
                     <button class="btn btn-secondary" style="flex:1;font-size:13px;" onclick="pickGpsForDirection()">📍 Геолокація</button>
                     <span id="create-dir-loc-label" style="flex:2;font-size:12px;color:var(--text-muted);">Не вказано</span>
                 </div>
-                <button class="btn btn-primary" onclick="doCreateDirection()">✓ Створити</button>
+                <button class="btn btn-primary" onclick="doCreateDirection()">✓ Створити і стати в чергу</button>
             `);
             setTimeout(() => document.getElementById('create-dir-title')?.focus(), 300);
         }
@@ -3982,13 +4021,30 @@
         async function doCreateDirection() {
             const title = document.getElementById('create-dir-title')?.value?.trim();
             if (!title || title.length < 3) { showToast('Назва має бути від 3 символів', 'error'); return; }
+            const oldSub = (S.subscriptions || [])[0];
+            if (oldSub) {
+                const oldTitle = oldSub.title || oldSub.direction_title || `#${oldSub.direction_id}`;
+                const confirmed = await new Promise(resolve => {
+                    openSheet(`
+                        <div class="sheet-title">Створити і перемкнути чергу?</div>
+                        <div class="sheet-sub">Ви вже в черзі на "${escapeHtml(oldTitle)}".<br>Після створення "${escapeHtml(title)}" активною стане нова черга.</div>
+                        <div class="sheet-actions">
+                            <button class="btn btn-primary" id="confirm-create-switch-yes">✓ Створити і перейти</button>
+                            <button class="btn btn-ghost" id="confirm-create-switch-no">Скасувати</button>
+                        </div>
+                    `);
+                    document.getElementById('confirm-create-switch-yes').onclick = () => { closeSheet(); resolve(true); };
+                    document.getElementById('confirm-create-switch-no').onclick = () => { closeSheet(); resolve(false); };
+                });
+                if (!confirmed) return;
+            }
             if (!beginOp('create_direction')) return;
             try {
                 const body = { user_id: S.userId, title, parent_id: S.boardParentId || null };
                 if (S._createDirLat && S._createDirLng) body.meeting_point = `${S._createDirLat.toFixed(5)}, ${S._createDirLng.toFixed(5)}`;
                 const res = await api('/api/v3/board', { method: 'POST', body: JSON.stringify(body) });
                 if (res?.id || res?.status === 'ok' || res?.direction_id) {
-                    showToast('✓ Напрямок створено!', 'success');
+                    showToast('✓ Напрямок створено. Ви в черзі.', 'success');
                     closeSheet(); S._createDirLat = null; S._createDirLng = null;
                     await renderBoard();
                 } else { showToast(res?.message || res?.error || 'Помилка створення', 'error'); }
@@ -3997,10 +4053,15 @@
         }
 
         // ═══════ DIRECTION EDIT / DELETE ═══════
+        function openEditDirectionFromButton(btn) {
+            const dirId = parseInt(btn?.dataset?.dirId || '0');
+            if (dirId) openEditDirection(dirId, btn?.dataset?.dirTitle || '');
+        }
+
         function openEditDirection(dirId, currentTitle) {
             openSheet(`
                 <div class="sheet-title">Редагувати напрямок</div>
-                <input class="board-search" id="edit-dir-title" value="${escapeHtml(currentTitle)}" placeholder="Назва напрямку" style="margin:12px 0 16px;">
+                <input class="board-search" id="edit-dir-title" value="${escapeAttr(currentTitle)}" placeholder="Назва напрямку" style="margin:12px 0 16px;">
                 <div class="sheet-actions">
                     <button class="btn btn-primary" onclick="doEditDirection(${dirId})">💾 Зберегти</button>
                     <button class="btn btn-danger" onclick="confirmDeleteDirection(${dirId})">🗑 Видалити напрямок</button>
@@ -4032,7 +4093,7 @@
         function confirmDeleteDirection(dirId) {
             openSheet(`
                 <div class="sheet-title">Видалити напрямок?</div>
-                <div class="sheet-sub">Усі підписки будуть відмінені. Дію не можна скасувати.</div>
+                <div class="sheet-sub">Усі черги та запити на цей напрямок будуть відмінені. Дію не можна скасувати.</div>
                 <div class="sheet-actions">
                     <button class="btn btn-danger" onclick="doDeleteDirection(${dirId})">🗑 Так, видалити</button>
                     <button class="btn btn-ghost" onclick="closeSheet()">Скасувати</button>
@@ -4057,37 +4118,25 @@
 
         // ═══════ GROUP JOIN ═══════
         async function groupJoinDirection(dirId, userIds) {
-            if (!Array.isArray(userIds) || !userIds.length) { showToast('Немає доступних організаторів', 'error'); return; }
-            if (!beginOp('group_join')) return;
-            let sent = 0;
-            try {
-                for (const uid of userIds.slice(0, 3)) {
-                    const res = await api('/api/v3/match/invite', { method: 'POST', body: JSON.stringify({ user_id: S.userId, target_id: uid, direction_id: dirId }) });
-                    if (res?.status === 'ok') sent++;
-                }
-                if (sent > 0) {
-                    showToast(`📩 Надіслано запитів: ${sent}`, 'success');
-                    closeSheet(); await hydrate();
-                } else {
-                    showToast('Не вдалося надіслати жодного запиту', 'error');
-                }
-            } finally { endOp('group_join'); }
+            if (!Array.isArray(userIds) || !userIds.length) { showToast('Немає доступних екіпажів', 'error'); return; }
+            const uid = userIds[0];
+            await requestJoin(uid, dirId, { closeSheetOnSuccess: true });
         }
 
         // ═══════ MY IDEAS (My Directions) ═══════
         async function openMyIdeas() {
-            openSheet(`<div class="sheet-title">Мої напрямки</div><div style="text-align:center;padding:24px;"><div class="pulse-dot" style="margin:0 auto 12px;"></div><div style="font-size:13px;color:var(--text-muted);">Завантаження...</div></div>`);
+            openSheet(`<div class="sheet-title">Мої напрямки-ідеї</div><div style="text-align:center;padding:24px;"><div class="pulse-dot" style="margin:0 auto 12px;"></div><div style="font-size:13px;color:var(--text-muted);">Завантаження...</div></div>`);
             const data = await api(`/api/v3/board/my?user_id=${S.userId}&lang=${S.lang}`);
             const dirs = data?.directions || data?.my_directions || [];
             if (!dirs.length) {
                 document.getElementById('sheet-body').innerHTML = `
-                    <div class="sheet-title">Мої напрямки</div>
-                    <div class="sheet-sub">Ви ще не створили жодного напрямку</div>
+                    <div class="sheet-title">Мої напрямки-ідеї</div>
+                    <div class="sheet-sub">Ви ще не створили жодного напрямку. Це може зробити і водій, і попутник.</div>
                     <button class="btn btn-primary" onclick="closeSheet();switchScreen('board');setTimeout(openCreateDirection,250);">+ Створити перший</button>`;
                 return;
             }
             document.getElementById('sheet-body').innerHTML = `
-                <div class="sheet-title">Мої напрямки (${dirs.length})</div>
+                <div class="sheet-title">Мої напрямки-ідеї (${dirs.length})</div>
                 <div style="margin:8px 0;">
                     ${dirs.map(d => `
                         <div style="display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--border);">
@@ -4096,7 +4145,7 @@
                                 <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(d.title || d.name || 'Напрямок')}</div>
                                 <div style="font-size:11px;color:var(--text-muted);">${(d.drivers || 0) + (d.passengers || 0)} учасників</div>
                             </div>
-                            <button onclick="openEditDirection(${d.id}, '${escapeHtml(String(d.title || d.name || '')).replace(/'/g, '&#39;')}')" style="padding:6px 10px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text-secondary);font-size:14px;cursor:pointer;flex-shrink:0;">✏️</button>
+                            <button data-dir-id="${parseInt(d.id) || 0}" data-dir-title="${escapeAttr(String(d.title || d.name || ''))}" onclick="openEditDirectionFromButton(this)" style="padding:6px 10px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text-secondary);font-size:14px;cursor:pointer;flex-shrink:0;">✏️</button>
                         </div>`).join('')}
                 </div>
                 <button class="btn btn-secondary" style="margin-top:12px;" onclick="closeSheet();switchScreen('board');setTimeout(openCreateDirection,250);">+ Додати новий</button>`;
@@ -4213,7 +4262,7 @@
                 const emoji = m.role === 'driver' ? '🚗' : '👤';
                 const color = isMe ? '#34d399' : '#38bdf8';
                 const name = isMe ? 'Ви' : escapeHtml(m.name || '?');
-                const statusLabel = m.role === 'driver' ? 'мандрівник' : 'попутник';
+            const statusLabel = m.role === 'driver' ? 'водій' : 'попутник';
                 const marker = L.marker([m.lat, m.lng], {
                     icon: L.divIcon({
                         className: '',
