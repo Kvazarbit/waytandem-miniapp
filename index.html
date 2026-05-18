@@ -443,6 +443,14 @@
             padding: 0 4px;
         }
 
+        .badge-pulse {
+            animation: badge-pulse 0.5s ease 3;
+        }
+        @keyframes badge-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.5); }
+        }
+
         /* ═══════ REUSABLE COMPONENTS ═══════ */
         .card {
             background: var(--bg-card);
@@ -1094,7 +1102,9 @@
             font-weight: 600;
             margin-top: 2px;
             display: flex;
-            gap: 8px;
+            gap: 3px;
+            flex-direction: column;
+            align-items: flex-start;
         }
 
         .dir-card-total {
@@ -1102,12 +1112,20 @@
             align-items: center;
             justify-content: center;
             min-width: 32px;
+            max-width: 100%;
             padding: 2px 8px;
             border-radius: 999px;
             border: 1px solid var(--border);
             background: rgba(255, 255, 255, 0.03);
             color: var(--text-secondary);
             font-weight: 700;
+            line-height: 1.35;
+        }
+
+        .dir-card-context {
+            color: var(--text-muted);
+            font-weight: 600;
+            line-height: 1.35;
         }
 
         .dir-card-arrow {
@@ -2006,6 +2024,11 @@
             newsFilter: 'all', mapNewsFilter: 'all', newsMarkers: [],
             subscriptions: [],
             myCrew: null,
+            matchSheetOpen: false,
+            activeMatchKey: null,
+            seenMatchIds: new Set(),
+            roleGateOpen: false,
+            pendingRoleAction: null,
             homeCity: { lat: 52.2297, lng: 21.0122, name: 'Warsaw' },
             pickupCoords: null,
             _pickupMarker: null,
@@ -2376,7 +2399,7 @@
             if (!S.apiBase || !S.userId || !String(S.userName || '').trim()) return;
             try {
                 const p = await api(`/api/v3/user/profile?user_id=${S.userId}`);
-                const role = normalizeRole(p?.role || S.userRole || 'client') || 'client';
+                const role = normalizeRole(p?.role || S.userRole || '') || '';
                 await apiWithStatus('/api/v3/user/register', {
                     method: 'POST',
                     body: JSON.stringify({ user_id: S.userId, name: S.userName, role })
@@ -2461,6 +2484,7 @@
             S.boardSubSet = new Set(S.subscriptions.map(s => String(s.direction_id)));
             // Check handshake panel logic after hydration
             verifyHandshakePanelState();
+            maybeOpenMatchSheet();
             hideSkeleton();
         }
 
@@ -2502,6 +2526,7 @@
                     renderSubBar();
                     if (S.currentScreen === 'trips') renderTrips();
                     if (S.currentScreen === 'news') renderNewsScreen();
+                    maybeOpenMatchSheet();
                     if (S.chatRequestId) loadChatMessages();
 
                     if (_pendingRefreshMap) refreshMap();
@@ -2516,14 +2541,33 @@
         function updateBadges() {
             const badge = document.getElementById('nav-trips-badge');
             const count = S.pendingMatches.length;
-            if (count > 0) { badge.style.display = 'flex'; badge.textContent = count; }
-            else { badge.style.display = 'none'; }
+            if (count > 0) {
+                const prev = parseInt(badge.textContent || '0');
+                badge.style.display = 'flex';
+                badge.textContent = count;
+                if (count > prev) {
+                    badge.classList.remove('badge-pulse');
+                    void badge.offsetWidth; // reflow to restart animation
+                    badge.classList.add('badge-pulse');
+                }
+            } else {
+                badge.style.display = 'none';
+                badge.classList.remove('badge-pulse');
+            }
         }
 
         // ─── ROLE ───
         function initRolePill() { updateRolePill(); }
         function _isDriverRole(role) { return String(role || '') === 'driver'; }
         function _isPassengerRole(role) { const r = String(role || ''); return r === 'passenger' || r === 'client'; }
+        function hasChosenRole() { return _isDriverRole(S.userRole) || _isPassengerRole(S.userRole); }
+
+        function requireRoleForAction(actionLabel, retryFn) {
+            if (hasChosenRole()) return true;
+            S.pendingRoleAction = typeof retryFn === 'function' ? retryFn : null;
+            openRoleSelector(true, actionLabel || 'продовжити');
+            return false;
+        }
 
         function syncProfileSettingsByRole() {
             const carRow = document.getElementById('settings-row-car');
@@ -2544,16 +2588,17 @@
             syncProfileSettingsByRole();
         }
 
-        function openRoleSelector() {
+        function openRoleSelector(required = false, actionLabel = '') {
             const isDriver = S.userRole === 'driver';
             const isClient = S.userRole === 'client';
+            S.roleGateOpen = !!required;
             openSheet(`
-                <div class="sheet-title">Оберіть роль</div>
-                <div class="sheet-sub">Створювати напрямки можуть обидві ролі. Далі дії залежать від ролі.</div>
+                <div class="sheet-title">${required ? 'Хто ти зараз?' : 'Оберіть роль'}</div>
+                <div class="sheet-sub">${required ? `Щоб ${escapeHtml(actionLabel || 'продовжити')}, спочатку оберіть роль. Роль можна змінити пізніше, якщо немає активних домовленостей.` : 'Створювати напрямки можуть обидві ролі. Далі дії залежать від ролі.'}</div>
                 <div class="sheet-actions">
-                    <button class="btn ${isDriver ? 'btn-primary' : 'btn-secondary'}" onclick="setRole('driver')">🚗 Водій</button>
-                    <button class="btn ${isClient ? 'btn-primary' : 'btn-secondary'}" onclick="setRole('client')">👤 Попутник</button>
-                    <button class="btn btn-ghost" onclick="closeSheet()">Скасувати</button>
+                    <button class="btn ${isDriver ? 'btn-primary' : 'btn-secondary'}" onclick="setRole('driver')">🚗 Я везу людей</button>
+                    <button class="btn ${isClient ? 'btn-primary' : 'btn-secondary'}" onclick="setRole('client')">👤 Мені потрібно місце</button>
+                    ${required ? '' : '<button class="btn btn-ghost" onclick="closeSheet()">Скасувати</button>'}
                 </div>
             `);
         }
@@ -2590,6 +2635,9 @@
             if (S.currentScreen === 'explore') refreshMap();
             renderSubBar();
             if (S.apiBase) await hydrate();
+            const pendingAction = S.pendingRoleAction;
+            S.pendingRoleAction = null;
+            if (pendingAction) setTimeout(() => pendingAction(), 0);
         }
 
         // ─── SUBSCRIPTION BAR ───
@@ -2624,6 +2672,8 @@
 
         // ─── OPEN CREW ───
         async function openMyCrew() {
+            if (!requireRoleForAction('відкрити місця', () => openMyCrew())) return;
+            if (!_isDriverRole(S.userRole)) { showToast('Відкрити місця може тільки водій', 'error'); openRoleSelector(); return; }
             if (!beginOp('open_crew_sheet')) return;
             try {
                 const dirs = S.subscriptions.length > 0 ? S.subscriptions : (await api(`/api/v3/board?lang=${S.lang}`))?.directions || [];
@@ -2647,6 +2697,8 @@
         }
 
         async function doOpenCrew(dirId) {
+            if (!requireRoleForAction('відкрити місця', () => doOpenCrew(dirId))) return;
+            if (!_isDriverRole(S.userRole)) { showToast('Відкрити місця може тільки водій', 'error'); openRoleSelector(); return; }
             if (!beginOp('open_crew_submit')) return;
             try {
                 const payload = { user_id: S.userId, direction_id: dirId, pickup: 'WEB', seats: S.seats };
@@ -2658,8 +2710,10 @@
                 const res = await api('/api/v3/crews/open', { method: 'POST', body: JSON.stringify(payload) });
                 if (res?.status === 'ok' || res?.crew_id) {
                     S.myCrew = { crew_id: res.crew_id, direction_id: dirId };
-                    showToast('🚗 Екіпаж відкрито!', 'success');
+                    showToast('🚗 Екіпаж відкрито! Очікуйте попутників', 'success');
                     await hydrate();
+                    closeSheet();
+                    switchScreen('trips');
                 } else { showToast('Помилка: ' + (res?.reason || 'невідома'), 'error'); }
             } catch (e) { showToast('Помилка створення екіпажу', 'error'); }
             finally { endOp('open_crew_submit'); }
@@ -2745,7 +2799,7 @@
                 const marker = L.marker([c.lat, c.lng], {
                     icon: L.divIcon({ className: '', html: `<div style="width:32px;height:32px;border-radius:50%;background:${bgColor};display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:${glow};border:2px solid rgba(0,0,0,0.3);">${emoji}</div>`, iconSize: [32, 32], iconAnchor: [16, 16] })
                 }).addTo(S.map);
-                const canRequest = S.userId && String(S.userId) !== String(c.organizer_id);
+                const canRequest = S.userId && String(S.userId) !== String(c.organizer_id) && S.userRole !== 'driver';
                 const safeOrganizerId = Number.isFinite(Number(c.organizer_id)) ? Number(c.organizer_id) : 0;
                 const safeDirectionId = Number.isFinite(Number(c.direction_id)) ? Number(c.direction_id) : 0;
                 const popupName = escapeHtml(c.driver_name || c.organizer_name || 'Екіпаж');
@@ -2823,7 +2877,7 @@
                 const orgId = parseInt(cr.organizer_id) || 0;
                 const dirId = parseInt(cr.direction_id) || 0;
                 return `
-                <div class="crew-mini-card" onclick="requestJoin(${orgId}, ${dirId})">
+                <div class="crew-mini-card" onclick="${S.userRole !== 'driver' ? `requestJoin(${orgId}, ${dirId})` : ''}">
                     ${renderAvatarInline(cr.driver_name || cr.organizer_name || '?', cr.driver_photo_url || cr.organizer_photo_url || '', 40, 'crew-mini-avatar')}
                     <div class="crew-mini-info">
                         <div class="crew-mini-name">${escapeAttr(cr.driver_name || cr.organizer_name || 'Екіпаж')}</div>
@@ -2884,7 +2938,77 @@
             });
         }
 
+        function getMatchPartnerId(m) {
+            const raw = m?.scope === 'incoming'
+                ? (m.partner_id ?? m.sender_id ?? m.user_id ?? m.target_id)
+                : (m.target_id ?? m.partner_id ?? m.sender_id ?? m.user_id);
+            const id = parseInt(raw, 10);
+            return Number.isFinite(id) ? id : 0;
+        }
+
+        function matchKey(m) {
+            const ts = Number(m?.created_at || 0);
+            const stamp = Number.isFinite(ts) ? Math.round(ts * 1000) : 0;
+            return `${m?.scope || 'incoming'}:${getMatchPartnerId(m)}:${parseInt(m?.direction_id, 10) || 0}:${stamp}`;
+        }
+
+        function isSheetOpen() {
+            return document.getElementById('sheet')?.classList.contains('open');
+        }
+
+        function maybeOpenMatchSheet() {
+            if (S.matchSheetOpen || S.activeTrip || S.roleGateOpen || isAppInBackground) return;
+            if (isSheetOpen()) return;
+            const match = (S.pendingMatches || []).find(m => m?.scope === 'incoming' && !S.seenMatchIds.has(matchKey(m)));
+            if (!match) return;
+            switchScreen('trips');
+            openMatchSheet(match);
+        }
+
+        function openMatchSheet(match) {
+            const partnerId = getMatchPartnerId(match);
+            const dirId = parseInt(match?.direction_id, 10) || 0;
+            if (!partnerId || !dirId) return;
+            const key = matchKey(match);
+            S.seenMatchIds.add(key);
+            S.matchSheetOpen = true;
+            S.activeMatchKey = key;
+
+            const isDriver = _isDriverRole(S.userRole);
+            const partnerName = match.partner_name || match.sender_name || match.target_name || `#${partnerId}`;
+            const direction = match.direction || match.direction_title || 'Напрямок';
+            const title = isDriver ? 'Хтось хоче до екіпажу' : 'Водій знайдений';
+            const subtitle = isDriver
+                ? `${escapeHtml(partnerName)} хоче приєднатися до вашого екіпажу.`
+                : `${escapeHtml(partnerName)} запрошує вас у поїздку.`;
+            const acceptText = isDriver ? '✅ Взяти в екіпаж' : '✅ Прийняти запрошення';
+            const declineText = isDriver ? '❌ Пропустити' : '❌ Цей варіант не підходить';
+
+            openSheet(`
+                <div class="sheet-title">${title}</div>
+                <div class="sheet-sub">${subtitle}</div>
+                <div style="display:flex;align-items:center;gap:12px;margin:16px 0;padding:12px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,0.04);">
+                    ${renderAvatarInline(partnerName, match.partner_photo_url || match.sender_photo_url || match.target_photo_url || '', 44)}
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-weight:800;font-size:15px;">${escapeHtml(partnerName)}</div>
+                        <div style="font-size:12px;color:var(--text-secondary);margin-top:3px;">🎯 ${escapeHtml(direction)}</div>
+                    </div>
+                </div>
+                <div class="sheet-actions">
+                    <button class="btn btn-primary" onclick="respondFromMatchSheet(${partnerId}, ${dirId}, true)">${acceptText}</button>
+                    <button class="btn btn-danger" onclick="respondFromMatchSheet(${partnerId}, ${dirId}, false)">${declineText}</button>
+                </div>
+            `);
+        }
+
+        async function respondFromMatchSheet(partnerId, dirId, accept) {
+            const ok = await respondHandshake(partnerId, dirId, accept);
+            if (ok) closeSheet();
+        }
+
         async function requestJoin(orgId, dirId, opts = {}) {
+            if (!requireRoleForAction('запроситись до екіпажу', () => requestJoin(orgId, dirId, opts))) return;
+            if (_isDriverRole(S.userRole)) { showToast('Запроситись може тільки попутник', 'error'); return; }
             const confirmed = await confirmOutgoingSwitchIfNeeded(orgId, dirId);
             if (!confirmed) return;
             if (!beginOp('request_join')) return;
@@ -2894,12 +3018,13 @@
                     body: JSON.stringify({ user_id: S.userId, target_id: orgId, direction_id: dirId, replace_existing: true })
                 });
                 if (res?.status === 'ok') {
-                    if (res.mutual) { showToast('✓ Екіпаж створено!', 'success'); }
-                    else if (Array.isArray(res.switched_from) && res.switched_from.length) { showToast('↪ Запит перемкнено. Статус у Поїздках', 'success'); }
-                    else { showToast('⏳ Запит надіслано. Статус у Поїздках', 'success'); }
+                    if (res.mutual) { showToast('✓ Ваш екіпаж готовий!', 'success'); }
+                    else if (Array.isArray(res.switched_from) && res.switched_from.length) { showToast('↪ Запит перемкнено', 'success'); }
+                    else { showToast('⏳ Запит надіслано', 'success'); }
                     persistCriticalState();
                     await hydrate();
-                    if (opts.closeSheetOnSuccess) closeSheet();
+                    closeSheet();
+                    switchScreen('trips');
                 } else {
                     showToast(getErrorMessage(res, 'Не вдалось надіслати запит'), 'error');
                 }
@@ -3054,6 +3179,49 @@
             return !!d.is_folder || !!d.has_kids || kind === 'folder' || kind === 'topic' || kind === 'category';
         }
 
+        function safeCount(value) {
+            const n = Number(value);
+            return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+        }
+
+        function pluralUk(n, one, few, many) {
+            const mod10 = n % 10;
+            const mod100 = n % 100;
+            if (mod10 === 1 && mod100 !== 11) return one;
+            if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
+            return many;
+        }
+
+        function buildDirectionCardStats(d) {
+            const drivers = safeCount(d?.drivers ?? d?.drivers_count);
+            const passengers = safeCount(d?.passengers ?? d?.passengers_count);
+            const freeSeats = safeCount(d?.free_seats ?? d?.seats_free ?? d?.available_seats);
+            const role = normalizeRole(S.userRole);
+            if (isFolderNode(d)) {
+                const total = drivers + passengers;
+                return { primary: `${total} учасників нижче`, secondary: 'Відкрити розділ каталогу' };
+            }
+            if (_isDriverRole(role)) {
+                return {
+                    primary: `👤 ${passengers} ${pluralUk(passengers, 'попутник чекає', 'попутники чекають', 'попутників чекають')}`,
+                    secondary: `🚗 ${drivers} ${pluralUk(drivers, 'водій уже відкрив місця', 'водії вже відкрили місця', 'водіїв вже відкрили місця')}`
+                };
+            }
+            if (_isPassengerRole(role)) {
+                const seatText = freeSeats > 0
+                    ? ` • 💺 ${freeSeats} ${pluralUk(freeSeats, 'вільне місце', 'вільні місця', 'вільних місць')}`
+                    : '';
+                return {
+                    primary: `🚗 ${drivers} ${pluralUk(drivers, 'водій з місцями', 'водії з місцями', 'водіїв з місцями')}${seatText}`,
+                    secondary: `👤 ${passengers} ${pluralUk(passengers, 'попутник у черзі', 'попутники у черзі', 'попутників у черзі')}`
+                };
+            }
+            return {
+                primary: `🚗 ${drivers} ${pluralUk(drivers, 'водій', 'водії', 'водіїв')} • 👤 ${passengers} ${pluralUk(passengers, 'попутник', 'попутники', 'попутників')}`,
+                secondary: 'Оберіть роль перед дією'
+            };
+        }
+
         function renderBoardBreadcrumb() {
             const el = document.getElementById('board-breadcrumb');
             if (!el) return;
@@ -3118,7 +3286,7 @@
                 const id = String(d.id);
                 const isFolder = isFolderNode(d);
                 const isSub = !isFolder && subSet?.has(id);
-                const total = (d.drivers || 0) + (d.passengers || 0);
+                const stats = buildDirectionCardStats(d);
                 const sigil = isFolder
                     ? `<svg viewBox="0 0 24 24"><path d="M12 3l7 4.5v9L12 21l-7-4.5v-9L12 3z"></path><path d="M12 7v10"></path><path d="M8 12h8"></path></svg>`
                     : `<svg viewBox="0 0 24 24"><path d="M12 3l8 9-8 9-8-9 8-9z"></path><circle cx="12" cy="12" r="2.5"></circle></svg>`;
@@ -3127,11 +3295,18 @@
                     <div class="dir-card-icon" style="background:${isSub ? 'var(--green-dim)' : 'rgba(255,255,255,0.04)'};color:${isSub ? 'var(--green)' : (isFolder ? 'var(--text-secondary)' : 'var(--accent)')};">${sigil}</div>
                     <div class="dir-card-info">
                         <div class="dir-card-name">${escapeHtml(d.title || 'Напрямок')}</div>
-                        <div class="dir-card-stats"><span class="dir-card-total">${total}</span></div>
+                        <div class="dir-card-stats"><span class="dir-card-total">${escapeHtml(stats.primary)}</span><span class="dir-card-context">${escapeHtml(stats.secondary)}</span></div>
                     </div>
                     <div class="dir-card-arrow">›</div>
                 </div>`;
             }).join('');
+        }
+
+        function renderQueuePulse(label) {
+            return `<div style="margin-top:14px;display:flex;align-items:center;justify-content:center;gap:7px;">
+                <span style="font-size:12px;color:var(--text-secondary);font-weight:700;">${escapeHtml(label)}</span>
+                <span class="pulse-dot"></span><span class="pulse-dot" style="animation-delay:.18s;"></span><span class="pulse-dot" style="animation-delay:.36s;"></span>
+            </div>`;
         }
 
         function filterBoard(query) {
@@ -3193,20 +3368,21 @@
             const isMyDir = creatorId && String(creatorId) === String(S.userId);
             const availOrgs = orgs.filter(o => String(o.user_id) !== String(S.userId) && (o.seats_free > 0 || o.role !== 'driver'));
             const hasPickup = !!S.pickupCoords;
+            const directionStats = buildDirectionCardStats(dir);
 
             openSheet(`
                 <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;">
                     <div style="font-size:28px;">🧭</div>
                     <div style="flex:1;">
                         <div class="sheet-title" style="margin-bottom:0;">${escapeHtml(dir.title || 'Напрямок')}</div>
-                        <div style="font-size:12px;color:var(--text-secondary);font-weight:600;">${orgs.length} екіп. • у черзі ${(dir.drivers || 0) + (dir.passengers || 0)}</div>
+                        <div style="font-size:12px;color:var(--text-secondary);font-weight:600;">${escapeHtml(directionStats.primary)}<br><span style="color:var(--text-muted);">${escapeHtml(directionStats.secondary)}</span></div>
                     </div>
                     ${isMyDir ? `<button data-dir-id="${parseInt(dirId) || 0}" data-dir-title="${escapeAttr(String(dir.title || ''))}" onclick="openEditDirectionFromButton(this)" style="padding:6px 10px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text-secondary);font-size:14px;cursor:pointer;" title="Редагувати">✏️</button>` : ''}
                 </div>
                 <div style="display:flex;gap:8px;margin:12px 0 8px;">
                     ${isSub
                     ? `<button class="btn btn-danger" style="flex:1;" onclick="unsubscribeDir(${dirId})">🚫 Відписатись</button>`
-                    : `<button class="btn btn-primary" style="flex:1;" onclick="subscribeAndPickup(${dirId})">Стати в чергу</button>`}
+                    : `<button class="btn btn-primary" style="flex:1;" onclick="subscribeAndPickup(${dirId})">Шукати місце / партнера</button>`}
                     <button class="btn btn-secondary" onclick="closeSheet()">Закрити</button>
                 </div>
                 <div style="font-size:12px;color:var(--text-secondary);line-height:1.45;margin:-2px 0 10px;">${isSub ? 'Ви ще не в поїздці. Очікуйте запит або запросіться до водія.' : 'Напрямок може створити водій або попутник. Після підписки ви дієте за своєю роллю.'}</div>
@@ -3222,7 +3398,9 @@
                                 <div style="font-size:11px;color:var(--text-secondary);">${normalizeRole(o.role || 'driver') === 'driver' ? '🚗 Водій' : '👤 Попутник'}${o.seats_free > 0 ? ' • <span style="color:var(--accent);">' + o.seats_free + ' місць</span>' : ''}</div>
                             </div>
                             ${String(o.user_id) !== String(S.userId)
+                            ? (S.userRole !== 'driver' && normalizeRole(o.role || 'driver') === 'driver'
                             ? `<button class="btn btn-primary" style="padding:6px 10px;font-size:12px;min-height:36px;" onclick="requestJoin(${o.user_id}, ${dirId}, { closeSheetOnSuccess: true })">Запроситись</button>`
+                            : '')
                             : '<span class="tag tag-green">Ви</span>'}
                         </div>`).join('')}`
                     : '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">Поки немає відкритих екіпажів. Можете стати в чергу.</div>'}
@@ -3230,6 +3408,7 @@
         }
 
         async function subscribeDir(dirId) {
+            if (!requireRoleForAction('стати в чергу', () => subscribeDir(dirId))) return false;
             const dir = allDirections.find(d => String(d.id) === String(dirId));
             if (isFolderNode(dir)) { showToast('Оберіть конкретний напрямок, не каталог', 'error'); return; }
 
@@ -3256,7 +3435,7 @@
 
             const resp = await apiWithStatus('/api/v3/board/subscribe', {
                 method: 'POST',
-                body: JSON.stringify({ user_id: S.userId, direction_id: dirId, role: S.userRole || 'passenger' })
+                body: JSON.stringify({ user_id: S.userId, direction_id: dirId, role: S.userRole })
             });
             const status = String(resp?.data?.status || '');
             if (!resp.ok || (status !== 'ok' && status !== 'already_subscribed')) {
@@ -3340,7 +3519,7 @@
                 container.innerHTML = `
                     <div class="hero ${isStarted ? 'driving' : 'reservation'} animate-in">
                         <div class="hero-label" style="color:${isStarted ? 'var(--accent)' : 'var(--amber)'};">
-                            ${isStarted ? '🚀 В ДОРОЗІ' : '⏳ РЕЗЕРВАЦІЯ'}
+                            ${isStarted ? '🚀 В ДОРОЗІ' : '⏳ ЕКІПАЖ ФОРМУЄТЬСЯ'}
                         </div>
                         <div class="hero-title">${escapeHtml(t.direction_title || 'Поїздка')}</div>
                         <div class="hero-sub">Екіпаж #${t.crew_id || '—'} • ${isDriver ? '🚗 Ви водій' : '👤 Ви попутник'}</div>
@@ -3348,7 +3527,7 @@
                         <div class="lifecycle-progress">
                             <div class="lifecycle-step done"><div class="lifecycle-dot"></div>Збіг</div>
                             <div class="lifecycle-arrow"></div>
-                            <div class="lifecycle-step ${isStarted ? 'done' : 'active'}"><div class="lifecycle-dot"></div>Резервація</div>
+                            <div class="lifecycle-step ${isStarted ? 'done' : 'active'}"><div class="lifecycle-dot"></div>Екіпаж</div>
                             <div class="lifecycle-arrow"></div>
                             <div class="lifecycle-step ${isStarted ? 'active' : ''}"><div class="lifecycle-dot"></div>В дорозі</div>
                             <div class="lifecycle-arrow"></div>
@@ -3365,7 +3544,7 @@
                             ${!isStarted && isDriver && !cancelRequested ? `<button class="btn btn-primary" onclick="startTrip()">🚀 Поїхали!</button>` : ''}
                             ${isStarted ? `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="openChat(${t.request_id || t.id || 0}, ${isDriver ? (t.client_id || 0) : (t.driver_id || 0)})">💬 Чат</button><button class="btn btn-success" style="flex:1;" onclick="finishTrip()">✅ Завершити подорож</button></div>` : ''}
                             ${cancelPending ? `<div style="display:flex;gap:10px;"><button class="btn btn-primary" style="flex:1;" onclick="confirmCancelTrip()">✅ Згоден скасувати</button><button class="btn btn-secondary" style="flex:1;" onclick="rejectCancelTrip()">❌ Відмовити</button></div>` : ''}
-                            ${!isStarted && !cancelPending && !cancelRequested ? `<button class="btn btn-danger" onclick="cancelTrip()">❌ Покинути резервацію</button>` : ''}
+                            ${!isStarted && !cancelPending && !cancelRequested ? `<button class="btn btn-danger" onclick="cancelTrip()">❌ Покинути домовленість</button>` : ''}
                         </div>
                     </div>
                     <div class="section-label">Деталі</div>
@@ -3398,6 +3577,12 @@
             }
 
             const isDriver = _isDriverRole(S.userRole);
+            const activeSubTitle = escapeHtml(S.subscriptions?.[0]?.title || S.subscriptions?.[0]?.direction_title || '');
+            const queueTitle = isDriver ? 'Попутники чекають' : 'Шукаємо для тебе водія';
+            const queueSub = isDriver
+                ? 'Відкрийте місця — і попутники побачать ваш екіпаж.'
+                : 'Система сповістить, коли знайде збіг. Можна також обрати водія вручну.';
+            const queuePulse = isDriver ? 'Очікуємо попутників' : 'Шукаємо партнера';
             stopLocationTracking();
             container.innerHTML = `
                 ${isDriver ? `<div class="open-crew-btn animate-in" onclick="openMyCrew()">
@@ -3411,9 +3596,13 @@
                 <div class="empty" style="padding-top:${isDriver ? '40px' : '80px'};">
                     ${S.subscriptions && S.subscriptions.length > 0
                         ? `<div class="empty-icon">⏳</div>
-                           <div class="empty-title">Ви в черзі</div>
-                           <div class="empty-sub">Це ще не поїздка. ${isDriver ? 'Відкрийте місця або очікуйте попутника.' : 'Очікуйте запит або запросіться до водія.'}</div>
-                           <div style="margin-top:12px;font-size:12px;color:var(--text-muted);">${escapeHtml(S.subscriptions[0]?.title || S.subscriptions[0]?.direction_title || '')}</div>`
+                           <div class="empty-title">${queueTitle}</div>
+                           <div class="empty-sub">${queueSub}</div>
+                           ${renderQueuePulse(queuePulse)}
+                           <div style="margin-top:12px;font-size:12px;color:var(--text-muted);">${activeSubTitle}</div>
+                           ${isDriver
+                            ? `<button class="btn btn-primary" style="margin-top:16px;" onclick="openMyCrew()">🚗 Я везу — шукаю попутників</button>`
+                            : `<button class="btn btn-primary" style="margin-top:16px;" onclick="switchScreen('board')">🔍 Знайти водія в каталозі</button>`}`
                         : `<div class="empty-icon">🧭</div>
                            <div class="empty-title">Немає активних поїздок</div>
                            <div class="empty-sub">${isDriver ? 'Відкрийте екіпаж або знайдіть напрямок' : 'Знайдіть напрямок в каталозі або на мапі'}</div>`
@@ -3443,9 +3632,10 @@
             try {
                 const res = await api('/api/v3/match/respond', { method: 'POST', body: JSON.stringify({ user_id: S.userId, target_id: partnerId, direction_id: dirId, accept }) });
                 if (res?.status === 'ok') {
-                    showToast(accept ? '✓ Екіпаж створено!' : 'Запит відхилено', accept ? 'success' : '');
+                    showToast(accept ? '✓ Ваш екіпаж готовий!' : 'Запит відхилено', accept ? 'success' : '');
                     clearCriticalState();
                     await hydrate();
+                    return true;
                 } else if (res?.reason === 'action_forbidden') {
                     showToast('Після старту — тільки фініш', 'error');
                 } else {
@@ -3454,6 +3644,7 @@
             } catch (e) {
                 showToast('Немає з\'єднання — спробуйте ще раз', 'error');
             } finally { endOp('respond_handshake'); }
+            return false;
         }
 
         function verifyHandshakePanelState() {
@@ -3605,7 +3796,7 @@
             const crewLabel = t.crew_id ? `#${t.crew_id}` : '';
             const isDriver = t.viewer_role === 'driver';
             openSheet(`
-                <div class="sheet-title">❌ Покинути резервацію ${crewLabel}?</div>
+                <div class="sheet-title">❌ Покинути домовленість ${crewLabel}?</div>
                 <div class="sheet-sub">${isDriver ? 'Ваш екіпаж буде розформовано. Всі попутники отримають сповіщення.' : 'Ви вийдете з екіпажу. Водій та інші попутники залишаться.'}</div>
                 <div class="sheet-sub" style="margin-top:8px;font-weight:600;">Вкажіть причину:</div>
                 <div class="sheet-actions" style="flex-direction:column;">
@@ -3838,6 +4029,12 @@
         }
 
         function closeSheet() {
+            if (S.roleGateOpen && !hasChosenRole()) return;
+            if (S.matchSheetOpen) {
+                S.matchSheetOpen = false;
+                S.activeMatchKey = null;
+            }
+            S.roleGateOpen = false;
             const sheet = document.getElementById('sheet');
             if (sheet && sheet._cleanup) sheet._cleanup();
             document.getElementById('sheet-backdrop').classList.remove('open');
@@ -3846,6 +4043,7 @@
                 sheet.style.transform = '';
                 sheet.style.transition = '';
             }
+            setTimeout(() => maybeOpenMatchSheet(), 0);
         }
 
         // Backdrop click closes sheet (click only, not drag)
