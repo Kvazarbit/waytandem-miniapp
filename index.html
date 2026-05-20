@@ -2791,7 +2791,8 @@
             S.mapMarkers = [];
             S.newsMarkers.forEach(m => S.map.removeLayer(m));
             S.newsMarkers = [];
-            crews.forEach(c => {
+            const visibleCrews = (crews || []).filter(c => S.mapNewsFilter === 'all' || classifyNewsItem(c) === S.mapNewsFilter);
+            visibleCrews.forEach(c => {
                 if (!c.lat || !c.lng) return;
                 // Highlight crews going to the same direction as active trip
                 const isSameDirection = S.activeTrip && c.direction_id && String(c.direction_id) === String(S.activeTrip.direction_id);
@@ -2817,7 +2818,7 @@
             if (S.pickupCoords && S._pickupMarker) { S._pickupMarker.addTo(S.map); }
             // Show live crew member markers during Phase 2
             renderCrewMembersOnMap();
-            renderNewsPointsOnMap(crews);
+            renderNewsPointsOnMap(visibleCrews);
             renderMapOverlay([]);
         }
 
@@ -3037,10 +3038,12 @@
 
         // ─── NEWS ───
         function classifyNewsItem(n) {
-            const txt = `${n?.dir_title || ''} ${n?.text || ''}`.toLowerCase();
+            const explicit = String(n?.category || n?.root_category || n?.category_key || '').toLowerCase();
+            if (['theocracy', 'leisure', 'work'].includes(explicit)) return explicit;
+            const txt = `${n?.root_title || ''} ${n?.direction_title || ''} ${n?.dir_title || ''} ${n?.text || ''}`.toLowerCase();
             if (txt.includes('теократ')) return 'theocracy';
-            if (txt.includes('відпоч') || txt.includes('релакс') || txt.includes('тур')) return 'leisure';
-            if (txt.includes('робот') || txt.includes('work') || txt.includes('career')) return 'work';
+            if (txt.includes('відпоч') || txt.includes('відпуст') || txt.includes('подорож') || txt.includes('релакс') || txt.includes('тур') || txt.includes('travel') || txt.includes('vacation')) return 'leisure';
+            if (txt.includes('робот') || txt.includes('навчан') || txt.includes('work') || txt.includes('study') || txt.includes('career')) return 'work';
             return 'other';
         }
 
