@@ -1138,6 +1138,14 @@
             background: rgba(52, 211, 153, 0.04);
         }
 
+        .board-folder-action {
+            margin: 0 16px 12px;
+        }
+
+        .board-folder-action .btn {
+            width: 100%;
+        }
+
         /* ═══════ SCREEN: NEWS ═══════ */
         #screen-news {
             padding-bottom: 20px;
@@ -1845,15 +1853,9 @@
 
             <!-- BOARD -->
             <div class="screen" id="screen-board">
-                <div style="display:flex;gap:8px;padding:12px 16px 0;">
+                <div style="display:flex;padding:12px 16px 0;">
                     <input class="board-search" id="board-search" placeholder="🔍 Пошук напрямку..."
-                        oninput="filterBoard(this.value)" style="flex:1;">
-                    <button class="btn btn-secondary" style="padding:10px
-                        14px;font-size:16px;border-radius:var(--radius-sm);flex-shrink:0;"
-                        onclick="openCreateEvent()" title="Створити подію">🎯</button>
-                    <button class="btn btn-primary" style="padding:10px
-                        14px;font-size:18px;border-radius:var(--radius-sm);flex-shrink:0;"
-                        onclick="openCreateDirection()" title="Створити напрямок-ідею">+</button>
+                        oninput="filterBoard(this.value)" style="flex:1;margin:0;width:100%;">
                 </div>
                 <div class="board-breadcrumb" id="board-breadcrumb"></div>
                 <div id="board-list"></div>
@@ -2399,7 +2401,7 @@
             if (!S.apiBase || !S.userId || !String(S.userName || '').trim()) return;
             try {
                 const p = await api(`/api/v3/user/profile?user_id=${S.userId}`);
-                const role = normalizeRole(p?.role || S.userRole || '') || '';
+                const role = normalizeRole(p?.role || S.userRole || 'client');
                 await apiWithStatus('/api/v3/user/register', {
                     method: 'POST',
                     body: JSON.stringify({ user_id: S.userId, name: S.userName, role })
@@ -3196,7 +3198,7 @@
             const drivers = safeCount(d?.drivers ?? d?.drivers_count);
             const passengers = safeCount(d?.passengers ?? d?.passengers_count);
             const freeSeats = safeCount(d?.free_seats ?? d?.seats_free ?? d?.available_seats);
-            const role = normalizeRole(S.userRole);
+            const role = normalizeRole(S.userRole || 'client');
             if (isFolderNode(d)) {
                 const total = drivers + passengers;
                 return { primary: `${total} учасників нижче`, secondary: 'Відкрити розділ каталогу' };
@@ -3281,8 +3283,12 @@
 
         function renderBoardList(dirs, subSet) {
             const list = document.getElementById('board-list');
-            if (!dirs.length) { list.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">Немає напрямків</div></div>'; return; }
-            list.innerHTML = dirs.map(d => {
+            const createAction = renderBoardIdeaAction();
+            if (!dirs.length) {
+                list.innerHTML = `${createAction}<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">Немає напрямків</div></div>`;
+                return;
+            }
+            list.innerHTML = createAction + dirs.map(d => {
                 const id = String(d.id);
                 const isFolder = isFolderNode(d);
                 const isSub = !isFolder && subSet?.has(id);
@@ -3300,6 +3306,13 @@
                     <div class="dir-card-arrow">›</div>
                 </div>`;
             }).join('');
+        }
+
+        function renderBoardIdeaAction() {
+            if (!S.boardStack.length || S.boardParentId === null || S.boardParentId === undefined) return '';
+            return `<div class="board-folder-action">
+                <button class="btn btn-primary" onclick="openCreateDirection()" title="Запропонувати ідею у поточному каталозі">+ Запропонувати ідею тут</button>
+            </div>`;
         }
 
         function renderQueuePulse(label) {
@@ -4185,11 +4198,15 @@
 
         // ═══════ DIRECTION CREATION ═══════
         function openCreateDirection() {
+            if (!S.boardStack.length || S.boardParentId === null || S.boardParentId === undefined) {
+                showToast('Оберіть папку каталогу', 'error');
+                return;
+            }
             const parentTitle = S.boardStack.length ? S.boardStack[S.boardStack.length - 1].title : 'Корінь';
             S._createDirLat = null; S._createDirLng = null;
             openSheet(`
-                <div class="sheet-title">Створити напрямок-ідею</div>
-                <div class="sheet-sub">Категорія: ${escapeHtml(parentTitle)}. Створити може і водій, і попутник.</div>
+                <div class="sheet-title">Запропонувати ідею поїздки</div>
+                <div class="sheet-sub">Каталог: ${escapeHtml(parentTitle)}</div>
                 <input class="board-search" id="create-dir-title" placeholder="Назва напрямку або подорожі..." style="margin:12px 0 8px;">
                 <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;">
                     <button class="btn btn-secondary" style="flex:1;font-size:13px;" onclick="pickGpsForDirection()">📍 Геолокація</button>
@@ -4245,6 +4262,8 @@
                     showToast('✓ Напрямок створено. Ви в черзі.', 'success');
                     closeSheet(); S._createDirLat = null; S._createDirLng = null;
                     await renderBoard();
+                } else if (res?.status === 'limit') {
+                    showToast('У вас вже є активна ідея в каталозі. Видаліть її щоб запропонувати нову.', 'error');
                 } else { showToast(res?.message || res?.error || 'Помилка створення', 'error'); }
             } catch (e) { showToast('Помилка мережі', 'error'); }
             finally { endOp('create_direction'); }
@@ -4329,8 +4348,8 @@
             if (!dirs.length) {
                 document.getElementById('sheet-body').innerHTML = `
                     <div class="sheet-title">Мої напрямки-ідеї</div>
-                    <div class="sheet-sub">Ви ще не створили жодного напрямку. Це може зробити і водій, і попутник.</div>
-                    <button class="btn btn-primary" onclick="closeSheet();switchScreen('board');setTimeout(openCreateDirection,250);">+ Створити перший</button>`;
+                    <div class="sheet-sub">Створені вами ідеї з'являться тут.</div>
+                    <button class="btn btn-primary" onclick="closeSheet();switchScreen('board');">Відкрити каталог</button>`;
                 return;
             }
             document.getElementById('sheet-body').innerHTML = `
@@ -4346,7 +4365,7 @@
                             <button data-dir-id="${parseInt(d.id) || 0}" data-dir-title="${escapeAttr(String(d.title || d.name || ''))}" onclick="openEditDirectionFromButton(this)" style="padding:6px 10px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text-secondary);font-size:14px;cursor:pointer;flex-shrink:0;">✏️</button>
                         </div>`).join('')}
                 </div>
-                <button class="btn btn-secondary" style="margin-top:12px;" onclick="closeSheet();switchScreen('board');setTimeout(openCreateDirection,250);">+ Додати новий</button>`;
+                <button class="btn btn-secondary" style="margin-top:12px;" onclick="closeSheet();switchScreen('board');">Відкрити каталог</button>`;
         }
 
         // ═══════ TRIP HISTORY ═══════
