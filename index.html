@@ -3283,7 +3283,7 @@
 
         function renderBoardList(dirs, subSet) {
             const list = document.getElementById('board-list');
-            const createAction = renderBoardIdeaAction();
+            const createAction = renderBoardIdeaAction(dirs);
             if (!dirs.length) {
                 list.innerHTML = `${createAction}<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">Немає напрямків</div></div>`;
                 return;
@@ -3308,8 +3308,12 @@
             }).join('');
         }
 
-        function renderBoardIdeaAction() {
+        function renderBoardIdeaAction(dirs = []) {
             if (!S.boardStack.length || S.boardParentId === null || S.boardParentId === undefined) return '';
+            const search = document.getElementById('board-search');
+            if (search?.value?.trim()) return '';
+            const hasSubfolders = (dirs || []).some(d => isFolderNode(d));
+            if (hasSubfolders) return '';
             return `<div class="board-folder-action">
                 <button class="btn btn-primary" onclick="openCreateDirection()" title="Запропонувати ідею у поточному каталозі">+ Запропонувати ідею тут</button>
             </div>`;
@@ -4200,6 +4204,10 @@
         function openCreateDirection() {
             if (!S.boardStack.length || S.boardParentId === null || S.boardParentId === undefined) {
                 showToast('Оберіть папку каталогу', 'error');
+                return;
+            }
+            if ((allDirections || []).some(d => isFolderNode(d))) {
+                showToast('Відкрийте нижню папку каталогу', 'error');
                 return;
             }
             const parentTitle = S.boardStack.length ? S.boardStack[S.boardStack.length - 1].title : 'Корінь';
