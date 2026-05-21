@@ -2849,6 +2849,11 @@
                 const key = String(c.direction_id);
                 if (!byDirection.has(key)) byDirection.set(key, { lat: Number(c.lat), lng: Number(c.lng), dirTitle: c.direction_title || '' });
             });
+            items.forEach(n => {
+                if (!n || n.direction_id == null || n.lat == null || n.lng == null) return;
+                const key = String(n.direction_id);
+                if (!byDirection.has(key)) byDirection.set(key, { lat: Number(n.lat), lng: Number(n.lng), dirTitle: n.dir_title || '' });
+            });
             const uniqueNews = [];
             const seenDir = new Set();
             for (const n of items) {
@@ -3074,13 +3079,12 @@
         function renderNewsStrip() {
             const strip = document.getElementById('news-strip');
             if (!strip) return;
-            const crews = Array.isArray(S.mapCrews) ? S.mapCrews : [];
+            const items = Array.isArray(S.news) ? S.news : [];
             const buckets = { theocracy: 0, leisure: 0, work: 0 };
-            crews.forEach(c => {
-                const k = classifyNewsItem(c);
-                if (k in buckets) {
-                    buckets[k] += 1 + (parseInt(c.passengers) || 0);
-                }
+            items.forEach(n => {
+                if (n?.lat == null || n?.lng == null) return;
+                const k = classifyNewsItem(n);
+                if (k in buckets) buckets[k] += 1;
             });
             const cards = [
                 { key: 'theocracy', title: 'Теократія', color: '#a78bfa', count: buckets.theocracy },
@@ -3184,9 +3188,10 @@
 
         function renderNews() {
             if (!S.apiBase) { S.news = []; renderNewsStrip(); renderNewsScreen(); updateNewsBadge(); return; }
-            api('/api/v3/news?limit=60').then(data => {
+            api('/api/v3/home/feed?limit=60&lang=' + encodeURIComponent(S.lang || 'uk')).then(data => {
                 S.news = data?.news || [];
                 renderNewsStrip(); renderNewsScreen(); updateNewsBadge();
+                if (S.currentScreen === 'explore') refreshMap();
             });
         }
 
