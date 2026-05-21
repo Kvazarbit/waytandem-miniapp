@@ -828,15 +828,23 @@
         .sheet-handle {
             display: flex;
             justify-content: center;
-            padding: 14px 0 8px;
+            padding: 16px 0 12px;
             cursor: grab;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         .sheet-handle-bar {
-            width: 36px;
-            height: 4px;
-            border-radius: 2px;
-            background: rgba(255, 255, 255, 0.15);
+            width: 44px;
+            height: 5px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.25);
+            transition: background 0.15s ease, width 0.15s ease;
+        }
+
+        .sheet-handle:active .sheet-handle-bar {
+            background: rgba(255, 255, 255, 0.45);
+            width: 48px;
         }
 
         .sheet-body {
@@ -2019,7 +2027,7 @@
         const S = {
             userId: 0, userName: '', userPhoto: '', userRole: '', car: '', seats: 4, lang: 'uk',
             apiBase: localStorage.getItem('wt_api') || '',
-            activeTrip: null, pendingMatches: [], directions: [], news: [],
+            activeTrip: null, pendingMatches: [], directions: [], news: [], mapCrews: [],
             map: null, mapMarkers: [], currentScreen: 'explore',
             chatRequestId: null, chatPartnerId: null, busy: false,
             boardParentId: null, boardStack: [], boardSubSet: new Set(),
@@ -2787,6 +2795,7 @@
             if (!S.apiBase) return;
             const crews = await api('/api/v3/map/crews');
             if (!crews) return;
+            S.mapCrews = crews || [];
             S.mapMarkers.forEach(m => S.map.removeLayer(m));
             S.mapMarkers = [];
             S.newsMarkers.forEach(m => S.map.removeLayer(m));
@@ -2820,6 +2829,7 @@
             renderCrewMembersOnMap();
             renderNewsPointsOnMap(visibleCrews);
             renderMapOverlay([]);
+            renderNewsStrip();
         }
 
         function _newsMarkerPalette(kind) {
@@ -3064,9 +3074,14 @@
         function renderNewsStrip() {
             const strip = document.getElementById('news-strip');
             if (!strip) return;
-            const allItems = Array.isArray(S.news) ? S.news : [];
+            const crews = Array.isArray(S.mapCrews) ? S.mapCrews : [];
             const buckets = { theocracy: 0, leisure: 0, work: 0 };
-            allItems.forEach(n => { const k = classifyNewsItem(n); if (k in buckets) buckets[k]++; });
+            crews.forEach(c => {
+                const k = classifyNewsItem(c);
+                if (k in buckets) {
+                    buckets[k] += 1 + (parseInt(c.passengers) || 0);
+                }
+            });
             const cards = [
                 { key: 'theocracy', title: 'Теократія', color: '#a78bfa', count: buckets.theocracy },
                 { key: 'leisure', title: 'Відпочинок', color: '#34d399', count: buckets.leisure },
@@ -3994,41 +4009,78 @@
             document.getElementById('sheet-body').innerHTML = html;
             document.getElementById('sheet-backdrop').classList.add('open');
             document.getElementById('sheet').classList.add('open');
-            const handle = document.getElementById('sheet-handle');
             const sheet = document.getElementById('sheet');
 
             // Track if sheet is alive (prevents stale event fires)
             const sheetId = Date.now();
             sheet._sheetId = sheetId;
 
-            // ── MOBILE: drag-to-dismiss from handle only ──
+            // ── MOBILE: drag-to-dismiss from sheet ──
             let touchStartY = 0, touchCurrentY = 0, isTouchDragging = false;
             const TOUCH_DISMISS_PX = 150;
 
             const onTouchStart = (e) => {
+                const target = e.target;
+                
+                // Do not drag if touching interactive/form elements
+                if (target.closest('button') || target.closest('input') || target.closest('textarea') || target.closest('select') || target.closest('a')) {
+                    touchStartY = 0;
+                    return;
+                }
+                
+                // If touching inside the body, only drag if sheet-body is scrolled to the top
+                const body = document.getElementById('sheet-body');
+                if (body && body.contains(target) && body.scrollTop > 0) {
+                    touchStartY = 0;
+                    return;
+                }
+
                 touchStartY = e.touches[0].clientY;
                 touchCurrentY = touchStartY;
                 isTouchDragging = false;
                 sheet.style.transition = 'none';
             };
+
             const onTouchMove = (e) => {
                 if (sheet._sheetId !== sheetId) return;
+                if (!touchStartY) return;
+                
                 const y = e.touches[0].clientY;
                 const diff = y - touchStartY;
-                if (!isTouchDragging && diff > 25) isTouchDragging = true;
+
+                if (!isTouchDragging) {
+                    if (diff > 10) {
+                        isTouchDragging = true;
+                    } else if (diff < -10) {
+                        // User swiped up: cancel drag detection so normal scroll occurs
+                        touchStartY = 0;
+                        return;
+                    }
+                }
+
                 if (!isTouchDragging) return;
+
                 touchCurrentY = y;
                 if (diff > 0) {
                     e.preventDefault();
-                    sheet.style.transform = `translateY(${diff * 0.5}px)`; // rubber-band
+                    sheet.style.transform = `translateY(${diff * 0.55}px)`; // rubber-band drag
                 }
             };
+
             const onTouchEnd = () => {
                 if (sheet._sheetId !== sheetId) return;
-                if (!isTouchDragging) { sheet.style.transition = ''; return; }
+                if (!isTouchDragging) { 
+                    sheet.style.transition = ''; 
+                    touchStartY = 0;
+                    return; 
+                }
                 isTouchDragging = false;
-                sheet.style.transition = 'transform 0.3s ease';
-                if (touchCurrentY - touchStartY > TOUCH_DISMISS_PX) {
+                sheet.style.transition = 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)';
+                
+                const diff = touchCurrentY - touchStartY;
+                touchStartY = 0;
+                
+                if (diff > TOUCH_DISMISS_PX) {
                     sheet.style.transform = 'translateY(100%)';
                     setTimeout(() => { if (sheet._sheetId === sheetId) closeSheet(); }, 300);
                 } else {
@@ -4036,16 +4088,17 @@
                 }
             };
 
-            // Only handle gets touch listeners
-            handle.addEventListener('touchstart', onTouchStart, { passive: true });
-            handle.addEventListener('touchmove', onTouchMove, { passive: false });
-            handle.addEventListener('touchend', onTouchEnd);
-
-            // ── DESKTOP: NO drag-to-dismiss, just backdrop click + close button ──
-            // (prevents accidental dismiss when mouse moves over sheet)
+            sheet.addEventListener('touchstart', onTouchStart, { passive: true });
+            sheet.addEventListener('touchmove', onTouchMove, { passive: false });
+            sheet.addEventListener('touchend', onTouchEnd);
 
             // Store cleanup
-            sheet._cleanup = () => { sheet._sheetId = null; };
+            sheet._cleanup = () => {
+                sheet._sheetId = null;
+                sheet.removeEventListener('touchstart', onTouchStart);
+                sheet.removeEventListener('touchmove', onTouchMove);
+                sheet.removeEventListener('touchend', onTouchEnd);
+            };
         }
 
         function closeSheet() {
