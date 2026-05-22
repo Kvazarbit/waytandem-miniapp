@@ -3068,6 +3068,14 @@
             catch (_) { return '—'; }
         }
 
+        function formatIdeaDate(value) {
+            if (!value) return '';
+            const raw = String(value);
+            const dt = new Date(raw);
+            if (Number.isNaN(dt.getTime())) return raw.replace('T', ' ');
+            return dt.toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        }
+
         function updateNewsBadge() {
             const badge = document.getElementById('nav-news-badge');
             if (!badge) return;
@@ -3409,6 +3417,17 @@
             const availOrgs = orgs.filter(o => String(o.user_id) !== String(S.userId) && (o.seats_free > 0 || o.role !== 'driver'));
             const hasPickup = !!S.pickupCoords;
             const directionStats = buildDirectionCardStats(dir);
+            const dirMeta = data?.direction || dir || {};
+            const meetingPoint = dirMeta.meeting_point || dir.meeting_point || '';
+            const desc = dirMeta.description || dir.description || '';
+            const startAt = dirMeta.start_date || dir.start_date || '';
+            const endAt = dirMeta.end_date || dir.end_date || '';
+            const whenText = startAt && endAt ? `${formatIdeaDate(startAt)} — ${formatIdeaDate(endAt)}` : (formatIdeaDate(startAt) || formatIdeaDate(endAt));
+            const detailRows = [
+                meetingPoint ? `<div style="font-size:12px;color:var(--text-secondary);line-height:1.4;">📍 ${escapeHtml(meetingPoint)}</div>` : '',
+                whenText ? `<div style="font-size:12px;color:var(--text-secondary);line-height:1.4;">🗓 ${escapeHtml(whenText)}</div>` : '',
+                desc ? `<div style="font-size:12px;color:var(--text-secondary);line-height:1.45;margin-top:6px;white-space:pre-wrap;">${escapeHtml(desc)}</div>` : ''
+            ].filter(Boolean).join('');
 
             openSheet(`
                 <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;">
@@ -3419,6 +3438,7 @@
                     </div>
                     ${isMyDir ? `<button data-dir-id="${parseInt(dirId) || 0}" data-dir-title="${escapeAttr(String(dir.title || ''))}" onclick="openEditDirectionFromButton(this)" style="padding:6px 10px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text-secondary);font-size:14px;cursor:pointer;" title="Редагувати">✏️</button>` : ''}
                 </div>
+                ${detailRows ? `<div style="margin:10px 0 12px;padding:10px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid var(--border);">${detailRows}</div>` : ''}
                 <div style="display:flex;gap:8px;margin:12px 0 8px;">
                     ${isSub
                     ? `<button class="btn btn-danger" style="flex:1;" onclick="unsubscribeDir(${dirId})">🚫 Відписатись</button>`
@@ -4276,11 +4296,17 @@
             openSheet(`
                 <div class="sheet-title">Запропонувати ідею поїздки</div>
                 <div class="sheet-sub">Каталог: ${escapeHtml(parentTitle)}</div>
-                <input class="board-search" id="create-dir-title" placeholder="Назва напрямку або подорожі..." style="margin:12px 0 8px;">
-                <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;">
-                    <button class="btn btn-secondary" style="flex:1;font-size:13px;" onclick="pickGpsForDirection()">📍 Геолокація</button>
+                <input class="board-search" id="create-dir-title" placeholder="Назва ідеї..." maxlength="80" style="margin:12px 0 8px;">
+                <input class="board-search" id="create-dir-place" placeholder="Публічна локація: місто, район або місце збору..." maxlength="255" style="margin-bottom:8px;">
+                <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
+                    <button class="btn btn-secondary" style="flex:1;font-size:13px;" onclick="pickGpsForDirection()">📍 Точка на карті</button>
                     <span id="create-dir-loc-label" style="flex:2;font-size:12px;color:var(--text-muted);">Не вказано</span>
                 </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+                    <input class="board-search" id="create-dir-start" type="datetime-local" title="Початок" style="margin:0;">
+                    <input class="board-search" id="create-dir-end" type="datetime-local" title="Завершення" style="margin:0;">
+                </div>
+                <textarea class="board-search" id="create-dir-desc" placeholder="Подробиці для учасників..." maxlength="1200" style="min-height:108px;resize:vertical;margin-bottom:12px;"></textarea>
                 <button class="btn btn-primary" onclick="doCreateDirection()">✓ Створити і стати в чергу</button>
             `);
             setTimeout(() => document.getElementById('create-dir-title')?.focus(), 300);
@@ -4304,7 +4330,13 @@
 
         async function doCreateDirection() {
             const title = document.getElementById('create-dir-title')?.value?.trim();
+            const meetingPoint = document.getElementById('create-dir-place')?.value?.trim() || '';
+            const startDate = document.getElementById('create-dir-start')?.value || '';
+            const endDate = document.getElementById('create-dir-end')?.value || '';
+            const description = document.getElementById('create-dir-desc')?.value?.trim() || '';
             if (!title || title.length < 3) { showToast('Назва має бути від 3 символів', 'error'); return; }
+            if (!meetingPoint && (S._createDirLat == null || S._createDirLng == null)) { showToast('Вкажіть публічну локацію або точку на карті', 'error'); return; }
+            if (startDate && endDate && endDate < startDate) { showToast('Дата завершення не може бути раніше початку', 'error'); return; }
             const oldSub = (S.subscriptions || [])[0];
             if (oldSub) {
                 const oldTitle = oldSub.title || oldSub.direction_title || `#${oldSub.direction_id}`;
@@ -4324,13 +4356,26 @@
             }
             if (!beginOp('create_direction')) return;
             try {
-                const body = { user_id: S.userId, title, parent_id: S.boardParentId || null };
-                if (S._createDirLat && S._createDirLng) body.meeting_point = `${S._createDirLat.toFixed(5)}, ${S._createDirLng.toFixed(5)}`;
+                const body = {
+                    user_id: S.userId,
+                    title,
+                    parent_id: S.boardParentId || null,
+                    meeting_point: meetingPoint,
+                    description,
+                    start_date: startDate,
+                    end_date: endDate
+                };
+                if (S._createDirLat != null && S._createDirLng != null) {
+                    body.lat = S._createDirLat;
+                    body.lng = S._createDirLng;
+                    if (!body.meeting_point) body.meeting_point = `${S._createDirLat.toFixed(5)}, ${S._createDirLng.toFixed(5)}`;
+                }
                 const res = await api('/api/v3/board', { method: 'POST', body: JSON.stringify(body) });
                 if (res?.id || res?.status === 'ok' || res?.direction_id) {
                     showToast('✓ Напрямок створено. Ви в черзі.', 'success');
                     closeSheet(); S._createDirLat = null; S._createDirLng = null;
                     await renderBoard();
+                    renderNews();
                 } else if (res?.status === 'limit') {
                     showToast('У вас вже є активна ідея в каталозі. Видаліть її щоб запропонувати нову.', 'error');
                 } else { showToast(res?.message || res?.error || 'Помилка створення', 'error'); }
