@@ -2027,6 +2027,7 @@
         const S = {
             userId: 0, userName: '', userPhoto: '', userRole: '', car: '', seats: 4, lang: 'uk',
             apiBase: localStorage.getItem('wt_api') || '',
+            botUsername: localStorage.getItem('wt_bot_username') || '',
             activeTrip: null, pendingMatches: [], directions: [], news: [], mapCrews: [],
             map: null, mapMarkers: [], currentScreen: 'explore',
             chatRequestId: null, chatPartnerId: null, busy: false,
@@ -2037,6 +2038,7 @@
             matchSheetOpen: false,
             activeMatchKey: null,
             seenMatchIds: new Set(),
+            myDirections: [],
             roleGateOpen: false,
             pendingRoleAction: null,
             homeCity: { lat: 52.2297, lng: 21.0122, name: 'Warsaw' },
@@ -2118,6 +2120,7 @@
         document.addEventListener('DOMContentLoaded', async () => {
             restoreCriticalState(); // Restore state before anything else
             resolveUser();
+            await hydrateAppConfig();
             initRolePill();
             initMap();
             await syncUserIdentityToServer();
@@ -2233,6 +2236,11 @@
             }
         }
 
+        function sanitizeBotUsername(raw) {
+            const username = String(raw || '').trim().replace(/^@+/, '');
+            return /^[A-Za-z0-9_]{5,32}$/.test(username) ? username : '';
+        }
+
         function sanitizeAvatarUrl(raw) {
             const value = String(raw || '').trim();
             if (!value) return '';
@@ -2318,6 +2326,11 @@
                     console.warn('Invalid api base query param:', urlApi);
                 }
             }
+            const urlBot = sanitizeBotUsername(qp.get('bot') || qp.get('bot_username') || '');
+            const globalBot = sanitizeBotUsername(window.WAYTANDEM_BOT_USERNAME || '');
+            const storedBot = sanitizeBotUsername(S.botUsername || localStorage.getItem('wt_bot_username') || '');
+            S.botUsername = urlBot || globalBot || storedBot;
+            if (S.botUsername) localStorage.setItem('wt_bot_username', S.botUsername);
             const initDataUser = _parseInitDataUser(tg?.initData || '');
             const tgUser = tg?.initDataUnsafe?.user || initDataUser;
             if (tgUser?.id) {
@@ -2403,6 +2416,16 @@
         async function api(path, opts = {}) {
             const resp = await apiWithStatus(path, opts);
             return resp.ok ? resp.data : null;
+        }
+
+        async function hydrateAppConfig() {
+            if (!S.apiBase || S.botUsername) return;
+            const cfg = await api('/api/v3/app/config', { silent: true });
+            const username = sanitizeBotUsername(cfg?.bot_username || '');
+            if (username) {
+                S.botUsername = username;
+                localStorage.setItem('wt_bot_username', username);
+            }
         }
 
         async function syncUserIdentityToServer() {
@@ -3076,6 +3099,73 @@
             return dt.toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
         }
 
+        function buildDirectionInviteText(dir) {
+            const title = String(dir?.title || dir?.name || 'Ідея WayTandem').trim();
+            const meeting = String(dir?.meeting_point || '').trim();
+            const startAt = String(dir?.start_date || '').trim();
+            const endAt = String(dir?.end_date || '').trim();
+            const desc = String(dir?.description || '').trim();
+            const drivers = Number(dir?.drivers || dir?.drivers_count || 0);
+            const passengers = Number(dir?.passengers || dir?.passengers_count || 0);
+            const whenText = startAt && endAt ? `${formatIdeaDate(startAt)} — ${formatIdeaDate(endAt)}` : (formatIdeaDate(startAt) || formatIdeaDate(endAt));
+            const lines = [
+                '🌿 Запрошення до ідеї WayTandem',
+                '',
+                `📍 ${title}`,
+                meeting ? `📌 Місце: ${meeting}` : '',
+                whenText ? `🗓 Коли: ${whenText}` : '',
+                `👥 Водії: ${drivers} · Попутники: ${passengers}`,
+                desc ? '' : '',
+                desc ? desc.slice(0, 700) : '',
+                '',
+                'Приєднуйся як водій або попутник.'
+            ].filter(line => line !== '');
+            return lines.join('\n');
+        }
+
+        async function ensureBotUsernameForShare(dirId) {
+            if (S.botUsername) return S.botUsername;
+            await hydrateAppConfig();
+            if (S.botUsername) return S.botUsername;
+            openSheet(`
+                <div class="sheet-title">Username бота</div>
+                <div class="sheet-sub">Щоб створити посилання-запрошення, потрібен username Telegram-бота без @. Це збережеться тільки у цьому браузері.</div>
+                <input class="board-search" id="bot-username-input" placeholder="Наприклад: WayTandemBot" maxlength="32" style="margin:12px 0;">
+                <button class="btn btn-primary" onclick="saveBotUsernameAndShare(${parseInt(dirId) || 0})">Зберегти і запросити</button>
+                <button class="btn btn-ghost" style="margin-top:8px;" onclick="closeSheet()">Скасувати</button>
+            `);
+            setTimeout(() => document.getElementById('bot-username-input')?.focus(), 250);
+            return '';
+        }
+
+        async function saveBotUsernameAndShare(dirId) {
+            const username = sanitizeBotUsername(document.getElementById('bot-username-input')?.value || '');
+            if (!username) { showToast('Вкажіть username бота без @', 'error'); return; }
+            S.botUsername = username;
+            localStorage.setItem('wt_bot_username', username);
+            closeSheet();
+            await shareDirectionInvite(dirId);
+        }
+
+        async function shareDirectionInvite(dirId) {
+            const safeDirId = parseInt(dirId) || 0;
+            if (!safeDirId) { showToast('Ідею не знайдено', 'error'); return; }
+            const botUsername = await ensureBotUsernameForShare(safeDirId);
+            if (!botUsername) return;
+            const data = S.apiBase
+                ? await api(`/api/v3/fractal/organizers?direction_id=${safeDirId}&lang=${S.lang}&user_id=${S.userId || ''}`, { silent: true })
+                : null;
+            const localDir = (S.myDirections || []).find(d => String(d.id) === String(safeDirId))
+                || allDirections.find(d => String(d.id) === String(safeDirId))
+                || {};
+            const dir = { ...localDir, ...(data?.direction || {}) };
+            const inviteLink = `https://t.me/${botUsername}?start=dir_${safeDirId}`;
+            const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(buildDirectionInviteText(dir))}`;
+            const tg = window.Telegram?.WebApp;
+            if (tg?.openTelegramLink) tg.openTelegramLink(shareUrl);
+            else window.open(shareUrl, '_blank', 'noopener');
+        }
+
         function updateNewsBadge() {
             const badge = document.getElementById('nav-news-badge');
             if (!badge) return;
@@ -3436,7 +3526,7 @@
                         <div class="sheet-title" style="margin-bottom:0;">${escapeHtml(dir.title || 'Напрямок')}</div>
                         <div style="font-size:12px;color:var(--text-secondary);font-weight:600;">${escapeHtml(directionStats.primary)}<br><span style="color:var(--text-muted);">${escapeHtml(directionStats.secondary)}</span></div>
                     </div>
-                    ${isMyDir ? `<button data-dir-id="${parseInt(dirId) || 0}" data-dir-title="${escapeAttr(String(dir.title || ''))}" onclick="openEditDirectionFromButton(this)" style="padding:6px 10px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text-secondary);font-size:14px;cursor:pointer;" title="Редагувати">✏️</button>` : ''}
+                    ${isMyDir ? `<div style="display:flex;gap:6px;flex-shrink:0;"><button onclick="shareDirectionInvite(${parseInt(dirId) || 0})" style="padding:6px 10px;border-radius:8px;background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.28);color:var(--blue);font-size:14px;cursor:pointer;" title="Запросити учасників">📨</button><button data-dir-id="${parseInt(dirId) || 0}" data-dir-title="${escapeAttr(String(dir.title || ''))}" onclick="openEditDirectionFromButton(this)" style="padding:6px 10px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text-secondary);font-size:14px;cursor:pointer;" title="Редагувати">✏️</button></div>` : ''}
                 </div>
                 ${detailRows ? `<div style="margin:10px 0 12px;padding:10px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid var(--border);">${detailRows}</div>` : ''}
                 <div style="display:flex;gap:8px;margin:12px 0 8px;">
@@ -4459,6 +4549,7 @@
             openSheet(`<div class="sheet-title">Мої напрямки-ідеї</div><div style="text-align:center;padding:24px;"><div class="pulse-dot" style="margin:0 auto 12px;"></div><div style="font-size:13px;color:var(--text-muted);">Завантаження...</div></div>`);
             const data = await api(`/api/v3/board/my?user_id=${S.userId}&lang=${S.lang}`);
             const dirs = data?.directions || data?.my_directions || [];
+            S.myDirections = Array.isArray(dirs) ? dirs : [];
             if (!dirs.length) {
                 document.getElementById('sheet-body').innerHTML = `
                     <div class="sheet-title">Мої напрямки-ідеї</div>
@@ -4476,7 +4567,10 @@
                                 <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(d.title || d.name || 'Напрямок')}</div>
                                 <div style="font-size:11px;color:var(--text-muted);">${(d.drivers || 0) + (d.passengers || 0)} учасників</div>
                             </div>
-                            <button data-dir-id="${parseInt(d.id) || 0}" data-dir-title="${escapeAttr(String(d.title || d.name || ''))}" onclick="openEditDirectionFromButton(this)" style="padding:6px 10px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text-secondary);font-size:14px;cursor:pointer;flex-shrink:0;">✏️</button>
+                            <div style="display:flex;gap:6px;flex-shrink:0;">
+                                <button onclick="shareDirectionInvite(${parseInt(d.id) || 0})" style="padding:6px 10px;border-radius:8px;background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.28);color:var(--blue);font-size:14px;cursor:pointer;">📨</button>
+                                <button data-dir-id="${parseInt(d.id) || 0}" data-dir-title="${escapeAttr(String(d.title || d.name || ''))}" onclick="openEditDirectionFromButton(this)" style="padding:6px 10px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text-secondary);font-size:14px;cursor:pointer;">✏️</button>
+                            </div>
                         </div>`).join('')}
                 </div>
                 <button class="btn btn-secondary" style="margin-top:12px;" onclick="closeSheet();switchScreen('board');">Відкрити каталог</button>`;
