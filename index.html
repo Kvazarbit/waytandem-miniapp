@@ -3128,6 +3128,10 @@
             return dt.toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
         }
 
+        function dateTimeLocalValue(value) {
+            return String(value || '').trim().slice(0, 16);
+        }
+
         function buildDirectionInviteText(dir) {
             const title = String(dir?.title || dir?.name || 'Ідея WayTandem').trim();
             const meeting = String(dir?.meeting_point || '').trim();
@@ -4521,15 +4525,46 @@
         }
 
         // ═══════ DIRECTION EDIT / DELETE ═══════
-        function openEditDirectionFromButton(btn) {
-            const dirId = parseInt(btn?.dataset?.dirId || '0');
-            if (dirId) openEditDirection(dirId, btn?.dataset?.dirTitle || '');
+        function findLocalDirection(dirId) {
+            const key = String(dirId);
+            return (S.myDirections || []).find(d => String(d.id) === key)
+                || allDirections.find(d => String(d.id) === key)
+                || (S.subscriptions || []).find(s => String(s.direction_id || s.id) === key)
+                || {};
         }
 
-        function openEditDirection(dirId, currentTitle) {
+        function openEditDirectionFromButton(btn) {
+            const dirId = parseInt(btn?.dataset?.dirId || '0');
+            if (dirId) openEditDirection(dirId);
+        }
+
+        function openEditDirection(dirId) {
+            const current = findLocalDirection(dirId);
+            const currentTitle = current.title || current.name || current.direction_title || '';
+            const meetingPoint = current.meeting_point || '';
+            const description = current.description || '';
+            const startDate = dateTimeLocalValue(current.start_date || '');
+            const endDate = dateTimeLocalValue(current.end_date || '');
+            S._editDirLat = Number.isFinite(Number(current.lat)) ? Number(current.lat) : null;
+            S._editDirLng = Number.isFinite(Number(current.lng)) ? Number(current.lng) : null;
+            S._editDirGpsTouched = false;
+            S._editDirOriginalMeetingPoint = meetingPoint;
+            const locLabel = S._editDirLat != null && S._editDirLng != null
+                ? `📍 ${S._editDirLat.toFixed(4)}, ${S._editDirLng.toFixed(4)}`
+                : 'Не вказано';
             openSheet(`
                 <div class="sheet-title">Редагувати напрямок</div>
-                <input class="board-search" id="edit-dir-title" value="${escapeAttr(currentTitle)}" placeholder="Назва напрямку" style="margin:12px 0 16px;">
+                <input class="board-search" id="edit-dir-title" value="${escapeAttr(currentTitle)}" placeholder="Назва ідеї..." maxlength="80" style="margin:12px 0 8px;">
+                <input class="board-search" id="edit-dir-place" value="${escapeAttr(meetingPoint)}" placeholder="Публічна локація: місто, район або місце збору..." maxlength="255" style="margin-bottom:8px;">
+                <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
+                    <button class="btn btn-secondary" style="flex:1;font-size:13px;" onclick="pickGpsForEditDirection()">📍 Точка на карті</button>
+                    <span id="edit-dir-loc-label" style="flex:2;font-size:12px;color:var(--text-muted);">${escapeHtml(locLabel)}</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+                    <input class="board-search" id="edit-dir-start" type="datetime-local" value="${escapeAttr(startDate)}" title="Початок" style="margin:0;">
+                    <input class="board-search" id="edit-dir-end" type="datetime-local" value="${escapeAttr(endDate)}" title="Завершення" style="margin:0;">
+                </div>
+                <textarea class="board-search" id="edit-dir-desc" placeholder="Подробиці для учасників..." maxlength="1200" style="min-height:108px;resize:vertical;margin-bottom:12px;">${escapeHtml(description)}</textarea>
                 <div class="sheet-actions">
                     <button class="btn btn-primary" onclick="doEditDirection(${dirId})">💾 Зберегти</button>
                     <button class="btn btn-danger" onclick="confirmDeleteDirection(${dirId})">🗑 Видалити напрямок</button>
@@ -4539,20 +4574,69 @@
             setTimeout(() => { const el = document.getElementById('edit-dir-title'); if (el) { el.focus(); el.select(); } }, 300);
         }
 
+        async function pickGpsForEditDirection() {
+            if (!navigator.geolocation) { showToast('GPS недоступний', 'error'); return; }
+            const label = document.getElementById('edit-dir-loc-label');
+            if (label) label.textContent = '📍 Визначення...';
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    S._editDirLat = pos.coords.latitude;
+                    S._editDirLng = pos.coords.longitude;
+                    S._editDirGpsTouched = true;
+                    if (label) label.textContent = `📍 ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`;
+                    showToast('Локацію оновлено', 'success');
+                },
+                () => { if (label) label.textContent = 'Не вказано'; showToast('Не вдалося отримати GPS', 'error'); },
+                { enableHighAccuracy: true, timeout: 8000 }
+            );
+        }
+
         async function doEditDirection(dirId) {
             const title = document.getElementById('edit-dir-title')?.value?.trim();
+            const meetingPoint = document.getElementById('edit-dir-place')?.value?.trim() || '';
+            const startDate = document.getElementById('edit-dir-start')?.value || '';
+            const endDate = document.getElementById('edit-dir-end')?.value || '';
+            const description = document.getElementById('edit-dir-desc')?.value?.trim() || '';
             if (!title || title.length < 3) { showToast('Назва має бути від 3 символів', 'error'); return; }
+            if (startDate && endDate && endDate < startDate) { showToast('Дата завершення не може бути раніше початку', 'error'); return; }
+            const meetingChanged = meetingPoint !== (S._editDirOriginalMeetingPoint || '');
+            if (!meetingPoint && !S._editDirGpsTouched && meetingChanged) { showToast('Вкажіть публічну локацію або точку на карті', 'error'); return; }
             if (!beginOp('edit_direction')) return;
             try {
-                const res = await api('/api/v3/board', { method: 'PATCH', body: JSON.stringify({ user_id: S.userId, direction_id: dirId, title }) });
+                const payload = {
+                    user_id: S.userId,
+                    direction_id: dirId,
+                    title,
+                    meeting_point: meetingPoint,
+                    description,
+                    start_date: startDate,
+                    end_date: endDate
+                };
+                if (S._editDirGpsTouched && S._editDirLat != null && S._editDirLng != null) {
+                    payload.lat = S._editDirLat;
+                    payload.lng = S._editDirLng;
+                    if (!payload.meeting_point) payload.meeting_point = `${S._editDirLat.toFixed(5)}, ${S._editDirLng.toFixed(5)}`;
+                }
+                const res = await api('/api/v3/board', { method: 'PATCH', body: JSON.stringify(payload) });
                 if (res?.status === 'ok' || res?.id) {
-                    showToast('✓ Назву оновлено', 'success');
-                    // Update local list
-                    const d = allDirections.find(x => String(x.id) === String(dirId));
-                    if (d) d.title = title;
-                    const sub = S.subscriptions.find(s => String(s.direction_id) === String(dirId));
-                    if (sub) { sub.direction_title = title; sub.title = title; }
-                    closeSheet(); renderBoardList(allDirections, S.boardSubSet); renderSubBar();
+                    showToast('✓ Ідею оновлено', 'success');
+                    const updated = res?.direction || payload;
+                    const patch = {
+                        title: updated.title || title,
+                        direction_title: updated.title || title,
+                        meeting_point: updated.meeting_point ?? payload.meeting_point,
+                        description: updated.description ?? payload.description,
+                        start_date: updated.start_date ?? payload.start_date,
+                        end_date: updated.end_date ?? payload.end_date,
+                        lat: Object.prototype.hasOwnProperty.call(updated, 'lat') ? updated.lat : payload.lat,
+                        lng: Object.prototype.hasOwnProperty.call(updated, 'lng') ? updated.lng : payload.lng
+                    };
+                    [allDirections, S.myDirections, S.subscriptions].forEach(list => {
+                        (list || []).forEach(d => {
+                            if (String(d.id || d.direction_id) === String(dirId)) Object.assign(d, patch);
+                        });
+                    });
+                    closeSheet(); renderBoardList(allDirections, S.boardSubSet); renderSubBar(); renderNews(); refreshMap();
                 } else { showToast(res?.message || 'Помилка редагування', 'error'); }
             } catch (e) { showToast('Помилка мережі', 'error'); }
             finally { endOp('edit_direction'); }
