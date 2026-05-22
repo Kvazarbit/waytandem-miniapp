@@ -2028,6 +2028,9 @@
             userId: 0, userName: '', userPhoto: '', userRole: '', car: '', seats: 4, lang: 'uk',
             apiBase: localStorage.getItem('wt_api') || '',
             botUsername: localStorage.getItem('wt_bot_username') || '',
+            miniAppShortName: localStorage.getItem('wt_mini_app_short_name') || '',
+            pendingStartDirectionId: null,
+            startDirectionHandled: false,
             activeTrip: null, pendingMatches: [], directions: [], news: [], mapCrews: [],
             map: null, mapMarkers: [], currentScreen: 'explore',
             chatRequestId: null, chatPartnerId: null, busy: false,
@@ -2125,6 +2128,7 @@
             initMap();
             await syncUserIdentityToServer();
             await hydrate();
+            setTimeout(() => openStartDirectionIfNeeded(), 250);
             startPolling();
             initKeyboardHandler(); // Mobile keyboard handling
             initWelcome(); // Welcome page for new users
@@ -2241,6 +2245,17 @@
             return /^[A-Za-z0-9_]{5,32}$/.test(username) ? username : '';
         }
 
+        function sanitizeMiniAppShortName(raw) {
+            const shortName = String(raw || '').trim().replace(/^\/+/, '');
+            return /^[A-Za-z0-9_]{3,64}$/.test(shortName) ? shortName : '';
+        }
+
+        function parseStartDirectionId(raw) {
+            const value = String(raw || '').trim();
+            const m = /^dir_(\d+)$/.exec(value);
+            return m ? parseInt(m[1]) : null;
+        }
+
         function sanitizeAvatarUrl(raw) {
             const value = String(raw || '').trim();
             if (!value) return '';
@@ -2331,6 +2346,15 @@
             const storedBot = sanitizeBotUsername(S.botUsername || localStorage.getItem('wt_bot_username') || '');
             S.botUsername = urlBot || globalBot || storedBot;
             if (S.botUsername) localStorage.setItem('wt_bot_username', S.botUsername);
+            const urlMiniApp = sanitizeMiniAppShortName(qp.get('miniapp') || qp.get('mini_app') || qp.get('mini_app_short_name') || '');
+            const globalMiniApp = sanitizeMiniAppShortName(window.WAYTANDEM_MINI_APP_SHORT_NAME || '');
+            const storedMiniApp = sanitizeMiniAppShortName(S.miniAppShortName || localStorage.getItem('wt_mini_app_short_name') || '');
+            S.miniAppShortName = urlMiniApp || globalMiniApp || storedMiniApp;
+            if (S.miniAppShortName) localStorage.setItem('wt_mini_app_short_name', S.miniAppShortName);
+            let initStartParam = '';
+            try { initStartParam = new URLSearchParams(tg?.initData || '').get('start_param') || ''; } catch (_) { }
+            const startParam = tg?.initDataUnsafe?.start_param || initStartParam || qp.get('tgWebAppStartParam') || qp.get('startapp') || qp.get('start_param') || '';
+            S.pendingStartDirectionId = parseStartDirectionId(startParam);
             const initDataUser = _parseInitDataUser(tg?.initData || '');
             const tgUser = tg?.initDataUnsafe?.user || initDataUser;
             if (tgUser?.id) {
@@ -2419,12 +2443,17 @@
         }
 
         async function hydrateAppConfig() {
-            if (!S.apiBase || S.botUsername) return;
+            if (!S.apiBase || (S.botUsername && S.miniAppShortName)) return;
             const cfg = await api('/api/v3/app/config', { silent: true });
             const username = sanitizeBotUsername(cfg?.bot_username || '');
             if (username) {
                 S.botUsername = username;
                 localStorage.setItem('wt_bot_username', username);
+            }
+            const miniAppShortName = sanitizeMiniAppShortName(cfg?.mini_app_short_name || '');
+            if (miniAppShortName) {
+                S.miniAppShortName = miniAppShortName;
+                localStorage.setItem('wt_mini_app_short_name', miniAppShortName);
             }
         }
 
@@ -3147,6 +3176,15 @@
             await shareDirectionInvite(dirId);
         }
 
+        function buildDirectionInviteLink(botUsername, dirId) {
+            const safeDirId = parseInt(dirId) || 0;
+            const miniAppShortName = sanitizeMiniAppShortName(S.miniAppShortName || '');
+            if (miniAppShortName) {
+                return `https://t.me/${botUsername}/${miniAppShortName}?startapp=dir_${safeDirId}`;
+            }
+            return `https://t.me/${botUsername}?start=dir_${safeDirId}`;
+        }
+
         async function shareDirectionInvite(dirId) {
             const safeDirId = parseInt(dirId) || 0;
             if (!safeDirId) { showToast('Ідею не знайдено', 'error'); return; }
@@ -3159,11 +3197,20 @@
                 || allDirections.find(d => String(d.id) === String(safeDirId))
                 || {};
             const dir = { ...localDir, ...(data?.direction || {}) };
-            const inviteLink = `https://t.me/${botUsername}?start=dir_${safeDirId}`;
+            const inviteLink = buildDirectionInviteLink(botUsername, safeDirId);
             const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(buildDirectionInviteText(dir))}`;
             const tg = window.Telegram?.WebApp;
             if (tg?.openTelegramLink) tg.openTelegramLink(shareUrl);
             else window.open(shareUrl, '_blank', 'noopener');
+        }
+
+        async function openStartDirectionIfNeeded() {
+            const dirId = parseInt(S.pendingStartDirectionId) || 0;
+            if (!dirId || S.startDirectionHandled) return;
+            S.startDirectionHandled = true;
+            S.pendingStartDirectionId = null;
+            switchScreen('board');
+            await openDirection(dirId);
         }
 
         function updateNewsBadge() {
