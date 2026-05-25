@@ -2044,6 +2044,7 @@
             notifiedMatchIds: new Set(),
             tripStartNotifiedIds: new Set(),
             partnerFinishNotifiedIds: new Set(),
+            partnerFinishSheetShownIds: new Set(),
             myDirections: [],
             roleGateOpen: false,
             pendingRoleAction: null,
@@ -2603,7 +2604,7 @@
                     if (S.chatRequestId) loadChatMessages();
 
                     if (_pendingRefreshMap) refreshMap();
-                    else if (S.activeTrip?.is_started) renderCrewMembersOnMap();
+                    else if (shouldRenderCrewMembersOnMap(S.activeTrip)) renderCrewMembersOnMap();
                     persistCriticalState(); // Persist after each successful poll
                 } finally {
                     pollInFlight = false;
@@ -2895,7 +2896,7 @@
             });
             // Re-draw pickup marker if exists
             if (S.pickupCoords && S._pickupMarker) { S._pickupMarker.addTo(S.map); }
-            // Show live crew member markers during Phase 2
+            // Show live crew member markers during reservation pickup + Phase 2
             renderCrewMembersOnMap();
             renderNewsPointsOnMap(visibleCrews);
             renderMapOverlay([]);
@@ -3771,8 +3772,9 @@
                 const cancelBy = t.cancel_requested_by;
                 const cancelPending = cancelBy && !isStarted && String(cancelBy) !== String(S.userId);
                 const cancelRequested = cancelBy && !isStarted && String(cancelBy) === String(S.userId);
-                // Start/stop location tracking based on trip phase
-                if (isStarted) startLocationTracking(); else stopLocationTracking(true);
+                const liveLocationActive = shouldShareLiveLocation(t);
+                // Live location is telemetry for the active crew, not a lifecycle transition.
+                if (liveLocationActive) startLocationTracking(); else stopLocationTracking(true);
                 container.innerHTML = `
                     <div class="hero ${isStarted ? 'driving' : 'reservation'} animate-in">
                         <div class="hero-label" style="color:${isStarted ? 'var(--accent)' : 'var(--amber)'};">
@@ -3790,9 +3792,9 @@
                             <div class="lifecycle-arrow"></div>
                             <div class="lifecycle-step"><div class="lifecycle-dot"></div>Завершення</div>
                         </div>
-                        ${isStarted ? `<div style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);font-size:13px;color:var(--text-secondary);display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="switchScreen('explore')">
+                        ${liveLocationActive ? `<div style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);font-size:13px;color:var(--text-secondary);display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="switchScreen('explore')">
                             <span style="font-size:18px;">🗺️</span>
-                            <span>Відкрити карту з маркерами екіпажу</span>
+                            <span>${isStarted ? 'Відкрити карту з маркерами екіпажу' : 'Відкрити live-радар точки збору'}</span>
                             <span style="margin-left:auto;color:var(--accent);">→</span>
                         </div>` : ''}
                         ${cancelPending ? `<div style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);font-size:13px;color:var(--red);">⚠️ Партнер хоче скасувати поїздку</div>` : ''}
@@ -3988,6 +3990,34 @@
             return trip.viewer_role === 'driver' ? !!trip.client_finished : !!trip.driver_finished;
         }
 
+        function shouldPromptPartnerFinish(trip) {
+            return !!trip && !!currentRequestIdFromTrip(trip) && tripPartnerFinished(trip) && !tripViewerFinished(trip);
+        }
+
+        function maybeOpenPartnerFinishSheet(trip = S.activeTrip) {
+            const reqId = currentRequestIdFromTrip(trip);
+            if (!reqId || !shouldPromptPartnerFinish(trip)) return false;
+            if (S.partnerFinishSheetShownIds.has(reqId)) return false;
+            if (isAppInBackground || S.roleGateOpen || S.matchSheetOpen || isSheetOpen()) return false;
+
+            S.partnerFinishSheetShownIds.add(reqId);
+            const title = escapeHtml(trip.direction_title || 'поїздка');
+            const partner = trip.viewer_role === 'driver' ? 'Попутник' : 'Водій';
+            openSheet(`
+                <div class="sheet-title">🏁 ${partner} відмітив фініш</div>
+                <div class="sheet-sub">Поїздка «${title}» чекає вашого підтвердження. Натисніть завершення тільки якщо ви справді доїхали.</div>
+                <div class="sheet-actions">
+                    <button class="btn btn-success" id="partner-finish-confirm">✅ Підтвердити завершення</button>
+                    <button class="btn btn-secondary" id="partner-finish-open">Відкрити Поїздки</button>
+                    <button class="btn btn-ghost" id="partner-finish-later">Ще в дорозі</button>
+                </div>
+            `);
+            document.getElementById('partner-finish-confirm').onclick = () => { closeSheet(); finishTrip(); };
+            document.getElementById('partner-finish-open').onclick = () => { closeSheet(); switchScreen('trips'); };
+            document.getElementById('partner-finish-later').onclick = () => { closeSheet(); showToast('Фініш лишився у Поїздках', ''); };
+            return true;
+        }
+
         function notifyLifecycleTransitions(prevTrip, nextTrip) {
             if (!nextTrip) return;
             const reqId = currentRequestIdFromTrip(nextTrip);
@@ -4001,6 +4031,7 @@
                 S.partnerFinishNotifiedIds.add(reqId);
                 showToast('🏁 Партнер відмітив фініш. Підтвердіть у Поїздках', '');
             }
+            maybeOpenPartnerFinishSheet(nextTrip);
         }
 
         function buildCrewTree(trip) {
@@ -4419,7 +4450,7 @@
                 sheet.style.transform = '';
                 sheet.style.transition = '';
             }
-            setTimeout(() => maybeOpenMatchSheet(), 0);
+            setTimeout(() => { maybeOpenPartnerFinishSheet(S.activeTrip); maybeOpenMatchSheet(); }, 0);
         }
 
         // Backdrop click closes sheet (click only, not drag)
@@ -4906,22 +4937,35 @@
             if (ok) await pickPickupLocation(dirId);
         }
 
-        // ═══════ LIVE LOCATION TRACKING (Phase 2 — In Route) ═══════
+        // ═══════ LIVE LOCATION TRACKING (Reservation pickup + Phase 2) ═══════
         let _locationTrackInterval = null;
         let _locationConsentPromptOpen = false;
         let _locationConsentDeclinedForReqId = null;
+
+        function shouldShareLiveLocation(trip = S.activeTrip) {
+            const reqId = currentRequestIdFromTrip(trip);
+            if (!reqId) return false;
+            const status = String(trip?.status || '').toLowerCase();
+            return !['done', 'completed', 'cancelled', 'canceled'].includes(status);
+        }
+
+        function shouldRenderCrewMembersOnMap(trip = S.activeTrip) {
+            return shouldShareLiveLocation(trip) && Array.isArray(trip?.members);
+        }
 
         function startLocationTracking() {
             if (_locationTrackInterval) return;
             if (!navigator.geolocation) return;
             const reqId = currentRequestId();
+            if (!reqId) return;
             const consentKey = _stateKey('live_location_consent');
             if (localStorage.getItem(consentKey) !== '1') {
-                if (_locationConsentPromptOpen || _locationConsentDeclinedForReqId === reqId) return;
+                if (isAppInBackground || isSheetOpen() || _locationConsentPromptOpen || _locationConsentDeclinedForReqId === reqId) return;
                 _locationConsentPromptOpen = true;
+                const phase = S.activeTrip?.is_started ? 'на маршруті' : 'біля точки збору';
                 openSheet(`
                     <div class="sheet-title">📍 Показувати live-локацію екіпажу?</div>
-                    <div class="sheet-sub">Після старту поїздки WayTandem може надсилати вашу геопозицію учасникам екіпажу кожні 10 секунд. Це допомагає знайти одне одного на маршруті.</div>
+                    <div class="sheet-sub">WayTandem може надсилати вашу геопозицію учасникам екіпажу кожні 10 секунд у фазі зустрічі та поїздки. Це допомагає знайти одне одного ${phase}.</div>
                     <div class="sheet-actions">
                         <button class="btn btn-primary" id="live-location-yes">Дозволити для цієї поїздки</button>
                         <button class="btn btn-ghost" id="live-location-no">Не зараз</button>
@@ -4978,9 +5022,9 @@
             (S._crewMemberMarkers || []).forEach(m => S.map.removeLayer(m));
             S._crewMemberMarkers = [];
             if (S._routePolyline) { S.map.removeLayer(S._routePolyline); S._routePolyline = null; }
-            // Show crew members if trip is active (Phase 2)
+            // Show crew members if trip is active (reservation pickup or Phase 2)
             const t = S.activeTrip;
-            if (!t || !t.is_started || !t.members) return;
+            if (!shouldRenderCrewMembersOnMap(t)) return;
             const coords = [];
             t.members.forEach(m => {
                 if (!m.lat || !m.lng) return;
@@ -4989,7 +5033,8 @@
                 const emoji = m.role === 'driver' ? '🚗' : '👤';
                 const color = isMe ? '#34d399' : '#38bdf8';
                 const name = isMe ? 'Ви' : escapeHtml(m.name || '?');
-            const statusLabel = m.role === 'driver' ? 'водій' : 'попутник';
+                const phaseLabel = t.is_started ? 'в дорозі' : 'зустріч';
+                const statusLabel = `${m.role === 'driver' ? 'водій' : 'попутник'} · ${phaseLabel}`;
                 const marker = L.marker([m.lat, m.lng], {
                     icon: L.divIcon({
                         className: '',
