@@ -2848,16 +2848,18 @@
         function initMap() {
             S.map = L.map('map', { zoomControl: false, attributionControl: false }).setView([S.homeCity.lat, S.homeCity.lng], 11);
             L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(S.map);
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    p => S.map.flyTo([p.coords.latitude, p.coords.longitude], 13, { duration: 1.2 }),
-                    () => { }
-                );
-            }
+            // No browser GPS prompt on startup: user location is explicit via the map button.
             const locBtn = document.createElement('div');
             locBtn.style.cssText = 'position:absolute;bottom:120px;right:16px;z-index:500;width:44px;height:44px;border-radius:50%;background:var(--bg-card);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:20px;backdrop-filter:blur(10px);';
             locBtn.textContent = '📍';
-            locBtn.onclick = () => { if (navigator.geolocation) navigator.geolocation.getCurrentPosition(p => S.map.flyTo([p.coords.latitude, p.coords.longitude], 14, { duration: 1 })); };
+            locBtn.onclick = () => {
+                if (!navigator.geolocation) { showToast('GPS недоступний', 'error'); return; }
+                navigator.geolocation.getCurrentPosition(
+                    p => S.map.flyTo([p.coords.latitude, p.coords.longitude], 14, { duration: 1 }),
+                    () => showToast('Не вдалося отримати GPS', 'error'),
+                    { enableHighAccuracy: true, timeout: 8000 }
+                );
+            };
             document.getElementById('map-container').appendChild(locBtn);
             const homeBtn = document.createElement('div');
             homeBtn.style.cssText = 'position:absolute;bottom:120px;right:70px;z-index:500;width:44px;height:44px;border-radius:50%;background:var(--bg-card);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px;backdrop-filter:blur(10px);';
