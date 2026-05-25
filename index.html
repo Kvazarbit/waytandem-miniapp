@@ -2041,6 +2041,9 @@
             matchSheetOpen: false,
             activeMatchKey: null,
             seenMatchIds: new Set(),
+            notifiedMatchIds: new Set(),
+            tripStartNotifiedIds: new Set(),
+            partnerFinishNotifiedIds: new Set(),
             myDirections: [],
             roleGateOpen: false,
             pendingRoleAction: null,
@@ -2084,6 +2087,10 @@
             try { localStorage.removeItem(_stateKey('wfp')); } catch (_) { }
             waitingForPartner = false;
             // Keep lastKnownTripForRating — renderTrips needs it to show rating sheet
+        }
+
+        function clearLiveLocationConsent() {
+            try { localStorage.removeItem(_stateKey('live_location_consent')); } catch (_) { }
         }
 
         // ═══ LOADING INDICATOR — visual feedback for busy state ═══
@@ -2189,9 +2196,9 @@
                 });
             }
             // Auto-show welcome for new users (if not seen before)
-            if (!localStorage.getItem('wt_welcome_seen') && S.apiBase && S.userId) {
+            if (!localStorage.getItem('wt_welcome_seen') && S.apiBase && S.userId && !S.pendingStartDirectionId && !S.startDirectionHandled) {
                 setTimeout(() => {
-                    showWelcomeSheet();
+                    if (!S.pendingStartDirectionId && !S.startDirectionHandled && !isSheetOpen()) showWelcomeSheet();
                 }, 1000);
             }
         }
@@ -2535,7 +2542,9 @@
             if (S.userId && S.userPhoto) {
                 localStorage.setItem('wt_photo_' + S.userId, S.userPhoto);
             }
+            const previousTrip = S.activeTrip ? { ...S.activeTrip } : null;
             S.activeTrip = resolveActiveTripPayload(data);
+            notifyLifecycleTransitions(previousTrip, S.activeTrip);
             if (S.activeTrip) lastKnownTripForRating = { ...S.activeTrip };
             S.pendingMatches = resolvePendingMatchesPayload(data);
             syncIdentityUI();
@@ -2560,11 +2569,13 @@
                     if (!data) return;
 
                     const oldPendingRaw = JSON.stringify(S.pendingMatches);
+                    const previousTrip = S.activeTrip ? { ...S.activeTrip } : null;
                     const oldTripId = S.activeTrip ? S.activeTrip.id : null;
                     const oldStatus = S.activeTrip ? S.activeTrip.status : null;
                     const wasStarted = S.activeTrip ? S.activeTrip.is_started : 0;
 
                     S.activeTrip = resolveActiveTripPayload(data);
+                    notifyLifecycleTransitions(previousTrip, S.activeTrip);
                     if (S.activeTrip) lastKnownTripForRating = { ...S.activeTrip };
                     // If waiting for partner and trip is gone — partner finished, show rating
                     if (waitingForPartner && !S.activeTrip && lastKnownTripForRating) {
@@ -2673,14 +2684,15 @@
             if (S.apiBase) {
                 const resp = await apiWithStatus('/api/v3/user/role', {
                     method: 'POST',
+                    silent: true,
                     body: JSON.stringify({ user_id: S.userId, role: normalizedRole })
                 });
                 if (!resp.ok) {
                     const detail = resp?.data?.detail;
-                    const reason = (detail && typeof detail === 'object') ? detail.reason : '';
+                    const reason = (detail && typeof detail === 'object') ? detail.reason : String(detail || '');
                     if (reason === 'role_change_blocked_by_opposite_interest') {
                         showToast('Спочатку відпишіться: є зацікавлені з протилежної ролі', 'error');
-                    } else if (reason === 'role_change_blocked_active_trip') {
+                    } else if (reason === 'role_change_blocked_active_trip' || reason === 'cannot_change_role_active_trip') {
                         showToast('Неможливо змінити роль під час активної поїздки', 'error');
                     } else {
                         showToast('Не вдалося змінити роль', 'error');
@@ -2710,7 +2722,13 @@
             if (S.activeTrip) {
                 const t = S.activeTrip;
                 const isDriver = t.viewer_role === 'driver';
-                parts.push(`<div class="sub-bar-crew" onclick="switchScreen('trips')">${isDriver ? '🚗' : '👤'} ${escapeHtml(t.direction_title || 'Поїздка')} #${t.crew_id || '—'}</div>`);
+                const partnerDone = tripPartnerFinished(t);
+                const myDone = tripViewerFinished(t);
+                if (partnerDone && !myDone) {
+                    parts.push(`<div class="sub-bar-pending" onclick="switchScreen('trips')">🏁 Партнер чекає фініш</div>`);
+                }
+                const phase = t.is_started ? '🚀 В дорозі' : '⏳ Резервація';
+                parts.push(`<div class="sub-bar-crew" onclick="switchScreen('trips')">${isDriver ? '🚗' : '👤'} ${phase} · ${escapeHtml(t.direction_title || 'Поїздка')} #${t.crew_id || '—'}</div>`);
             }
             if (waitingForPartner) {
                 parts.push(`<div class="sub-bar-pending" onclick="switchScreen('trips')">⏳ Очікування партнера</div>`);
@@ -2793,7 +2811,7 @@
             if (name === 'explore') refreshMap();
             if (name === 'board') renderBoard();
             if (name === 'news') renderNewsScreen();
-            if (name === 'trips') renderTrips();
+            if (name === 'trips') { renderTrips(); setTimeout(() => maybeOpenMatchSheet(), 0); }
             updateBottomNavForBoardDepth();
         }
 
@@ -2893,7 +2911,7 @@
 
         function renderNewsPointsOnMap(crews) {
             if (!S.map) return;
-            const items = Array.isArray(S.news) ? S.news : [];
+            const items = Array.isArray(S.news) ? S.news.filter(isDiscoveryNewsItem) : [];
             if (!items.length) return;
             const byDirection = new Map();
             (crews || []).forEach(c => {
@@ -2976,7 +2994,8 @@
 
         function getErrorMessage(res, fallback = 'Помилка') {
             if (!res) return 'Немає відповіді від серверу — перевірте з\'єднання';
-            const reason = res.reason || res.detail || '';
+            const detail = res.detail;
+            const reason = res.reason || (detail && typeof detail === 'object' ? detail.reason : detail) || '';
             return ERROR_MESSAGES[reason] || (reason ? `${fallback}: ${reason}` : fallback);
         }
 
@@ -3016,6 +3035,17 @@
             return Number.isFinite(id) ? id : 0;
         }
 
+        function removePendingMatchByPair(partnerId, dirId) {
+            const safePartnerId = parseInt(partnerId, 10) || 0;
+            const safeDirId = parseInt(dirId, 10) || 0;
+            if (!safePartnerId || !safeDirId) return;
+            S.pendingMatches = (S.pendingMatches || []).filter(m => {
+                const matchPartnerId = getMatchPartnerId(m);
+                const matchDirId = parseInt(m?.direction_id, 10) || 0;
+                return !(matchPartnerId === safePartnerId && matchDirId === safeDirId);
+            });
+        }
+
         function matchKey(m) {
             const ts = Number(m?.created_at || 0);
             const stamp = Number.isFinite(ts) ? Math.round(ts * 1000) : 0;
@@ -3028,11 +3058,23 @@
 
         function maybeOpenMatchSheet() {
             if (S.matchSheetOpen || S.activeTrip || S.roleGateOpen || isAppInBackground) return;
-            if (isSheetOpen()) return;
             const match = (S.pendingMatches || []).find(m => m?.scope === 'incoming' && !S.seenMatchIds.has(matchKey(m)));
             if (!match) return;
-            switchScreen('trips');
+            if (isSheetOpen() || S.currentScreen !== 'trips') {
+                notifyPendingMatch(match);
+                return;
+            }
             openMatchSheet(match);
+        }
+
+        function notifyPendingMatch(match) {
+            const key = matchKey(match);
+            if (!S.notifiedMatchIds.has(key)) {
+                S.notifiedMatchIds.add(key);
+                showToast('📩 Новий запит. Відкрийте Поїздки', '');
+            }
+            updateBadges();
+            renderSubBar();
         }
 
         function openMatchSheet(match) {
@@ -3067,12 +3109,18 @@
                 <div class="sheet-actions">
                     <button class="btn btn-primary" onclick="respondFromMatchSheet(${partnerId}, ${dirId}, true)">${acceptText}</button>
                     <button class="btn btn-danger" onclick="respondFromMatchSheet(${partnerId}, ${dirId}, false)">${declineText}</button>
+                    <button class="btn btn-secondary" onclick="stopSearchFromMatchSheet(${partnerId}, ${dirId})">⏹️ Зупинити пошук</button>
                 </div>
             `);
         }
 
         async function respondFromMatchSheet(partnerId, dirId, accept) {
             const ok = await respondHandshake(partnerId, dirId, accept);
+            if (ok) closeSheet();
+        }
+
+        async function stopSearchFromMatchSheet(partnerId, dirId) {
+            const ok = await stopSearchFromHandshake(partnerId, dirId);
             if (ok) closeSheet();
         }
 
@@ -3112,6 +3160,11 @@
             if (txt.includes('відпоч') || txt.includes('відпуст') || txt.includes('подорож') || txt.includes('релакс') || txt.includes('тур') || txt.includes('travel') || txt.includes('vacation')) return 'leisure';
             if (txt.includes('робот') || txt.includes('навчан') || txt.includes('work') || txt.includes('study') || txt.includes('career')) return 'work';
             return 'other';
+        }
+
+        function isDiscoveryNewsItem(n) {
+            if (!n || n?.is_active === false) return false;
+            return String(n?.kind || '').toLowerCase() !== 'trip_done';
         }
 
         function formatNewsTime(ts) {
@@ -3220,7 +3273,7 @@
         function updateNewsBadge() {
             const badge = document.getElementById('nav-news-badge');
             if (!badge) return;
-            const count = Math.min(99, (S.news || []).length);
+            const count = Math.min(99, (S.news || []).filter(isDiscoveryNewsItem).length);
             if (count > 0) { badge.style.display = 'flex'; badge.textContent = count; }
             else { badge.style.display = 'none'; }
         }
@@ -3228,7 +3281,7 @@
         function renderNewsStrip() {
             const strip = document.getElementById('news-strip');
             if (!strip) return;
-            const items = Array.isArray(S.news) ? S.news : [];
+            const items = Array.isArray(S.news) ? S.news.filter(isDiscoveryNewsItem) : [];
             const buckets = { theocracy: 0, leisure: 0, work: 0 };
             items.forEach(n => {
                 if (n?.lat == null || n?.lng == null) return;
@@ -3303,7 +3356,7 @@
             const banners = document.getElementById('news-banners');
             const feed = document.getElementById('news-feed');
             if (!banners || !feed) return;
-            const allItems = Array.isArray(S.news) ? S.news : [];
+            const allItems = Array.isArray(S.news) ? S.news.filter(isDiscoveryNewsItem) : [];
             const buckets = { theocracy: 0, leisure: 0, work: 0 };
             allItems.forEach(n => { const k = classifyNewsItem(n); if (k in buckets) buckets[k]++; });
             const cards = [
@@ -3338,7 +3391,7 @@
         function renderNews() {
             if (!S.apiBase) { S.news = []; renderNewsStrip(); renderNewsScreen(); updateNewsBadge(); return; }
             api('/api/v3/home/feed?limit=60&lang=' + encodeURIComponent(S.lang || 'uk')).then(data => {
-                S.news = data?.news || [];
+                S.news = (data?.news || []).filter(isDiscoveryNewsItem);
                 renderNewsStrip(); renderNewsScreen(); updateNewsBadge();
                 if (S.currentScreen === 'explore') refreshMap();
             });
@@ -3692,6 +3745,7 @@
         // ─── TRIPS ───
         async function renderTrips() {
             const container = document.getElementById('trips-content');
+            if (!S.activeTrip) stopLocationTracking(true);
 
             // Rating gate: if partner already finished and we have a cached trip
             if (!S.activeTrip && !S.pendingMatches.length && lastKnownTripForRating && !waitingForPartner) {
@@ -3712,11 +3766,13 @@
                 const t = S.activeTrip;
                 const isDriver = t.viewer_role === 'driver';
                 const isStarted = !!t.is_started;
+                const partnerFinished = tripPartnerFinished(t);
+                const viewerFinished = tripViewerFinished(t);
                 const cancelBy = t.cancel_requested_by;
                 const cancelPending = cancelBy && !isStarted && String(cancelBy) !== String(S.userId);
                 const cancelRequested = cancelBy && !isStarted && String(cancelBy) === String(S.userId);
                 // Start/stop location tracking based on trip phase
-                if (isStarted) startLocationTracking(); else stopLocationTracking();
+                if (isStarted) startLocationTracking(); else stopLocationTracking(true);
                 container.innerHTML = `
                     <div class="hero ${isStarted ? 'driving' : 'reservation'} animate-in">
                         <div class="hero-label" style="color:${isStarted ? 'var(--accent)' : 'var(--amber)'};">
@@ -3741,6 +3797,8 @@
                         </div>` : ''}
                         ${cancelPending ? `<div style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);font-size:13px;color:var(--red);">⚠️ Партнер хоче скасувати поїздку</div>` : ''}
                         ${cancelRequested ? `<div style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(255,193,7,0.1);border:1px solid rgba(255,193,7,0.3);font-size:13px;color:var(--amber);">⏳ Очікуємо підтвердження партнера</div>` : ''}
+                        ${partnerFinished && !viewerFinished ? `<div style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);font-size:13px;color:var(--green);">🏁 Партнер вже відмітив фініш. Підтвердіть завершення, коли подорож справді завершена.</div>` : ''}
+                        ${viewerFinished && !partnerFinished ? `<div style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(255,193,7,0.1);border:1px solid rgba(255,193,7,0.3);font-size:13px;color:var(--amber);">⏳ Ви відмітили фініш. Очікуємо підтвердження партнера.</div>` : ''}
                         <div style="margin-top:16px;display:flex;flex-direction:column;gap:10px;">
                             ${!isStarted && isDriver && !cancelRequested ? `<button class="btn btn-primary" onclick="startTrip()">🚀 Поїхали!</button>` : ''}
                             ${isStarted ? `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="openChat(${t.request_id || t.id || 0}, ${isDriver ? (t.client_id || 0) : (t.driver_id || 0)})">💬 Чат</button><button class="btn btn-success" style="flex:1;" onclick="finishTrip()">✅ Завершити подорож</button></div>` : ''}
@@ -3770,8 +3828,8 @@
                                 <div class="tag ${isIncoming ? 'tag-amber' : 'tag-blue'}">${isIncoming ? '📩 Вхідний' : '📤 Очікування'}</div>
                             </div>
                             ${isIncoming
-                            ? `<div style="display:flex;gap:10px;"><button class="btn btn-primary" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, true)">✓ Прийняти</button><button class="btn btn-danger" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false)">✕ Відхилити</button></div>`
-                            : `<button class="btn btn-secondary" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false)">🛑 Скасувати</button>`}
+                            ? `<div style="display:flex;gap:10px;"><button class="btn btn-primary" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, true)">✓ Прийняти</button><button class="btn btn-danger" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false)">✕ Відхилити</button></div><button class="btn btn-secondary" style="width:100%;margin-top:10px;" onclick="stopSearchFromHandshake(${partnerId}, ${m.direction_id})">⏹️ Зупинити пошук</button>`
+                            : `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false)">🛑 Скасувати запит</button><button class="btn btn-danger" style="flex:1;" onclick="stopSearchFromHandshake(${partnerId}, ${m.direction_id})">⏹️ Зупинити пошук</button></div>`}
                         </div>`;
                 }).join('')}`;
                 return;
@@ -3781,9 +3839,9 @@
             const activeSubTitle = escapeHtml(S.subscriptions?.[0]?.title || S.subscriptions?.[0]?.direction_title || '');
             const queueTitle = isDriver ? 'Попутники чекають' : 'Шукаємо для тебе водія';
             const queueSub = isDriver
-                ? 'Відкрийте місця — і попутники побачать ваш екіпаж.'
-                : 'Система сповістить, коли знайде збіг. Можна також обрати водія вручну.';
-            const queuePulse = isDriver ? 'Очікуємо попутників' : 'Шукаємо партнера';
+                ? 'Відкрийте місця — попутники з цього напрямку побачать ваш екіпаж.'
+                : 'Підписка активна. Система запропонує допустиму пару без таймера; можна також обрати водія вручну.';
+            const queuePulse = isDriver ? 'Очікуємо явний запит' : 'Пошук активний без таймера';
             stopLocationTracking();
             container.innerHTML = `
                 ${isDriver ? `<div class="open-crew-btn animate-in" onclick="openMyCrew()">
@@ -3848,6 +3906,37 @@
             return false;
         }
 
+        async function stopSearchFromHandshake(partnerId, dirId) {
+            const safePartnerId = parseInt(partnerId, 10) || 0;
+            const safeDirId = parseInt(dirId, 10) || 0;
+            if (!safePartnerId || !safeDirId) {
+                showToast('Запит не знайдено', 'error');
+                return false;
+            }
+            if (!beginOp('stop_search')) return false;
+            try {
+                const res = await api('/api/v3/match/stop-search', {
+                    method: 'POST',
+                    silent: true,
+                    body: JSON.stringify({ user_id: S.userId, target_id: safePartnerId, direction_id: safeDirId })
+                });
+                if (res?.status === 'ok') {
+                    showToast('Пошук зупинено', 'success');
+                    clearCriticalState();
+                    removePendingMatchByPair(safePartnerId, safeDirId);
+                    renderSubBar();
+                    renderTrips();
+                    verifyHandshakePanelState();
+                    await hydrate();
+                    return true;
+                }
+                showToast(getErrorMessage(res, 'Не вдалось зупинити пошук'), 'error');
+            } catch (e) {
+                showToast('Немає з\'єднання — спробуйте ще раз', 'error');
+            } finally { endOp('stop_search'); }
+            return false;
+        }
+
         function verifyHandshakePanelState() {
             const panel = document.getElementById('handshake-panel');
             if (!panel) return;
@@ -3867,7 +3956,7 @@
             const partnerId = m.partner_id || m.sender_id;
             const dirTitle = m.direction || m.direction_title || 'Напрямок';
 
-            document.body.style.paddingBottom = '110px';
+            document.body.style.paddingBottom = '170px';
 
             panel.innerHTML = `
                 <div style="font-weight:800;font-size:14px;margin-bottom:4px;color:var(--accent);">🟢 Вхідний запит!</div>
@@ -3878,6 +3967,7 @@
                     <button class="btn btn-primary" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, true)">✓ Прийняти</button>
                     <button class="btn btn-danger" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false)">✕ Відхилити</button>
                 </div>
+                <button class="btn btn-secondary" style="width:100%;margin-top:10px;" onclick="stopSearchFromHandshake(${partnerId}, ${m.direction_id})">⏹️ Зупинити пошук</button>
             `;
             panel.classList.add('open');
         }
@@ -3886,6 +3976,31 @@
             const raw = trip?.id ?? trip?.request_id ?? null;
             const reqId = Number(raw);
             return Number.isFinite(reqId) && reqId > 0 ? reqId : null;
+        }
+
+        function tripViewerFinished(trip) {
+            if (!trip) return false;
+            return trip.viewer_role === 'driver' ? !!trip.driver_finished : !!trip.client_finished;
+        }
+
+        function tripPartnerFinished(trip) {
+            if (!trip) return false;
+            return trip.viewer_role === 'driver' ? !!trip.client_finished : !!trip.driver_finished;
+        }
+
+        function notifyLifecycleTransitions(prevTrip, nextTrip) {
+            if (!nextTrip) return;
+            const reqId = currentRequestIdFromTrip(nextTrip);
+            if (!reqId) return;
+            const sameTrip = prevTrip && currentRequestIdFromTrip(prevTrip) === reqId;
+            if (sameTrip && !prevTrip.is_started && nextTrip.is_started && nextTrip.viewer_role !== 'driver' && !S.tripStartNotifiedIds.has(reqId)) {
+                S.tripStartNotifiedIds.add(reqId);
+                showToast('🚀 Водій почав поїздку. Скасування закрито', 'success');
+            }
+            if (sameTrip && !tripPartnerFinished(prevTrip) && tripPartnerFinished(nextTrip) && !tripViewerFinished(nextTrip) && !S.partnerFinishNotifiedIds.has(reqId)) {
+                S.partnerFinishNotifiedIds.add(reqId);
+                showToast('🏁 Партнер відмітив фініш. Підтвердіть у Поїздках', '');
+            }
         }
 
         function buildCrewTree(trip) {
@@ -3948,8 +4063,27 @@
             return currentRequestIdFromTrip(S.activeTrip);
         }
 
+        function confirmStartTripIntent() {
+            if (!S.activeTrip) return;
+            const t = S.activeTrip;
+            const crewLabel = t.crew_id ? ` #${parseInt(t.crew_id, 10) || ''}` : '';
+            return new Promise(resolve => {
+                openSheet(`
+                    <div class="sheet-title">🚀 Почати поїздку${crewLabel}?</div>
+                    <div class="sheet-sub">Після старту екіпаж перейде у стан «В дорозі». Скасування буде заблоковано, далі доступне тільки завершення подорожі.</div>
+                    <div class="sheet-actions">
+                        <button class="btn btn-primary" id="confirm-start-trip-yes">Так, поїхали</button>
+                        <button class="btn btn-ghost" id="confirm-start-trip-no">Ще ні</button>
+                    </div>
+                `);
+                document.getElementById('confirm-start-trip-yes').onclick = () => { closeSheet(); resolve(true); };
+                document.getElementById('confirm-start-trip-no').onclick = () => { closeSheet(); resolve(false); };
+            });
+        }
+
         async function startTrip() {
             if (!S.activeTrip) return;
+            if (!await confirmStartTripIntent()) return;
             if (!beginOp('start_trip')) return;
             try {
                 const reqId = currentRequestId();
@@ -3973,6 +4107,7 @@
                     body: JSON.stringify({ request_id: reqId, user_id: S.userId, role: S.activeTrip.viewer_role || S.userRole })
                 });
                 if (res?.status === 'ok') {
+                    stopLocationTracking(true);
                     if (res?.completed) {
                         showToast('🎉 Подорож завершена! Дякуємо.', 'success');
                         waitingForPartner = false;
@@ -4021,6 +4156,7 @@
                         // Mutual consent: waiting for partner
                         showToast('⏳ Очікуємо підтвердження партнера', '');
                     } else {
+                        stopLocationTracking(true);
                         showToast('✅ Екіпаж розформовано', 'success');
                     }
                     await hydrate();
@@ -4037,6 +4173,7 @@
                 if (!reqId) { showToast('Немає активної поїздки', 'error'); return; }
                 const res = await api('/api/v3/trip/confirm-cancel', { method: 'POST', body: JSON.stringify({ request_id: reqId, user_id: S.userId }) });
                 if (res?.status === 'ok') {
+                    stopLocationTracking(true);
                     showToast('Поїздку скасовано', 'success');
                     await hydrate();
                 } else {
@@ -4771,19 +4908,53 @@
 
         // ═══════ LIVE LOCATION TRACKING (Phase 2 — In Route) ═══════
         let _locationTrackInterval = null;
+        let _locationConsentPromptOpen = false;
+        let _locationConsentDeclinedForReqId = null;
 
         function startLocationTracking() {
             if (_locationTrackInterval) return;
             if (!navigator.geolocation) return;
+            const reqId = currentRequestId();
+            const consentKey = _stateKey('live_location_consent');
+            if (localStorage.getItem(consentKey) !== '1') {
+                if (_locationConsentPromptOpen || _locationConsentDeclinedForReqId === reqId) return;
+                _locationConsentPromptOpen = true;
+                openSheet(`
+                    <div class="sheet-title">📍 Показувати live-локацію екіпажу?</div>
+                    <div class="sheet-sub">Після старту поїздки WayTandem може надсилати вашу геопозицію учасникам екіпажу кожні 10 секунд. Це допомагає знайти одне одного на маршруті.</div>
+                    <div class="sheet-actions">
+                        <button class="btn btn-primary" id="live-location-yes">Дозволити для цієї поїздки</button>
+                        <button class="btn btn-ghost" id="live-location-no">Не зараз</button>
+                    </div>
+                `);
+                document.getElementById('live-location-yes').onclick = () => {
+                    localStorage.setItem(consentKey, '1');
+                    _locationConsentPromptOpen = false;
+                    closeSheet();
+                    startLocationTracking();
+                };
+                document.getElementById('live-location-no').onclick = () => {
+                    _locationConsentDeclinedForReqId = reqId;
+                    _locationConsentPromptOpen = false;
+                    closeSheet();
+                    showToast('Live GPS вимкнено для цієї поїздки', '');
+                };
+                return;
+            }
             // Send immediately, then every 10 seconds
             _sendMyLocation();
             _locationTrackInterval = setInterval(_sendMyLocation, 10000);
         }
 
-        function stopLocationTracking() {
+        function stopLocationTracking(clearConsent = false) {
             if (_locationTrackInterval) {
                 clearInterval(_locationTrackInterval);
                 _locationTrackInterval = null;
+            }
+            _locationConsentPromptOpen = false;
+            if (clearConsent) {
+                clearLiveLocationConsent();
+                _locationConsentDeclinedForReqId = null;
             }
         }
 
