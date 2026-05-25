@@ -2053,6 +2053,8 @@
             _pickupMarker: null,
             _ratingScore: null,
             _ratingContext: null,
+            lastHydrateAt: 0,
+            lastMapSyncAt: 0,
         };
         let boardNavDefaults = null;
         let waitingForPartner = false;
@@ -2544,6 +2546,7 @@
                 localStorage.setItem('wt_photo_' + S.userId, S.userPhoto);
             }
             const previousTrip = S.activeTrip ? { ...S.activeTrip } : null;
+            S.lastHydrateAt = Date.now();
             S.activeTrip = resolveActiveTripPayload(data);
             notifyLifecycleTransitions(previousTrip, S.activeTrip);
             if (S.activeTrip) lastKnownTripForRating = { ...S.activeTrip };
@@ -2575,6 +2578,7 @@
                     const oldStatus = S.activeTrip ? S.activeTrip.status : null;
                     const wasStarted = S.activeTrip ? S.activeTrip.is_started : 0;
 
+                    S.lastHydrateAt = Date.now();
                     S.activeTrip = resolveActiveTripPayload(data);
                     notifyLifecycleTransitions(previousTrip, S.activeTrip);
                     if (S.activeTrip) lastKnownTripForRating = { ...S.activeTrip };
@@ -2867,6 +2871,7 @@
             const crews = await api('/api/v3/map/crews');
             if (!crews) return;
             S.mapCrews = crews || [];
+            S.lastMapSyncAt = Date.now();
             S.mapMarkers.forEach(m => S.map.removeLayer(m));
             S.mapMarkers = [];
             S.newsMarkers.forEach(m => S.map.removeLayer(m));
@@ -2901,6 +2906,7 @@
             renderNewsPointsOnMap(visibleCrews);
             renderMapOverlay([]);
             renderNewsStrip();
+            if (S.currentScreen === 'trips' && !S.activeTrip && !S.pendingMatches.length && (S.subscriptions || []).length) renderTrips();
         }
 
         function _newsMarkerPalette(kind) {
@@ -3552,6 +3558,74 @@
             </div>`;
         }
 
+        function activeSubscriptionForRadar() {
+            return (S.subscriptions || [])[0] || null;
+        }
+
+        function directionIdForRadar(sub) {
+            const raw = sub?.direction_id ?? sub?.id ?? 0;
+            const dirId = Number(raw);
+            return Number.isFinite(dirId) && dirId > 0 ? dirId : 0;
+        }
+
+        function openCrewCountForRadar(dirId) {
+            if (!dirId) return 0;
+            return (S.mapCrews || []).filter(c =>
+                String(c?.direction_id || '') === String(dirId) &&
+                String(c?.organizer_id || '') !== String(S.userId || '') &&
+                c?.lat != null &&
+                c?.lng != null &&
+                Number.isFinite(Number(c?.lat)) &&
+                Number.isFinite(Number(c?.lng))
+            ).length;
+        }
+
+        function formatRadarSyncAge(ts) {
+            if (!ts) return 'синхронізація очікується';
+            const sec = Math.max(0, Math.round((Date.now() - ts) / 1000));
+            if (sec < 10) return 'оновлено щойно';
+            if (sec < 60) return `оновлено ${sec} сек тому`;
+            return `оновлено ${Math.floor(sec / 60)} хв тому`;
+        }
+
+        function renderQueueRadarPanel(isDriver) {
+            const sub = activeSubscriptionForRadar();
+            if (!sub) return '';
+            const dirId = directionIdForRadar(sub);
+            const title = escapeHtml(sub.title || sub.direction_title || (dirId ? `#${dirId}` : 'Напрямок'));
+            const openCrews = openCrewCountForRadar(dirId);
+            const mapText = S.lastMapSyncAt ? `${openCrews} ${openCrews === 1 ? 'водій' : 'водіїв'} на карті` : 'карта синхронізується';
+            const primaryLine = isDriver
+                ? (S.myCrew ? 'Екіпаж відкрито. Попутники можуть постукати до вас.' : 'Відкрийте місця, щоб попутники побачили ваш екіпаж.')
+                : (openCrews > 0 ? 'Є відкриті екіпажі на цьому напрямку.' : 'Поки немає відкритих водіїв, але ваша підписка активна.');
+            const pollSec = Math.round(POLL_INTERVAL_MS / 1000);
+            const stopButton = dirId
+                ? `<button class="btn btn-ghost" style="margin-top:8px;width:100%;" onclick="unsubscribeDir(${dirId})">⏹️ Зупинити пошук</button>`
+                : '';
+            return `
+                <div style="margin:16px auto 0;max-width:360px;text-align:left;padding:14px;border:1px solid rgba(56,189,248,0.22);border-radius:12px;background:rgba(56,189,248,0.07);">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">
+                        <div style="font-size:12px;font-weight:800;color:var(--accent);letter-spacing:0;">📡 Радар активний</div>
+                        <div style="font-size:11px;color:var(--text-muted);">${escapeHtml(formatRadarSyncAge(S.lastHydrateAt || S.lastMapSyncAt))}</div>
+                    </div>
+                    <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:6px;">✅ Підписка активна · ${title}</div>
+                    <div style="font-size:12px;color:var(--text-secondary);line-height:1.45;">${escapeHtml(primaryLine)}</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;">
+                        <div style="padding:9px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);">
+                            <div style="font-size:11px;color:var(--text-muted);">Сервер</div>
+                            <div style="font-size:12px;font-weight:700;color:var(--text-primary);">бачить вас</div>
+                        </div>
+                        <div style="padding:9px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);">
+                            <div style="font-size:11px;color:var(--text-muted);">Карта</div>
+                            <div style="font-size:12px;font-weight:700;color:var(--text-primary);">${escapeHtml(mapText)}</div>
+                        </div>
+                    </div>
+                    <div style="margin-top:10px;font-size:11px;color:var(--text-muted);">Синхронізація активна · polling ${pollSec} сек · без таймера підбору</div>
+                    ${!isDriver ? `<button class="btn btn-secondary" style="margin-top:12px;width:100%;" onclick="switchScreen('explore')">🗺️ Переглянути водіїв на карті</button>` : ''}
+                    ${stopButton}
+                </div>`;
+        }
+
         function filterBoard(query) {
             clearTimeout(searchTimer);
             const q = sanitizeSearchInput(query).trim();
@@ -3860,6 +3934,7 @@
                            <div class="empty-title">${queueTitle}</div>
                            <div class="empty-sub">${queueSub}</div>
                            ${renderQueuePulse(queuePulse)}
+                           ${renderQueueRadarPanel(isDriver)}
                            <div style="margin-top:12px;font-size:12px;color:var(--text-muted);">${activeSubTitle}</div>
                            ${isDriver
                             ? `<button class="btn btn-primary" style="margin-top:16px;" onclick="openMyCrew()">🚗 Я везу — шукаю попутників</button>`
