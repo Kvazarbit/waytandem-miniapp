@@ -2094,6 +2094,8 @@
             tripStartNotifiedIds: new Set(),
             partnerFinishNotifiedIds: new Set(),
             partnerFinishSheetShownIds: new Set(),
+            completedRatingNotifiedIds: new Set(),
+            completedRatingSheetShownIds: new Set(),
             myDirections: [],
             roleGateOpen: false,
             pendingRoleAction: null,
@@ -2628,6 +2630,7 @@
             S.activeTrip = resolveActiveTripPayload(data);
             notifyLifecycleTransitions(previousTrip, S.activeTrip);
             if (S.activeTrip) lastKnownTripForRating = { ...S.activeTrip };
+            else maybeOpenCompletedTripRatingSheet('hydrate');
             S.pendingMatches = resolvePendingMatchesPayload(data);
             const subs = await api(`/api/v3/user/subscriptions?user_id=${S.userId}`);
             S.subscriptions = subs?.subscriptions || [];
@@ -2660,9 +2663,9 @@
                     S.activeTrip = resolveActiveTripPayload(data);
                     notifyLifecycleTransitions(previousTrip, S.activeTrip);
                     if (S.activeTrip) lastKnownTripForRating = { ...S.activeTrip };
-                    // If waiting for partner and trip is gone — partner finished, show rating
+                    // If waiting for partner and trip is gone — partner finished, show rating from any screen.
                     if (waitingForPartner && !S.activeTrip && lastKnownTripForRating) {
-                        waitingForPartner = false;
+                        maybeOpenCompletedTripRatingSheet('poll');
                     }
                     S.pendingMatches = resolvePendingMatchesPayload(data);
 
@@ -4050,11 +4053,7 @@
 
             // Rating gate: if partner already finished and we have a cached trip
             if (!S.activeTrip && !S.pendingMatches.length && lastKnownTripForRating && !waitingForPartner) {
-                const ratingContext = buildRatingContext(lastKnownTripForRating);
-                if (ratingContext) {
-                    openRatingSheet(ratingContext);
-                    lastKnownTripForRating = null;
-                    try { localStorage.removeItem(_stateKey('ltr')); } catch (_) { }
+                if (maybeOpenCompletedTripRatingSheet('trips') || !lastKnownTripForRating) {
                     container.innerHTML = '<div class="empty" style="padding-top:80px;"><div class="empty-icon">🏁</div><div class="empty-title">Подорож завершена</div><div class="empty-sub">Оцініть вашого партнера у вікні зверху</div></div>';
                     return;
                 }
@@ -4389,6 +4388,38 @@
 
         function getCurrentRatingContext() {
             return S._ratingContext || buildRatingContext(S.activeTrip);
+        }
+
+        function maybeOpenCompletedTripRatingSheet(source = '') {
+            if (S.activeTrip || !lastKnownTripForRating) return false;
+            const reqId = currentRequestIdFromTrip(lastKnownTripForRating);
+            const ratingContext = buildRatingContext(lastKnownTripForRating);
+            if (!reqId || !ratingContext) return false;
+
+            waitingForPartner = false;
+            try { localStorage.removeItem(_stateKey('wfp')); } catch (_) { }
+
+            if (isAppInBackground || S.roleGateOpen || S.matchSheetOpen || isSheetOpen()) {
+                if (!S.completedRatingNotifiedIds.has(reqId)) {
+                    S.completedRatingNotifiedIds.add(reqId);
+                    showToast('🏁 Подорож завершена. Оцініть партнера у Поїздках', '');
+                }
+                renderSubBar();
+                persistCriticalState();
+                return false;
+            }
+
+            if (S.completedRatingSheetShownIds.has(reqId)) return false;
+            S.completedRatingSheetShownIds.add(reqId);
+            showToast('🎉 Подорож завершена! Оцініть партнера.', 'success');
+            openRatingSheet(ratingContext);
+            lastKnownTripForRating = null;
+            try {
+                localStorage.removeItem(_stateKey('ltr'));
+                localStorage.removeItem(_stateKey('wfp'));
+            } catch (_) { }
+            renderSubBar();
+            return true;
         }
 
         function currentRequestId() {
@@ -4751,7 +4782,7 @@
                 sheet.style.transform = '';
                 sheet.style.transition = '';
             }
-            setTimeout(() => { maybeOpenPartnerFinishSheet(S.activeTrip); maybeOpenMatchSheet(); }, 0);
+            setTimeout(() => { maybeOpenPartnerFinishSheet(S.activeTrip); maybeOpenCompletedTripRatingSheet('sheet-close'); maybeOpenMatchSheet(); }, 0);
         }
 
         // Backdrop click closes sheet (click only, not drag)
