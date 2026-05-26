@@ -2025,7 +2025,7 @@
            ══════════════════════════════════════════════════════════════════ */
 
         const S = {
-            userId: 0, userName: '', userPhoto: '', userRole: '', car: '', seats: 4, lang: 'uk',
+            userId: 0, userName: '', userPhoto: '', userUsername: '', userRole: '', car: '', seats: 4, lang: 'uk',
             apiBase: localStorage.getItem('wt_api') || '',
             botUsername: localStorage.getItem('wt_bot_username') || '',
             miniAppShortName: localStorage.getItem('wt_mini_app_short_name') || '',
@@ -2260,6 +2260,26 @@
             return /^[A-Za-z0-9_]{3,64}$/.test(shortName) ? shortName : '';
         }
 
+        function telegramContactUrl(username, userId) {
+            const safeUsername = sanitizeBotUsername(username);
+            if (safeUsername) return `https://t.me/${safeUsername}`;
+            const safeUserId = parseInt(userId, 10) || 0;
+            return safeUserId > 0 ? `tg://user?id=${safeUserId}` : '';
+        }
+
+        function openTelegramContact(username, userId) {
+            const url = telegramContactUrl(username, userId);
+            if (!url) { showToast('Контакт організатора недоступний', 'error'); return; }
+            const tg = window.Telegram?.WebApp;
+            if (url.startsWith('https://t.me/') && tg?.openTelegramLink) tg.openTelegramLink(url);
+            else if (url.startsWith('https://')) window.open(url, '_blank', 'noopener');
+            else window.location.href = url;
+        }
+
+        function openTelegramContactFromButton(btn) {
+            openTelegramContact(btn?.dataset?.tgUsername || '', btn?.dataset?.tgUserId || '');
+        }
+
         function parseStartDirectionId(raw) {
             const value = String(raw || '').trim();
             const m = /^dir_(\d+)$/.exec(value);
@@ -2371,10 +2391,12 @@
                 S.userId = tgUser.id;
                 S.userName = _pickTelegramName(tgUser, qp.get('name') || '');
                 S.userPhoto = sanitizeAvatarUrl(tgUser.photo_url || '');
+                S.userUsername = sanitizeBotUsername(tgUser.username || '');
             } else {
                 S.userId = parseInt(qp.get('user_id') || '0');
                 S.userName = String(qp.get('name') || '').trim();
                 S.userPhoto = sanitizeAvatarUrl(qp.get('avatar') || '');
+                S.userUsername = sanitizeBotUsername(qp.get('username') || qp.get('telegram_username') || '');
             }
             if (tg) { tg.ready(); tg.expand(); }
             if (!String(S.userName || '').trim() && S.userId) {
@@ -2385,12 +2407,18 @@
                 const cachedPhoto = sanitizeAvatarUrl(localStorage.getItem('wt_photo_' + S.userId) || '');
                 if (cachedPhoto) S.userPhoto = cachedPhoto;
             }
+            if (!S.userUsername && S.userId) {
+                S.userUsername = sanitizeBotUsername(localStorage.getItem('wt_username_' + S.userId) || '');
+            }
             syncIdentityUI();
             if (S.userId && String(S.userName || '').trim()) {
                 localStorage.setItem('wt_name_' + S.userId, String(S.userName || '').trim());
             }
             if (S.userId && S.userPhoto) {
                 localStorage.setItem('wt_photo_' + S.userId, S.userPhoto);
+            }
+            if (S.userId && S.userUsername) {
+                localStorage.setItem('wt_username_' + S.userId, S.userUsername);
             }
             try {
                 const saved = JSON.parse(localStorage.getItem('wt_profile_' + S.userId) || '{}');
@@ -2472,9 +2500,10 @@
             try {
                 const p = await api(`/api/v3/user/profile?user_id=${S.userId}`);
                 const role = normalizeRole(p?.role || S.userRole || 'client');
+                if (!S.userUsername && p?.telegram_username) S.userUsername = sanitizeBotUsername(p.telegram_username);
                 await apiWithStatus('/api/v3/user/register', {
                     method: 'POST',
-                    body: JSON.stringify({ user_id: S.userId, name: S.userName, role })
+                    body: JSON.stringify({ user_id: S.userId, name: S.userName, role, telegram_username: S.userUsername || '' })
                 });
             } catch (_) { }
         }
@@ -2551,12 +2580,12 @@
             notifyLifecycleTransitions(previousTrip, S.activeTrip);
             if (S.activeTrip) lastKnownTripForRating = { ...S.activeTrip };
             S.pendingMatches = resolvePendingMatchesPayload(data);
-            syncIdentityUI();
-            updateRolePill(); updateBadges(); renderBoard(); renderTrips(); renderSubBar(); refreshMap();
-            if (S.currentScreen === 'news' || S.currentScreen === 'explore') renderNews();
             const subs = await api(`/api/v3/user/subscriptions?user_id=${S.userId}`);
             S.subscriptions = subs?.subscriptions || [];
             S.boardSubSet = new Set(S.subscriptions.map(s => String(s.direction_id)));
+            syncIdentityUI();
+            updateRolePill(); updateBadges(); renderBoard(); renderTrips(); renderSubBar(); refreshMap();
+            if (S.currentScreen === 'news' || S.currentScreen === 'explore') renderNews();
             // Check handshake panel logic after hydration
             verifyHandshakePanelState();
             maybeOpenMatchSheet();
@@ -3202,11 +3231,19 @@
             const desc = String(dir?.description || '').trim();
             const drivers = Number(dir?.drivers || dir?.drivers_count || 0);
             const passengers = Number(dir?.passengers || dir?.passengers_count || 0);
+            const isOwnDirection = String(dir?.creator_id || dir?.user_id || '') === String(S.userId || '');
+            const creatorName = String(dir?.creator_name || dir?.organizer_name || (isOwnDirection ? S.userName : '') || '').trim();
+            const creatorUsername = sanitizeBotUsername(dir?.creator_username || dir?.telegram_username || (isOwnDirection ? S.userUsername : '') || '');
+            const organizerLabel = creatorName || (creatorUsername ? 'Організатор' : '');
+            const organizerLine = organizerLabel
+                ? `👤 Організатор: ${organizerLabel}${creatorUsername ? ` (@${creatorUsername})` : ''}`
+                : '';
             const whenText = startAt && endAt ? `${formatIdeaDate(startAt)} — ${formatIdeaDate(endAt)}` : (formatIdeaDate(startAt) || formatIdeaDate(endAt));
             const lines = [
                 '🌿 Запрошення до ідеї WayTandem',
                 '',
                 `📍 ${title}`,
+                organizerLine,
                 meeting ? `📌 Місце: ${meeting}` : '',
                 whenText ? `🗓 Коли: ${whenText}` : '',
                 `👥 Водії: ${drivers} · Попутники: ${passengers}`,
@@ -3244,10 +3281,8 @@
 
         function buildDirectionInviteLink(botUsername, dirId) {
             const safeDirId = parseInt(dirId) || 0;
-            const miniAppShortName = sanitizeMiniAppShortName(S.miniAppShortName || '');
-            if (miniAppShortName) {
-                return `https://t.me/${botUsername}/${miniAppShortName}?startapp=dir_${safeDirId}`;
-            }
+            // Share invites must not expose the raw Mini App hosting URL. Bot /start
+            // is the stable entry point because it can show a controlled card and role gate.
             return `https://t.me/${botUsername}?start=dir_${safeDirId}`;
         }
 
@@ -3510,7 +3545,9 @@
                 S.userId ? api(`/api/v3/user/subscriptions?user_id=${S.userId}`) : Promise.resolve(null),
             ]);
             allDirections = Array.isArray(data) ? data : (data?.directions || []);
-            const subSet = new Set(((subs?.subscriptions) || []).map(s => String(s.direction_id)));
+            const freshSubscriptions = subs?.subscriptions || [];
+            S.subscriptions = freshSubscriptions;
+            const subSet = new Set(freshSubscriptions.map(s => String(s.direction_id)));
             S.boardSubSet = subSet;
             renderBoardList(allDirections, S.boardSubSet);
         }
@@ -3683,8 +3720,22 @@
             if (isFolderNode(dir)) { await boardOpenFolder(dirId); return; }
             const orgs = data?.organizers || [];
             const isSub = data?.user_status?.subscribed;
-            const creatorId = data?.direction?.creator_id || data?.direction?.user_id;
+            const creatorId = data?.direction?.creator_id || data?.direction?.user_id || dir?.creator_id || dir?.user_id;
             const isMyDir = creatorId && String(creatorId) === String(S.userId);
+            const creatorName = data?.direction?.creator_name || dir?.creator_name || (isMyDir ? S.userName : '');
+            const creatorUsername = sanitizeBotUsername(data?.direction?.creator_username || dir?.creator_username || (isMyDir ? S.userUsername : ''));
+            const creatorDisplay = creatorName || (creatorId ? `#${creatorId}` : '');
+            const creatorContactBlock = creatorId ? `
+                <div style="margin:10px 0 12px;padding:10px;border-radius:8px;background:rgba(56,189,248,0.07);border:1px solid rgba(56,189,248,0.18);">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+                        <div style="font-size:12px;color:var(--text-secondary);line-height:1.45;">
+                            <span style="color:var(--text-muted);">Організатор:</span>
+                            <strong style="color:var(--text-primary);">${escapeHtml(creatorDisplay || 'Організатор')}</strong>
+                            ${creatorUsername ? `<span style="color:var(--blue);">@${escapeHtml(creatorUsername)}</span>` : ''}
+                        </div>
+                        ${!isMyDir ? `<button class="btn btn-secondary" style="padding:7px 10px;font-size:12px;min-height:34px;" data-tg-username="${escapeAttr(creatorUsername)}" data-tg-user-id="${parseInt(creatorId, 10) || 0}" onclick="openTelegramContactFromButton(this)">💬 Написати організатору</button>` : `<span class="tag tag-green">Ваша ідея</span>`}
+                    </div>
+                </div>` : '';
             const availOrgs = orgs.filter(o => String(o.user_id) !== String(S.userId) && (o.seats_free > 0 || o.role !== 'driver'));
             const hasPickup = !!S.pickupCoords;
             const directionStats = buildDirectionCardStats(dir);
@@ -3709,6 +3760,7 @@
                     </div>
                     ${isMyDir ? `<div style="display:flex;gap:6px;flex-shrink:0;"><button onclick="shareDirectionInvite(${parseInt(dirId) || 0})" style="padding:6px 10px;border-radius:8px;background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.28);color:var(--blue);font-size:14px;cursor:pointer;" title="Запросити учасників">📨</button><button data-dir-id="${parseInt(dirId) || 0}" data-dir-title="${escapeAttr(String(dir.title || ''))}" onclick="openEditDirectionFromButton(this)" style="padding:6px 10px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text-secondary);font-size:14px;cursor:pointer;" title="Редагувати">✏️</button></div>` : ''}
                 </div>
+                ${creatorContactBlock}
                 ${detailRows ? `<div style="margin:10px 0 12px;padding:10px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid var(--border);">${detailRows}</div>` : ''}
                 <div style="display:flex;gap:8px;margin:12px 0 8px;">
                     ${isSub
@@ -4760,7 +4812,7 @@
                 if (res?.id || res?.status === 'ok' || res?.direction_id) {
                     showToast('✓ Напрямок створено. Ви в черзі.', 'success');
                     closeSheet(); S._createDirLat = null; S._createDirLng = null;
-                    await renderBoard();
+                    await hydrate();
                     renderNews();
                 } else if (res?.status === 'limit') {
                     showToast('У вас вже є активна ідея в каталозі. Видаліть її щоб запропонувати нову.', 'error');
