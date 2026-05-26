@@ -902,6 +902,55 @@
             display: none;
         }
 
+        .map-context-banner {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            right: 12px;
+            z-index: 520;
+            padding: 12px;
+            border-radius: 12px;
+            background: rgba(8, 16, 24, 0.88);
+            border: 1px solid rgba(56,189,248,0.28);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.28);
+            backdrop-filter: blur(14px);
+        }
+
+        .map-context-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .map-context-title {
+            font-size: 12px;
+            font-weight: 900;
+            color: var(--text-primary);
+            line-height: 1.25;
+        }
+
+        .map-context-sub {
+            margin-top: 4px;
+            font-size: 11px;
+            line-height: 1.35;
+            color: var(--text-secondary);
+        }
+
+        .map-context-actions {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .map-context-actions .btn {
+            padding: 7px 9px;
+            min-height: 0;
+            border-radius: 9px;
+            font-size: 11px;
+            white-space: nowrap;
+        }
+
         .map-overlay-cards>* {
             pointer-events: auto;
         }
@@ -2907,11 +2956,12 @@
             S.mapMarkers = [];
             S.newsMarkers.forEach(m => S.map.removeLayer(m));
             S.newsMarkers = [];
-            const visibleCrews = (crews || []).filter(c => S.mapNewsFilter === 'all' || classifyNewsItem(c) === S.mapNewsFilter);
+            const visibleCrews = visibleMapCrewsForContext(crews || []);
             visibleCrews.forEach(c => {
                 if (!c.lat || !c.lng) return;
                 // Highlight crews going to the same direction as active trip
-                const isSameDirection = S.activeTrip && c.direction_id && String(c.direction_id) === String(S.activeTrip.direction_id);
+                const focusedDirId = mapFocusedDirectionId();
+                const isSameDirection = focusedDirId && c.direction_id && String(c.direction_id) === String(focusedDirId);
                 const bgColor = isSameDirection ? '#fbbf24' : 'var(--accent)';
                 const glow = isSameDirection ? '0 2px 12px rgba(251,191,36,0.5)' : '0 2px 12px var(--accent-glow)';
                 const emoji = isSameDirection ? '🎯' : '🚗';
@@ -2935,7 +2985,8 @@
             // Show live crew member markers during reservation pickup + Phase 2
             renderCrewMembersOnMap();
             renderNewsPointsOnMap(visibleCrews);
-            renderMapOverlay([]);
+            renderMapOverlay(isMapFocusedMode() ? visibleCrews : []);
+            renderMapContextBanner();
             renderNewsStrip();
             if (S.currentScreen === 'trips' && !S.activeTrip && !S.pendingMatches.length && (S.subscriptions || []).length) renderTrips();
         }
@@ -2949,8 +3000,9 @@
 
         function renderNewsPointsOnMap(crews) {
             if (!S.map) return;
-            const items = Array.isArray(S.news) ? S.news.filter(isDiscoveryNewsItem) : [];
+            const items = visibleMapNewsItemsForContext(Array.isArray(S.news) ? S.news : []);
             if (!items.length) return;
+            const focusedDirId = mapFocusedDirectionId();
             const byDirection = new Map();
             (crews || []).forEach(c => {
                 if (!c || c.direction_id == null || c.lat == null || c.lng == null) return;
@@ -2968,7 +3020,8 @@
                 const dId = Number(n?.direction_id || 0);
                 if (!dId) continue;
                 const kind = classifyNewsItem(n);
-                if (S.mapNewsFilter !== 'all' && kind !== S.mapNewsFilter) continue;
+                if (focusedDirId && String(dId) !== String(focusedDirId)) continue;
+                if (!focusedDirId && S.mapNewsFilter !== 'all' && kind !== S.mapNewsFilter) continue;
                 const key = String(dId);
                 if (!byDirection.has(key)) continue;
                 if (seenDir.has(key)) continue;
@@ -2998,7 +3051,9 @@
 
         function renderMapOverlay(crews) {
             const c = document.getElementById('map-overlay-cards');
-            if (!crews.length) { c.innerHTML = ''; return; }
+            if (!c) return;
+            if (!crews.length) { c.innerHTML = ''; c.style.display = 'none'; return; }
+            c.style.display = 'block';
             c.innerHTML = crews.map(cr => {
                 const orgId = parseInt(cr.organizer_id) || 0;
                 const dirId = parseInt(cr.direction_id) || 0;
@@ -3350,6 +3405,7 @@
         }
 
         async function setMapNewsFilter(filter) {
+            if (guardMapFilterChange(filter)) return;
             S.mapNewsFilter = filter || 'all';
             renderNewsStrip();
             if (S.currentScreen === 'explore') await refreshMap();
@@ -3617,6 +3673,127 @@
                 Number.isFinite(Number(c?.lat)) &&
                 Number.isFinite(Number(c?.lng))
             ).length;
+        }
+
+        function activeMapContextForMap() {
+            const tripDirId = Number(S.activeTrip?.direction_id || 0);
+            if (Number.isFinite(tripDirId) && tripDirId > 0) {
+                return {
+                    kind: 'trip',
+                    dirId: tripDirId,
+                    title: S.activeTrip?.direction_title || S.activeTrip?.dir_title || S.activeTrip?.title || `#${tripDirId}`,
+                };
+            }
+
+            const sub = activeSubscriptionForRadar();
+            const subDirId = directionIdForRadar(sub);
+            if (sub && subDirId) {
+                return {
+                    kind: 'subscription',
+                    dirId: subDirId,
+                    title: sub.title || sub.direction_title || sub.dir_title || `#${subDirId}`,
+                };
+            }
+            return null;
+        }
+
+        function mapFocusedDirectionId() {
+            return activeMapContextForMap()?.dirId || 0;
+        }
+
+        function isMapFocusedMode() {
+            return !!mapFocusedDirectionId();
+        }
+
+        function visibleMapCrewsForContext(crews) {
+            const focusedDirId = mapFocusedDirectionId();
+            return (crews || []).filter(c => {
+                if (!c || c.lat == null || c.lng == null) return false;
+                if (focusedDirId) return String(c?.direction_id || '') === String(focusedDirId);
+                return S.mapNewsFilter === 'all' || classifyNewsItem(c) === S.mapNewsFilter;
+            });
+        }
+
+        function visibleMapNewsItemsForContext(items) {
+            const focusedDirId = mapFocusedDirectionId();
+            return (items || []).filter(n => {
+                if (!isDiscoveryNewsItem(n)) return false;
+                const dId = Number(n?.direction_id || 0);
+                if (focusedDirId) return dId > 0 && String(dId) === String(focusedDirId);
+                const kind = classifyNewsItem(n);
+                return S.mapNewsFilter === 'all' || kind === S.mapNewsFilter;
+            });
+        }
+
+        function renderMapContextBanner() {
+            const container = document.getElementById('map-container');
+            if (!container) return;
+            let banner = document.getElementById('map-context-banner');
+            const context = activeMapContextForMap();
+            if (!context) {
+                if (banner) banner.remove();
+                return;
+            }
+            if (!banner) {
+                banner = document.createElement('div');
+                banner.id = 'map-context-banner';
+                banner.className = 'map-context-banner';
+                container.appendChild(banner);
+            }
+            const dirId = parseInt(context.dirId) || 0;
+            const title = escapeHtml(context.title || `#${dirId}`);
+            const openCrews = openCrewCountForRadar(dirId);
+            const label = context.kind === 'trip' ? 'Активна поїздка' : 'Активна підписка';
+            const subline = context.kind === 'trip'
+                ? `Показуємо цю подію, точку збору та екіпажі. На карті: ${openCrews} відкритих екіпажів.`
+                : `Показуємо тільки цю подію та її екіпажі. На карті: ${openCrews} відкритих екіпажів.`;
+            const stopButton = context.kind === 'subscription'
+                ? `<button class="btn btn-ghost" onclick="unsubscribeDir(${dirId})">⏹️ Стоп</button>`
+                : '';
+            banner.innerHTML = `
+                <div class="map-context-row">
+                    <div>
+                        <div class="map-context-title">${label}: ${title}</div>
+                        <div class="map-context-sub">${escapeHtml(subline)}</div>
+                    </div>
+                    <div class="map-context-actions">
+                        <button class="btn btn-secondary" onclick="openDirectionFromMap(${dirId})">Відкрити</button>
+                        ${stopButton}
+                    </div>
+                </div>`;
+        }
+
+        function guardMapFilterChange(filter) {
+            const context = activeMapContextForMap();
+            if (!context) return false;
+            const nextFilter = filter || 'all';
+            if (nextFilter === S.mapNewsFilter) return false;
+            const dirId = parseInt(context.dirId) || 0;
+            const title = escapeHtml(context.title || `#${dirId}`);
+            const stopButton = context.kind === 'subscription'
+                ? '<button class="btn btn-danger" id="map-filter-stop">Зупинити пошук</button>'
+                : '';
+            openSheet(`
+                <div class="sheet-title">У вас активний пошук</div>
+                <div class="sheet-sub">
+                    Карта зараз сфокусована на «${title}». Щоб не змішувати пін-пошук з активною підпискою,
+                    спочатку завершіть цей фокус або відкрийте його картку.
+                </div>
+                <div class="sheet-actions">
+                    <button class="btn btn-primary" id="map-filter-stay">Лишитись тут</button>
+                    <button class="btn btn-secondary" id="map-filter-open">Відкрити подію</button>
+                    ${stopButton}
+                </div>
+            `);
+            requestAnimationFrame(() => {
+                document.getElementById('map-filter-stay')?.addEventListener('click', closeSheet);
+                document.getElementById('map-filter-open')?.addEventListener('click', () => {
+                    closeSheet();
+                    openDirectionFromMap(dirId);
+                });
+                document.getElementById('map-filter-stop')?.addEventListener('click', () => unsubscribeDir(dirId));
+            });
+            return true;
         }
 
         function formatRadarSyncAge(ts) {
