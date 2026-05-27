@@ -1014,7 +1014,7 @@
 
         .news-strip {
             position: absolute;
-            top: 12px;
+            top: 54px;
             left: 12px;
             right: 12px;
             z-index: 500;
@@ -1027,6 +1027,38 @@
 
         .news-strip::-webkit-scrollbar {
             display: none;
+        }
+
+        .map-mode-strip {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            right: 12px;
+            z-index: 505;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            background: var(--bg-glass);
+            backdrop-filter: blur(16px);
+            color: var(--text-secondary);
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1.25;
+        }
+
+        .map-mode-label {
+            color: var(--text-muted);
+            flex-shrink: 0;
+        }
+
+        .map-mode-value {
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .news-chip {
@@ -1897,6 +1929,7 @@
         <div class="main">
             <!-- EXPLORE -->
             <div class="screen active" id="screen-explore">
+                <div class="map-mode-strip" id="map-mode-strip" style="display:none;"></div>
                 <div class="news-strip" id="news-strip" style="display:none;"></div>
                 <div id="map-container">
                     <div id="map"></div>
@@ -2080,7 +2113,7 @@
             map: null, mapMarkers: [], currentScreen: 'explore',
             chatRequestId: null, chatPartnerId: null, busy: false,
             boardParentId: null, boardStack: [], boardSubSet: new Set(),
-            newsFilter: 'all', mapNewsFilter: 'all', newsMarkers: [],
+            newsFilter: 'all', mapNewsFilter: 'all', mapEventFilter: 'all', newsMarkers: [],
             subscriptions: [],
             myCrew: null,
             matchSheetOpen: false,
@@ -2089,6 +2122,7 @@
             notifiedMatchIds: new Set(),
             tripStartNotifiedIds: new Set(),
             partnerFinishNotifiedIds: new Set(),
+            pickupNotifiedIds: new Set(),
             partnerFinishSheetShownIds: new Set(),
             completedRatingNotifiedIds: new Set(),
             completedRatingSheetShownIds: new Set(),
@@ -3011,8 +3045,8 @@
         function renderNewsPointsOnMap(crews) {
             if (!S.map) return;
             const items = visibleMapNewsItemsForContext(Array.isArray(S.news) ? S.news : []);
-            if (!items.length) return;
             const focusedDirId = mapFocusedDirectionId();
+            if (!items.length && !(focusedDirId && eventPointForMapContext({ dirId: focusedDirId }))) return;
             const byDirection = new Map();
             (crews || []).forEach(c => {
                 if (!c || c.direction_id == null || c.lat == null || c.lng == null) return;
@@ -3038,10 +3072,14 @@
                 seenDir.add(key);
                 uniqueNews.push(n);
             }
+            if (focusedDirId && !uniqueNews.length) {
+                const point = eventPointForMapContext({ dirId: focusedDirId });
+                if (point) uniqueNews.push(point);
+            }
             uniqueNews.slice(0, 80).forEach(n => {
                 const dId = Number(n?.direction_id || 0);
                 const key = String(dId);
-                const geo = byDirection.get(key);
+                const geo = byDirection.get(key) || { lat: Number(n?.lat), lng: Number(n?.lng), dirTitle: n?.dir_title || n?.title || '' };
                 if (!geo) return;
                 const kind = classifyNewsItem(n);
                 const pal = _newsMarkerPalette(kind);
@@ -3050,14 +3088,25 @@
                 const safeNewsDirectionId = Number.isFinite(dId) ? dId : 0;
                 const newsTitle = escapeHtml(n?.dir_title || geo.dirTitle || 'Новина');
                 const newsText = escapeHtml(n?.text || '');
-                marker.bindPopup('<div style="min-width:190px;"><div style="font-weight:800;font-size:13px;margin-bottom:6px;">' + newsTitle + '</div><div style="font-size:12px;color:#94a3b8;line-height:1.35;margin-bottom:8px;">' + newsText + '</div><div style="display:flex;gap:8px;"><button onclick="subscribeFromNewsMap(' + safeNewsDirectionId + ')" style="flex:1;padding:7px 9px;border-radius:9px;border:1px solid rgba(163,230,53,0.35);background:rgba(163,230,53,0.14);color:#a3e635;font-weight:800;font-size:11px;cursor:pointer;">✓ В чергу</button><button onclick="openDirectionFromNewsMap(' + safeNewsDirectionId + ')" style="flex:1;padding:7px 9px;border-radius:9px;border:1px solid rgba(56,189,248,0.35);background:rgba(56,189,248,0.14);color:#38bdf8;font-weight:800;font-size:11px;cursor:pointer;">→ Відкрити</button></div></div>');
+                const focused = !!focusedDirId;
+                const details = cachedDirectionDetails(safeNewsDirectionId);
+                const organizerName = escapeHtml(details.creator_name || details.organizer_name || '');
+                const organizerUser = sanitizeBotUsername(details.creator_username || details.telegram_username || '');
+                const organizerLine = focused && (organizerName || organizerUser)
+                    ? '<div style="font-size:11px;color:#94a3b8;line-height:1.35;margin-bottom:8px;">Організатор: <strong style="color:#e5e7eb;">' + (organizerName || 'Організатор') + '</strong>' + (organizerUser ? ' <span style="color:#38bdf8;">@' + escapeHtml(organizerUser) + '</span>' : '') + '</div>'
+                    : '';
+                const requestBtn = !focused
+                    ? '<button onclick="subscribeFromNewsMap(' + safeNewsDirectionId + ')" style="flex:1;padding:7px 9px;border-radius:9px;border:1px solid rgba(163,230,53,0.35);background:rgba(163,230,53,0.14);color:#a3e635;font-weight:800;font-size:11px;cursor:pointer;">✓ В чергу</button>'
+                    : '';
+                const openLabel = focused ? '→ Контакт і деталі' : '→ Відкрити';
+                marker.bindPopup('<div style="min-width:190px;"><div style="font-weight:800;font-size:13px;margin-bottom:6px;">' + newsTitle + '</div>' + organizerLine + '<div style="font-size:12px;color:#94a3b8;line-height:1.35;margin-bottom:8px;">' + newsText + '</div><div style="display:flex;gap:8px;">' + requestBtn + '<button onclick="openDirectionFromNewsMap(' + safeNewsDirectionId + ')" style="flex:1;padding:7px 9px;border-radius:9px;border:1px solid rgba(56,189,248,0.35);background:rgba(56,189,248,0.14);color:#38bdf8;font-weight:800;font-size:11px;cursor:pointer;">' + openLabel + '</button></div></div>');
                 S.newsMarkers.push(marker);
             });
         }
 
         async function subscribeFromNewsMap(dirId) { await subscribeDir(dirId); }
-        async function openDirectionFromNewsMap(dirId) { switchScreen('board'); setTimeout(() => openDirection(dirId), 120); }
-        async function openDirectionFromMap(dirId) { switchScreen('board'); setTimeout(() => openDirection(dirId), 120); }
+        async function openDirectionFromNewsMap(dirId) { switchScreen('board'); openDirection(dirId); }
+        async function openDirectionFromMap(dirId) { switchScreen('board'); openDirection(dirId); }
 
         function renderMapOverlay(crews) {
             const c = document.getElementById('map-overlay-cards');
@@ -3387,9 +3436,88 @@
             else { badge.style.display = 'none'; }
         }
 
+        function livePassengerCountForMapContext(context = activeMapContextForMap()) {
+            if (!context || !S.activeTrip || String(S.activeTrip.direction_id || '') !== String(context.dirId || '')) return 0;
+            const members = Array.isArray(S.activeTrip.members) ? S.activeTrip.members : [];
+            return members.filter(m =>
+                String(m?.role || '').toLowerCase() !== 'driver' &&
+                m?.lat != null &&
+                m?.lng != null &&
+                Number.isFinite(Number(m.lat)) &&
+                Number.isFinite(Number(m.lng))
+            ).length;
+        }
+
+        function eventPointForMapContext(context = activeMapContextForMap()) {
+            if (!context) return null;
+            const dirId = String(context.dirId || '');
+            const sources = [
+                ...(S.news || []),
+                ...(allDirections || []),
+                ...(S.subscriptions || []),
+            ];
+            const hit = sources.find(n =>
+                String(n?.direction_id || n?.id || '') === dirId &&
+                n?.lat != null &&
+                n?.lng != null &&
+                Number.isFinite(Number(n.lat)) &&
+                Number.isFinite(Number(n.lng))
+            );
+            if (!hit) return null;
+            return {
+                ...hit,
+                direction_id: Number(dirId),
+                dir_title: hit.dir_title || hit.direction_title || hit.title || context.title,
+                text: hit.text || 'Подія на карті',
+                kind: hit.kind || 'direction_event',
+                is_active: hit.is_active !== false,
+            };
+        }
+
+        function eventPinCountForMapContext(context = activeMapContextForMap()) {
+            return eventPointForMapContext(context) ? 1 : 0;
+        }
+
+        function renderMapModeStrip() {
+            const strip = document.getElementById('map-mode-strip');
+            if (!strip) return;
+            const context = activeMapContextForMap();
+            const value = context ? 'координація події' : 'пошук виїзду';
+            strip.style.display = 'flex';
+            strip.innerHTML = `<span class="map-mode-label">Режим:</span><span class="map-mode-value">${value}</span>`;
+        }
+
         function renderNewsStrip() {
+            renderMapModeStrip();
             const strip = document.getElementById('news-strip');
             if (!strip) return;
+            const context = activeMapContextForMap();
+            if (context) {
+                const drivers = (S.mapCrews || []).filter(c =>
+                    String(c?.direction_id || '') === String(context.dirId || '') &&
+                    c?.lat != null &&
+                    c?.lng != null &&
+                    Number.isFinite(Number(c.lat)) &&
+                    Number.isFinite(Number(c.lng))
+                ).length;
+                const cards = [
+                    { key: 'event', title: 'Подія', color: '#fbbf24', count: eventPinCountForMapContext(context) },
+                    { key: 'drivers', title: 'Водії', color: '#38bdf8', count: drivers },
+                    { key: 'passengers', title: 'Попутники', color: '#34d399', count: livePassengerCountForMapContext(context) },
+                ];
+                strip.style.display = 'grid';
+                strip.style.gridTemplateColumns = 'repeat(3, minmax(0, 1fr))';
+                strip.innerHTML = cards.map(c => {
+                    const active = S.mapEventFilter === c.key;
+                    const nextFilter = active ? 'all' : c.key;
+                    return `<div class="news-banner ${active ? 'active' : ''}" onclick="setMapEventFilter('${nextFilter}')" style="background:${active ? c.color + '22' : 'var(--bg-card)'};border-color:${active ? c.color : 'var(--border)'};">
+                        <div class="news-banner-title">${c.title}</div>
+                        <div class="news-banner-count">${c.count}</div>
+                    </div>`;
+                }).join('');
+                return;
+            }
+            S.mapEventFilter = 'all';
             const items = Array.isArray(S.news) ? S.news.filter(isDiscoveryNewsItem) : [];
             const buckets = { theocracy: 0, leisure: 0, work: 0 };
             items.forEach(n => {
@@ -3414,6 +3542,12 @@
             }).join('');
         }
 
+        async function setMapEventFilter(filter) {
+            S.mapEventFilter = filter || 'all';
+            renderNewsStrip();
+            if (S.currentScreen === 'explore') await refreshMap();
+        }
+
         async function setMapNewsFilter(filter) {
             if (guardMapFilterChange(filter)) return;
             S.mapNewsFilter = filter || 'all';
@@ -3431,6 +3565,7 @@
 
             // Navigate to board screen first
             switchScreen('board');
+            openDirectionLoadingSheet(dirId);
 
             // If news has parent folder, navigate through the tree hierarchy
             if (parentId) {
@@ -3455,10 +3590,10 @@
                 }
                 // Render the board at the parent folder level, then open the direction
                 await renderBoard();
-                setTimeout(() => openDirection(dirId), 200);
+                await openDirection(dirId);
             } else {
                 // No parent — just open the direction detail
-                setTimeout(() => openDirection(dirId), 150);
+                await openDirection(dirId);
             }
         }
 
@@ -3719,7 +3854,11 @@
             const focusedDirId = mapFocusedDirectionId();
             return (crews || []).filter(c => {
                 if (!c || c.lat == null || c.lng == null) return false;
-                if (focusedDirId) return String(c?.direction_id || '') === String(focusedDirId);
+                if (focusedDirId) {
+                    const eventFilter = S.mapEventFilter || 'all';
+                    if (eventFilter !== 'all' && eventFilter !== 'drivers') return false;
+                    return String(c?.direction_id || '') === String(focusedDirId);
+                }
                 return S.mapNewsFilter === 'all' || classifyNewsItem(c) === S.mapNewsFilter;
             });
         }
@@ -3729,7 +3868,11 @@
             return (items || []).filter(n => {
                 if (!isDiscoveryNewsItem(n)) return false;
                 const dId = Number(n?.direction_id || 0);
-                if (focusedDirId) return dId > 0 && String(dId) === String(focusedDirId);
+                if (focusedDirId) {
+                    const eventFilter = S.mapEventFilter || 'all';
+                    if (eventFilter !== 'all' && eventFilter !== 'event') return false;
+                    return dId > 0 && String(dId) === String(focusedDirId);
+                }
                 const kind = classifyNewsItem(n);
                 return S.mapNewsFilter === 'all' || kind === S.mapNewsFilter;
             });
@@ -3910,9 +4053,47 @@
             }, 300);
         }
 
+        function cachedDirectionDetails(dirId) {
+            const key = String(dirId);
+            const sources = [
+                allDirections.find(d => String(d?.id) === key),
+                (S.subscriptions || []).find(s => String(s?.direction_id || s?.id) === key),
+                (S.news || []).find(n => String(n?.direction_id || n?.id) === key),
+                (S.mapCrews || []).find(c => String(c?.direction_id || c?.id) === key),
+            ].filter(Boolean);
+            const hit = {};
+            sources.forEach(src => {
+                Object.keys(src || {}).forEach(k => {
+                    if (hit[k] === undefined || hit[k] === null || hit[k] === '') hit[k] = src[k];
+                });
+            });
+            return hit;
+        }
+
+        function cachedDirectionTitle(dirId) {
+            const hit = cachedDirectionDetails(dirId);
+            return hit.title || hit.direction_title || hit.dir_title || hit.direction || hit.name || `#${dirId}`;
+        }
+
+        function openDirectionLoadingSheet(dirId) {
+            const title = escapeHtml(cachedDirectionTitle(dirId));
+            openSheet(`
+                <div class="sheet-title">Відкриваю подію</div>
+                <div class="sheet-sub">${title}</div>
+                <div style="text-align:center;padding:18px 0 8px;">
+                    <div class="pulse-dot" style="margin:0 auto 12px;"></div>
+                    <div style="font-size:13px;color:var(--text-muted);">Завантажуємо організатора й екіпажі...</div>
+                </div>
+            `);
+        }
+
         // ─── OPEN DIRECTION — full version ───
         async function openDirection(dirId) {
+            S._openDirectionSeq = (S._openDirectionSeq || 0) + 1;
+            const seq = S._openDirectionSeq;
+            openDirectionLoadingSheet(dirId);
             const data = await api(`/api/v3/fractal/organizers?direction_id=${dirId}&lang=${S.lang}&user_id=${S.userId || ''}`);
+            if (seq !== S._openDirectionSeq) return;
             let dir = allDirections.find(d => String(d.id) === String(dirId));
             if (!dir && data?.direction && typeof data.direction === 'object') {
                 dir = {
@@ -3925,8 +4106,8 @@
                     kind: data.direction.kind || '',
                 };
             }
-            if (!dir) { showToast('Напрямок недоступний', 'error'); return; }
-            if (isFolderNode(dir)) { await boardOpenFolder(dirId); return; }
+            if (!dir) { closeSheet(); showToast('Напрямок недоступний', 'error'); return; }
+            if (isFolderNode(dir)) { closeSheet(); await boardOpenFolder(dirId); return; }
             const orgs = data?.organizers || [];
             const isSub = data?.user_status?.subscribed;
             const creatorId = data?.direction?.creator_id || data?.direction?.user_id || dir?.creator_id || dir?.user_id;
@@ -4100,6 +4281,7 @@
                 const t = S.activeTrip;
                 const isDriver = t.viewer_role === 'driver';
                 const isStarted = !!t.is_started;
+                const isPickup = t.status === 'pickup';
                 const partnerFinished = tripPartnerFinished(t);
                 const viewerFinished = tripViewerFinished(t);
                 const cancelBy = t.cancel_requested_by;
@@ -4110,8 +4292,8 @@
                 if (liveLocationActive) startLocationTracking(); else stopLocationTracking(true);
                 container.innerHTML = `
                     <div class="hero ${isStarted ? 'driving' : 'reservation'} animate-in">
-                        <div class="hero-label" style="color:${isStarted ? 'var(--accent)' : 'var(--amber)'};">
-                            ${isStarted ? '🚀 В ДОРОЗІ' : '⏳ ЕКІПАЖ ФОРМУЄТЬСЯ'}
+                        <div class="hero-label" style="color:${isStarted ? 'var(--accent)' : (isPickup ? 'var(--blue)' : 'var(--amber)')};">
+                            ${isStarted ? '🚀 В ДОРОЗІ' : (isPickup ? '🚗 ТОЧКА ЗБОРУ' : '⏳ ЕКІПАЖ ФОРМУЄТЬСЯ')}
                         </div>
                         <div class="hero-title">${escapeHtml(t.direction_title || 'Поїздка')}</div>
                         <div class="hero-sub">Екіпаж #${t.crew_id || '—'} • ${isDriver ? '🚗 Ви водій' : '👤 Ви попутник'}</div>
@@ -4119,7 +4301,9 @@
                         <div class="lifecycle-progress">
                             <div class="lifecycle-step done"><div class="lifecycle-dot"></div>Збіг</div>
                             <div class="lifecycle-arrow"></div>
-                            <div class="lifecycle-step ${isStarted ? 'done' : 'active'}"><div class="lifecycle-dot"></div>Екіпаж</div>
+                            <div class="lifecycle-step ${isStarted || isPickup ? 'done' : 'active'}"><div class="lifecycle-dot"></div>Екіпаж</div>
+                            <div class="lifecycle-arrow"></div>
+                            <div class="lifecycle-step ${isStarted ? 'done' : (isPickup ? 'active' : '')}"><div class="lifecycle-dot"></div>Збір</div>
                             <div class="lifecycle-arrow"></div>
                             <div class="lifecycle-step ${isStarted ? 'active' : ''}"><div class="lifecycle-dot"></div>В дорозі</div>
                             <div class="lifecycle-arrow"></div>
@@ -4135,7 +4319,9 @@
                         ${partnerFinished && !viewerFinished ? `<div style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);font-size:13px;color:var(--green);">🏁 Партнер вже відмітив фініш. Підтвердіть завершення, коли подорож справді завершена.</div>` : ''}
                         ${viewerFinished && !partnerFinished ? `<div style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(255,193,7,0.1);border:1px solid rgba(255,193,7,0.3);font-size:13px;color:var(--amber);">⏳ Ви відмітили фініш. Очікуємо підтвердження партнера.</div>` : ''}
                         <div style="margin-top:16px;display:flex;flex-direction:column;gap:10px;">
+                            ${!isStarted && isDriver && !isPickup && !cancelRequested ? `<button class="btn btn-secondary" onclick="arriveAtPickup()">🚗 Я прибув</button>` : ''}
                             ${!isStarted && isDriver && !cancelRequested ? `<button class="btn btn-primary" onclick="startTrip()">🚀 Поїхали!</button>` : ''}
+                            ${isPickup && !isDriver ? `<div style="margin-top:4px;padding:10px;border-radius:10px;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.3);font-size:13px;color:var(--blue);">🚗 Водій прибув до точки збору</div>` : ''}
                             ${isStarted ? `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="openChat(${t.request_id || t.id || 0}, ${isDriver ? (t.client_id || 0) : (t.driver_id || 0)})">💬 Чат</button><button class="btn btn-success" style="flex:1;" onclick="finishTrip()">✅ Завершити подорож</button></div>` : ''}
                             ${cancelPending ? `<div style="display:flex;gap:10px;"><button class="btn btn-primary" style="flex:1;" onclick="confirmCancelTrip()">✅ Згоден скасувати</button><button class="btn btn-secondary" style="flex:1;" onclick="rejectCancelTrip()">❌ Відмовити</button></div>` : ''}
                             ${!isStarted && !cancelPending && !cancelRequested ? `<button class="btn btn-danger" onclick="cancelTrip()">❌ Покинути домовленість</button>` : ''}
@@ -4357,6 +4543,10 @@
             const reqId = currentRequestIdFromTrip(nextTrip);
             if (!reqId) return;
             const sameTrip = prevTrip && currentRequestIdFromTrip(prevTrip) === reqId;
+            if (sameTrip && prevTrip.status !== 'pickup' && nextTrip.status === 'pickup' && nextTrip.viewer_role !== 'driver' && !S.pickupNotifiedIds.has(reqId)) {
+                S.pickupNotifiedIds.add(reqId);
+                showToast('🚗 Водій прибув до точки збору!', 'success');
+            }
             if (sameTrip && !prevTrip.is_started && nextTrip.is_started && nextTrip.viewer_role !== 'driver' && !S.tripStartNotifiedIds.has(reqId)) {
                 S.tripStartNotifiedIds.add(reqId);
                 showToast('🚀 Водій почав поїздку. Скасування закрито', 'success');
@@ -4489,6 +4679,18 @@
                 if (res?.status === 'ok') { showToast('🚀 Поїхали!', 'success'); await hydrate(); }
                 else showToast('Помилка старту', 'error');
             } finally { endOp('start_trip'); }
+        }
+
+        async function arriveAtPickup() {
+            if (!S.activeTrip) return;
+            if (!beginOp('arrive_at_pickup')) return;
+            try {
+                const reqId = currentRequestId();
+                if (!reqId) { showToast('Немає активної поїздки', 'error'); return; }
+                const res = await api('/api/v3/trip/arrive', { method: 'POST', body: JSON.stringify({ request_id: reqId, user_id: S.userId }) });
+                if (res?.status === 'ok') { showToast('📍 Ви на місці! Пасажири сповіщені', 'success'); await hydrate(); }
+                else showToast('Помилка', 'error');
+            } finally { endOp('arrive_at_pickup'); }
         }
 
         async function finishTrip() {
@@ -5392,7 +5594,18 @@
             const t = S.activeTrip;
             if (!shouldRenderCrewMembersOnMap(t)) return;
             const coords = [];
-            t.members.forEach(m => {
+            const context = activeMapContextForMap();
+            const eventFilter = S.mapEventFilter || 'all';
+            if (context && String(t.direction_id || '') !== String(context.dirId || '')) return;
+            if (context && eventFilter === 'event') return;
+            const members = (t.members || []).filter(m => {
+                if (!context || eventFilter === 'all') return true;
+                const role = String(m?.role || '').toLowerCase();
+                if (eventFilter === 'drivers') return role === 'driver';
+                if (eventFilter === 'passengers') return role !== 'driver';
+                return true;
+            });
+            members.forEach(m => {
                 if (!m.lat || !m.lng) return;
                 coords.push([m.lat, m.lng]);
                 const isMe = String(m.user_id) === String(S.userId);
