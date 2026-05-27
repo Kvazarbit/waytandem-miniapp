@@ -902,53 +902,49 @@
             display: none;
         }
 
-        .map-context-banner {
+        .map-fab-stack {
             position: absolute;
-            top: 12px;
-            left: 12px;
-            right: 12px;
+            right: 16px;
+            bottom: 120px;
             z-index: 520;
-            padding: 12px;
-            border-radius: 12px;
-            background: rgba(8, 16, 24, 0.88);
-            border: 1px solid rgba(56,189,248,0.28);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.28);
-            backdrop-filter: blur(14px);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
         }
 
-        .map-context-row {
+        .map-fab {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-        }
-
-        .map-context-title {
-            font-size: 12px;
-            font-weight: 900;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 20px;
             color: var(--text-primary);
-            line-height: 1.25;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 22px rgba(0,0,0,0.24);
+            pointer-events: auto;
+            padding: 0;
+            appearance: none;
+            -webkit-appearance: none;
         }
 
-        .map-context-sub {
-            margin-top: 4px;
-            font-size: 11px;
-            line-height: 1.35;
-            color: var(--text-secondary);
+        .map-fab:active {
+            transform: scale(0.96);
         }
 
-        .map-context-actions {
-            display: flex;
-            gap: 8px;
-            flex-shrink: 0;
+        .map-focus-btn {
+            background: rgba(251,191,36,0.14);
+            border-color: rgba(251,191,36,0.45);
+            color: #fbbf24;
         }
 
-        .map-context-actions .btn {
-            padding: 7px 9px;
-            min-height: 0;
-            border-radius: 9px;
-            font-size: 11px;
-            white-space: nowrap;
+        .map-focus-btn[hidden] {
+            display: none;
         }
 
         .map-overlay-cards>* {
@@ -2930,9 +2926,23 @@
             S.map = L.map('map', { zoomControl: false, attributionControl: false }).setView([S.homeCity.lat, S.homeCity.lng], 11);
             L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(S.map);
             // No browser GPS prompt on startup: user location is explicit via the map button.
-            const locBtn = document.createElement('div');
-            locBtn.style.cssText = 'position:absolute;bottom:120px;right:16px;z-index:500;width:44px;height:44px;border-radius:50%;background:var(--bg-card);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:20px;backdrop-filter:blur(10px);';
+            const controls = document.createElement('div');
+            controls.className = 'map-fab-stack';
+            const focusBtn = document.createElement('button');
+            focusBtn.id = 'map-focus-btn';
+            focusBtn.className = 'map-fab map-focus-btn';
+            focusBtn.type = 'button';
+            focusBtn.textContent = '🎯';
+            focusBtn.hidden = true;
+            focusBtn.setAttribute('aria-label', 'Сфокусувати активну подію');
+            focusBtn.onclick = focusActiveMapContext;
+            const locBtn = document.createElement('button');
+            locBtn.id = 'map-location-btn';
+            locBtn.className = 'map-fab';
+            locBtn.type = 'button';
             locBtn.textContent = '📍';
+            locBtn.setAttribute('aria-label', 'Показати мою локацію');
+            locBtn.title = 'Показати мою локацію';
             locBtn.onclick = () => {
                 if (!navigator.geolocation) { showToast('GPS недоступний', 'error'); return; }
                 navigator.geolocation.getCurrentPosition(
@@ -2941,7 +2951,9 @@
                     { enableHighAccuracy: true, timeout: 8000 }
                 );
             };
-            document.getElementById('map-container').appendChild(locBtn);
+            controls.appendChild(focusBtn);
+            controls.appendChild(locBtn);
+            document.getElementById('map-container').appendChild(controls);
         }
 
         async function refreshMap() {
@@ -2984,7 +2996,7 @@
             renderCrewMembersOnMap();
             renderNewsPointsOnMap(visibleCrews);
             renderMapOverlay(isMapFocusedMode() ? visibleCrews : []);
-            renderMapContextBanner();
+            renderMapFocusButton();
             renderNewsStrip();
             if (S.currentScreen === 'trips' && !S.activeTrip && !S.pendingMatches.length && (S.subscriptions || []).length) renderTrips();
         }
@@ -3723,42 +3735,64 @@
             });
         }
 
-        function renderMapContextBanner() {
-            const container = document.getElementById('map-container');
-            if (!container) return;
-            let banner = document.getElementById('map-context-banner');
+        function _pushMapCoord(coords, lat, lng) {
+            const y = Number(lat);
+            const x = Number(lng);
+            if (Number.isFinite(y) && Number.isFinite(x)) coords.push([y, x]);
+        }
+
+        function activeMapContextCoords(context = activeMapContextForMap()) {
+            const dirId = String(context?.dirId || '');
+            if (!dirId) return [];
+            const coords = [];
+            (S.mapCrews || []).forEach(c => {
+                if (String(c?.direction_id || '') === dirId) _pushMapCoord(coords, c.lat, c.lng);
+            });
+            (S.news || []).forEach(n => {
+                if (String(n?.direction_id || '') === dirId && isDiscoveryNewsItem(n)) _pushMapCoord(coords, n.lat, n.lng);
+            });
+            if (S.activeTrip && String(S.activeTrip.direction_id || '') === dirId) {
+                _pushMapCoord(coords, S.activeTrip.pickup_lat, S.activeTrip.pickup_lng);
+            }
+            if (S.pickupCoords && context?.kind === 'trip') {
+                _pushMapCoord(coords, S.pickupCoords.lat, S.pickupCoords.lng);
+            }
+            const seen = new Set();
+            return coords.filter(([lat, lng]) => {
+                const key = `${lat.toFixed(5)},${lng.toFixed(5)}`;
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            });
+        }
+
+        function renderMapFocusButton() {
+            const btn = document.getElementById('map-focus-btn');
+            if (!btn) return;
             const context = activeMapContextForMap();
             if (!context) {
-                if (banner) banner.remove();
+                btn.hidden = true;
                 return;
             }
-            if (!banner) {
-                banner = document.createElement('div');
-                banner.id = 'map-context-banner';
-                banner.className = 'map-context-banner';
-                container.appendChild(banner);
+            const title = context.kind === 'trip' ? 'Сфокусувати поїздку' : 'Сфокусувати подію';
+            btn.hidden = false;
+            btn.title = title;
+            btn.setAttribute('aria-label', title);
+        }
+
+        function focusActiveMapContext() {
+            const context = activeMapContextForMap();
+            if (!S.map || !context) return;
+            const coords = activeMapContextCoords(context);
+            if (!coords.length) {
+                showToast('У цієї події ще немає точки на карті', '');
+                return;
             }
-            const dirId = parseInt(context.dirId) || 0;
-            const title = escapeHtml(context.title || `#${dirId}`);
-            const openCrews = openCrewCountForRadar(dirId);
-            const label = context.kind === 'trip' ? 'Активна поїздка' : 'Активна підписка';
-            const subline = context.kind === 'trip'
-                ? `Показуємо цю подію, точку збору та екіпажі. На карті: ${openCrews} відкритих екіпажів.`
-                : `Показуємо тільки цю подію та її екіпажі. На карті: ${openCrews} відкритих екіпажів.`;
-            const stopButton = context.kind === 'subscription'
-                ? `<button class="btn btn-ghost" onclick="unsubscribeDir(${dirId})">⏹️ Стоп</button>`
-                : '';
-            banner.innerHTML = `
-                <div class="map-context-row">
-                    <div>
-                        <div class="map-context-title">${label}: ${title}</div>
-                        <div class="map-context-sub">${escapeHtml(subline)}</div>
-                    </div>
-                    <div class="map-context-actions">
-                        <button class="btn btn-secondary" onclick="openDirectionFromMap(${dirId})">Відкрити</button>
-                        ${stopButton}
-                    </div>
-                </div>`;
+            if (coords.length === 1) {
+                S.map.flyTo(coords[0], 15, { duration: 0.8 });
+            } else {
+                S.map.fitBounds(coords, { padding: [64, 64], maxZoom: 15 });
+            }
         }
 
         function guardMapFilterChange(filter) {
