@@ -3878,17 +3878,66 @@
             }).join('');
         }
 
+        // Пункт 2: фокус карти на піни ВІДПОВІДНО до активного фільтра
+        function focusMapByFilter() {
+            if (!S.map) return;
+            const context = activeMapContextForMap();
+            const coords = [];
+
+            if (context) {
+                const dirId = String(context.dirId || '');
+                const ef = S.mapEventFilter || 'all';
+                if (ef === 'event' || ef === 'all') {
+                    const pt = eventPointForMapContext(context);
+                    if (pt && pt.lat != null && pt.lng != null) _pushMapCoord(coords, pt.lat, pt.lng);
+                }
+                if (ef === 'drivers' || ef === 'all') {
+                    (S.mapCrews || []).forEach(c => {
+                        if (String(c?.direction_id || '') === dirId) _pushMapCoord(coords, c.lat, c.lng);
+                    });
+                }
+                if (ef === 'passengers' || ef === 'all') {
+                    const members = (S.activeTrip && String(S.activeTrip.direction_id || '') === dirId
+                        && Array.isArray(S.activeTrip.members)) ? S.activeTrip.members : [];
+                    members.forEach(m => {
+                        if (String(m?.role || '').toLowerCase() !== 'driver') _pushMapCoord(coords, m.lat, m.lng);
+                    });
+                }
+            } else {
+                const nf = S.mapNewsFilter || 'all';
+                (S.news || []).forEach(n => {
+                    if (!isDiscoveryNewsItem(n)) return;
+                    if (nf !== 'all' && classifyNewsItem(n) !== nf) return;
+                    _pushMapCoord(coords, n.lat, n.lng);
+                });
+                (S.mapCrews || []).forEach(c => {
+                    if (nf !== 'all' && classifyNewsItem(c) !== nf) return;
+                    _pushMapCoord(coords, c.lat, c.lng);
+                });
+            }
+
+            const seen = new Set();
+            const uniq = coords.filter(([lat, lng]) => {
+                const k = `${lat.toFixed(5)},${lng.toFixed(5)}`;
+                if (seen.has(k)) return false; seen.add(k); return true;
+            });
+
+            if (!uniq.length) { showToast('Немає пінів цього типу на карті', ''); return; }
+            if (uniq.length === 1) S.map.flyTo(uniq[0], 15, { duration: 0.6 });
+            else S.map.fitBounds(uniq, { padding: [56, 56], maxZoom: 15 });
+        }
+
         async function setMapEventFilter(filter) {
             S.mapEventFilter = filter || 'all';
             renderNewsStrip();
-            if (S.currentScreen === 'explore') await refreshMap();
+            if (S.currentScreen === 'explore') { await refreshMap(); focusMapByFilter(); }
         }
 
         async function setMapNewsFilter(filter) {
             if (guardMapFilterChange(filter)) return;
             S.mapNewsFilter = filter || 'all';
             renderNewsStrip();
-            if (S.currentScreen === 'explore') await refreshMap();
+            if (S.currentScreen === 'explore') { await refreshMap(); focusMapByFilter(); }
         }
 
         function setNewsFilter(filter) { S.newsFilter = filter || 'all'; renderNewsScreen(); }
@@ -4820,13 +4869,14 @@
                 let capacityPanelHtml = '';
                 let actionButtonsHtml = '';
 
+                // Чекбокс «шукати автоматично» (фронтенд, сесійний; дефолт ON)
+                if (typeof S.autoSearch === 'undefined') S.autoSearch = true;
+                const autoOn = !!S.autoSearch;
+                const autoToggleHtml = `
+                    <button class="btn btn-secondary" style="margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:8px;" onclick="S.autoSearch=!S.autoSearch; renderTrips();">${autoOn ? '☑️' : '☐'} Шукати автоматично</button>`;
+
                 if (isDriver) {
                     if (S.myCrew) {
-                        screenTitle = 'Шукаємо попутників';
-                        screenSubtitle = `Ваш виїзд за напрямком «${activeSubTitle}» активний. Очікуємо запитів на підсадку.`;
-                        statusHeaderText = 'Очікування запитів';
-                        statusBodyDesc = 'Ви відкрили екіпаж. Щойно хтось із знайомих надішле запит, ми відразу сповістимо вас.';
-                        
                         // Render visual seats
                         const totalSeats = Number(S.myCrew.seats_total || 3);
                         const freeSeats = Number(S.myCrew.seats_free || 3);
@@ -4847,28 +4897,40 @@
                                 </div>
                             </div>
                         `;
-
+                        if (autoOn) {
+                            screenTitle = 'Шукаємо для вас попутників';
+                            screenSubtitle = `Ваше авто на напрямку «${activeSubTitle}» доступне для підписаних попутників.`;
+                            statusHeaderText = '🟢 Пошук активний';
+                            statusBodyDesc = 'Щойно хтось постукає — ви одразу дізнаєтесь. Це не таймер: підписка діє, поки ви її не зупините.';
+                        } else {
+                            screenTitle = 'Ваше авто видиме';
+                            screenSubtitle = `Автопошук вимкнено. Підписані попутники все одно бачать ваше авто на «${activeSubTitle}» і можуть постукати.`;
+                            statusHeaderText = '🟡 Ви не шукаєте активно';
+                            statusBodyDesc = 'Ви не добираєте попутників самі, але вхідні запити приймаються. Увімкніть автопошук, щоб система допомагала активніше.';
+                        }
                         actionButtonsHtml = `
-                            <button class="btn btn-secondary" style="margin-bottom:8px;" onclick="switchScreen('explore')">🗺️ Переглянути карту</button>
+                            ${autoToggleHtml}
                             <button class="btn btn-secondary" style="margin-bottom:8px;" onclick="openMyCrew()">⚙️ Налаштувати екіпаж</button>
-                            <button class="btn btn-danger" style="background:transparent;color:var(--red);border:1px solid rgba(248,113,113,0.2);margin-top:4px;" onclick="unsubscribeDir(${dirId})">⏹️ Скасувати виїзд</button>
+                            <button class="btn btn-secondary" style="margin-bottom:8px;" onclick="switchScreen('explore')">🗺️ Подивитися, хто шукає</button>
+                            <button class="btn btn-danger" style="background:transparent;color:var(--red);border:1px solid rgba(248,113,113,0.2);margin-top:4px;" onclick="unsubscribeDir(${dirId})">⏹️ Зупинити пошук</button>
                         `;
                     } else {
-                        screenTitle = 'Потрібно відкрити місця';
-                        screenSubtitle = 'Щоб попутники могли бачити ваш екіпаж та надсилати запити, вкажіть вільні місця в авто.';
-                        statusHeaderText = 'Місця не вказані';
-                        statusBodyDesc = 'Ви підписалися як водій, але ще не відкрили місця для підсадки на цей напрямок.';
+                        screenTitle = 'Шукаємо для вас попутників';
+                        screenSubtitle = `Ви підписані на «${activeSubTitle}» як водій. Система вже шукає попутників.`;
+                        statusHeaderText = '🟢 Пошук активний';
+                        statusBodyDesc = 'Попутники можуть стукати до вас. Хочете — покажіть авто на карті з точкою збору, щоб вас бачили й на мапі.';
                         actionButtonsHtml = `
-                            <button class="btn btn-primary" style="margin-bottom:8px;" onclick="openMyCrew()">🚗 Я везу — відкрити місця</button>
-                            <button class="btn btn-secondary" style="margin-bottom:8px;" onclick="switchScreen('explore')">🗺️ Переглянути карту</button>
+                            ${autoToggleHtml}
+                            <button class="btn btn-primary" style="margin-bottom:8px;" onclick="openMyCrew()">📍 Показати авто на карті</button>
+                            <button class="btn btn-secondary" style="margin-bottom:8px;" onclick="switchScreen('explore')">🗺️ Подивитися, хто шукає</button>
                             <button class="btn btn-danger" style="background:transparent;color:var(--red);border:1px solid rgba(248,113,113,0.2);margin-top:4px;" onclick="unsubscribeDir(${dirId})">⏹️ Зупинити пошук</button>
                         `;
                     }
                 } else {
-                    screenTitle = 'Шукаємо водія';
-                    screenSubtitle = `Ви підписані на напрямок «${activeSubTitle}». Шукаємо доступні екіпажі.`;
-                    statusHeaderText = 'Пошук водія';
-                    statusBodyDesc = 'Система очікує підходящих пропозицій від водіїв. Ви також можете самостійно знайти екіпаж у каталозі.';
+                    screenTitle = 'Шукаємо для вас водія';
+                    screenSubtitle = `Ви підписані на «${activeSubTitle}». Система шукає доступні екіпажі.`;
+                    statusHeaderText = '🟢 Пошук активний';
+                    statusBodyDesc = 'Щойно знайдеться водій — ви одразу побачите. Можете й самі знайти екіпаж у каталозі або на карті.';
                     actionButtonsHtml = `
                         <button class="btn btn-primary" style="margin-bottom:8px;" onclick="switchScreen('board')">🔍 Знайти водія в каталозі</button>
                         <button class="btn btn-secondary" style="margin-bottom:8px;" onclick="switchScreen('explore')">🗺️ Переглянути водіїв на карті</button>
