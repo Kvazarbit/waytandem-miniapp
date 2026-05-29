@@ -4901,7 +4901,7 @@
                             screenTitle = 'Шукаємо для вас попутників';
                             screenSubtitle = `Ваше авто на напрямку «${activeSubTitle}» доступне для підписаних попутників.`;
                             statusHeaderText = '🟢 Пошук активний';
-                            statusBodyDesc = 'Щойно хтось постукає — ви одразу дізнаєтесь. Це не таймер: підписка діє, поки ви її не зупините.';
+                            statusBodyDesc = 'Пошук активний без таймера. Це не таймер: підписка діє, поки ви її не зупините. Щойно хтось постукає — ви одразу дізнаєтесь.';
                         } else {
                             screenTitle = 'Ваше авто видиме';
                             screenSubtitle = `Автопошук вимкнено. Підписані попутники все одно бачать ваше авто на «${activeSubTitle}» і можуть постукати.`;
@@ -4930,7 +4930,7 @@
                     screenTitle = 'Шукаємо для вас водія';
                     screenSubtitle = `Ви підписані на «${activeSubTitle}». Система шукає доступні екіпажі.`;
                     statusHeaderText = '🟢 Пошук активний';
-                    statusBodyDesc = 'Щойно знайдеться водій — ви одразу побачите. Можете й самі знайти екіпаж у каталозі або на карті.';
+                    statusBodyDesc = 'Пошук активний без таймера. Це не таймер: підписка діє, поки ви її не зупините. Щойно знайдеться водій — ви одразу побачите.';
                     actionButtonsHtml = `
                         <button class="btn btn-primary" style="margin-bottom:8px;" onclick="switchScreen('board')">🔍 Знайти водія в каталозі</button>
                         <button class="btn btn-secondary" style="margin-bottom:8px;" onclick="switchScreen('explore')">🗺️ Переглянути водіїв на карті</button>
@@ -4961,6 +4961,7 @@
                             <span>Актуально: ${escapeHtml(freshnessText)}</span>
                         </div>
                     </div>
+                    ${renderQueueRadarPanel(isDriver)}
                     <div style="padding:0 16px;margin-bottom:20px;display:flex;flex-direction:column;gap:4px;max-width:360px;margin-left:auto;margin-right:auto;">
                         ${actionButtonsHtml}
                     </div>
