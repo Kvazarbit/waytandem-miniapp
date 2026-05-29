@@ -2500,6 +2500,26 @@
 
         function clearLiveLocationConsent() {
             try { localStorage.removeItem(_stateKey('live_location_consent')); } catch (_) { }
+            try {
+                const prefix = _stateKey('live_location_declined_');
+                const toRemove = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const k = localStorage.key(i);
+                    if (k && k.indexOf(prefix) === 0) toRemove.push(k);
+                }
+                toRemove.forEach(k => localStorage.removeItem(k));
+            } catch (_) { }
+        }
+
+        // Persisted per-trip decline so the prompt is NOT re-shown after reload/refocus.
+        function _declineKey(reqId) { return _stateKey('live_location_declined_' + reqId); }
+        function isLiveLocationDeclined(reqId) {
+            if (!reqId) return false;
+            try { return localStorage.getItem(_declineKey(reqId)) === '1'; } catch (_) { return false; }
+        }
+        function setLiveLocationDeclined(reqId) {
+            if (!reqId) return;
+            try { localStorage.setItem(_declineKey(reqId), '1'); } catch (_) { }
         }
 
         // ═══ LOADING INDICATOR — visual feedback for busy state ═══
@@ -4674,7 +4694,9 @@
                 const cancelRequested = cancelBy && !isStarted && String(cancelBy) === String(S.userId);
                 const liveLocationActive = shouldShareLiveLocation(t);
                 // Live location is telemetry for the active crew, not a lifecycle transition.
-                if (liveLocationActive) startLocationTracking(); else stopLocationTracking(true);
+                // Use clearConsent=false here: this runs on every poll cycle, so clearing
+                // would wipe the user's saved choice and re-trigger the prompt endlessly.
+                if (liveLocationActive) startLocationTracking(); else stopLocationTracking(false);
                 container.innerHTML = `
                     <div class="hero ${isStarted ? 'driving' : 'reservation'} animate-in">
                         <div class="hero-label" style="color:${isStarted ? 'var(--accent)' : (isPickup ? 'var(--blue)' : 'var(--amber)')};">
@@ -6054,7 +6076,7 @@
             if (!reqId) return;
             const consentKey = _stateKey('live_location_consent');
             if (localStorage.getItem(consentKey) !== '1') {
-                if (isAppInBackground || isSheetOpen() || _locationConsentPromptOpen || _locationConsentDeclinedForReqId === reqId) return;
+                if (isAppInBackground || isSheetOpen() || _locationConsentPromptOpen || _locationConsentDeclinedForReqId === reqId || isLiveLocationDeclined(reqId)) return;
                 _locationConsentPromptOpen = true;
                 const phase = S.activeTrip?.is_started ? 'на маршруті' : 'біля точки збору';
                 openSheet(`
@@ -6073,6 +6095,7 @@
                 };
                 document.getElementById('live-location-no').onclick = () => {
                     _locationConsentDeclinedForReqId = reqId;
+                    setLiveLocationDeclined(reqId);
                     _locationConsentPromptOpen = false;
                     closeSheet();
                     showToast('Live GPS вимкнено для цієї поїздки', '');
