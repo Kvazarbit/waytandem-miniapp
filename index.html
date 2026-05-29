@@ -3309,7 +3309,20 @@
                 if (boardLabel) boardLabel.textContent = 'Назад';
                 if (boardIcon) boardIcon.innerHTML = '<polyline points="15 18 9 12 15 6"></polyline><line x1="9" y1="12" x2="21" y2="12"></line>';
                 boardItem.onclick = (e) => { e?.preventDefault?.(); boardGoUp(); };
-                boardItem.classList.add('active'); return;
+                boardItem.classList.add('active');
+                
+                let suggestBtn = document.getElementById('nav-btn-suggest-event');
+                if (!suggestBtn) {
+                    suggestBtn = document.createElement('button');
+                    suggestBtn.id = 'nav-btn-suggest-event';
+                    suggestBtn.className = 'nav-item';
+                    suggestBtn.style.cssText = 'background:var(--accent); color:#000; border-radius:20px; font-weight:700; font-size:11px; margin: 0 8px; padding: 4px 12px; white-space:nowrap; border:none; cursor:pointer;';
+                    suggestBtn.textContent = '+ Запропонувати подію';
+                    suggestBtn.onclick = () => openCreateDirection();
+                    boardItem.after(suggestBtn);
+                }
+                suggestBtn.style.display = (S.canCreateEvent === true) ? 'block' : 'none';
+                return;
             }
             if (boardLabel) boardLabel.textContent = boardNavDefaults.label || 'Каталог';
             if (boardIcon && boardNavDefaults.icon) boardIcon.innerHTML = boardNavDefaults.icon;
@@ -4111,11 +4124,7 @@
             if (!el) return;
             if (!S.boardStack.length) { el.innerHTML = ''; updateBottomNavForBoardDepth(); return; }
             const path = S.boardStack.map(x => x?.title || `#${x?.id || '?'}`);
-            el.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-                    <div class="board-crumb-path" onclick="boardGoRoot()" title="До кореня" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${path.map(p => escapeHtml(String(p))).join(' / ')}</div>
-                    ${canCreate ? `<button class="btn btn-primary btn-sm" onclick="openCreateDirection()" style="white-space:nowrap; font-size:11px; padding:4px 8px;">+ Запропонувати подію</button>` : ''}
-                </div>`;
+            el.innerHTML = `<div class="board-crumb-path" onclick="boardGoRoot()" title="До кореня">${path.map(p => escapeHtml(String(p))).join(' / ')}</div>`;
             updateBottomNavForBoardDepth();
         }
 
@@ -4155,13 +4164,13 @@
             }
             
             const currentDirs = allDirections || [];
-            const canCreate = S.boardStack.length > 0 
+            S.canCreateEvent = S.boardStack.length > 0 
                 && S.boardParentId !== null 
                 && S.boardParentId !== undefined 
                 && !(document.getElementById('board-search')?.value?.trim()) 
                 && !currentDirs.some(d => isFolderNode(d));
 
-            renderBoardBreadcrumb(canCreate);
+            renderBoardBreadcrumb(S.canCreateEvent);
             const qp = new URLSearchParams({ lang: S.lang });
             if (S.userId) qp.set('user_id', String(S.userId));
             if (S.boardParentId !== null && S.boardParentId !== undefined) qp.set('parent_id', String(S.boardParentId));
