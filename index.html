@@ -3294,7 +3294,7 @@
         // ─── MAP ───
         function initMap() {
             S.map = L.map('map', { zoomControl: false, attributionControl: false }).setView([S.homeCity.lat, S.homeCity.lng], 11);
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(S.map);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(S.map);
             // No browser GPS prompt on startup: user location is explicit via the map button.
             const controls = document.createElement('div');
             controls.className = 'map-fab-stack';
