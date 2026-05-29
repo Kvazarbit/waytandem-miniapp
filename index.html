@@ -4106,12 +4106,16 @@
             };
         }
 
-        function renderBoardBreadcrumb() {
+        function renderBoardBreadcrumb(canCreate = false) {
             const el = document.getElementById('board-breadcrumb');
             if (!el) return;
             if (!S.boardStack.length) { el.innerHTML = ''; updateBottomNavForBoardDepth(); return; }
             const path = S.boardStack.map(x => x?.title || `#${x?.id || '?'}`);
-            el.innerHTML = `<div class="board-crumb-path" onclick="boardGoRoot()" title="До кореня">${path.map(p => escapeHtml(String(p))).join(' / ')}</div>`;
+            el.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                    <div class="board-crumb-path" onclick="boardGoRoot()" title="До кореня" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${path.map(p => escapeHtml(String(p))).join(' / ')}</div>
+                    ${canCreate ? `<button class="btn btn-primary btn-sm" onclick="openCreateDirection()" style="white-space:nowrap; font-size:11px; padding:4px 8px;">+ Запропонувати подію</button>` : ''}
+                </div>`;
             updateBottomNavForBoardDepth();
         }
 
@@ -4167,12 +4171,11 @@
 
         function renderBoardList(dirs, subSet) {
             const list = document.getElementById('board-list');
-            const createAction = renderBoardIdeaAction(dirs);
             if (!dirs.length) {
-                list.innerHTML = `${createAction}<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">Немає напрямків</div></div>`;
+                list.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">Немає напрямків</div></div>`;
                 return;
             }
-            list.innerHTML = createAction + dirs.map(d => {
+            list.innerHTML = dirs.map(d => {
                 const id = String(d.id);
                 const isFolder = isFolderNode(d);
                 const isSub = !isFolder && subSet?.has(id);
