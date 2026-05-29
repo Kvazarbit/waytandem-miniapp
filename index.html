@@ -4763,34 +4763,9 @@
                         const meetingPoint = dir.meeting_point || '';
                         const desc = dir.description || '';
                         const count = organizers.length;
-                        
+
                         const avatarGroupHtml = organizers.slice(0, 4).map(o => {
                             return renderAvatarInline(o.name || '?', o.photo_url || '', 20, 'avatar-mini');
-                        }).join('');
-
-                        const creatorContactBlock = dir.creator_id ? `
-                            <div style="margin:10px 0 12px;padding:10px;border-radius:8px;background:rgba(56,189,248,0.07);border:1px solid rgba(56,189,248,0.18);">
-                                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
-                                    <div style="font-size:12px;color:var(--text-secondary);line-height:1.45;">
-                                        <span style="color:var(--text-muted);">Організатор:</span>
-                                        <strong style="color:var(--text-primary);">${escapeHtml(creatorDisplay)}</strong>
-                                        ${creatorUsername ? `<span style="color:var(--blue);">@${escapeHtml(creatorUsername)}</span>` : ''}
-                                    </div>
-                                    ${String(dir.creator_id) !== String(S.userId) ? `<button class="btn btn-secondary" style="padding:6px 10px;font-size:11px;min-height:30px;width:auto;" data-tg-username="${escapeAttr(creatorUsername)}" data-tg-user-id="${parseInt(dir.creator_id, 10) || 0}" onclick="openTelegramContactFromButton(this)">💬 Написати</button>` : `<span class="tag tag-green">Ваша ідея</span>`}
-                                </div>
-                            </div>` : '';
-
-                        const participantsHtml = organizers.map(o => {
-                            const isMe = String(o.user_id) === String(S.userId);
-                            const roleTagClass = normalizeRole(o.role || 'driver') === 'driver' ? 'driver' : 'passenger';
-                            const roleTagLabel = normalizeRole(o.role || 'driver') === 'driver' ? 'Водій' : 'Попутник';
-                            return `
-                                <div class="p-item">
-                                    ${renderAvatarInline(o.name || 'Учасник', o.photo_url || '', 22, 'p-avatar')}
-                                    <span class="p-name">${escapeHtml(o.name || 'Учасник')}${isMe ? ' (Ви)' : ''}</span>
-                                    <span class="p-role-tag ${roleTagClass}">${roleTagLabel}</span>
-                                </div>
-                            `;
                         }).join('');
 
                         const detailRows = [
@@ -4799,17 +4774,16 @@
                             desc ? `<div style="font-size:12px;color:var(--text-secondary);line-height:1.45;margin-top:6px;white-space:pre-wrap;">${escapeHtml(desc)}</div>` : ''
                         ].filter(Boolean).join('');
 
-                        const statsText = `Організатор: ${escapeHtml(creatorDisplay)} · ${count} ${pluralUk(count, 'учасник', 'учасники', 'учасників')}`;
                         const isExpanded = S.eventAccordionExpanded ? 'expanded' : '';
 
                         eventAccordionHtml = `
                             <div class="event-accordion ${isExpanded}" id="event-banner" onclick="toggleEventAccordion(event)">
                                 <div class="event-header">
                                     <div class="event-title-block">
-                                        <span class="event-icon-badge">🎯</span>
+                                        <span class="event-icon-badge">✅</span>
                                         <div class="event-meta-info">
                                             <div class="event-goal-name">${escapeHtml(title)}</div>
-                                            <div class="event-stats">${escapeHtml(statsText)}</div>
+                                            <div class="event-stats">Ви підписані · ${escapeHtml(creatorDisplay)} · ${count} ${pluralUk(count, 'учасник', 'учасники', 'учасників')}</div>
                                         </div>
                                     </div>
                                     <div class="avatar-group">
@@ -4820,11 +4794,14 @@
                                 <div class="event-details">
                                     <div class="event-divider"></div>
                                     ${detailRows ? `<div class="event-desc">${detailRows}</div>` : ''}
-                                    ${creatorContactBlock}
-                                    <div class="capacity-title" style="margin-bottom:6px;">Всі підписані на напрямок:</div>
-                                    <div class="event-participants-list">
-                                        ${participantsHtml || '<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">Немає інших учасників</div>'}
-                                    </div>
+                                    ${dir.creator_id && String(dir.creator_id) !== String(S.userId) ? `
+                                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+                                            <span style="font-size:12px;color:var(--text-muted);">Організатор:</span>
+                                            <strong style="font-size:12px;color:var(--text-primary);">${escapeHtml(creatorDisplay)}</strong>
+                                            ${creatorUsername ? `<span style="font-size:12px;color:var(--blue);">@${escapeHtml(creatorUsername)}</span>` : ''}
+                                            <button class="btn btn-secondary" style="padding:5px 10px;font-size:11px;min-height:28px;width:auto;margin-left:auto;" data-tg-username="${escapeAttr(creatorUsername)}" data-tg-user-id="${parseInt(dir.creator_id, 10) || 0}" onclick="event.stopPropagation(); openTelegramContactFromButton(this)">💬 Написати</button>
+                                        </div>` : ''}
+                                    <button class="btn btn-secondary" style="width:100%;font-size:12px;" onclick="event.stopPropagation(); closeSheet(); openDirection(${parseInt(dirId) || 0})">👥 Переглянути учасників</button>
                                 </div>
                             </div>
                         `;
@@ -4849,7 +4826,7 @@
                             <div class="event-accordion" style="pointer-events: none; opacity: 0.7;">
                                 <div class="event-header">
                                     <div class="event-title-block">
-                                        <span class="event-icon-badge">🎯</span>
+                                        <span class="event-icon-badge">✅</span>
                                         <div class="event-meta-info">
                                             <div class="event-goal-name">${title}</div>
                                             <div class="event-stats">Завантаження деталей...</div>
@@ -4862,107 +4839,71 @@
                     }
                 }
 
-                let screenTitle = '';
-                let screenSubtitle = '';
-                let statusHeaderText = '';
-                let statusBodyDesc = '';
+                // Capacity panel (driver only)
                 let capacityPanelHtml = '';
-                let actionButtonsHtml = '';
+                if (isDriver && S.myCrew) {
+                    const totalSeats = Number(S.myCrew.seats_total || 3);
+                    const freeSeats = Number(S.myCrew.seats_free || 3);
+                    const takenSeats = totalSeats - freeSeats;
+                    let seatsRowHtml = `<div class="seat-dot driver-seat" title="Водій (Ви)">🚗</div>`;
+                    for (let i = 1; i <= totalSeats; i++) {
+                        if (i <= takenSeats) {
+                            seatsRowHtml += `<div class="seat-dot taken" title="Зайнято">👤</div>`;
+                        } else {
+                            seatsRowHtml += `<div class="seat-dot free" title="Вільне місце">${i}</div>`;
+                        }
+                    }
+                    capacityPanelHtml = `
+                        <div class="capacity-panel">
+                            <div class="capacity-title">Вільні місця в авто: <span id="free-seats-count">${freeSeats}</span></div>
+                            <div class="seats-row">
+                                ${seatsRowHtml}
+                            </div>
+                        </div>
+                    `;
+                }
 
-                // Чекбокс «шукати автоматично» (фронтенд, сесійний; дефолт ON)
-                if (typeof S.autoSearch === 'undefined') S.autoSearch = true;
-                const autoOn = !!S.autoSearch;
-                const autoToggleHtml = `
-                    <button class="btn btn-secondary" style="margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:8px;" onclick="S.autoSearch=!S.autoSearch; renderTrips();">${autoOn ? '☑️' : '☐'} Шукати автоматично</button>`;
-
+                // Context-specific info block
+                let contextHintHtml = '';
                 if (isDriver) {
                     if (S.myCrew) {
-                        // Render visual seats
-                        const totalSeats = Number(S.myCrew.seats_total || 3);
-                        const freeSeats = Number(S.myCrew.seats_free || 3);
-                        const takenSeats = totalSeats - freeSeats;
-                        let seatsRowHtml = `<div class="seat-dot driver-seat" title="Водій (Ви)">🚗</div>`;
-                        for (let i = 1; i <= totalSeats; i++) {
-                            if (i <= takenSeats) {
-                                seatsRowHtml += `<div class="seat-dot taken" title="Зайнято">👤</div>`;
-                            } else {
-                                seatsRowHtml += `<div class="seat-dot free" title="Вільне місце">${i}</div>`;
-                            }
-                        }
-                        capacityPanelHtml = `
-                            <div class="capacity-panel">
-                                <div class="capacity-title">Вільні місця в авто: <span id="free-seats-count">${freeSeats}</span></div>
-                                <div class="seats-row">
-                                    ${seatsRowHtml}
-                                </div>
-                            </div>
-                        `;
-                        if (autoOn) {
-                            screenTitle = 'Шукаємо для вас попутників';
-                            screenSubtitle = `Ваше авто на напрямку «${activeSubTitle}» доступне для підписаних попутників.`;
-                            statusHeaderText = '🟢 Пошук активний';
-                            statusBodyDesc = 'Пошук активний без таймера. Це не таймер: підписка діє, поки ви її не зупините. Щойно хтось постукає — ви одразу дізнаєтесь.';
-                        } else {
-                            screenTitle = 'Ваше авто видиме';
-                            screenSubtitle = `Автопошук вимкнено. Підписані попутники все одно бачать ваше авто на «${activeSubTitle}» і можуть постукати.`;
-                            statusHeaderText = '🟡 Ви не шукаєте активно';
-                            statusBodyDesc = 'Ви не добираєте попутників самі, але вхідні запити приймаються. Увімкніть автопошук, щоб система допомагала активніше.';
-                        }
-                        actionButtonsHtml = `
-                            ${autoToggleHtml}
-                            <button class="btn btn-secondary" style="margin-bottom:8px;" onclick="openMyCrew()">⚙️ Налаштувати екіпаж</button>
-                            <button class="btn btn-secondary" style="margin-bottom:8px;" onclick="switchScreen('explore')">🗺️ Подивитися, хто шукає</button>
-                            <button class="btn btn-danger" style="background:transparent;color:var(--red);border:1px solid rgba(248,113,113,0.2);margin-top:4px;" onclick="unsubscribeDir(${dirId})">⏹️ Зупинити пошук</button>
-                        `;
+                        contextHintHtml = `
+                            <div style="display:flex;align-items:center;gap:8px;padding:10px;border-radius:10px;background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.15);margin-top:12px;text-align:left;">
+                                <span style="font-size:16px;flex-shrink:0;">📡</span>
+                                <span style="font-size:12px;color:var(--text-secondary);line-height:1.4;">Попутники бачать ваше авто і можуть постукати. Щойно хтось запросится — ви побачите тут.</span>
+                            </div>`;
                     } else {
-                        screenTitle = 'Шукаємо для вас попутників';
-                        screenSubtitle = `Ви підписані на «${activeSubTitle}» як водій. Система вже шукає попутників.`;
-                        statusHeaderText = '🟢 Пошук активний';
-                        statusBodyDesc = 'Попутники можуть стукати до вас. Хочете — покажіть авто на карті з точкою збору, щоб вас бачили й на мапі.';
-                        actionButtonsHtml = `
-                            ${autoToggleHtml}
-                            <button class="btn btn-primary" style="margin-bottom:8px;" onclick="openMyCrew()">📍 Показати авто на карті</button>
-                            <button class="btn btn-secondary" style="margin-bottom:8px;" onclick="switchScreen('explore')">🗺️ Подивитися, хто шукає</button>
-                            <button class="btn btn-danger" style="background:transparent;color:var(--red);border:1px solid rgba(248,113,113,0.2);margin-top:4px;" onclick="unsubscribeDir(${dirId})">⏹️ Зупинити пошук</button>
-                        `;
+                        contextHintHtml = `
+                            <div style="display:flex;align-items:center;gap:8px;padding:10px;border-radius:10px;background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.18);margin-top:12px;text-align:left;">
+                                <span style="font-size:16px;flex-shrink:0;">💡</span>
+                                <span style="font-size:12px;color:var(--text-secondary);line-height:1.4;">Вкажіть кількість місць у профілі, щоб попутники бачили ваш екіпаж.</span>
+                            </div>`;
                     }
                 } else {
-                    screenTitle = 'Шукаємо для вас водія';
-                    screenSubtitle = `Ви підписані на «${activeSubTitle}». Система шукає доступні екіпажі.`;
-                    statusHeaderText = '🟢 Пошук активний';
-                    statusBodyDesc = 'Пошук активний без таймера. Це не таймер: підписка діє, поки ви її не зупините. Щойно знайдеться водій — ви одразу побачите.';
-                    actionButtonsHtml = `
-                        <button class="btn btn-primary" style="margin-bottom:8px;" onclick="switchScreen('board')">🔍 Знайти водія в каталозі</button>
-                        <button class="btn btn-secondary" style="margin-bottom:8px;" onclick="switchScreen('explore')">🗺️ Переглянути водіїв на карті</button>
-                        <button class="btn btn-danger" style="background:transparent;color:var(--red);border:1px solid rgba(248,113,113,0.2);margin-top:4px;" onclick="unsubscribeDir(${dirId})">⏹️ Зупинити пошук</button>
-                    `;
+                    contextHintHtml = `
+                        <div style="display:flex;align-items:center;gap:8px;padding:10px;border-radius:10px;background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.15);margin-top:12px;text-align:left;">
+                            <span style="font-size:16px;flex-shrink:0;">📡</span>
+                            <span style="font-size:12px;color:var(--text-secondary);line-height:1.4;">Система шукає відкриті екіпажі для вас. Щойно знайдеться водій — ви побачите запит тут.</span>
+                        </div>`;
                 }
 
                 const freshnessText = formatRadarSyncAge(S.lastHydrateAt || S.lastMapSyncAt);
 
                 container.innerHTML = `
                     ${eventAccordionHtml}
-                    <h2 class="screen-title" style="margin-top:16px;">${escapeHtml(screenTitle)}</h2>
-                    <p class="screen-subtitle" style="margin-bottom:16px;">${escapeHtml(screenSubtitle)}</p>
-                    <div class="card animate-in" style="margin-top:10px;">
-                        <div class="search-icon-container">
-                            <div class="search-icon-bg"></div>
-                            <div class="search-icon">🔍</div>
-                        </div>
+                    <div class="card animate-in" style="margin-top:10px;text-align:center;">
                         <div class="status-header">
-                            ${escapeHtml(statusHeaderText)}
-                        </div>
-                        <div class="card-body-text">
-                            ${escapeHtml(statusBodyDesc)}
+                            🟢 Пошук активний
                         </div>
                         ${capacityPanelHtml}
-                        <div class="freshness-indicator" style="justify-content:center;width:100%;margin-top:16px;">
+                        ${contextHintHtml}
+                        <div class="freshness-indicator" style="justify-content:center;width:100%;margin-top:12px;">
                             <span class="pulse-dot"></span>
                             <span>Актуально: ${escapeHtml(freshnessText)}</span>
                         </div>
                     </div>
-                    <div style="padding:0 16px;margin-bottom:20px;display:flex;flex-direction:column;gap:4px;max-width:360px;margin-left:auto;margin-right:auto;">
-                        ${actionButtonsHtml}
+                    <div style="padding:0 16px;margin-top:16px;margin-bottom:20px;max-width:360px;margin-left:auto;margin-right:auto;">
+                        <button class="btn btn-danger" style="width:100%;background:transparent;color:var(--red);border:1px solid rgba(248,113,113,0.2);" onclick="unsubscribeDir(${dirId})">⏹️ Зупинити пошук</button>
                     </div>
                 `;
             } else {
