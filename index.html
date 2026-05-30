@@ -138,6 +138,44 @@
             color: var(--text-muted);
             border: 1px solid var(--border);
         }
+        .nav-suggest-btn {
+            background: var(--accent);
+            color: #000;
+            border: none;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 11px;
+            padding: 6px 12px;
+            margin: 0 10px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.3s ease;
+            display: none;
+            align-self: center;
+        }
+        .floating-suggest-btn {
+            position: fixed;
+            bottom: calc(var(--nav-height) + 20px);
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--accent);
+            color: #000;
+            border: none;
+            border-radius: 24px;
+            padding: 10px 20px;
+            font-weight: 700;
+            font-size: 14px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3), 0 0 10px var(--accent-glow);
+            cursor: pointer;
+            z-index: 1000;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease;
+            opacity: 0;
+            white-space: nowrap;
+        }
+        .floating-suggest-btn.visible {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
 
         .avatar-btn {
             width: 36px;
@@ -1266,6 +1304,30 @@
             background: rgba(251,191,36,0.14);
             border-color: rgba(251,191,36,0.45);
             color: #fbbf24;
+            transition: all 0.3s ease;
+        }
+        .map-fab.location-active {
+            background: var(--accent) !important;
+            border-color: var(--accent) !important;
+            color: #000 !important;
+            box-shadow: 0 0 15px var(--accent-glow);
+        }
+
+        /* Маркер власної локації — синя пульсуюча точка */
+        .my-loc-dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #2f7bff;
+            border: 2px solid #fff;
+            box-shadow: 0 0 0 rgba(47,123,255,0.5);
+            animation: my-loc-pulse 2s infinite;
+            margin: 3px;
+        }
+        @keyframes my-loc-pulse {
+            0%   { box-shadow: 0 0 0 0 rgba(47,123,255,0.5); }
+            70%  { box-shadow: 0 0 0 14px rgba(47,123,255,0); }
+            100% { box-shadow: 0 0 0 0 rgba(47,123,255,0); }
         }
 
         .map-focus-btn[hidden] {
@@ -3333,17 +3395,67 @@
             locBtn.textContent = '📍';
             locBtn.setAttribute('aria-label', 'Показати мою локацію');
             locBtn.title = 'Показати мою локацію';
-            locBtn.onclick = () => {
-                if (!navigator.geolocation) { showToast('GPS недоступний', 'error'); return; }
-                navigator.geolocation.getCurrentPosition(
-                    p => S.map.flyTo([p.coords.latitude, p.coords.longitude], 14, { duration: 1 }),
-                    () => showToast('Не вдалося отримати GPS', 'error'),
-                    { enableHighAccuracy: true, timeout: 8000 }
-                );
-            };
+            locBtn.onclick = toggleMyLocation;
             controls.appendChild(focusBtn);
             controls.appendChild(locBtn);
             document.getElementById('map-container').appendChild(controls);
+        }
+
+        // ═══════ MY LOCATION TOGGLE (single permission, no repeated GPS prompts) ═══════
+        // Замість getCurrentPosition на кожен клік (що щоразу перепитує дозвіл GPS),
+        // використовуємо ОДИН watchPosition: браузер питає дозвіл один раз, далі стрімить
+        // оновлення, поки кнопка ввімкнена. Повторний клік вимикає трекінг.
+        let _myLocWatchId = null;
+        let _myLocMarker = null;
+
+        function _myLocationIcon() {
+            return L.divIcon({
+                className: '',
+                html: '<div class="my-loc-dot"></div>',
+                iconSize: [22, 22],
+                iconAnchor: [11, 11]
+            });
+        }
+
+        function stopMyLocationWatch() {
+            if (_myLocWatchId !== null && navigator.geolocation) {
+                navigator.geolocation.clearWatch(_myLocWatchId);
+            }
+            _myLocWatchId = null;
+            if (_myLocMarker && S.map) { S.map.removeLayer(_myLocMarker); }
+            _myLocMarker = null;
+            const btn = document.getElementById('map-location-btn');
+            if (btn) btn.classList.remove('location-active');
+        }
+
+        function toggleMyLocation() {
+            const btn = document.getElementById('map-location-btn');
+            if (!navigator.geolocation) { showToast('GPS недоступний', 'error'); return; }
+            // Вже ввімкнено → вимикаємо
+            if (_myLocWatchId !== null) { stopMyLocationWatch(); return; }
+            // Вмикаємо: одразу підсвічуємо кнопку (зелений активний стан)
+            if (btn) btn.classList.add('location-active');
+            let firstFix = true;
+            _myLocWatchId = navigator.geolocation.watchPosition(
+                (p) => {
+                    const lat = p.coords.latitude, lng = p.coords.longitude;
+                    S._lastKnownPos = { lat, lng, at: Date.now(), acc: p.coords.accuracy };
+                    const ll = [lat, lng];
+                    if (!_myLocMarker) {
+                        _myLocMarker = L.marker(ll, { icon: _myLocationIcon(), interactive: false, zIndexOffset: 1000 }).addTo(S.map);
+                    } else {
+                        _myLocMarker.setLatLng(ll);
+                    }
+                    if (firstFix) { S.map.flyTo(ll, 15, { duration: 1 }); firstFix = false; }
+                },
+                (err) => {
+                    // Відмова в дозволі або помилка → повертаємо кнопку у вимкнений стан
+                    stopMyLocationWatch();
+                    const msg = (err && err.code === 1) ? 'Доступ до GPS відхилено' : 'Не вдалося отримати GPS';
+                    showToast(msg, 'error');
+                },
+                { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
+            );
         }
 
         async function refreshMap() {
@@ -4099,7 +4211,7 @@
             };
         }
 
-        function renderBoardBreadcrumb() {
+        function renderBoardBreadcrumb(canCreate = false) {
             const el = document.getElementById('board-breadcrumb');
             if (!el) return;
             if (!S.boardStack.length) { el.innerHTML = ''; updateBottomNavForBoardDepth(); return; }
@@ -4138,11 +4250,19 @@
             const list = document.getElementById('board-list');
             list.innerHTML = '<div class="skeleton" style="height:60px;margin:12px 16px;"></div>'.repeat(3);
             if (!S.apiBase) {
-                renderBoardBreadcrumb();
+                renderBoardBreadcrumb(false);
                 list.innerHTML = '<div class="empty"><div class="empty-icon">🧭</div><div class="empty-title">Підключіть API</div><div class="empty-sub">Вкажіть адресу сервера в налаштуваннях</div></div>';
                 return;
             }
-            renderBoardBreadcrumb();
+            
+            const currentDirs = allDirections || [];
+            S.canCreateEvent = S.boardStack.length > 0 
+                && S.boardParentId !== null 
+                && S.boardParentId !== undefined 
+                && !(document.getElementById('board-search')?.value?.trim()) 
+                && !currentDirs.some(d => isFolderNode(d));
+
+            renderBoardBreadcrumb(S.canCreateEvent);
             const qp = new URLSearchParams({ lang: S.lang });
             if (S.userId) qp.set('user_id', String(S.userId));
             if (S.boardParentId !== null && S.boardParentId !== undefined) qp.set('parent_id', String(S.boardParentId));
@@ -4160,12 +4280,11 @@
 
         function renderBoardList(dirs, subSet) {
             const list = document.getElementById('board-list');
-            const createAction = renderBoardIdeaAction(dirs);
             if (!dirs.length) {
-                list.innerHTML = `${createAction}<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">Немає напрямків</div></div>`;
+                list.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">Немає напрямків</div></div>`;
                 return;
             }
-            list.innerHTML = createAction + dirs.map(d => {
+            list.innerHTML = dirs.map(d => {
                 const id = String(d.id);
                 const isFolder = isFolderNode(d);
                 const isSub = !isFolder && subSet?.has(id);
@@ -6121,6 +6240,16 @@
 
         function _sendMyLocation() {
             if (!navigator.geolocation || !S.apiBase || !S.userId) return;
+            // Якщо кнопка "моя локація" увімкнена, watchPosition уже дав свіжу позицію —
+            // використовуємо її, щоб не викликати getCurrentPosition (і не перепитувати GPS).
+            const cached = S._lastKnownPos;
+            if (cached && (Date.now() - cached.at) < 15000) {
+                api('/api/v3/user/location', {
+                    method: 'POST',
+                    body: JSON.stringify({ user_id: S.userId, lat: cached.lat, lng: cached.lng })
+                }).catch(() => {});
+                return;
+            }
             navigator.geolocation.getCurrentPosition(
                 (pos) => {
                     api('/api/v3/user/location', {
