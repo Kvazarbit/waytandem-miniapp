@@ -4477,24 +4477,6 @@
             }).join('');
         }
 
-        function renderBoardIdeaAction(dirs = []) {
-            if (!S.boardStack.length || S.boardParentId === null || S.boardParentId === undefined) return '';
-            const search = document.getElementById('board-search');
-            if (search?.value?.trim()) return '';
-            const hasSubfolders = (dirs || []).some(d => isFolderNode(d));
-            if (hasSubfolders) return '';
-            return `<div class="board-folder-action">
-                <button class="btn btn-primary" onclick="openCreateDirection()" title="Додати подію у поточному каталозі">+ Додати подію</button>
-            </div>`;
-        }
-
-        function renderQueuePulse(label) {
-            return `<div style="margin-top:14px;display:flex;align-items:center;justify-content:center;gap:7px;">
-                <span style="font-size:12px;color:var(--text-secondary);font-weight:700;">${escapeHtml(label)}</span>
-                <span class="pulse-dot"></span><span class="pulse-dot" style="animation-delay:.18s;"></span><span class="pulse-dot" style="animation-delay:.36s;"></span>
-            </div>`;
-        }
-
         function activeSubscriptionForRadar() {
             return (S.subscriptions || [])[0] || null;
         }
@@ -5942,67 +5924,6 @@
         }
 
         // ═══════ EVENT CREATION ═══════
-        function openCreateEvent() {
-            const today = new Date().toISOString().split('T')[0];
-            openSheet(`
-                <div class="sheet-title">🎯 Створити подію</div>
-                <div class="sheet-sub">Запросіть друзів у спільну подорож</div>
-                <input class="board-search" id="event-title" placeholder="Назва події (напр. Закопане Weekend)..." style="margin:12px 0 8px;">
-                <input class="board-search" id="event-date" type="date" min="${today}" value="${today}" style="margin-bottom:8px;">
-                <input class="board-search" id="event-time" type="time" value="07:00" style="margin-bottom:8px;">
-                <input class="board-search" id="event-direction" placeholder="Напрямок (напр. Закопане)..." style="margin-bottom:8px;">
-                <div style="display:flex;gap:8px;margin-bottom:8px;">
-                    <input class="board-search" id="event-from" placeholder="Звідки (напр. Варшава)" style="flex:1;margin:0;">
-                    <span style="align-self:center;color:var(--text-muted);">→</span>
-                    <input class="board-search" id="event-to" placeholder="Куди (напр. Закопане)" style="flex:1;margin:0;">
-                </div>
-                <div style="display:flex;gap:8px;margin-bottom:16px;">
-                    <input class="board-search" id="event-seats" type="number" min="2" max="8" value="4" placeholder="Місць" style="flex:1;margin:0;">
-                    <input class="board-search" id="event-desc" placeholder="Опис (необов'язково)" style="flex:2;margin:0;">
-                </div>
-                <button class="btn btn-primary" onclick="doCreateEvent()">✅ Створити подію</button>
-            `);
-            setTimeout(() => document.getElementById('event-title')?.focus(), 300);
-        }
-
-        async function doCreateEvent() {
-            const title = document.getElementById('event-title')?.value?.trim();
-            const date = document.getElementById('event-date')?.value;
-            const time = document.getElementById('event-time')?.value || '07:00';
-            const from = document.getElementById('event-from')?.value?.trim();
-            const to = document.getElementById('event-to')?.value?.trim();
-            const seats = parseInt(document.getElementById('event-seats')?.value || '4');
-            const desc = document.getElementById('event-desc')?.value?.trim() || '';
-            if (!title) { showToast('Вкажіть назву події', 'error'); return; }
-            if (!from && !to) { showToast('Вкажіть маршрут', 'error'); return; }
-            if (!date || new Date(date) < new Date(new Date().toISOString().split('T')[0])) {
-                showToast('Дата має бути сьогодні або пізніше', 'error'); return;
-            }
-            const directionText = [from, to].filter(Boolean).join(' → ');
-            if (!beginOp('create_event')) return;
-            try {
-                const res = await api('/api/v3/groups', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        user_id: S.userId,
-                        name: title,
-                        departure_date: `${date} ${time}`,
-                        max_participants: seats,
-                        description: desc || directionText,
-                        direction_title: directionText
-                    })
-                });
-                if (res?.status === 'ok' || res?.id) {
-                    closeSheet();
-                    showToast('🎯 Подію створено!', 'success');
-                    await hydrate();
-                    switchScreen('trips');
-                } else {
-                    showToast(getErrorMessage(res, 'Не вдалося створити подію'), 'error');
-                }
-            } finally { endOp('create_event'); }
-        }
-
         // ═══════ DIRECTION CREATION ═══════
         function openCreateDirection() {
             // Закон: один користувач — одна особиста подія.
