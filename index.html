@@ -1351,6 +1351,7 @@
         .map-picker-map {
             position: absolute;
             inset: 0;
+            z-index: 1; /* власний stacking-контекст: внутрішні шари Leaflet не перекривають пін і кнопки */
         }
         /* Нерухомий пін по центру: його кінчик вказує на центр карти */
         .map-picker-pin {
@@ -2490,7 +2491,7 @@
                 <div class="settings-group">
                     <div class="settings-row" onclick="openMyIdeas()">
                         <div class="settings-icon">💡</div>
-                        <div class="settings-label">Мої події</div>
+                        <div class="settings-label">Моя подія</div>
                         <div class="settings-arrow">›</div>
                     </div>
                     <div class="settings-row" onclick="openTripHistory()">
@@ -3208,7 +3209,22 @@
             S.pendingMatches = resolvePendingMatchesPayload(data);
             const subs = await api(`/api/v3/user/subscriptions?user_id=${S.userId}`);
             S.subscriptions = subs?.subscriptions || [];
+            // Suppress a just-switched-from/unsubscribed direction while the server
+            // catches up (its row can linger for a moment after a switch), so the
+            // sub-bar never shows the stale + new subscription at the same time.
+            if (S._recentlyUnsubbed && Date.now() < S._recentlyUnsubbed.until) {
+                S.subscriptions = S.subscriptions.filter(s => String(s.direction_id) !== S._recentlyUnsubbed.id);
+            } else {
+                S._recentlyUnsubbed = null;
+            }
             S.boardSubSet = new Set(S.subscriptions.map(s => String(s.direction_id)));
+            // Тримаємо "Моя подія" свіжою, щоб миттєва перевірка ліміту (одна подія
+            // на користувача) спрацьовувала ще до відкриття форми створення.
+            try {
+                const myData = await api(`/api/v3/board/my?user_id=${S.userId}&lang=${S.lang}`);
+                const myDirs = myData?.directions || myData?.my_directions || [];
+                S.myDirections = Array.isArray(myDirs) ? myDirs : [];
+            } catch (_) { /* не блокуємо hydrate, якщо запит не вдався */ }
             syncIdentityUI();
             updateRolePill(); updateBadges(); renderBoard(); renderTrips(); renderSubBar(); refreshMap();
             if (S.currentScreen === 'news' || S.currentScreen === 'explore') renderNews();
@@ -4857,6 +4873,8 @@
             if (!requireRoleForAction('стати в чергу', () => subscribeDir(dirId))) return false;
             const dir = allDirections.find(d => String(d.id) === String(dirId));
             if (isFolderNode(dir)) { showToast('Оберіть конкретний напрямок, не каталог', 'error'); return; }
+            // Re-subscribing to a recently-removed direction: stop suppressing it.
+            if (S._recentlyUnsubbed && S._recentlyUnsubbed.id === String(dirId)) S._recentlyUnsubbed = null;
 
             // Check if user is already subscribed to a different direction
             const currentSubs = S.subscriptions || [];
@@ -4877,6 +4895,8 @@
                     document.getElementById('confirm-switch-no').onclick = () => { closeSheet(); resolve(false); };
                 });
                 if (!confirmed) return false;
+                // Hide the old direction from the sub-bar until the server finishes the switch.
+                S._recentlyUnsubbed = { id: String(otherSub.direction_id), until: Date.now() + 8000 };
             }
 
             const resp = await apiWithStatus('/api/v3/board/subscribe', {
@@ -4928,6 +4948,7 @@
                 showToast(resp?.data?.detail || 'Не вдалося відписатись', 'error');
                 return false;
             }
+            S._recentlyUnsubbed = { id: String(dirId), until: Date.now() + 8000 };
             await hydrate();
             showToast('Відписано');
             closeSheet();
@@ -5976,6 +5997,14 @@
 
         // ═══════ DIRECTION CREATION ═══════
         function openCreateDirection() {
+            // Закон: один користувач — одна особиста подія.
+            // Перевіряємо одразу, щоб не марнувати час на заповнення форми,
+            // яку сервер усе одно відхилить (status:'limit').
+            if ((S.myDirections || []).length > 0) {
+                showToast('У вас вже є своя подія. Видаліть її, щоб створити нову.', 'error');
+                openMyIdeas();
+                return;
+            }
             if (!S.boardStack.length || S.boardParentId === null || S.boardParentId === undefined) {
                 showToast('Оберіть папку каталогу', 'error');
                 return;
@@ -6350,19 +6379,19 @@
 
         // ═══════ MY IDEAS (My Directions) ═══════
         async function openMyIdeas() {
-            openSheet(`<div class="sheet-title">Мої події</div><div style="text-align:center;padding:24px;"><div class="pulse-dot" style="margin:0 auto 12px;"></div><div style="font-size:13px;color:var(--text-muted);">Завантаження...</div></div>`);
+            openSheet(`<div class="sheet-title">Моя подія</div><div style="text-align:center;padding:24px;"><div class="pulse-dot" style="margin:0 auto 12px;"></div><div style="font-size:13px;color:var(--text-muted);">Завантаження...</div></div>`);
             const data = await api(`/api/v3/board/my?user_id=${S.userId}&lang=${S.lang}`);
             const dirs = data?.directions || data?.my_directions || [];
             S.myDirections = Array.isArray(dirs) ? dirs : [];
             if (!dirs.length) {
                 document.getElementById('sheet-body').innerHTML = `
-                    <div class="sheet-title">Мої події</div>
-                    <div class="sheet-sub">Створені вами ідеї з'являться тут.</div>
+                    <div class="sheet-title">Моя подія</div>
+                    <div class="sheet-sub">Створена вами подія з'явиться тут.</div>
                     <button class="btn btn-primary" onclick="closeSheet();switchScreen('board');">Відкрити каталог</button>`;
                 return;
             }
             document.getElementById('sheet-body').innerHTML = `
-                <div class="sheet-title">Мої події (${dirs.length})</div>
+                <div class="sheet-title">Моя подія</div>
                 <div style="margin:8px 0;">
                     ${dirs.map(d => `
                         <div style="display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--border);">
