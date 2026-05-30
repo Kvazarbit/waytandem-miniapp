@@ -1341,6 +1341,109 @@
             100% { box-shadow: 0 0 0 0 rgba(47,123,255,0); }
         }
 
+        /* ── LOCATION MAP PICKER (overlay над формою) ── */
+        .map-picker {
+            position: fixed;
+            inset: 0;
+            z-index: 9500;
+            background: var(--bg-card);
+        }
+        .map-picker-map {
+            position: absolute;
+            inset: 0;
+        }
+        /* Нерухомий пін по центру: його кінчик вказує на центр карти */
+        .map-picker-pin {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -100%);
+            font-size: 38px;
+            line-height: 1;
+            z-index: 10;
+            pointer-events: none;
+            filter: drop-shadow(0 3px 4px rgba(0,0,0,0.45));
+        }
+        .map-picker-top {
+            position: absolute;
+            top: calc(8px + var(--safe-top, 0px));
+            left: 12px;
+            right: 12px;
+            z-index: 20;
+        }
+        .map-picker-search {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-size: 14px;
+            box-shadow: 0 8px 22px rgba(0,0,0,0.24);
+            outline: none;
+        }
+        .map-picker-results {
+            margin-top: 6px;
+            max-height: 230px;
+            overflow-y: auto;
+            border-radius: var(--radius-md);
+            background: var(--bg-card);
+            box-shadow: 0 8px 22px rgba(0,0,0,0.28);
+        }
+        .map-picker-results:empty {
+            display: none;
+        }
+        .map-picker-result {
+            padding: 10px 14px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+        }
+        .map-picker-result:last-child { border-bottom: none; }
+        .map-picker-result:active { background: rgba(255,255,255,0.06); }
+        .map-picker-gps {
+            position: absolute;
+            right: 16px;
+            bottom: 150px;
+            z-index: 20;
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            font-size: 20px;
+            cursor: pointer;
+            box-shadow: 0 8px 22px rgba(0,0,0,0.24);
+        }
+        .map-picker-hint {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 88px;
+            z-index: 20;
+            background: rgba(0,0,0,0.62);
+            color: #fff;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 7px 12px;
+            border-radius: 999px;
+            white-space: nowrap;
+            pointer-events: none;
+        }
+        .map-picker-bottom {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 20;
+            display: flex;
+            gap: 10px;
+            padding: 12px 12px calc(12px + var(--safe-bottom));
+            background: linear-gradient(to top, var(--bg-card) 70%, transparent);
+        }
+
         .map-focus-btn[hidden] {
             display: none;
         }
@@ -2387,7 +2490,7 @@
                 <div class="settings-group">
                     <div class="settings-row" onclick="openMyIdeas()">
                         <div class="settings-icon">💡</div>
-                        <div class="settings-label">Мої ідеї</div>
+                        <div class="settings-label">Мої події</div>
                         <div class="settings-arrow">›</div>
                     </div>
                     <div class="settings-row" onclick="openTripHistory()">
@@ -2471,6 +2574,22 @@
                 <div class="sheet-handle-bar"></div>
             </div>
             <div class="sheet-body" id="sheet-body"></div>
+        </div>
+    </div>
+
+    <!-- LOCATION MAP PICKER OVERLAY -->
+    <div id="map-picker" class="map-picker" style="display:none;">
+        <div class="map-picker-map" id="map-picker-map"></div>
+        <div class="map-picker-pin">📍</div>
+        <div class="map-picker-top">
+            <input id="map-picker-search" class="map-picker-search" placeholder="🔍 Місто або місце (напр. Люблін)" autocomplete="off">
+            <div id="map-picker-results" class="map-picker-results"></div>
+        </div>
+        <button class="map-picker-gps" id="map-picker-gps" title="Моє місце" type="button">🎯</button>
+        <div class="map-picker-hint" id="map-picker-hint">Перетягни карту так, щоб пін був на місці події</div>
+        <div class="map-picker-bottom">
+            <button class="btn btn-ghost" id="map-picker-cancel" type="button" style="flex:1;">Скасувати</button>
+            <button class="btn btn-primary" id="map-picker-confirm" type="button" style="flex:2;">✓ Готово</button>
         </div>
     </div>
 
@@ -5886,20 +6005,142 @@
             setTimeout(() => document.getElementById('create-dir-title')?.focus(), 300);
         }
 
-        async function pickGpsForDirection() {
-            if (!navigator.geolocation) { showToast('GPS недоступний', 'error'); return; }
-            const label = document.getElementById('create-dir-loc-label');
-            if (label) label.textContent = '📍 Визначення...';
-            navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    S._createDirLat = pos.coords.latitude;
-                    S._createDirLng = pos.coords.longitude;
-                    if (label) label.textContent = `📍 ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`;
-                    showToast('Локацію визначено', 'success');
-                },
-                () => { if (label) label.textContent = 'Не вказано'; showToast('Не вдалося отримати GPS', 'error'); },
-                { enableHighAccuracy: true, timeout: 8000 }
-            );
+        // ═══════ LOCATION MAP PICKER (overlay над формою, форма не руйнується) ═══════
+        const _mapPicker = { map: null, onConfirm: null, searchTimer: null, wired: false };
+
+        function openLocationPicker(opts = {}) {
+            const overlay = document.getElementById('map-picker');
+            if (!overlay) return;
+            _mapPicker.onConfirm = typeof opts.onConfirm === 'function' ? opts.onConfirm : null;
+            overlay.style.display = 'block';
+
+            const hasCoords = Number.isFinite(opts.lat) && Number.isFinite(opts.lng);
+            let center, zoom;
+            if (hasCoords) { center = [opts.lat, opts.lng]; zoom = 15; }
+            else if (S._lastKnownPos) { center = [S._lastKnownPos.lat, S._lastKnownPos.lng]; zoom = 14; }
+            else { center = [S.homeCity.lat, S.homeCity.lng]; zoom = 11; }
+
+            if (!_mapPicker.map) {
+                _mapPicker.map = L.map('map-picker-map', { zoomControl: true, attributionControl: false }).setView(center, zoom);
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(_mapPicker.map);
+            } else {
+                _mapPicker.map.setView(center, zoom);
+            }
+            if (!_mapPicker.wired) { _wireMapPickerControls(); _mapPicker.wired = true; }
+            setTimeout(() => { try { _mapPicker.map.invalidateSize(); } catch (e) {} }, 60);
+
+            // Якщо точних координат немає — пробуємо свіжий GPS, щоб одразу показати, де користувач
+            if (!hasCoords && navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (p) => {
+                        S._lastKnownPos = { lat: p.coords.latitude, lng: p.coords.longitude, at: Date.now() };
+                        if (document.getElementById('map-picker').style.display !== 'none') {
+                            _mapPicker.map.setView([p.coords.latitude, p.coords.longitude], 15);
+                        }
+                    },
+                    () => {},
+                    { enableHighAccuracy: true, maximumAge: 30000, timeout: 8000 }
+                );
+            }
+
+            const search = document.getElementById('map-picker-search');
+            if (search) search.value = '';
+            const results = document.getElementById('map-picker-results');
+            if (results) results.innerHTML = '';
+        }
+
+        function closeLocationPicker() {
+            const overlay = document.getElementById('map-picker');
+            if (overlay) overlay.style.display = 'none';
+            const results = document.getElementById('map-picker-results');
+            if (results) results.innerHTML = '';
+        }
+
+        function _wireMapPickerControls() {
+            const cancelBtn = document.getElementById('map-picker-cancel');
+            const gpsBtn = document.getElementById('map-picker-gps');
+            const confirmBtn = document.getElementById('map-picker-confirm');
+            const search = document.getElementById('map-picker-search');
+
+            if (cancelBtn) cancelBtn.onclick = closeLocationPicker;
+
+            if (gpsBtn) gpsBtn.onclick = () => {
+                if (!navigator.geolocation) { showToast('GPS недоступний', 'error'); return; }
+                navigator.geolocation.getCurrentPosition(
+                    (p) => {
+                        S._lastKnownPos = { lat: p.coords.latitude, lng: p.coords.longitude, at: Date.now() };
+                        _mapPicker.map.flyTo([p.coords.latitude, p.coords.longitude], 15);
+                    },
+                    () => showToast('Не вдалося отримати GPS', 'error'),
+                    { enableHighAccuracy: true, timeout: 8000 }
+                );
+            };
+
+            if (confirmBtn) confirmBtn.onclick = async () => {
+                const c = _mapPicker.map.getCenter();
+                const lat = c.lat, lng = c.lng;
+                let label = '';
+                try {
+                    const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=uk&zoom=14`, { headers: { 'Accept': 'application/json' } });
+                    if (r.ok) label = _shortPlaceName(await r.json());
+                } catch (e) {}
+                closeLocationPicker();
+                if (_mapPicker.onConfirm) _mapPicker.onConfirm({ lat, lng, label });
+            };
+
+            if (search) search.oninput = () => {
+                clearTimeout(_mapPicker.searchTimer);
+                const q = search.value.trim();
+                const box = document.getElementById('map-picker-results');
+                if (q.length < 3) { if (box) box.innerHTML = ''; return; }
+                _mapPicker.searchTimer = setTimeout(() => _runPickerSearch(q), 450);
+            };
+        }
+
+        async function _runPickerSearch(q) {
+            const box = document.getElementById('map-picker-results');
+            if (!box) return;
+            try {
+                const r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(q)}&accept-language=uk&limit=6`, { headers: { 'Accept': 'application/json' } });
+                const arr = r.ok ? await r.json() : [];
+                if (!Array.isArray(arr) || !arr.length) {
+                    box.innerHTML = '<div class="map-picker-result" style="opacity:.6;cursor:default;">Нічого не знайдено</div>';
+                    return;
+                }
+                box.innerHTML = arr.map(it => `<div class="map-picker-result" data-lat="${it.lat}" data-lng="${it.lon}">${escapeHtml(it.display_name)}</div>`).join('');
+                Array.from(box.querySelectorAll('.map-picker-result[data-lat]')).forEach(el => {
+                    el.onclick = () => {
+                        const lat = parseFloat(el.dataset.lat), lng = parseFloat(el.dataset.lng);
+                        if (Number.isFinite(lat) && Number.isFinite(lng)) _mapPicker.map.flyTo([lat, lng], 14);
+                        box.innerHTML = '';
+                        const s = document.getElementById('map-picker-search');
+                        if (s) s.blur();
+                    };
+                });
+            } catch (e) { box.innerHTML = ''; }
+        }
+
+        function _shortPlaceName(j) {
+            if (!j) return '';
+            const a = j.address || {};
+            const parts = [a.city || a.town || a.village || a.municipality || a.county, a.country].filter(Boolean);
+            if (parts.length) return parts.join(', ');
+            return (j.display_name || '').split(',').slice(0, 2).join(',').trim();
+        }
+
+        function pickGpsForDirection() {
+            openLocationPicker({
+                lat: S._createDirLat, lng: S._createDirLng,
+                onConfirm: ({ lat, lng, label }) => {
+                    S._createDirLat = lat;
+                    S._createDirLng = lng;
+                    const el = document.getElementById('create-dir-loc-label');
+                    if (el) el.textContent = label ? `📍 ${label}` : `📍 ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+                    const place = document.getElementById('create-dir-place');
+                    if (place && !place.value.trim() && label) place.value = label;
+                    showToast('Локацію вибрано на карті', 'success');
+                }
+            });
         }
 
         async function doCreateDirection() {
@@ -6007,21 +6248,20 @@
             setTimeout(() => { const el = document.getElementById('edit-dir-title'); if (el) { el.focus(); el.select(); } }, 300);
         }
 
-        async function pickGpsForEditDirection() {
-            if (!navigator.geolocation) { showToast('GPS недоступний', 'error'); return; }
-            const label = document.getElementById('edit-dir-loc-label');
-            if (label) label.textContent = '📍 Визначення...';
-            navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    S._editDirLat = pos.coords.latitude;
-                    S._editDirLng = pos.coords.longitude;
+        function pickGpsForEditDirection() {
+            openLocationPicker({
+                lat: S._editDirLat, lng: S._editDirLng,
+                onConfirm: ({ lat, lng, label }) => {
+                    S._editDirLat = lat;
+                    S._editDirLng = lng;
                     S._editDirGpsTouched = true;
-                    if (label) label.textContent = `📍 ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`;
-                    showToast('Локацію оновлено', 'success');
-                },
-                () => { if (label) label.textContent = 'Не вказано'; showToast('Не вдалося отримати GPS', 'error'); },
-                { enableHighAccuracy: true, timeout: 8000 }
-            );
+                    const el = document.getElementById('edit-dir-loc-label');
+                    if (el) el.textContent = label ? `📍 ${label}` : `📍 ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+                    const place = document.getElementById('edit-dir-place');
+                    if (place && !place.value.trim() && label) place.value = label;
+                    showToast('Локацію оновлено на карті', 'success');
+                }
+            });
         }
 
         async function doEditDirection(dirId) {
@@ -6110,19 +6350,19 @@
 
         // ═══════ MY IDEAS (My Directions) ═══════
         async function openMyIdeas() {
-            openSheet(`<div class="sheet-title">Мої напрямки-ідеї</div><div style="text-align:center;padding:24px;"><div class="pulse-dot" style="margin:0 auto 12px;"></div><div style="font-size:13px;color:var(--text-muted);">Завантаження...</div></div>`);
+            openSheet(`<div class="sheet-title">Мої події</div><div style="text-align:center;padding:24px;"><div class="pulse-dot" style="margin:0 auto 12px;"></div><div style="font-size:13px;color:var(--text-muted);">Завантаження...</div></div>`);
             const data = await api(`/api/v3/board/my?user_id=${S.userId}&lang=${S.lang}`);
             const dirs = data?.directions || data?.my_directions || [];
             S.myDirections = Array.isArray(dirs) ? dirs : [];
             if (!dirs.length) {
                 document.getElementById('sheet-body').innerHTML = `
-                    <div class="sheet-title">Мої напрямки-ідеї</div>
+                    <div class="sheet-title">Мої події</div>
                     <div class="sheet-sub">Створені вами ідеї з'являться тут.</div>
                     <button class="btn btn-primary" onclick="closeSheet();switchScreen('board');">Відкрити каталог</button>`;
                 return;
             }
             document.getElementById('sheet-body').innerHTML = `
-                <div class="sheet-title">Мої напрямки-ідеї (${dirs.length})</div>
+                <div class="sheet-title">Мої події (${dirs.length})</div>
                 <div style="margin:8px 0;">
                     ${dirs.map(d => `
                         <div style="display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--border);">
