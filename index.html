@@ -1777,6 +1777,14 @@
             color: var(--accent);
         }
 
+        /* Активний фільтр над картою має суцільну яскраву заливку,
+           тому текст робимо темним — читається і на світлій, і на темній карті.
+           Стосується лише смуги над картою (#news-strip), не екрана новин. */
+        #news-strip .news-banner.active .news-banner-title,
+        #news-strip .news-banner.active .news-banner-count {
+            color: #0b1117;
+        }
+
         .news-feed {
             margin: 0 16px;
             display: flex;
@@ -4136,7 +4144,7 @@
                 strip.innerHTML = cards.map(c => {
                     const active = S.mapEventFilter === c.key;
                     const nextFilter = active ? 'all' : c.key;
-                    return `<div class="news-banner ${active ? 'active' : ''}" onclick="setMapEventFilter('${nextFilter}')" style="background:${active ? c.color + '22' : 'var(--bg-card)'};border-color:${active ? c.color : 'var(--border)'};">
+                    return `<div class="news-banner ${active ? 'active' : ''}" onclick="setMapEventFilter('${nextFilter}')" style="background:${active ? c.color : 'var(--bg-card)'};border-color:${active ? c.color : 'var(--border)'};">
                         <div class="news-banner-title">${c.title}</div>
                         <div class="news-banner-count">${c.count}</div>
                     </div>`;
@@ -4161,7 +4169,7 @@
             strip.innerHTML = cards.map(c => {
                 const active = S.mapNewsFilter === c.key;
                 const nextFilter = active ? 'all' : c.key;
-                return `<div class="news-banner ${active ? 'active' : ''}" onclick="setMapNewsFilter('${nextFilter}')" style="background:${active ? c.color + '22' : 'var(--bg-card)'};border-color:${active ? c.color : 'var(--border)'};">
+                return `<div class="news-banner ${active ? 'active' : ''}" onclick="setMapNewsFilter('${nextFilter}')" style="background:${active ? c.color : 'var(--bg-card)'};border-color:${active ? c.color : 'var(--border)'};">
                     <div class="news-banner-title">${c.title}</div>
                     <div class="news-banner-count">${c.count}</div>
                 </div>`;
