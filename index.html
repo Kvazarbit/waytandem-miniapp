@@ -773,20 +773,31 @@
 
         .nav.board-deep {
             justify-content: center;
+            gap: 10px;
         }
 
-        .nav.board-deep .nav-item[data-tab="board"] {
+        .nav.board-deep .nav-item[data-tab="board"],
+        .nav.board-deep .nav-item[data-tab="board-add"] {
             flex-direction: row;
             gap: 8px;
-            min-width: 176px;
+            min-width: 150px;
             padding: 10px 18px;
             border: 1px solid var(--border);
             background: var(--bg-card);
         }
 
-        .nav.board-deep .nav-item[data-tab="board"] span {
+        .nav.board-deep .nav-item[data-tab="board"] span,
+        .nav.board-deep .nav-item[data-tab="board-add"] span {
             font-size: 12px;
             font-weight: 800;
+        }
+
+        /* Акцентна кнопка "Додати подію" в нижньому меню каталогу */
+        .nav.board-deep .nav-item[data-tab="board-add"] {
+            color: #000;
+            background: var(--accent);
+            border-color: var(--accent);
+            box-shadow: 0 0 14px var(--accent-glow);
         }
 
         .nav-badge {
@@ -2421,6 +2432,13 @@
                 </svg>
                 <span>Каталог</span>
             </div>
+            <div class="nav-item" data-tab="board-add" id="nav-board-add" onclick="openCreateDirection()" style="display:none;">
+                <svg viewBox="0 0 24 24">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                <span>Додати подію</span>
+            </div>
             <div class="nav-item" data-tab="trips" onclick="switchScreen('trips')" id="nav-trips">
                 <svg viewBox="0 0 24 24">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -3358,18 +3376,23 @@
             if (!boardNavDefaults) boardNavDefaults = { label: boardLabel?.textContent || 'Каталог', icon: boardIcon?.innerHTML || '' };
             const deepInBoard = S.currentScreen === 'board' && S.boardStack.length > 0;
             const navItems = Array.from(nav.querySelectorAll('.nav-item'));
+            const addItem = document.getElementById('nav-board-add');
             nav.classList.toggle('board-deep', deepInBoard);
             navItems.forEach(item => { if (item === boardItem) return; item.style.display = deepInBoard ? 'none' : ''; });
             if (deepInBoard) {
                 if (boardLabel) boardLabel.textContent = 'Назад';
                 if (boardIcon) boardIcon.innerHTML = '<polyline points="15 18 9 12 15 6"></polyline><line x1="9" y1="12" x2="21" y2="12"></line>';
                 boardItem.onclick = (e) => { e?.preventDefault?.(); boardGoUp(); };
-                boardItem.classList.add('active'); return;
+                boardItem.classList.add('active');
+                // Кнопка "Додати подію" праворуч від "Назад" — лише де додавання доречне
+                if (addItem) addItem.style.display = S.canCreateEvent ? 'flex' : 'none';
+                return;
             }
             if (boardLabel) boardLabel.textContent = boardNavDefaults.label || 'Каталог';
             if (boardIcon && boardNavDefaults.icon) boardIcon.innerHTML = boardNavDefaults.icon;
             boardItem.onclick = () => switchScreen('board');
-            navItems.forEach(item => item.style.display = '');
+            navItems.forEach(item => { if (item === addItem) return; item.style.display = ''; });
+            if (addItem) addItem.style.display = 'none';
             navItems.forEach(item => item.classList.toggle('active', item.dataset.tab === S.currentScreen));
         }
 
@@ -4276,6 +4299,13 @@
             const subSet = new Set(freshSubscriptions.map(s => String(s.direction_id)));
             S.boardSubSet = subSet;
             renderBoardList(allDirections, S.boardSubSet);
+            // Перерахунок зі свіжими даними (чи є підпапки) + оновлення нижнього меню
+            S.canCreateEvent = S.boardStack.length > 0
+                && S.boardParentId !== null
+                && S.boardParentId !== undefined
+                && !(document.getElementById('board-search')?.value?.trim())
+                && !(allDirections || []).some(d => isFolderNode(d));
+            updateBottomNavForBoardDepth();
         }
 
         function renderBoardList(dirs, subSet) {
@@ -4311,7 +4341,7 @@
             const hasSubfolders = (dirs || []).some(d => isFolderNode(d));
             if (hasSubfolders) return '';
             return `<div class="board-folder-action">
-                <button class="btn btn-primary" onclick="openCreateDirection()" title="Запропонувати ідею у поточному каталозі">+ Запропонувати ідею тут</button>
+                <button class="btn btn-primary" onclick="openCreateDirection()" title="Додати подію у поточному каталозі">+ Додати подію</button>
             </div>`;
         }
 
