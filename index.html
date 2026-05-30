@@ -1042,6 +1042,35 @@
             padding: 16px 16px 8px;
         }
 
+        .news-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-right: 16px;
+        }
+
+        .news-scope-btn {
+            flex-shrink: 0;
+            padding: 6px 12px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text);
+            font-size: 11px;
+            font-weight: 800;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .news-scope-btn.scope-sub {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .news-scope-btn:active {
+            transform: scale(0.97);
+        }
+
         .tag {
             display: inline-flex;
             align-items: center;
@@ -2459,7 +2488,10 @@
 
             <!-- NEWS -->
             <div class="screen" id="screen-news">
-                <div class="section-label">Стрічка Новин</div>
+                <div class="news-head">
+                    <div class="section-label">Стрічка Новин</div>
+                    <button class="news-scope-btn" id="news-scope-btn" onclick="toggleNewsScope()" type="button" style="display:none;"></button>
+                </div>
                 <div class="news-banners" id="news-banners"></div>
                 <div class="news-feed" id="news-feed"></div>
             </div>
@@ -2647,6 +2679,8 @@
             chatRequestId: null, chatPartnerId: null, busy: false,
             boardParentId: null, boardStack: [], boardSubSet: new Set(),
             newsFilter: 'all', mapNewsFilter: 'all', mapEventFilter: 'all', newsMarkers: [],
+            newsScope: 'sub', // 'sub' = лише новини активної підписки, 'all' = всі новини
+
             subscriptions: [],
             myCrew: null,
             matchSheetOpen: false,
@@ -4280,11 +4314,75 @@
             }
         }
 
+        function renderNewsFeedItems(items) {
+            return items.slice(0, 60).map(n => {
+                const dId = Number(n?.direction_id || 0);
+                const clickHandler = dId > 0 ? `onclick="openNewsDirection(${dId})"` : '';
+                const cursorStyle = dId > 0 ? 'cursor:pointer;' : '';
+                return `
+                <div class="news-feed-item" ${clickHandler} style="${cursorStyle}">
+                    <div style="font-size:13px;font-weight:700;line-height:1.45;">${escapeHtml(n.text || 'Новина')}</div>
+                    <div class="news-feed-meta">${escapeHtml(n.dir_title || 'Без напряму')} • ${formatNewsTime(n.created_at)}</div>
+                </div>
+            `}).join('');
+        }
+
+        // Перемикач "Підписка" ⇄ "Загальна" біля заголовка стрічки.
+        function toggleNewsScope() {
+            S.newsScope = (S.newsScope === 'sub') ? 'all' : 'sub';
+            renderNewsScreen();
+        }
+
         function renderNewsScreen() {
             const banners = document.getElementById('news-banners');
             const feed = document.getElementById('news-feed');
             if (!banners || !feed) return;
             const allItems = Array.isArray(S.news) ? S.news.filter(isDiscoveryNewsItem) : [];
+
+            // Активна підписка/поїздка визначає, чи доступний режим "Підписка".
+            const context = activeMapContextForMap();
+            const hasSub = !!(context && context.dirId);
+            // При появі НОВОЇ підписки автоматично вмикаємо режим "Підписка";
+            // у межах однієї підписки ручний вибір користувача зберігається.
+            if (hasSub) {
+                if (S._newsScopeDirId !== String(context.dirId)) {
+                    S._newsScopeDirId = String(context.dirId);
+                    S.newsScope = 'sub';
+                }
+            } else {
+                S._newsScopeDirId = null;
+            }
+            const scope = hasSub ? (S.newsScope || 'sub') : 'all';
+
+            // Кнопка-перемикач показується лише за наявності активної підписки.
+            const scopeBtn = document.getElementById('news-scope-btn');
+            if (scopeBtn) {
+                if (hasSub) {
+                    scopeBtn.style.display = '';
+                    scopeBtn.textContent = scope === 'sub' ? '📍 Підписка' : '🌐 Загальна';
+                    scopeBtn.classList.toggle('scope-sub', scope === 'sub');
+                } else {
+                    scopeBtn.style.display = 'none';
+                    scopeBtn.classList.remove('scope-sub');
+                }
+            }
+
+            // Режим "Підписка": ховаємо категорійні чипи, показуємо лише новини свого напрямку.
+            if (scope === 'sub') {
+                banners.style.display = 'none';
+                banners.innerHTML = '';
+                const dirId = String(context.dirId);
+                const items = allItems.filter(n => String(n?.direction_id || '') === dirId);
+                if (!items.length) {
+                    feed.innerHTML = '<div class="empty"><div class="empty-icon">🗞️</div><div class="empty-title">По вашій події поки тихо</div><div class="empty-sub">Натисніть «🌐 Загальна», щоб бачити всі новини</div></div>';
+                    return;
+                }
+                feed.innerHTML = renderNewsFeedItems(items);
+                return;
+            }
+
+            // Режим "Загальна": категорійні банери + фільтр за категорією.
+            banners.style.display = '';
             const buckets = { theocracy: 0, leisure: 0, work: 0 };
             allItems.forEach(n => { const k = classifyNewsItem(n); if (k in buckets) buckets[k]++; });
             const cards = [
@@ -4301,19 +4399,10 @@
             }).join('');
             const items = S.newsFilter === 'all' ? allItems : allItems.filter(n => classifyNewsItem(n) === S.newsFilter);
             if (!items.length) {
-                feed.innerHTML = '<div class="empty"><div class="empty-icon">🗞️</div><div class="empty-title">Поки тихо</div><div class="empty-sub">Нові події з\'являться незабаром</div ></div > ';
+                feed.innerHTML = '<div class="empty"><div class="empty-icon">🗞️</div><div class="empty-title">Поки тихо</div><div class="empty-sub">Нові події з\'являться незабаром</div></div>';
                 return;
             }
-            feed.innerHTML = items.slice(0, 60).map(n => {
-                const dId = Number(n?.direction_id || 0);
-                const clickHandler = dId > 0 ? `onclick="openNewsDirection(${dId})"` : '';
-                const cursorStyle = dId > 0 ? 'cursor:pointer;' : '';
-                return `
-                <div class="news-feed-item" ${clickHandler} style="${cursorStyle}">
-                    <div style="font-size:13px;font-weight:700;line-height:1.45;">${escapeHtml(n.text || 'Новина')}</div>
-                    <div class="news-feed-meta">${escapeHtml(n.dir_title || 'Без напряму')} • ${formatNewsTime(n.created_at)}</div>
-                </div>
-            `}).join('');
+            feed.innerHTML = renderNewsFeedItems(items);
         }
 
         function renderNews() {
