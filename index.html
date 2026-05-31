@@ -2701,7 +2701,7 @@
             map: null, mapMarkers: [], currentScreen: 'explore',
             chatRequestId: null, chatPartnerId: null, busy: false,
             boardParentId: null, boardStack: [], boardSubSet: new Set(),
-            newsFilter: 'all', mapNewsFilter: 'all', mapEventFilter: 'all', newsMarkers: [],
+            newsFilter: 'all', mapNewsFilter: 'all', mapEventFilter: 'all', newsEventFilter: 'all', newsMarkers: [],
             newsScope: 'sub', // 'sub' = лише новини активної підписки, 'all' = всі новини
             mapScope: 'sub', // 'sub' = піни лише активної підписки, 'all' = всі піни на карті
 
@@ -4380,6 +4380,11 @@
             renderNewsScreen();
         }
 
+        function setNewsEventFilter(key) {
+            S.newsEventFilter = key || 'all';
+            renderNewsScreen();
+        }
+
         function renderNewsScreen() {
             const banners = document.getElementById('news-banners');
             const feed = document.getElementById('news-feed');
@@ -4395,6 +4400,7 @@
                 if (S._newsScopeDirId !== String(context.dirId)) {
                     S._newsScopeDirId = String(context.dirId);
                     S.newsScope = 'sub';
+                    S.newsEventFilter = 'all'; // скидаємо фільтр при зміні підписки
                 }
             } else {
                 S._newsScopeDirId = null;
@@ -4414,14 +4420,42 @@
                 }
             }
 
-            // Режим "Підписка": ховаємо категорійні чипи, показуємо лише новини свого напрямку.
+            // Режим "Підписка": фільтри Подія/Водії/Попутники + новини свого напрямку.
             if (scope === 'sub') {
-                banners.style.display = 'none';
-                banners.innerHTML = '';
                 const dirId = String(context.dirId);
-                const items = allItems.filter(n => String(n?.direction_id || '') === dirId);
+                const dirItems = allItems.filter(n => String(n?.direction_id || '') === dirId);
+                const ef = S.newsEventFilter || 'all';
+
+                // Підраховуємо кількість для кожного фільтра
+                const eventCount  = dirItems.filter(n => n?.item_type === 'event'  || n?.type === 'event').length  || (dirItems.length ? 1 : 0);
+                const driverCount = dirItems.filter(n => n?.item_type === 'driver' || n?.type === 'driver' || n?.viewer_role === 'driver').length;
+                const paxCount    = dirItems.filter(n => n?.item_type === 'passenger' || n?.type === 'passenger' || n?.viewer_role === 'client').length;
+
+                const eventCards = [
+                    { key: 'event',      title: 'Подія',     color: '#fbbf24', count: eventCount  },
+                    { key: 'drivers',    title: 'Водії',     color: '#38bdf8', count: driverCount },
+                    { key: 'passengers', title: 'Попутники', color: '#34d399', count: paxCount    },
+                ];
+                banners.style.display = '';
+                banners.innerHTML = eventCards.map(c => {
+                    const active = ef === c.key;
+                    return `<div class="news-banner ${active ? 'active' : ''}" onclick="setNewsEventFilter('${active ? 'all' : c.key}')" style="background:${active ? c.color + '33' : 'var(--bg-card)'};border-color:${active ? c.color : 'var(--border)'};">
+                        <div class="news-banner-title">${c.title}</div>
+                        <div class="news-banner-count">${c.count}</div>
+                    </div>`;
+                }).join('');
+
+                // Фільтруємо новини по обраному типі
+                let items = dirItems;
+                if (ef === 'event')      items = dirItems.filter(n => n?.item_type === 'event'  || n?.type === 'event');
+                if (ef === 'drivers')    items = dirItems.filter(n => n?.item_type === 'driver' || n?.type === 'driver' || n?.viewer_role === 'driver');
+                if (ef === 'passengers') items = dirItems.filter(n => n?.item_type === 'passenger' || n?.type === 'passenger' || n?.viewer_role === 'client');
+
                 if (!items.length) {
-                    feed.innerHTML = '<div class="empty"><div class="empty-icon">🗞️</div><div class="empty-title">По вашій події поки тихо</div><div class="empty-sub">Натисніть «🌐 Загальна», щоб бачити всі новини</div></div>';
+                    const hint = ef === 'all'
+                        ? 'Натисніть «🌐 Загальна», щоб бачити всі новини'
+                        : 'По цьому фільтру поки тихо';
+                    feed.innerHTML = `<div class="empty"><div class="empty-icon">🗞️</div><div class="empty-title">По вашій події поки тихо</div><div class="empty-sub">${hint}</div></div>`;
                     return;
                 }
                 feed.innerHTML = renderNewsFeedItems(items);
