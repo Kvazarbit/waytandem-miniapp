@@ -1592,6 +1592,29 @@
             text-overflow: ellipsis;
         }
 
+        .map-scope-btn {
+            flex-shrink: 0;
+            margin-left: auto;
+            padding: 5px 11px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text);
+            font-size: 11px;
+            font-weight: 800;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .map-scope-btn.scope-sub {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .map-scope-btn:active {
+            transform: scale(0.97);
+        }
+
         .news-chip {
             flex-shrink: 0;
             padding: 8px 14px;
@@ -2680,6 +2703,7 @@
             boardParentId: null, boardStack: [], boardSubSet: new Set(),
             newsFilter: 'all', mapNewsFilter: 'all', mapEventFilter: 'all', newsMarkers: [],
             newsScope: 'sub', // 'sub' = лише новини активної підписки, 'all' = всі новини
+            mapScope: 'sub', // 'sub' = піни лише активної підписки, 'all' = всі піни на карті
 
             subscriptions: [],
             myCrew: null,
@@ -4149,17 +4173,40 @@
         function renderMapModeStrip() {
             const strip = document.getElementById('map-mode-strip');
             if (!strip) return;
-            const context = activeMapContextForMap();
-            const value = context ? 'координація події' : 'пошук виїзду';
+            const raw = activeMapContextForMap();
+            // Перемикач Підписка/Загальна доступний лише для активної ПІДПИСКИ (не під час поїздки)
+            const canToggle = !!(raw && raw.kind === 'subscription');
+            // Авто-скидання на «Підписка» при зміні активної підписки
+            const rawDirId = canToggle ? String(raw.dirId) : '';
+            if (S._mapScopeDirId !== rawDirId) {
+                S.mapScope = 'sub';
+                S._mapScopeDirId = rawDirId;
+            }
+            const scoped = mapContextScoped();
+            const value = scoped ? 'координація події' : 'пошук виїзду';
+            let toggleHtml = '';
+            if (canToggle) {
+                const isSub = S.mapScope !== 'all';
+                toggleHtml = `<button class="map-scope-btn ${isSub ? 'scope-sub' : ''}" onclick="toggleMapScope()" type="button">${isSub ? '📍 Підписка' : '🌐 Загальна'}</button>`;
+            }
             strip.style.display = 'flex';
-            strip.innerHTML = `<span class="map-mode-label">Режим:</span><span class="map-mode-value">${value}</span>`;
+            strip.innerHTML = `<span class="map-mode-label">Режим:</span><span class="map-mode-value">${value}</span>${toggleHtml}`;
+        }
+
+        function toggleMapScope() {
+            S.mapScope = (S.mapScope === 'all') ? 'sub' : 'all';
+            // Скидаємо активні фільтри, щоб стара вибірка не ховала піни в новому режимі
+            S.mapEventFilter = 'all';
+            S.mapNewsFilter = 'all';
+            renderNewsStrip();
+            if (S.currentScreen === 'explore') { refreshMap(); }
         }
 
         function renderNewsStrip() {
             renderMapModeStrip();
             const strip = document.getElementById('news-strip');
             if (!strip) return;
-            const context = activeMapContextForMap();
+            const context = mapContextScoped();
             if (context) {
                 const drivers = (S.mapCrews || []).filter(c =>
                     String(c?.direction_id || '') === String(context.dirId || '') &&
@@ -4213,7 +4260,7 @@
         // Пункт 2: фокус карти на піни ВІДПОВІДНО до активного фільтра
         function focusMapByFilter() {
             if (!S.map) return;
-            const context = activeMapContextForMap();
+            const context = mapContextScoped();
             const coords = [];
 
             if (context) {
@@ -4610,8 +4657,16 @@
             return null;
         }
 
+        // Контекст карти з урахуванням перемикача Підписка/Загальна.
+        // У режимі 'all' трактуємо як відсутність контексту → карта показує всі піни (discovery).
+        // ВАЖЛИВО: стрічку новин (renderNewsScreen) це НЕ зачіпає — там свій S.newsScope.
+        function mapContextScoped() {
+            if (S.mapScope === 'all') return null;
+            return activeMapContextForMap();
+        }
+
         function mapFocusedDirectionId() {
-            return activeMapContextForMap()?.dirId || 0;
+            return mapContextScoped()?.dirId || 0;
         }
 
         function isMapFocusedMode() {
@@ -4707,7 +4762,7 @@
         }
 
         function guardMapFilterChange(filter) {
-            const context = activeMapContextForMap();
+            const context = mapContextScoped();
             if (!context) return false;
             const nextFilter = filter || 'all';
             if (nextFilter === S.mapNewsFilter) return false;
