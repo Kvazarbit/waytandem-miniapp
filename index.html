@@ -1543,12 +1543,26 @@
             white-space: nowrap;
         }
 
-        .news-strip {
+        /* Спільний абсолютний стек для смуг над картою: «Режим:» + банери-фільтри.
+           Flex-стовпець гарантує, що фільтри завжди під смугою режиму без накладання,
+           незалежно від висоти (раніше були крихкі фіксовані top:12px / top:54px). */
+        .map-top-stack {
             position: absolute;
-            top: 54px;
+            top: 12px;
             left: 12px;
             right: 12px;
-            z-index: 500;
+            z-index: 505;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+        }
+
+        .map-top-stack > * {
+            pointer-events: auto;
+        }
+
+        .news-strip {
             display: flex;
             gap: 8px;
             overflow-x: auto;
@@ -1561,11 +1575,6 @@
         }
 
         .map-mode-strip {
-            position: absolute;
-            top: 12px;
-            left: 12px;
-            right: 12px;
-            z-index: 505;
             display: none;
             align-items: center;
             gap: 8px;
@@ -2491,8 +2500,10 @@
         <div class="main">
             <!-- EXPLORE -->
             <div class="screen active" id="screen-explore">
-                <div class="map-mode-strip" id="map-mode-strip" style="display:none;"></div>
-                <div class="news-strip" id="news-strip" style="display:none;"></div>
+                <div class="map-top-stack">
+                    <div class="map-mode-strip" id="map-mode-strip" style="display:none;"></div>
+                    <div class="news-strip" id="news-strip" style="display:none;"></div>
+                </div>
                 <div id="map-container">
                     <div id="map"></div>
                     <div class="map-overlay-cards" id="map-overlay-cards"></div>
@@ -6485,6 +6496,48 @@
         }
 
         // ═══════ MY IDEAS (My Directions) ═══════
+        // Відкриває каталог на папці, де лежить створена подія, і скролює до неї.
+        async function openMyIdeaInBoard(dirId, parentId) {
+            closeSheet();
+            switchScreen('board');
+            if (!parentId) {
+                // немає parent_id — відкриваємо корінь каталогу
+                S.boardStack = [];
+                S.boardParentId = null;
+                await renderBoard();
+                return;
+            }
+            // Будуємо повний breadcrumb-ланцюжок від кореня до parent
+            const ancestors = [];
+            let cur = String(parentId);
+            const visited = new Set();
+            // Йдемо вгору по дереву через allDirections
+            while (cur && !visited.has(cur)) {
+                visited.add(cur);
+                const node = allDirections.find(d => String(d.id) === cur);
+                if (!node) break;
+                ancestors.unshift({ id: node.id, title: node.title || `#${node.id}` });
+                cur = node.parent_id ? String(node.parent_id) : null;
+            }
+            // Якщо allDirections не має даних (до першого renderBoard) — читаємо з сервера
+            if (!ancestors.length) {
+                const data = await api(`/api/v3/board?lang=${S.lang}&parent_id=${parentId}&user_id=${S.userId||''}`);
+                const dirs = Array.isArray(data) ? data : (data?.directions || []);
+                const node = dirs.find(d => String(d.id) === String(parentId)) ||
+                             { id: parentId, title: `#${parentId}` };
+                ancestors.push({ id: node.id, title: node.title || `#${node.id}` });
+            }
+            // Встановлюємо boardStack і boardParentId
+            S.boardStack = ancestors;
+            S.boardParentId = ancestors[ancestors.length - 1].id;
+            await renderBoard();
+            // Скролимо до картки події
+            setTimeout(() => {
+                const el = document.querySelector(`[data-dir-id="${dirId}"]`);
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 300);
+        }
+
         async function openMyIdeas() {
             openSheet(`<div class="sheet-title">Моя подія</div><div style="text-align:center;padding:24px;"><div class="pulse-dot" style="margin:0 auto 12px;"></div><div style="font-size:13px;color:var(--text-muted);">Завантаження...</div></div>`);
             const data = await api(`/api/v3/board/my?user_id=${S.userId}&lang=${S.lang}`);
@@ -6513,7 +6566,7 @@
                             </div>
                         </div>`).join('')}
                 </div>
-                <button class="btn btn-secondary" style="margin-top:12px;" onclick="closeSheet();switchScreen('board');">Відкрити каталог</button>`;
+                <button class="btn btn-secondary" style="margin-top:12px;" onclick="closeSheet();openMyIdeaInBoard(${parseInt(dirs[0].id)||0},${parseInt(dirs[0].parent_id)||0});">Перейти до каталогу</button>`;
         }
 
         // ═══════ TRIP HISTORY ═══════
