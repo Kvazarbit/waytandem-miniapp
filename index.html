@@ -2657,6 +2657,12 @@
                         <div class="toggle on" id="toggle-notifications" onclick="this.classList.toggle('on')">
                         </div>
                     </div>
+                    <div class="settings-row" onclick="toggleAppSound()">
+                        <div class="settings-icon">🔊</div>
+                        <div class="settings-label">Звуки в додатку</div>
+                        <div class="settings-value" id="settings-sound">Важливі</div>
+                        <div class="toggle on" id="toggle-app-sound"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2798,6 +2804,9 @@
             partnerFinishSheetShownIds: new Set(),
             completedRatingNotifiedIds: new Set(),
             completedRatingSheetShownIds: new Set(),
+            criticalSoundEventIds: new Set(),
+            appSoundEnabled: localStorage.getItem('wt_app_sound') !== 'off',
+            didInitialHydrate: false,
             myDirections: [],
             roleGateOpen: false,
             pendingRoleAction: null,
@@ -2907,6 +2916,7 @@
             restoreCriticalState(); // Restore state before anything else
             resolveUser();
             await hydrateAppConfig();
+            initAppSoundUnlock();
             initRolePill();
             initMap();
             await syncUserIdentityToServer();
@@ -3350,7 +3360,8 @@
             const previousTrip = S.activeTrip ? { ...S.activeTrip } : null;
             S.lastHydrateAt = Date.now();
             S.activeTrip = resolveActiveTripPayload(data);
-            notifyLifecycleTransitions(previousTrip, S.activeTrip);
+            notifyLifecycleTransitions(previousTrip, S.activeTrip, { allowNewTrip: S.didInitialHydrate });
+            S.didInitialHydrate = true;
             if (S.activeTrip) lastKnownTripForRating = { ...S.activeTrip };
             else maybeOpenCompletedTripRatingSheet('hydrate');
             S.pendingMatches = resolvePendingMatchesPayload(data);
@@ -3398,7 +3409,8 @@
 
                     S.lastHydrateAt = Date.now();
                     S.activeTrip = resolveActiveTripPayload(data);
-                    notifyLifecycleTransitions(previousTrip, S.activeTrip);
+                    notifyLifecycleTransitions(previousTrip, S.activeTrip, { allowNewTrip: S.didInitialHydrate });
+                    S.didInitialHydrate = true;
                     if (S.activeTrip) lastKnownTripForRating = { ...S.activeTrip };
                     // If waiting for partner and trip is gone — partner finished, show rating from any screen.
                     if (waitingForPartner && !S.activeTrip && lastKnownTripForRating) {
@@ -4024,6 +4036,7 @@
             const key = matchKey(match);
             if (!S.notifiedMatchIds.has(key)) {
                 S.notifiedMatchIds.add(key);
+                notifyCriticalEvent('match_received', key);
                 showToast('📩 Новий запит. Відкрийте Поїздки', '');
             }
             updateBadges();
@@ -4036,6 +4049,7 @@
             if (!partnerId || !dirId) return;
             const key = matchKey(match);
             S.seenMatchIds.add(key);
+            notifyCriticalEvent('match_received', key);
             S.matchSheetOpen = true;
             S.activeMatchKey = key;
 
@@ -5644,6 +5658,7 @@
             try {
                 const res = await api('/api/v3/match/respond', { method: 'POST', body: JSON.stringify({ user_id: S.userId, target_id: partnerId, direction_id: dirId, accept }) });
                 if (res?.status === 'ok') {
+                    if (accept) notifyCriticalEvent('crew_formed_manual', `${partnerId}:${dirId}`);
                     showToast(accept ? '✓ Ваш екіпаж готовий!' : 'Запит відхилено', accept ? 'success' : '');
                     clearCriticalState();
                     await hydrate();
@@ -5769,21 +5784,27 @@
             return true;
         }
 
-        function notifyLifecycleTransitions(prevTrip, nextTrip) {
+        function notifyLifecycleTransitions(prevTrip, nextTrip, options = {}) {
             if (!nextTrip) return;
             const reqId = currentRequestIdFromTrip(nextTrip);
             if (!reqId) return;
             const sameTrip = prevTrip && currentRequestIdFromTrip(prevTrip) === reqId;
+            if (!sameTrip && options.allowNewTrip) {
+                notifyCriticalEvent('crew_formed', reqId);
+            }
             if (sameTrip && prevTrip.status !== 'pickup' && nextTrip.status === 'pickup' && nextTrip.viewer_role !== 'driver' && !S.pickupNotifiedIds.has(reqId)) {
                 S.pickupNotifiedIds.add(reqId);
+                notifyCriticalEvent('pickup_arrived', reqId);
                 showToast('🚗 Водій прибув до точки збору!', 'success');
             }
             if (sameTrip && !prevTrip.is_started && nextTrip.is_started && nextTrip.viewer_role !== 'driver' && !S.tripStartNotifiedIds.has(reqId)) {
                 S.tripStartNotifiedIds.add(reqId);
+                notifyCriticalEvent('trip_started', reqId);
                 showToast('🚀 Водій почав поїздку. Скасування закрито', 'success');
             }
             if (sameTrip && !tripPartnerFinished(prevTrip) && tripPartnerFinished(nextTrip) && !tripViewerFinished(nextTrip) && !S.partnerFinishNotifiedIds.has(reqId)) {
                 S.partnerFinishNotifiedIds.add(reqId);
+                notifyCriticalEvent('finish_confirmation_needed', reqId);
                 showToast('🏁 Партнер відмітив фініш. Підтвердіть у Поїздках', '');
             }
             maybeOpenPartnerFinishSheet(nextTrip);
@@ -5857,6 +5878,7 @@
             if (isAppInBackground || S.roleGateOpen || S.matchSheetOpen || isSheetOpen()) {
                 if (!S.completedRatingNotifiedIds.has(reqId)) {
                     S.completedRatingNotifiedIds.add(reqId);
+                    notifyCriticalEvent('trip_completed', reqId);
                     showToast('🏁 Подорож завершена. Оцініть партнера у Поїздках', '');
                 }
                 renderSubBar();
@@ -5866,6 +5888,7 @@
 
             if (S.completedRatingSheetShownIds.has(reqId)) return false;
             S.completedRatingSheetShownIds.add(reqId);
+            notifyCriticalEvent('trip_completed', reqId);
             showToast('🎉 Подорож завершена! Оцініть партнера.', 'success');
             openRatingSheet(ratingContext);
             lastKnownTripForRating = null;
@@ -6290,6 +6313,96 @@
             const el = document.getElementById('toast');
             el.textContent = msg; el.className = 'toast show ' + type;
             clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+        }
+
+        // ─── CRITICAL IN-APP SOUND (foreground only, deduped) ───
+        let _appAudioCtx = null;
+        let _appAudioUnlockWired = false;
+
+        function ensureAppAudioContext() {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) return null;
+            if (!_appAudioCtx) _appAudioCtx = new AudioCtx();
+            return _appAudioCtx;
+        }
+
+        function initAppSoundUnlock() {
+            updateAppSoundToggle();
+            if (_appAudioUnlockWired) return;
+            _appAudioUnlockWired = true;
+            const unlock = () => {
+                if (!S.appSoundEnabled) return;
+                const ctx = ensureAppAudioContext();
+                if (!ctx) return;
+                Promise.resolve(ctx.resume?.()).catch(() => { });
+            };
+            ['pointerdown', 'touchstart', 'keydown'].forEach(evt => {
+                document.addEventListener(evt, unlock, { passive: true });
+            });
+        }
+
+        function updateAppSoundToggle() {
+            const toggle = document.getElementById('toggle-app-sound');
+            const label = document.getElementById('settings-sound');
+            if (toggle) toggle.classList.toggle('on', !!S.appSoundEnabled);
+            if (label) label.textContent = S.appSoundEnabled ? 'Важливі' : 'Вимкнено';
+        }
+
+        function toggleAppSound() {
+            S.appSoundEnabled = !S.appSoundEnabled;
+            localStorage.setItem('wt_app_sound', S.appSoundEnabled ? 'on' : 'off');
+            updateAppSoundToggle();
+            if (S.appSoundEnabled) {
+                const ctx = ensureAppAudioContext();
+                Promise.resolve(ctx?.resume?.()).finally(() => {
+                    pulseCriticalHaptic('sound_test');
+                    playCriticalSound('sound_test');
+                });
+                showToast('Звуки важливих подій увімкнено', 'success');
+            } else {
+                showToast('Звуки в додатку вимкнено', '');
+            }
+        }
+
+        function playCriticalSound(kind = 'notice') {
+            if (!S.appSoundEnabled || isAppInBackground || document.hidden) return;
+            const ctx = ensureAppAudioContext();
+            if (!ctx || ctx.state !== 'running') return;
+            const now = ctx.currentTime;
+            const gain = ctx.createGain();
+            const osc = ctx.createOscillator();
+            const base = kind === 'trip_started' ? 660 : kind === 'trip_completed' ? 880 : 740;
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(base, now);
+            osc.frequency.exponentialRampToValueAtTime(base * 1.18, now + 0.12);
+            gain.gain.setValueAtTime(0.0001, now);
+            gain.gain.exponentialRampToValueAtTime(0.045, now + 0.015);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.24);
+        }
+
+        function pulseCriticalHaptic(kind = 'notice') {
+            const haptic = window.Telegram?.WebApp?.HapticFeedback;
+            try {
+                if (haptic?.notificationOccurred) {
+                    haptic.notificationOccurred(kind === 'finish_confirmation_needed' ? 'warning' : 'success');
+                } else if (haptic?.impactOccurred) {
+                    haptic.impactOccurred('light');
+                }
+            } catch (_) { }
+        }
+
+        function notifyCriticalEvent(kind, id = '') {
+            const key = `${kind}:${id || 'global'}`;
+            if (S.criticalSoundEventIds.has(key)) return false;
+            S.criticalSoundEventIds.add(key);
+            if (!S.appSoundEnabled) return true;
+            pulseCriticalHaptic(kind);
+            playCriticalSound(kind);
+            return true;
         }
 
         // ─── PROFILE SETTINGS ───
