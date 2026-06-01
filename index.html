@@ -3419,8 +3419,8 @@
             const isClient = S.userRole === 'client';
             S.roleGateOpen = !!required;
             openSheet(`
-                <div class="sheet-title">${required ? 'Хто ти зараз?' : 'Оберіть роль'}</div>
-                <div class="sheet-sub">${required ? `Щоб ${escapeHtml(actionLabel || 'продовжити')}, спочатку оберіть роль. Роль можна змінити пізніше, якщо немає активних домовленостей.` : 'Створювати напрямки можуть обидві ролі. Далі дії залежать від ролі.'}</div>
+                <div class="sheet-title">${required ? 'Як ти їдеш?' : 'Оберіть роль'}</div>
+                <div class="sheet-sub">${required ? `Щоб ${escapeHtml(actionLabel || 'продовжити')}, оберіть свій варіант для цієї події. Роль можна змінити пізніше, якщо немає активних домовленостей.` : 'Створювати напрямки можуть обидві ролі. Далі дії залежать від ролі.'}</div>
                 <div class="sheet-actions">
                     <button class="btn ${isDriver ? 'btn-primary' : 'btn-secondary'}" onclick="setRole('driver')">🚗 Я везу людей</button>
                     <button class="btn ${isClient ? 'btn-primary' : 'btn-secondary'}" onclick="setRole('client')">👤 Мені потрібно місце</button>
@@ -4122,13 +4122,134 @@
             else window.open(shareUrl, '_blank', 'noopener');
         }
 
+        function openStartDirectionLoadingSheet(dirId) {
+            const title = escapeHtml(cachedDirectionTitle(dirId));
+            openSheet(`
+                <div class="sheet-title">Відкриваю запрошення</div>
+                <div class="sheet-sub">${title}</div>
+                <div style="text-align:center;padding:18px 0 8px;">
+                    <div class="pulse-dot" style="margin:0 auto 12px;"></div>
+                    <div style="font-size:13px;color:var(--text-muted);">Завантажуємо подію й організатора...</div>
+                </div>
+            `);
+        }
+
+        function directionInviteSocialProof(dir, organizers = []) {
+            const orgs = Array.isArray(organizers) ? organizers : [];
+            const drivers = safeCount(dir?.drivers ?? dir?.drivers_count);
+            const passengers = safeCount(dir?.passengers ?? dir?.passengers_count);
+            const driverOrgs = orgs.filter(o => normalizeRole(o?.role || 'driver') === 'driver');
+            const openSeats = orgs.reduce((sum, o) => sum + safeCount(o?.seats_free), 0);
+            const driverCount = drivers || driverOrgs.length;
+            const total = drivers + passengers || orgs.length;
+            const participantLine = total > 0
+                ? `${total} ${pluralUk(total, 'людина вже цікавиться', 'людини вже цікавляться', 'людей вже цікавляться')}`
+                : 'Будьте серед перших учасників';
+            const driverLine = driverCount > 0
+                ? `${driverCount} ${pluralUk(driverCount, 'водій', 'водії', 'водіїв')}${openSeats > 0 ? ` • ${openSeats} ${pluralUk(openSeats, 'вільне місце', 'вільні місця', 'вільних місць')}` : ''}`
+                : 'Водії ще збираються';
+            return { participantLine, driverLine, total, driverCount, openSeats };
+        }
+
+        function openDirectionInviteSheet(dirId, dir, data = {}) {
+            const safeDirId = parseInt(dirId) || 0;
+            const orgs = Array.isArray(data?.organizers) ? data.organizers : [];
+            const dirMeta = { ...(dir || {}), ...(data?.direction || {}) };
+            const title = dirMeta.title || dirMeta.name || `Подія #${safeDirId}`;
+            const creatorId = dirMeta.creator_id || dirMeta.user_id || '';
+            const isMyDir = creatorId && String(creatorId) === String(S.userId);
+            const creatorName = dirMeta.creator_name || (isMyDir ? S.userName : '') || '';
+            const creatorUsername = sanitizeBotUsername(dirMeta.creator_username || (isMyDir ? S.userUsername : '') || '');
+            const creatorDisplay = creatorName || (creatorUsername ? 'Організатор' : '');
+            const meetingPoint = String(dirMeta.meeting_point || '').trim();
+            const desc = String(dirMeta.description || '').trim();
+            const startAt = String(dirMeta.start_date || '').trim();
+            const endAt = String(dirMeta.end_date || '').trim();
+            const whenText = startAt && endAt ? `${formatIdeaDate(startAt)} — ${formatIdeaDate(endAt)}` : (formatIdeaDate(startAt) || formatIdeaDate(endAt));
+            const proof = directionInviteSocialProof(dirMeta, orgs);
+            const topDrivers = orgs
+                .filter(o => normalizeRole(o?.role || 'driver') === 'driver')
+                .slice(0, 3)
+                .map(o => {
+                    const seats = safeCount(o?.seats_free);
+                    return `
+                        <div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid var(--border);">
+                            ${renderAvatarInline(o?.name || 'Водій', o?.photo_url || '', 30)}
+                            <div style="flex:1;min-width:0;">
+                                <div style="font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(o?.name || 'Водій')}</div>
+                                <div style="font-size:11px;color:var(--text-secondary);">${seats > 0 ? `${seats} ${pluralUk(seats, 'місце', 'місця', 'місць')} відкрито` : 'водій у події'}</div>
+                            </div>
+                        </div>`;
+                })
+                .join('');
+            const contactButton = creatorId && !isMyDir
+                ? `<button class="btn btn-secondary" style="width:100%;font-size:12px;margin-top:8px;" data-tg-username="${escapeAttr(creatorUsername)}" data-tg-user-id="${parseInt(creatorId, 10) || 0}" onclick="openTelegramContactFromButton(this)">💬 Написати організатору</button>`
+                : '';
+            openSheet(`
+                <div style="font-size:11px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:var(--blue);margin-bottom:6px;">Запрошення до події</div>
+                <div class="sheet-title" style="font-size:22px;line-height:1.15;margin-bottom:8px;">${escapeHtml(title)}</div>
+                <div class="sheet-sub" style="margin-bottom:12px;">${creatorDisplay ? `${escapeHtml(creatorDisplay)}${creatorUsername ? ` (@${escapeHtml(creatorUsername)})` : ''} збирає людей їхати разом.` : 'Вас запросили до спільної поїздки.'}</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0 12px;">
+                    <div style="padding:10px;border-radius:8px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.22);">
+                        <div style="font-size:11px;color:var(--text-muted);font-weight:800;text-transform:uppercase;">Люди</div>
+                        <div style="font-size:13px;font-weight:800;color:var(--text-primary);margin-top:3px;">${escapeHtml(proof.participantLine)}</div>
+                    </div>
+                    <div style="padding:10px;border-radius:8px;background:rgba(163,230,53,0.08);border:1px solid rgba(163,230,53,0.22);">
+                        <div style="font-size:11px;color:var(--text-muted);font-weight:800;text-transform:uppercase;">Машини</div>
+                        <div style="font-size:13px;font-weight:800;color:var(--text-primary);margin-top:3px;">${escapeHtml(proof.driverLine)}</div>
+                    </div>
+                </div>
+                <div style="padding:10px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid var(--border);display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+                    ${whenText ? `<div style="font-size:12px;color:var(--text-secondary);">🗓 ${escapeHtml(whenText)}</div>` : ''}
+                    ${meetingPoint ? `<div style="font-size:12px;color:var(--text-secondary);">📍 ${escapeHtml(meetingPoint)}</div>` : ''}
+                    ${desc ? `<div style="font-size:12px;color:var(--text-secondary);line-height:1.45;white-space:pre-wrap;">${escapeHtml(desc.slice(0, 360))}</div>` : ''}
+                    ${!whenText && !meetingPoint && !desc ? '<div style="font-size:12px;color:var(--text-secondary);">Деталі події можна уточнити в організатора.</div>' : ''}
+                </div>
+                ${topDrivers ? `<div style="font-size:11px;font-weight:900;text-transform:uppercase;color:var(--text-muted);letter-spacing:1px;margin-bottom:2px;">Хто вже є</div><div style="margin-bottom:12px;">${topDrivers}</div>` : ''}
+                <div style="padding:10px;border-radius:8px;background:rgba(255,193,7,0.08);border:1px solid rgba(255,193,7,0.2);font-size:12px;color:var(--text-secondary);line-height:1.45;margin-bottom:12px;">
+                    <strong style="color:var(--text-primary);">Що буде далі:</strong> ви оберете, чи можете взяти людей, чи шукаєте місце. Потім WayTandem покаже відповідний екіпаж або поставить вас у список очікування.
+                </div>
+                <button class="btn btn-primary" style="width:100%;margin-bottom:8px;" onclick="joinInvitedDirection(${safeDirId})">Хочу поїхати</button>
+                <div style="display:flex;gap:8px;">
+                    <button class="btn btn-secondary" style="flex:1;font-size:12px;" onclick="openDirection(${safeDirId})">Деталі</button>
+                    <button class="btn btn-ghost" style="flex:1;font-size:12px;" onclick="closeSheet()">Пізніше</button>
+                </div>
+                ${contactButton}
+            `);
+        }
+
+        async function openStartDirectionInvite(dirId) {
+            const safeDirId = parseInt(dirId) || 0;
+            if (!safeDirId) return;
+            S._openDirectionSeq = (S._openDirectionSeq || 0) + 1;
+            const seq = S._openDirectionSeq;
+            openStartDirectionLoadingSheet(safeDirId);
+            const data = await api(`/api/v3/fractal/organizers?direction_id=${safeDirId}&lang=${S.lang}&user_id=${S.userId || ''}`);
+            if (seq !== S._openDirectionSeq) return;
+            const localDir = allDirections.find(d => String(d.id) === String(safeDirId)) || {};
+            const remoteDir = data?.direction && typeof data.direction === 'object' ? data.direction : {};
+            const dir = { ...localDir, ...remoteDir, id: remoteDir.id ?? localDir.id ?? safeDirId };
+            if (!dir || !dir.id) { closeSheet(); showToast('Подія недоступна', 'error'); return; }
+            if (isFolderNode(dir)) { closeSheet(); await boardOpenFolder(safeDirId); return; }
+            S.directionDetailsCache = S.directionDetailsCache || {};
+            S.directionDetailsCache[safeDirId] = { ...(data || {}), direction: dir };
+            openDirectionInviteSheet(safeDirId, dir, data || {});
+        }
+
+        async function joinInvitedDirection(dirId) {
+            const safeDirId = parseInt(dirId) || 0;
+            if (!safeDirId) { showToast('Подію не знайдено', 'error'); return false; }
+            if (!requireRoleForAction('приєднатися до події', () => joinInvitedDirection(safeDirId))) return false;
+            return subscribeDir(safeDirId);
+        }
+
         async function openStartDirectionIfNeeded() {
             const dirId = parseInt(S.pendingStartDirectionId) || 0;
             if (!dirId || S.startDirectionHandled) return;
             S.startDirectionHandled = true;
             S.pendingStartDirectionId = null;
             switchScreen('board');
-            await openDirection(dirId);
+            await openStartDirectionInvite(dirId);
         }
 
         function updateNewsBadge() {
@@ -4601,12 +4722,12 @@
                 list.innerHTML = '<div class="empty"><div class="empty-icon">🧭</div><div class="empty-title">Підключіть API</div><div class="empty-sub">Вкажіть адресу сервера в налаштуваннях</div></div>';
                 return;
             }
-            
+
             const currentDirs = allDirections || [];
-            S.canCreateEvent = S.boardStack.length > 0 
-                && S.boardParentId !== null 
-                && S.boardParentId !== undefined 
-                && !(document.getElementById('board-search')?.value?.trim()) 
+            S.canCreateEvent = S.boardStack.length > 0
+                && S.boardParentId !== null
+                && S.boardParentId !== undefined
+                && !(document.getElementById('board-search')?.value?.trim())
                 && !currentDirs.some(d => isFolderNode(d));
 
             renderBoardBreadcrumb(S.canCreateEvent);
