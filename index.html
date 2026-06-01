@@ -3823,7 +3823,9 @@
             // Show live crew member markers during reservation pickup + Phase 2
             renderCrewMembersOnMap();
             renderEventPointsOnMap();
-            renderMapOverlay(isMapFocusedMode() ? visibleCrews : []);
+            // Crew details live on the icon-only pin popup. Do not duplicate
+            // the same drivers as bottom overlay cards; they cover the map.
+            renderMapOverlay([]);
             renderMapFocusButton();
             renderNewsStrip();
             if (S.currentScreen === 'trips' && !S.activeTrip && !S.pendingMatches.length && (S.subscriptions || []).length) renderTrips();
@@ -6399,7 +6401,7 @@
             const key = `${kind}:${id || 'global'}`;
             if (S.criticalSoundEventIds.has(key)) return false;
             S.criticalSoundEventIds.add(key);
-            if (!S.appSoundEnabled) return true;
+            if (!S.appSoundEnabled || isAppInBackground || document.hidden) return true;
             pulseCriticalHaptic(kind);
             playCriticalSound(kind);
             return true;
