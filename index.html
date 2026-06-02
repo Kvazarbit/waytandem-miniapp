@@ -3826,7 +3826,7 @@
                 const popupName = escapeHtml(c.driver_name || c.organizer_name || 'Екіпаж');
                 const popupDirection = escapeHtml(c.direction_title || '');
                 const requestBtn = canRequest
-                    ? '<button onclick="requestJoin(' + safeOrganizerId + ', ' + safeDirectionId + ')" style="flex:1;padding:8px;border-radius:10px;background:rgba(163,230,53,0.15);color:#a3e635;border:1px solid rgba(163,230,53,0.3);font-weight:700;font-size:12px;cursor:pointer;">✓ Запроситись</button>'
+                    ? `<button onclick="requestJoin(${safeOrganizerId}, ${safeDirectionId}, { source: 'map', keepMapContext: true })" style="flex:1;padding:8px;border-radius:10px;background:rgba(163,230,53,0.15);color:#a3e635;border:1px solid rgba(163,230,53,0.3);font-weight:700;font-size:12px;cursor:pointer;">✓ Запроситись</button>`
                     : '';
                 const openBtn = '<button onclick="openDirectionFromMap(' + safeDirectionId + ')" style="flex:1;padding:8px;border-radius:10px;background:rgba(56,189,248,0.14);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-weight:700;font-size:12px;cursor:pointer;">→ Напрямок</button>';
                 marker.bindPopup('<div style="text-align:center;min-width:180px;"><div style="font-weight:800;font-size:14px;margin-bottom:4px;">' + popupName + '</div><div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">' + popupDirection + '</div><div style="display:flex;gap:8px;">' + requestBtn + openBtn + '</div></div>');
@@ -4107,11 +4107,36 @@
             if (ok) closeSheet();
         }
 
+        function openMapRequestJoinResultSheet(dirId, res = {}) {
+            const ctx = mapInviteContext(dirId);
+            const safeDirId = ctx.safeDirId || (parseInt(dirId) || 0);
+            const mutual = !!res?.mutual;
+            const switched = Array.isArray(res?.switched_from) && res.switched_from.length > 0;
+            const title = mutual ? 'Екіпаж готовий' : (switched ? 'Запит перемкнено' : 'Запит надіслано');
+            const statusLine = mutual
+                ? 'Ви вже в екіпажі. Перейдіть до екрана екіпажу, щоб узгодити деталі.'
+                : 'Чекаємо підтвердження водія. Карта лишається відкритою, а статус оновиться автоматично.';
+            const tertiary = mutual
+                ? `<button class="btn btn-ghost" onclick="openStartDirectionInvite(${safeDirId}, { source: 'map', sheetMaxHeight: '65vh' })">Деталі</button>`
+                : `<button class="btn btn-danger" onclick="unsubscribeDir(${safeDirId})">Зупинити пошук</button>`;
+            openSheet(`
+                ${ctx.safeDirId ? renderMapInviteContextHeader(ctx) : ''}
+                <div class="sheet-title">${escapeHtml(title)}</div>
+                <div class="sheet-sub">${escapeHtml(statusLine)}</div>
+                <div class="sheet-actions" data-map-command-count="3">
+                    <button class="btn btn-primary" onclick="switchScreen('trips')">Екіпаж</button>
+                    <button class="btn btn-secondary" onclick="closeSheet()">Зрозуміло</button>
+                    ${tertiary}
+                </div>
+            `, { maxHeight: '65vh' });
+        }
+
         async function requestJoin(orgId, dirId, opts = {}) {
             if (!requireRoleForAction('запроситись до екіпажу', () => requestJoin(orgId, dirId, opts))) return;
             if (_isDriverRole(S.userRole)) { showToast('Запроситись може тільки попутник', 'error'); return; }
             const confirmed = await confirmOutgoingSwitchIfNeeded(orgId, dirId);
             if (!confirmed) return;
+            const fromMap = opts?.source === 'map' || !!opts?.keepMapContext;
             if (!beginOp('request_join')) return;
             try {
                 const res = await api('/api/v3/match/invite', {
@@ -4119,18 +4144,32 @@
                     body: JSON.stringify({ user_id: S.userId, target_id: orgId, direction_id: dirId, replace_existing: true })
                 });
                 if (res?.status === 'ok') {
-                    if (res.mutual) { showToast('✓ Ваш екіпаж готовий!', 'success'); }
-                    else if (Array.isArray(res.switched_from) && res.switched_from.length) { showToast('↪ Запит перемкнено', 'success'); }
-                    else { showToast('⏳ Запит надіслано', 'success'); }
+                    if (!fromMap) {
+                        if (res.mutual) { showToast('✓ Ваш екіпаж готовий!', 'success'); }
+                        else if (Array.isArray(res.switched_from) && res.switched_from.length) { showToast('↪ Запит перемкнено', 'success'); }
+                        else { showToast('⏳ Запит надіслано', 'success'); }
+                    }
                     persistCriticalState();
                     await hydrate();
+                    if (fromMap) {
+                        if (S.map?.closePopup) S.map.closePopup();
+                        switchScreen('explore');
+                        renderNewsStrip();
+                        await refreshMap();
+                        focusActiveMapContext();
+                        openMapRequestJoinResultSheet(dirId, res);
+                        return true;
+                    }
                     closeSheet();
                     switchScreen('trips');
+                    return true;
                 } else {
                     showToast(getErrorMessage(res, 'Не вдалось надіслати запит'), 'error');
+                    return false;
                 }
             } catch (e) {
                 showToast('Немає з\'єднання — спробуйте ще раз', 'error');
+                return false;
             } finally { endOp('request_join'); }
         }
 
@@ -5438,7 +5477,9 @@
                         showToast('Підписка активна на карті', 'success');
                         return true;
                     }
-                    showToast('🔔 Є збіг інтересів! Перевірте Поїздки', 'success');
+                    if (resp.ok && (status === 'ok' || status === 'already_subscribed')) {
+                        showToast('🔔 Є збіг інтересів! Перевірте Поїздки', 'success');
+                    }
                 } else {
                     switchScreen('trips');
                     showToast('🔔 Є збіг інтересів! Перевірте вкладку Поїздки', 'success');
