@@ -5265,7 +5265,7 @@
             return `
                 <div style="margin:16px auto 0;max-width:360px;text-align:left;padding:14px;border:1px solid rgba(56,189,248,0.22);border-radius:12px;background:rgba(56,189,248,0.07);">
                     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">
-                        <div style="font-size:12px;font-weight:800;color:var(--accent);letter-spacing:0;">📡 Радар активний</div>
+                        <div style="font-size:12px;font-weight:800;color:var(--accent);letter-spacing:0;">🔎 Автоматичний пошук активний</div>
                         <div style="font-size:11px;color:var(--text-muted);">${escapeHtml(formatRadarSyncAge(S.lastHydrateAt || S.lastMapSyncAt))}</div>
                     </div>
                     <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:6px;">✅ Підписка активна · ${title}</div>
@@ -5613,7 +5613,7 @@
                         </div>
                         ${liveLocationActive ? `<div style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);font-size:13px;color:var(--text-secondary);display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="switchScreen('explore')">
                             <span style="font-size:18px;">🗺️</span>
-                            <span>${isStarted ? 'Відкрити карту з маркерами екіпажу' : 'Відкрити live-радар точки збору'}</span>
+                            <span>${isStarted ? 'Відкрити карту з маркерами екіпажу' : 'Відкрити live-мапу точки збору'}</span>
                             <span style="margin-left:auto;color:var(--accent);">→</span>
                         </div>` : ''}
                         ${cancelPending ? `<div style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);font-size:13px;color:var(--red);">⚠️ Партнер хоче скасувати поїздку</div>` : ''}
