@@ -1417,9 +1417,27 @@
             box-shadow: 0 0 0 4px rgba(251,191,36,0.22), 0 0 18px rgba(251,191,36,0.46), 0 6px 18px rgba(0,0,0,0.28);
         }
 
+        .map-pin-mine {
+            background: #38bdf8;
+            color: #07111a;
+            box-shadow: 0 0 0 4px rgba(56,189,248,0.28), 0 0 0 7px rgba(255,255,255,0.16), 0 0 18px rgba(56,189,248,0.5), 0 6px 18px rgba(0,0,0,0.28);
+        }
+
         .map-pin-full {
             opacity: 0.58;
             filter: grayscale(0.35);
+        }
+
+        .map-pin-self-dot {
+            position: absolute;
+            left: -4px;
+            bottom: -4px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #fff;
+            border: 3px solid #38bdf8;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.35);
         }
 
         .map-pin-badge {
@@ -2812,6 +2830,7 @@
             pendingRoleAction: null,
             homeCity: { lat: 52.2297, lng: 21.0122, name: 'Warsaw' },
             pickupCoords: null,
+            pickupLabel: '',
             _pickupMarker: null,
             _ratingScore: null,
             _ratingContext: null,
@@ -3620,11 +3639,15 @@
         async function doOpenCrew(dirId, options = {}) {
             if (!requireRoleForAction('відкрити місця', () => doOpenCrew(dirId))) return;
             if (!_isDriverRole(S.userRole)) { showToast('Відкрити місця може тільки водій', 'error'); openRoleSelector(); return; }
+            if (!S.pickupCoords?.lat || !S.pickupCoords?.lng) {
+                const picked = await pickPickupLocation(dirId, { kind: 'driver_start' });
+                if (!picked) { showToast('Вкажіть старт авто на карті', 'error'); return false; }
+            }
             if (!beginOp('open_crew_submit')) return;
             try {
-                const payload = { user_id: S.userId, direction_id: dirId, pickup: 'WEB', seats: S.seats };
+                const pickupText = String(S.pickupLabel || '').trim() || `${S.pickupCoords.lat.toFixed(5)}, ${S.pickupCoords.lng.toFixed(5)}`;
+                const payload = { user_id: S.userId, direction_id: dirId, pickup: pickupText, seats: S.seats };
                 if (S.pickupCoords?.lat && S.pickupCoords?.lng) {
-                    payload.pickup = `${S.pickupCoords.lat.toFixed(5)}, ${S.pickupCoords.lng.toFixed(5)}`;
                     payload.pickup_lat = S.pickupCoords.lat;
                     payload.pickup_lng = S.pickupCoords.lng;
                 }
@@ -3808,14 +3831,25 @@
                 const freeSeats = safeCount(c?.seats_free ?? c?.free_seats ?? c?.available_seats);
                 const fullClass = (c?.seats_free !== undefined || c?.free_seats !== undefined || c?.available_seats !== undefined) && !freeSeats ? ' map-pin-full' : '';
                 const focusedClass = isSameDirection ? ' map-pin-focused' : '';
+                const isMine = S.userId && String(c?.organizer_id || '') === String(S.userId);
+                const mineClass = isMine ? ' map-pin-mine' : '';
                 const seatBadge = freeSeats > 0 ? `<span class="map-pin-badge">${freeSeats}</span>` : '';
-                const crewLabel = escapeAttr(`Екіпаж: ${c.driver_name || c.organizer_name || c.direction_title || ''}`.trim());
+                const selfDot = isMine ? '<span class="map-pin-self-dot" aria-hidden="true"></span>' : '';
+                const crewLabel = escapeAttr(`${isMine ? 'Ваш екіпаж' : 'Екіпаж'}: ${c.driver_name || c.organizer_name || c.direction_title || ''}`.trim());
+                if (isMine) {
+                    S.myCrew = {
+                        crew_id: c.crew_id,
+                        direction_id: c.direction_id,
+                        seats_total: c.seats_total,
+                        seats_free: freeSeats
+                    };
+                }
                 const marker = L.marker([c.lat, c.lng], {
                     title: crewLabel,
                     alt: crewLabel,
                     icon: L.divIcon({
                         className: '',
-                        html: `<div class="map-pin map-pin-crew${focusedClass}${fullClass}" role="button" aria-label="${crewLabel}">🚗${seatBadge}</div>`,
+                        html: `<div class="map-pin map-pin-crew${focusedClass}${mineClass}${fullClass}" role="button" aria-label="${crewLabel}">🚗${seatBadge}${selfDot}</div>`,
                         iconSize: [34, 34],
                         iconAnchor: [17, 17]
                     })
@@ -3823,7 +3857,7 @@
                 const canRequest = S.userId && String(S.userId) !== String(c.organizer_id) && S.userRole !== 'driver';
                 const safeOrganizerId = Number.isFinite(Number(c.organizer_id)) ? Number(c.organizer_id) : 0;
                 const safeDirectionId = Number.isFinite(Number(c.direction_id)) ? Number(c.direction_id) : 0;
-                const popupName = escapeHtml(c.driver_name || c.organizer_name || 'Екіпаж');
+                const popupName = escapeHtml(isMine ? 'Ваше авто' : (c.driver_name || c.organizer_name || 'Екіпаж'));
                 const popupDirection = escapeHtml(c.direction_title || '');
                 const requestBtn = canRequest
                     ? `<button onclick="requestJoin(${safeOrganizerId}, ${safeDirectionId}, { source: 'map', keepMapContext: true })" style="flex:1;padding:8px;border-radius:10px;background:rgba(163,230,53,0.15);color:#a3e635;border:1px solid rgba(163,230,53,0.3);font-weight:700;font-size:12px;cursor:pointer;">✓ Запроситись</button>`
@@ -4136,6 +4170,12 @@
             if (_isDriverRole(S.userRole)) { showToast('Запроситись може тільки попутник', 'error'); return; }
             const confirmed = await confirmOutgoingSwitchIfNeeded(orgId, dirId);
             if (!confirmed) return;
+            if (!S.pickupCoords?.lat || !S.pickupCoords?.lng) {
+                const picked = await pickPickupLocation(dirId, { kind: 'passenger_wait', persistUserLocation: true });
+                if (!picked) { showToast('Вкажіть, де чекати водія', 'error'); return false; }
+            } else {
+                await persistPickupPointForCoordination();
+            }
             const fromMap = opts?.source === 'map' || !!opts?.keepMapContext;
             if (!beginOp('request_join')) return;
             try {
@@ -4403,6 +4443,7 @@
             S.pendingRoleAction = null;
             const roleOk = await setRole(normalizedRole, { keepSheetOpen: true, silentToast: true, skipPendingAction: true });
             if (!roleOk) return false;
+            clearPickupPoint();
             return subscribeDir(safeDirId, { afterSuccessScreen: 'explore', keepSheetOpen: true, mapInline: true, manualOnly: true });
         }
 
@@ -4413,11 +4454,11 @@
             const openCrews = openCrewCountForRadar(ctx.safeDirId);
             const title = isDriver ? 'Ти в події як водій' : 'Ти шукаєш місце';
             const statusLine = isDriver
-                ? 'Відкрий екіпаж, щоб попутники побачили твою машину на карті.'
-                : (openCrews > 0 ? 'На карті показані водії з вільними місцями. Тапни машину, щоб запроситись.' : 'Підписка активна. Коли водії відкриють місця, вони зʼявляться на цій карті.');
+                ? (S.pickupCoords ? 'Старт авто вказано. Відкрий екіпаж, щоб попутники побачили твою машину на карті.' : 'Спершу вкажи старт авто на карті, потім відкрий екіпаж.')
+                : (S.pickupCoords ? (openCrews > 0 ? 'Точка очікування вказана. Тапни машину, щоб запроситись.' : 'Точка очікування вказана. Коли водії відкриють місця, вони зʼявляться на цій карті.') : 'Вкажи, де чекати водія. Потім тапни машину й надішли запит.');
             const primary = isDriver
-                ? `<button class="btn btn-primary" onclick="doOpenCrew(${ctx.safeDirId}, { keepMapSheet: true })">Відкрити екіпаж</button>`
-                : `<button class="btn btn-danger" onclick="unsubscribeDir(${ctx.safeDirId})">Зупинити пошук</button>`;
+                ? `<button class="btn btn-primary" onclick="doOpenCrew(${ctx.safeDirId}, { keepMapSheet: true })">${S.pickupCoords ? 'Відкрити екіпаж' : 'Вказати старт авто'}</button>`
+                : `<button class="btn btn-primary" onclick="pickPickupLocation(${ctx.safeDirId}, { kind: 'passenger_wait', persistUserLocation: true })">${S.pickupCoords ? 'Точка очікування ✓' : 'Вказати де чекати'}</button>`;
             openSheet(`
                 ${renderMapInviteContextHeader(ctx)}
                 <div class="sheet-title">${escapeHtml(title)}</div>
@@ -4425,7 +4466,7 @@
                 <div class="sheet-actions" data-map-command-count="3">
                     ${primary}
                     <button class="btn btn-secondary" onclick="openStartDirectionInvite(${ctx.safeDirId}, { source: 'map', sheetMaxHeight: '65vh', fullInvite: true })">Деталі події</button>
-                    <button class="btn btn-ghost" onclick="closeSheet()">Закрити</button>
+                    <button class="btn btn-ghost" onclick="${isDriver ? 'closeSheet()' : `unsubscribeDir(${ctx.safeDirId})`}">${isDriver ? 'Закрити' : 'Зупинити'}</button>
                 </div>
             `, { maxHeight: options?.sheetMaxHeight || '65vh' });
         }
@@ -5428,7 +5469,7 @@
                     <button class="btn btn-secondary" onclick="closeSheet()">Закрити</button>
                 </div>
                 <div style="font-size:12px;color:var(--text-secondary);line-height:1.45;margin:-2px 0 10px;">${isSub ? 'Ви ще не в поїздці. Очікуйте запит або запросіться до водія.' : 'Напрямок може створити водій або попутник. Після підписки ви дієте за своєю роллю.'}</div>
-                ${isSub ? `<button class="btn btn-secondary" style="width:100%;margin-bottom:8px;font-size:12px;" onclick="pickPickupLocation(${dirId})">${hasPickup ? '📍 Моя точка посадки ✓' : '📍 Додати точку посадки'}</button>` : ''}
+                ${isSub ? `<button class="btn btn-secondary" style="width:100%;margin-bottom:8px;font-size:12px;" onclick="pickPickupLocation(${dirId}, { kind: ${_isDriverRole(S.userRole) ? "'driver_start'" : "'passenger_wait'"}, persistUserLocation: ${_isDriverRole(S.userRole) ? 'false' : 'true'} })">${hasPickup ? '📍 Точка вказана ✓' : (_isDriverRole(S.userRole) ? '📍 Вказати старт авто' : '📍 Вказати де чекати водія')}</button>` : ''}
                 ${availOrgs.length > 1 ? `<button class="btn btn-secondary" style="width:100%;margin-bottom:8px;font-size:12px;color:var(--blue);" onclick="groupJoinDirection(${dirId}, [${availOrgs.map(o => o.user_id).join(',')}])">🔀 Запроситись до доступного екіпажу (${availOrgs.length})</button>` : ''}
                 ${orgs.length ? `
                     <div style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--text-muted);letter-spacing:1px;margin:8px 0 4px;">Водії та екіпажі</div>
@@ -6683,13 +6724,20 @@
         }
 
         // ═══════ LOCATION MAP PICKER (overlay над формою, форма не руйнується) ═══════
-        const _mapPicker = { map: null, onConfirm: null, searchTimer: null, wired: false };
+        const _mapPicker = { map: null, onConfirm: null, onCancel: null, searchTimer: null, wired: false };
 
         function openLocationPicker(opts = {}) {
             const overlay = document.getElementById('map-picker');
             if (!overlay) return;
             _mapPicker.onConfirm = typeof opts.onConfirm === 'function' ? opts.onConfirm : null;
+            _mapPicker.onCancel = typeof opts.onCancel === 'function' ? opts.onCancel : null;
             overlay.style.display = 'block';
+            const hint = document.getElementById('map-picker-hint');
+            if (hint) hint.textContent = opts.hint || 'Перетягни карту так, щоб пін був на місці події';
+            const search = document.getElementById('map-picker-search');
+            if (search) search.placeholder = opts.searchPlaceholder || '🔍 Місто або місце (напр. Люблін)';
+            const confirm = document.getElementById('map-picker-confirm');
+            if (confirm) confirm.textContent = opts.confirmLabel || '✓ Готово';
 
             const hasCoords = Number.isFinite(opts.lat) && Number.isFinite(opts.lng);
             let center, zoom;
@@ -6720,17 +6768,20 @@
                 );
             }
 
-            const search = document.getElementById('map-picker-search');
             if (search) search.value = '';
             const results = document.getElementById('map-picker-results');
             if (results) results.innerHTML = '';
         }
 
-        function closeLocationPicker() {
+        function closeLocationPicker(reason = 'cancel') {
             const overlay = document.getElementById('map-picker');
             if (overlay) overlay.style.display = 'none';
             const results = document.getElementById('map-picker-results');
             if (results) results.innerHTML = '';
+            const onCancel = _mapPicker.onCancel;
+            _mapPicker.onConfirm = null;
+            _mapPicker.onCancel = null;
+            if (reason !== 'confirm' && onCancel) onCancel();
         }
 
         function _wireMapPickerControls() {
@@ -6761,8 +6812,9 @@
                     const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=uk&zoom=14`, { headers: { 'Accept': 'application/json' } });
                     if (r.ok) label = _shortPlaceName(await r.json());
                 } catch (e) {}
-                closeLocationPicker();
-                if (_mapPicker.onConfirm) _mapPicker.onConfirm({ lat, lng, label });
+                const onConfirm = _mapPicker.onConfirm;
+                closeLocationPicker('confirm');
+                if (onConfirm) onConfirm({ lat, lng, label });
             };
 
             if (search) search.oninput = () => {
@@ -7128,31 +7180,62 @@
         }
 
         // ═══════ PICKUP LOCATION WITH MAP MARKER ═══════
-        async function pickPickupLocation(dirId) {
-            if (!navigator.geolocation) { showToast('GPS недоступний', 'error'); return; }
-            showToast('📍 Визначення локації...');
+        function clearPickupPoint() {
+            S.pickupCoords = null;
+            S.pickupLabel = '';
+            if (S._pickupMarker && S.map) { S.map.removeLayer(S._pickupMarker); }
+            S._pickupMarker = null;
+        }
+
+        function renderPickupMarker(label = 'Моя точка') {
+            if (!S.pickupCoords?.lat || !S.pickupCoords?.lng || !S.map) return;
+            if (S._pickupMarker) { S.map.removeLayer(S._pickupMarker); }
+            S._pickupMarker = L.marker([S.pickupCoords.lat, S.pickupCoords.lng], {
+                icon: L.divIcon({
+                    className: '',
+                    html: '<div style="width:32px;height:32px;border-radius:50%;background:#fbbf24;display:flex;align-items:center;justify-content:center;font-size:16px;border:2px solid rgba(0,0,0,0.4);box-shadow:0 2px 10px rgba(251,191,36,0.5);">📍</div>',
+                    iconSize: [32, 32], iconAnchor: [16, 32]
+                })
+            }).addTo(S.map).bindPopup(label);
+            S.map.flyTo([S.pickupCoords.lat, S.pickupCoords.lng], 15, { duration: 1 });
+        }
+
+        async function persistPickupPointForCoordination() {
+            if (!S.apiBase || !S.userId || !S.pickupCoords?.lat || !S.pickupCoords?.lng) return true;
+            const res = await api('/api/v3/user/location', {
+                method: 'POST',
+                body: JSON.stringify({ user_id: S.userId, lat: S.pickupCoords.lat, lng: S.pickupCoords.lng })
+            });
+            return res?.status === 'ok';
+        }
+
+        async function pickPickupLocation(dirId, options = {}) {
+            const kind = options?.kind || (_isDriverRole(S.userRole) ? 'driver_start' : 'passenger_wait');
+            const isDriverStart = kind === 'driver_start';
             return new Promise((resolve) => {
-                navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                        S.pickupCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                        // Show marker on map
-                        if (S._pickupMarker && S.map) { S.map.removeLayer(S._pickupMarker); }
-                        if (S.map) {
-                            S._pickupMarker = L.marker([pos.coords.latitude, pos.coords.longitude], {
-                                icon: L.divIcon({
-                                    className: '',
-                                    html: '<div style="width:32px;height:32px;border-radius:50%;background:#fbbf24;display:flex;align-items:center;justify-content:center;font-size:16px;border:2px solid rgba(0,0,0,0.4);box-shadow:0 2px 10px rgba(251,191,36,0.5);">📍</div>',
-                                    iconSize: [32, 32], iconAnchor: [16, 32]
-                                })
-                            }).addTo(S.map).bindPopup('Моя точка посадки');
-                            S.map.flyTo([pos.coords.latitude, pos.coords.longitude], 15, { duration: 1 });
+                openLocationPicker({
+                    lat: S.pickupCoords?.lat,
+                    lng: S.pickupCoords?.lng,
+                    hint: isDriverStart
+                        ? 'Перетягни карту так, щоб пін був у точці старту авто'
+                        : 'Перетягни карту так, щоб пін був там, де чекати водія',
+                    searchPlaceholder: isDriverStart
+                        ? '🔍 Звідки стартує авто'
+                        : '🔍 Де чекати водія',
+                    confirmLabel: isDriverStart ? '✓ Старт авто' : '✓ Точка очікування',
+                    onCancel: () => resolve(null),
+                    onConfirm: async ({ lat, lng, label }) => {
+                        S.pickupCoords = { lat, lng };
+                        S.pickupLabel = label || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+                        renderPickupMarker(isDriverStart ? 'Старт авто' : 'Де чекати водія');
+                        if (options?.persistUserLocation) {
+                            const saved = await persistPickupPointForCoordination();
+                            if (!saved) { showToast('Не вдалося зберегти точку', 'error'); resolve(null); return; }
                         }
-                        showToast('✓ Точку посадки визначено', 'success');
+                        showToast(isDriverStart ? '✓ Старт авто вказано' : '✓ Точку очікування вказано', 'success');
                         resolve(S.pickupCoords);
-                    },
-                    () => { showToast('Не вдалося отримати GPS', 'error'); resolve(null); },
-                    { enableHighAccuracy: true, timeout: 8000 }
-                );
+                    }
+                });
             });
         }
 
