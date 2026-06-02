@@ -4117,7 +4117,7 @@
                 ? 'Ви вже в екіпажі. Перейдіть до екрана екіпажу, щоб узгодити деталі.'
                 : 'Чекаємо підтвердження водія. Карта лишається відкритою, а статус оновиться автоматично.';
             const tertiary = mutual
-                ? `<button class="btn btn-ghost" onclick="openStartDirectionInvite(${safeDirId}, { source: 'map', sheetMaxHeight: '65vh' })">Деталі</button>`
+                ? `<button class="btn btn-ghost" onclick="openStartDirectionInvite(${safeDirId}, { source: 'map', sheetMaxHeight: '65vh', fullInvite: true })">Деталі</button>`
                 : `<button class="btn btn-danger" onclick="unsubscribeDir(${safeDirId})">Зупинити пошук</button>`;
             openSheet(`
                 ${ctx.safeDirId ? renderMapInviteContextHeader(ctx) : ''}
@@ -4347,6 +4347,37 @@
                 </div>`;
         }
 
+        function openMapCompactDirectionInviteSheet(dirId, dir, data = {}, options = {}) {
+            const safeDirId = parseInt(dirId) || 0;
+            if (!safeDirId) return false;
+            const ctx = mapInviteContext(safeDirId);
+            const dirMeta = { ...(dir || {}), ...(data?.direction || {}) };
+            const creatorId = dirMeta.creator_id || dirMeta.user_id || '';
+            const isMyDir = creatorId && String(creatorId) === String(S.userId);
+            const creatorName = dirMeta.creator_name || (isMyDir ? S.userName : '') || '';
+            const creatorUsername = sanitizeBotUsername(dirMeta.creator_username || (isMyDir ? S.userUsername : '') || '');
+            const creatorDisplay = creatorName || (creatorUsername ? '@' + creatorUsername : ctx.creatorDisplay);
+            const subtitle = creatorDisplay
+                ? `${escapeHtml(creatorDisplay)}${creatorUsername && creatorName ? ` (@${escapeHtml(creatorUsername)})` : ''} збирає людей їхати разом.`
+                : 'Організатор збирає людей їхати разом.';
+            openSheet(`
+                <div data-map-compact-invite="event" style="padding:2px 0 4px;">
+                    <div style="font-size:11px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:var(--blue);margin-bottom:6px;">Подія на карті</div>
+                    <div class="sheet-title" style="font-size:21px;line-height:1.15;margin-bottom:8px;">${escapeHtml(ctx.title)}</div>
+                    <div class="sheet-sub" style="margin-bottom:12px;">${subtitle}</div>
+                    <div style="padding:10px;border:1px solid rgba(56,189,248,0.22);border-radius:8px;background:rgba(56,189,248,0.07);font-size:12px;color:var(--text-secondary);line-height:1.4;margin-bottom:12px;">
+                        ${escapeHtml(ctx.proof.participantLine)} · ${escapeHtml(ctx.proof.driverLine)}
+                    </div>
+                </div>
+                <div class="sheet-actions" data-map-command-count="3">
+                    <button class="btn btn-primary" onclick="joinInvitedDirection(${ctx.safeDirId}, 'map')">Хочу поїхати</button>
+                    <button class="btn btn-secondary" onclick="openStartDirectionInvite(${ctx.safeDirId}, { source: 'map', sheetMaxHeight: '65vh', fullInvite: true })">Деталі</button>
+                    <button class="btn btn-ghost" onclick="closeSheet()">Пізніше</button>
+                </div>
+            `, { maxHeight: options?.sheetMaxHeight || '65vh' });
+            return true;
+        }
+
         function openMapInviteRoleSheet(dirId) {
             const ctx = mapInviteContext(dirId);
             if (!ctx.safeDirId) return false;
@@ -4393,7 +4424,7 @@
                 <div class="sheet-sub">${escapeHtml(statusLine)}</div>
                 <div class="sheet-actions" data-map-command-count="3">
                     ${primary}
-                    <button class="btn btn-secondary" onclick="openStartDirectionInvite(${ctx.safeDirId}, { source: 'map', sheetMaxHeight: '65vh' })">Деталі події</button>
+                    <button class="btn btn-secondary" onclick="openStartDirectionInvite(${ctx.safeDirId}, { source: 'map', sheetMaxHeight: '65vh', fullInvite: true })">Деталі події</button>
                     <button class="btn btn-ghost" onclick="closeSheet()">Закрити</button>
                 </div>
             `, { maxHeight: options?.sheetMaxHeight || '65vh' });
@@ -4409,7 +4440,7 @@
                 <div class="sheet-actions" data-map-command-count="3">
                     <button class="btn btn-primary" onclick="closeSheet()">Зрозуміло</button>
                     <button class="btn btn-secondary" onclick="switchScreen('trips')">Екіпаж</button>
-                    <button class="btn btn-ghost" onclick="openStartDirectionInvite(${ctx.safeDirId}, { source: 'map', sheetMaxHeight: '65vh' })">Деталі</button>
+                    <button class="btn btn-ghost" onclick="openStartDirectionInvite(${ctx.safeDirId}, { source: 'map', sheetMaxHeight: '65vh', fullInvite: true })">Деталі</button>
                 </div>
             `, { maxHeight: '65vh' });
         }
@@ -4469,9 +4500,9 @@
                     ${desc ? `<div style="font-size:12px;color:var(--text-secondary);line-height:1.45;white-space:pre-wrap;">${escapeHtml(desc.slice(0, 360))}</div>` : ''}
                     ${!whenText && !meetingPoint && !desc ? '<div style="font-size:12px;color:var(--text-secondary);">Деталі події можна уточнити в організатора.</div>' : ''}
                 </div>
-                ${topDrivers ? `<div style="font-size:11px;font-weight:900;text-transform:uppercase;color:var(--text-muted);letter-spacing:1px;margin-bottom:2px;">Хто вже є</div><div style="margin-bottom:12px;">${topDrivers}</div>` : ''}
+                ${topDrivers ? `<div style="font-size:11px;font-weight:900;text-transform:uppercase;color:var(--text-muted);letter-spacing:1px;margin-bottom:2px;">Водії в події</div><div style="margin-bottom:12px;">${topDrivers}</div>` : ''}
                 <div style="padding:10px;border-radius:8px;background:rgba(255,193,7,0.08);border:1px solid rgba(255,193,7,0.2);font-size:12px;color:var(--text-secondary);line-height:1.45;margin-bottom:12px;">
-                    <strong style="color:var(--text-primary);">Що буде далі:</strong> ви оберете, чи можете взяти людей, чи шукаєте місце. Потім WayTandem покаже відповідний екіпаж або поставить вас у список очікування.
+                    <strong style="color:var(--text-primary);">Що буде далі:</strong> ви оберете, чи можете взяти людей, чи шукаєте місце. Потім WayTandem покаже відповідний екіпаж або повідомить, щойно знайдеться водій.
                 </div>
                 <button class="btn btn-primary" style="width:100%;margin-bottom:8px;" onclick="joinInvitedDirection(${joinArgs})">Хочу поїхати</button>
                 <div style="display:flex;gap:8px;">
@@ -4497,7 +4528,12 @@
             if (isFolderNode(dir)) { closeSheet(); await boardOpenFolder(safeDirId); return; }
             S.directionDetailsCache = S.directionDetailsCache || {};
             S.directionDetailsCache[safeDirId] = { ...(data || {}), direction: dir };
-            openDirectionInviteSheet(safeDirId, dir, data || {}, options || {});
+            const inviteOptions = options || {};
+            if (inviteOptions?.source === 'map' && !inviteOptions?.fullInvite) {
+                openMapCompactDirectionInviteSheet(safeDirId, dir, data || {}, inviteOptions);
+                return;
+            }
+            openDirectionInviteSheet(safeDirId, dir, data || {}, inviteOptions);
         }
 
         async function joinInvitedDirection(dirId, source = '') {
