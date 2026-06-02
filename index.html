@@ -3511,10 +3511,13 @@
             `);
         }
 
-        async function setRole(role) {
+        async function setRole(role, options = {}) {
             const normalizedRole = normalizeRole(role);
-            if (!normalizedRole) return;
-            if (normalizedRole === S.userRole) { closeSheet(); return; }
+            if (!normalizedRole) return false;
+            if (normalizedRole === S.userRole) {
+                if (!options?.keepSheetOpen) closeSheet();
+                return true;
+            }
 
             if (S.apiBase) {
                 const resp = await apiWithStatus('/api/v3/user/role', {
@@ -3532,21 +3535,24 @@
                     } else {
                         showToast('Не вдалося змінити роль', 'error');
                     }
-                    return;
+                    return false;
                 }
             }
 
             S.userRole = normalizedRole;
             saveProfile();
             updateRolePill();
-            closeSheet();
-            showToast(normalizedRole === 'driver' ? '🚗 Ви водій!' : '👤 Ви попутник!', 'success');
+            if (!options?.keepSheetOpen) closeSheet();
+            if (!options?.silentToast) showToast(normalizedRole === 'driver' ? '🚗 Ви водій!' : '👤 Ви попутник!', 'success');
             if (S.currentScreen === 'explore') refreshMap();
             renderSubBar();
             if (S.apiBase) await hydrate();
             const pendingAction = S.pendingRoleAction;
-            S.pendingRoleAction = null;
-            if (pendingAction) setTimeout(() => pendingAction(), 0);
+            if (!options?.skipPendingAction) {
+                S.pendingRoleAction = null;
+                if (pendingAction) setTimeout(() => pendingAction(), 0);
+            }
+            return true;
         }
 
         // ─── SUBSCRIPTION BAR ───
@@ -3611,7 +3617,7 @@
             }
         }
 
-        async function doOpenCrew(dirId) {
+        async function doOpenCrew(dirId, options = {}) {
             if (!requireRoleForAction('відкрити місця', () => doOpenCrew(dirId))) return;
             if (!_isDriverRole(S.userRole)) { showToast('Відкрити місця може тільки водій', 'error'); openRoleSelector(); return; }
             if (!beginOp('open_crew_submit')) return;
@@ -3627,6 +3633,14 @@
                     S.myCrew = { crew_id: res.crew_id, direction_id: dirId };
                     showToast('🚗 Екіпаж відкрито! Очікуйте попутників', 'success');
                     await hydrate();
+                    if (options?.keepMapSheet) {
+                        switchScreen('explore');
+                        renderNewsStrip();
+                        await refreshMap();
+                        focusActiveMapContext();
+                        openMapCrewOpenedSheet(dirId);
+                        return true;
+                    }
                     closeSheet();
                     switchScreen('trips');
                 } else { showToast('Помилка: ' + (res?.reason || 'невідома'), 'error'); }
@@ -4265,6 +4279,102 @@
             return { participantLine, driverLine, total, driverCount, openSeats };
         }
 
+        function mapInviteContext(dirId) {
+            const safeDirId = parseInt(dirId) || 0;
+            const cached = S.directionDetailsCache?.[safeDirId] || {};
+            const localDir = allDirections.find(d => String(d.id) === String(safeDirId)) || {};
+            const dir = { ...localDir, ...(cached.direction || {}), id: safeDirId };
+            const orgs = Array.isArray(cached.organizers) ? cached.organizers : [];
+            const creatorId = dir.creator_id || dir.user_id || '';
+            const isMyDir = creatorId && String(creatorId) === String(S.userId);
+            const creatorName = dir.creator_name || (isMyDir ? S.userName : '') || '';
+            const creatorUsername = sanitizeBotUsername(dir.creator_username || (isMyDir ? S.userUsername : '') || '');
+            const creatorDisplay = creatorName || (creatorUsername ? '@' + creatorUsername : 'організатор');
+            return {
+                safeDirId,
+                dir,
+                orgs,
+                title: dir.title || dir.name || `Подія #${safeDirId}`,
+                creatorDisplay,
+                proof: directionInviteSocialProof(dir, orgs)
+            };
+        }
+
+        function renderMapInviteContextHeader(ctx) {
+            return `
+                <div data-map-sheet-context="event" style="padding:10px;border:1px solid rgba(56,189,248,0.22);border-radius:8px;background:rgba(56,189,248,0.07);margin-bottom:12px;">
+                    <div style="font-size:13px;font-weight:900;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(ctx.title)}</div>
+                    <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(ctx.creatorDisplay)} · ${escapeHtml(ctx.proof.participantLine)} · ${escapeHtml(ctx.proof.driverLine)}</div>
+                </div>`;
+        }
+
+        function openMapInviteRoleSheet(dirId) {
+            const ctx = mapInviteContext(dirId);
+            if (!ctx.safeDirId) return false;
+            const isDriver = _isDriverRole(S.userRole);
+            const isClient = _isPassengerRole(S.userRole);
+            openSheet(`
+                ${renderMapInviteContextHeader(ctx)}
+                <div class="sheet-title">Як ти поїдеш?</div>
+                <div class="sheet-sub">Обери один варіант для цієї події. Карта лишається відкритою.</div>
+                <div class="sheet-actions" data-map-command-count="3">
+                    <button class="btn ${isDriver ? 'btn-primary' : 'btn-secondary'}" onclick="chooseMapInviteRole(${ctx.safeDirId}, 'driver')">🚗 Можу взяти людей</button>
+                    <button class="btn ${isClient ? 'btn-primary' : 'btn-secondary'}" onclick="chooseMapInviteRole(${ctx.safeDirId}, 'client')">👤 Шукаю місце</button>
+                    <button class="btn btn-ghost" onclick="openStartDirectionInvite(${ctx.safeDirId}, { source: 'map', sheetMaxHeight: '65vh' })">Назад</button>
+                </div>
+            `, { maxHeight: '65vh' });
+            return true;
+        }
+
+        async function chooseMapInviteRole(dirId, role) {
+            const safeDirId = parseInt(dirId) || 0;
+            const normalizedRole = normalizeRole(role);
+            if (!safeDirId || !normalizedRole) return false;
+            S.pendingRoleAction = null;
+            const roleOk = await setRole(normalizedRole, { keepSheetOpen: true, silentToast: true, skipPendingAction: true });
+            if (!roleOk) return false;
+            return subscribeDir(safeDirId, { afterSuccessScreen: 'explore', keepSheetOpen: true, mapInline: true });
+        }
+
+        function openMapSubscribedSheet(dirId, options = {}) {
+            const ctx = mapInviteContext(dirId);
+            if (!ctx.safeDirId) return;
+            const isDriver = _isDriverRole(S.userRole);
+            const openCrews = openCrewCountForRadar(ctx.safeDirId);
+            const title = isDriver ? 'Ти в події як водій' : 'Ти шукаєш місце';
+            const statusLine = isDriver
+                ? 'Відкрий екіпаж, щоб попутники побачили твою машину на карті.'
+                : (openCrews > 0 ? 'На карті показані водії з вільними місцями. Тапни машину, щоб запроситись.' : 'Підписка активна. Коли водії відкриють місця, вони зʼявляться на цій карті.');
+            const primary = isDriver
+                ? `<button class="btn btn-primary" onclick="doOpenCrew(${ctx.safeDirId}, { keepMapSheet: true })">Відкрити екіпаж</button>`
+                : `<button class="btn btn-danger" onclick="unsubscribeDir(${ctx.safeDirId})">Зупинити пошук</button>`;
+            openSheet(`
+                ${renderMapInviteContextHeader(ctx)}
+                <div class="sheet-title">${escapeHtml(title)}</div>
+                <div class="sheet-sub">${escapeHtml(statusLine)}</div>
+                <div class="sheet-actions" data-map-command-count="3">
+                    ${primary}
+                    <button class="btn btn-secondary" onclick="openStartDirectionInvite(${ctx.safeDirId}, { source: 'map', sheetMaxHeight: '65vh' })">Деталі події</button>
+                    <button class="btn btn-ghost" onclick="closeSheet()">Закрити</button>
+                </div>
+            `, { maxHeight: options?.sheetMaxHeight || '65vh' });
+        }
+
+        function openMapCrewOpenedSheet(dirId) {
+            const ctx = mapInviteContext(dirId);
+            if (!ctx.safeDirId) return;
+            openSheet(`
+                ${renderMapInviteContextHeader(ctx)}
+                <div class="sheet-title">Екіпаж відкрито</div>
+                <div class="sheet-sub">Твоя машина вже на карті. Коли хтось запроситься, ти отримаєш запит на підтвердження.</div>
+                <div class="sheet-actions" data-map-command-count="3">
+                    <button class="btn btn-primary" onclick="closeSheet()">Зрозуміло</button>
+                    <button class="btn btn-secondary" onclick="switchScreen('trips')">Екіпаж</button>
+                    <button class="btn btn-ghost" onclick="openStartDirectionInvite(${ctx.safeDirId}, { source: 'map', sheetMaxHeight: '65vh' })">Деталі</button>
+                </div>
+            `, { maxHeight: '65vh' });
+        }
+
         function openDirectionInviteSheet(dirId, dir, data = {}, options = {}) {
             const safeDirId = parseInt(dirId) || 0;
             const orgs = Array.isArray(data?.organizers) ? data.organizers : [];
@@ -4354,6 +4464,7 @@
         async function joinInvitedDirection(dirId, source = '') {
             const safeDirId = parseInt(dirId) || 0;
             if (!safeDirId) { showToast('Подію не знайдено', 'error'); return false; }
+            if (source === 'map') return openMapInviteRoleSheet(safeDirId);
             if (!requireRoleForAction('приєднатися до події', () => joinInvitedDirection(safeDirId, source))) return false;
             return subscribeDir(safeDirId, { afterSuccessScreen: source === 'map' ? 'explore' : '' });
         }
@@ -5310,7 +5421,8 @@
             }
 
             await hydrate();
-            closeSheet();
+            const keepSheetOpen = !!options?.keepSheetOpen;
+            if (!keepSheetOpen) closeSheet();
             const showCoordinationMap = options?.afterSuccessScreen === 'explore';
             const openCoordinationMap = async () => {
                 switchScreen('explore');
@@ -5321,6 +5433,11 @@
             if (S.pendingMatches.length > 0) {
                 if (showCoordinationMap) {
                     await openCoordinationMap();
+                    if (keepSheetOpen) {
+                        openMapSubscribedSheet(dirId, { sheetMaxHeight: '65vh' });
+                        showToast('Підписка активна на карті', 'success');
+                        return true;
+                    }
                     showToast('🔔 Є збіг інтересів! Перевірте Поїздки', 'success');
                 } else {
                     switchScreen('trips');
@@ -5330,6 +5447,7 @@
                 showToast(status === 'already_subscribed' ? 'Ви вже в черзі' : '✓ Ви в черзі. Поїздку ще не підтверджено.', 'success');
                 if (showCoordinationMap) {
                     await openCoordinationMap();
+                    if (keepSheetOpen) openMapSubscribedSheet(dirId, { sheetMaxHeight: '65vh' });
                     return true;
                 }
                 // Re-hydrate after delay to catch handshakes created by async matching task
