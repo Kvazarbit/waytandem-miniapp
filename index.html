@@ -4403,7 +4403,7 @@
             S.pendingRoleAction = null;
             const roleOk = await setRole(normalizedRole, { keepSheetOpen: true, silentToast: true, skipPendingAction: true });
             if (!roleOk) return false;
-            return subscribeDir(safeDirId, { afterSuccessScreen: 'explore', keepSheetOpen: true, mapInline: true });
+            return subscribeDir(safeDirId, { afterSuccessScreen: 'explore', keepSheetOpen: true, mapInline: true, manualOnly: true });
         }
 
         function openMapSubscribedSheet(dirId, options = {}) {
@@ -5479,9 +5479,10 @@
                 S._recentlyUnsubbed = { id: String(otherSub.direction_id), until: Date.now() + 8000 };
             }
 
+            const manualOnly = !!options?.manualOnly;
             const resp = await apiWithStatus('/api/v3/board/subscribe', {
                 method: 'POST',
-                body: JSON.stringify({ user_id: S.userId, direction_id: dirId, role: S.userRole })
+                body: JSON.stringify({ user_id: S.userId, direction_id: dirId, role: S.userRole, auto_match: !manualOnly })
             });
             const status = String(resp?.data?.status || '');
             if (!resp.ok || (status !== 'ok' && status !== 'already_subscribed')) {
@@ -5521,7 +5522,7 @@
                     showToast('🔔 Є збіг інтересів! Перевірте вкладку Поїздки', 'success');
                 }
             } else {
-                showToast(status === 'already_subscribed' ? 'Ви вже в черзі' : '✓ Ви в черзі. Поїздку ще не підтверджено.', 'success');
+                showToast(manualOnly ? 'Подія відкрита на карті' : (status === 'already_subscribed' ? 'Ви вже в черзі' : '✓ Ви в черзі. Поїздку ще не підтверджено.'), 'success');
                 if (showCoordinationMap) {
                     await openCoordinationMap();
                     if (keepSheetOpen) openMapSubscribedSheet(dirId, { sheetMaxHeight: '65vh' });
