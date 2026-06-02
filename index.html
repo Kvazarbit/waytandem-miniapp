@@ -1458,6 +1458,30 @@
             line-height: 1;
         }
 
+        .pickup-point-pin {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            border: 2px solid rgba(0,0,0,0.4);
+            box-shadow: 0 0 0 4px rgba(255,255,255,0.2), 0 6px 18px rgba(0,0,0,0.28);
+        }
+
+        .pickup-point-driver {
+            background: #fbbf24;
+            color: #101827;
+            box-shadow: 0 0 0 4px rgba(251,191,36,0.26), 0 0 18px rgba(251,191,36,0.48), 0 6px 18px rgba(0,0,0,0.28);
+        }
+
+        .pickup-point-passenger {
+            background: #65d48f;
+            color: #07130d;
+            box-shadow: 0 0 0 4px rgba(101,212,143,0.28), 0 0 18px rgba(101,212,143,0.5), 0 6px 18px rgba(0,0,0,0.28);
+        }
+
         /* ── LOCATION MAP PICKER (overlay над формою) ── */
         .map-picker {
             position: fixed;
@@ -2831,6 +2855,7 @@
             homeCity: { lat: 52.2297, lng: 21.0122, name: 'Warsaw' },
             pickupCoords: null,
             pickupLabel: '',
+            pickupKind: '',
             _pickupMarker: null,
             _ratingScore: null,
             _ratingContext: null,
@@ -3857,13 +3882,13 @@
                 const canRequest = S.userId && String(S.userId) !== String(c.organizer_id) && S.userRole !== 'driver';
                 const safeOrganizerId = Number.isFinite(Number(c.organizer_id)) ? Number(c.organizer_id) : 0;
                 const safeDirectionId = Number.isFinite(Number(c.direction_id)) ? Number(c.direction_id) : 0;
-                const popupName = escapeHtml(isMine ? 'Ваше авто' : (c.driver_name || c.organizer_name || 'Екіпаж'));
+                const popupName = isMine ? 'Ваше авто' : (c.driver_name || c.organizer_name || 'Екіпаж');
                 const popupDirection = escapeHtml(c.direction_title || '');
                 const requestBtn = canRequest
                     ? `<button onclick="requestJoin(${safeOrganizerId}, ${safeDirectionId}, { source: 'map', keepMapContext: true })" style="flex:1;padding:8px;border-radius:10px;background:rgba(163,230,53,0.15);color:#a3e635;border:1px solid rgba(163,230,53,0.3);font-weight:700;font-size:12px;cursor:pointer;">✓ Запроситись</button>`
                     : '';
                 const openBtn = '<button onclick="openDirectionFromMap(' + safeDirectionId + ')" style="flex:1;padding:8px;border-radius:10px;background:rgba(56,189,248,0.14);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-weight:700;font-size:12px;cursor:pointer;">→ Напрямок</button>';
-                marker.bindPopup('<div style="text-align:center;min-width:180px;"><div style="font-weight:800;font-size:14px;margin-bottom:4px;">' + popupName + '</div><div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">' + popupDirection + '</div><div style="display:flex;gap:8px;">' + requestBtn + openBtn + '</div></div>');
+                marker.bindPopup('<div style="text-align:center;min-width:180px;"><div style="font-weight:800;font-size:14px;margin-bottom:4px;">' + escapeHtml(popupName) + '</div><div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">' + popupDirection + '</div><div style="display:flex;gap:8px;">' + requestBtn + openBtn + '</div></div>');
                 S.mapMarkers.push(marker);
             });
             // Re-draw pickup marker if exists
@@ -4443,8 +4468,34 @@
             S.pendingRoleAction = null;
             const roleOk = await setRole(normalizedRole, { keepSheetOpen: true, silentToast: true, skipPendingAction: true });
             if (!roleOk) return false;
+            return openMapInviteMethodSheet(safeDirId);
+        }
+
+        function openMapInviteMethodSheet(dirId) {
+            const ctx = mapInviteContext(dirId);
+            if (!ctx.safeDirId) return false;
+            const isDriver = _isDriverRole(S.userRole);
+            const manualLabel = isDriver ? '🗺 Відкрию екіпаж на карті' : '🗺 Виберу водія сам';
+            const autoLabel = isDriver ? '✨ Знайти попутника автоматично' : '✨ Знайти місце автоматично';
+            openSheet(`
+                ${renderMapInviteContextHeader(ctx)}
+                <div class="sheet-title">Як шукати?</div>
+                <div class="sheet-sub">Обери спосіб. Резервація зʼявиться тільки після згоди обох сторін.</div>
+                <div class="sheet-actions" data-map-command-count="3">
+                    <button class="btn btn-primary" onclick="chooseMapInviteMethod(${ctx.safeDirId}, false)">${manualLabel}</button>
+                    <button class="btn btn-secondary" onclick="chooseMapInviteMethod(${ctx.safeDirId}, true)">${autoLabel}</button>
+                    <button class="btn btn-ghost" onclick="openMapInviteRoleSheet(${ctx.safeDirId})">Назад</button>
+                </div>
+            `, { maxHeight: '65vh' });
+            return true;
+        }
+
+        async function chooseMapInviteMethod(dirId, auto) {
+            const safeDirId = parseInt(dirId) || 0;
+            if (!safeDirId) return false;
+            const autoMatch = !!auto;
             clearPickupPoint();
-            return subscribeDir(safeDirId, { afterSuccessScreen: 'explore', keepSheetOpen: true, mapInline: true, manualOnly: true });
+            return subscribeDir(safeDirId, { afterSuccessScreen: 'explore', keepSheetOpen: true, mapInline: true, manualOnly: !autoMatch });
         }
 
         function openMapSubscribedSheet(dirId, options = {}) {
@@ -4452,10 +4503,17 @@
             if (!ctx.safeDirId) return;
             const isDriver = _isDriverRole(S.userRole);
             const openCrews = openCrewCountForRadar(ctx.safeDirId);
-            const title = isDriver ? 'Ти в події як водій' : 'Ти шукаєш місце';
-            const statusLine = isDriver
+            const auto = !!options.auto;
+            const title = auto
+                ? (isDriver ? 'Шукаємо попутників' : 'Шукаємо місце')
+                : (isDriver ? 'Ти в події як водій' : 'Ти шукаєш місце');
+            const manualStatus = isDriver
                 ? (S.pickupCoords ? 'Старт авто вказано. Відкрий екіпаж, щоб попутники побачили твою машину на карті.' : 'Спершу вкажи старт авто на карті, потім відкрий екіпаж.')
                 : (S.pickupCoords ? (openCrews > 0 ? 'Точка очікування вказана. Тапни машину, щоб запроситись.' : 'Точка очікування вказана. Коли водії відкриють місця, вони зʼявляться на цій карті.') : 'Вкажи, де чекати водія. Потім тапни машину й надішли запит.');
+            const autoStatus = isDriver
+                ? 'WayTandem сам підбере попутника й покаже пропозицію. Можеш вказати старт авто, щоб з’явитись на карті.'
+                : 'WayTandem сам знайде водія й покаже пропозицію. Можеш вказати, де чекати, щоб з’явитись на карті.';
+            const statusLine = auto ? autoStatus : manualStatus;
             const primary = isDriver
                 ? `<button class="btn btn-primary" onclick="doOpenCrew(${ctx.safeDirId}, { keepMapSheet: true })">${S.pickupCoords ? 'Відкрити екіпаж' : 'Вказати старт авто'}</button>`
                 : `<button class="btn btn-primary" onclick="pickPickupLocation(${ctx.safeDirId}, { kind: 'passenger_wait', persistUserLocation: true })">${S.pickupCoords ? 'Точка очікування ✓' : 'Вказати де чекати'}</button>`;
@@ -4580,9 +4638,9 @@
         async function joinInvitedDirection(dirId, source = '') {
             const safeDirId = parseInt(dirId) || 0;
             if (!safeDirId) { showToast('Подію не знайдено', 'error'); return false; }
-            if (source === 'map') return openMapInviteRoleSheet(safeDirId);
-            if (!requireRoleForAction('приєднатися до події', () => joinInvitedDirection(safeDirId, source))) return false;
-            return subscribeDir(safeDirId, { afterSuccessScreen: source === 'map' ? 'explore' : '' });
+            // One flow for both entry points (map pin / list): role -> search method -> subscribe.
+            // auto_match is decided by the method choice, never implied by where the user tapped.
+            return openMapInviteRoleSheet(safeDirId);
         }
 
         async function openStartDirectionIfNeeded() {
@@ -5551,7 +5609,7 @@
                 if (showCoordinationMap) {
                     await openCoordinationMap();
                     if (keepSheetOpen) {
-                        openMapSubscribedSheet(dirId, { sheetMaxHeight: '65vh' });
+                        openMapSubscribedSheet(dirId, { sheetMaxHeight: '65vh', auto: !manualOnly });
                         showToast('Підписка активна на карті', 'success');
                         return true;
                     }
@@ -5566,7 +5624,7 @@
                 showToast(manualOnly ? 'Подія відкрита на карті' : (status === 'already_subscribed' ? 'Ви вже в черзі' : '✓ Ви в черзі. Поїздку ще не підтверджено.'), 'success');
                 if (showCoordinationMap) {
                     await openCoordinationMap();
-                    if (keepSheetOpen) openMapSubscribedSheet(dirId, { sheetMaxHeight: '65vh' });
+                    if (keepSheetOpen) openMapSubscribedSheet(dirId, { sheetMaxHeight: '65vh', auto: !manualOnly });
                     return true;
                 }
                 // Re-hydrate after delay to catch handshakes created by async matching task
@@ -7183,20 +7241,25 @@
         function clearPickupPoint() {
             S.pickupCoords = null;
             S.pickupLabel = '';
+            S.pickupKind = '';
             if (S._pickupMarker && S.map) { S.map.removeLayer(S._pickupMarker); }
             S._pickupMarker = null;
         }
 
-        function renderPickupMarker(label = 'Моя точка') {
+        function renderPickupMarker(label = 'Моя точка', kind = S.pickupKind || '') {
             if (!S.pickupCoords?.lat || !S.pickupCoords?.lng || !S.map) return;
             if (S._pickupMarker) { S.map.removeLayer(S._pickupMarker); }
+            const isPassengerWait = kind === 'passenger_wait';
+            const markerClass = isPassengerWait ? 'pickup-point-passenger' : 'pickup-point-driver';
+            const markerIcon = isPassengerWait ? '👤' : '🚗';
+            const markerLabel = isPassengerWait ? 'Я чекаю тут' : label;
             S._pickupMarker = L.marker([S.pickupCoords.lat, S.pickupCoords.lng], {
                 icon: L.divIcon({
                     className: '',
-                    html: '<div style="width:32px;height:32px;border-radius:50%;background:#fbbf24;display:flex;align-items:center;justify-content:center;font-size:16px;border:2px solid rgba(0,0,0,0.4);box-shadow:0 2px 10px rgba(251,191,36,0.5);">📍</div>',
-                    iconSize: [32, 32], iconAnchor: [16, 32]
+                    html: `<div class="pickup-point-pin ${markerClass}" role="img" aria-label="${escapeAttr(markerLabel)}">${markerIcon}</div>`,
+                    iconSize: [34, 34], iconAnchor: [17, 17]
                 })
-            }).addTo(S.map).bindPopup(label);
+            }).addTo(S.map).bindPopup(markerLabel);
             S.map.flyTo([S.pickupCoords.lat, S.pickupCoords.lng], 15, { duration: 1 });
         }
 
@@ -7227,7 +7290,8 @@
                     onConfirm: async ({ lat, lng, label }) => {
                         S.pickupCoords = { lat, lng };
                         S.pickupLabel = label || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-                        renderPickupMarker(isDriverStart ? 'Старт авто' : 'Де чекати водія');
+                        S.pickupKind = kind;
+                        renderPickupMarker(isDriverStart ? 'Старт авто' : 'Я чекаю тут', kind);
                         if (options?.persistUserLocation) {
                             const saved = await persistPickupPointForCoordination();
                             if (!saved) { showToast('Не вдалося зберегти точку', 'error'); resolve(null); return; }
