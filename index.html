@@ -3701,7 +3701,7 @@
             if (!_isDriverRole(S.userRole)) { showToast('Відкрити місця може тільки водій', 'error'); openRoleSelector(); return; }
             if (!S.pickupCoords?.lat || !S.pickupCoords?.lng) {
                 const picked = await pickPickupLocation(dirId, { kind: 'driver_start' });
-                if (!picked) { showToast('Вкажіть старт авто на карті', 'error'); return false; }
+                if (!picked) { showToast('Поставте авто на карту', 'error'); return false; }
             }
             if (!beginOp('open_crew_submit')) return;
             try {
@@ -4605,12 +4605,16 @@
             const ctx = mapInviteContext(dirId);
             if (!ctx.safeDirId) return false;
             const isDriver = _isDriverRole(S.userRole);
-            const manualLabel = isDriver ? '🗺 Відкрию екіпаж на карті' : '🗺 Виберу водія сам';
-            const autoLabel = isDriver ? '✨ Знайти попутника автоматично' : '✨ Знайти місце автоматично';
+            const title = isDriver ? 'Постав авто на карту' : 'Як шукати?';
+            const sub = isDriver
+                ? 'Спершу покажи, звідки стартуєш. Далі попутники побачать твою машину, а ти зможеш сигналити людям на карті.'
+                : 'Обери спосіб. Резервація зʼявиться тільки після згоди обох сторін.';
+            const manualLabel = isDriver ? '🚗 Поставити авто на карту' : '🗺 Виберу водія сам';
+            const autoLabel = isDriver ? '✨ Автоматичний пошук попутників' : '✨ Знайти місце автоматично';
             openSheet(`
                 ${renderMapInviteContextHeader(ctx)}
-                <div class="sheet-title">Як шукати?</div>
-                <div class="sheet-sub">Обери спосіб. Резервація зʼявиться тільки після згоди обох сторін.</div>
+                <div class="sheet-title">${escapeHtml(title)}</div>
+                <div class="sheet-sub">${escapeHtml(sub)}</div>
                 <div class="sheet-actions" data-map-command-count="3">
                     <button class="btn btn-primary" onclick="chooseMapInviteMethod(${ctx.safeDirId}, false)">${manualLabel}</button>
                     <button class="btn btn-secondary" onclick="chooseMapInviteMethod(${ctx.safeDirId}, true)">${autoLabel}</button>
@@ -4638,14 +4642,14 @@
                 ? (isDriver ? 'Шукаємо попутників' : 'Шукаємо місце')
                 : (isDriver ? 'Ти в події як водій' : 'Ти шукаєш місце');
             const manualStatus = isDriver
-                ? (S.pickupCoords ? 'Старт авто вказано. Відкрий екіпаж, щоб попутники побачили твою машину на карті.' : 'Спершу вкажи старт авто на карті, потім відкрий екіпаж.')
+                ? (S.pickupCoords ? 'Твоє авто вже на карті. Відкрий місця, щоб попутники побачили, звідки ти стартуєш.' : 'Постав авто на карту: покажи, звідки стартуєш. Потім відкрий місця для своїх людей.')
                 : (S.pickupCoords ? (openCrews > 0 ? 'Точка очікування вказана. Тапни машину, щоб запроситись.' : 'Точка очікування вказана. Коли водії відкриють місця, вони зʼявляться на цій карті.') : 'Вкажи, де чекати водія. Потім тапни машину й надішли запит.');
             const autoStatus = isDriver
                 ? 'WayTandem сам підбере попутника й покаже пропозицію. Можеш вказати старт авто, щоб з’явитись на карті.'
                 : 'WayTandem сам знайде водія й покаже пропозицію. Можеш вказати, де чекати, щоб з’явитись на карті.';
             const statusLine = auto ? autoStatus : manualStatus;
             const primary = isDriver
-                ? `<button class="btn btn-primary" onclick="doOpenCrew(${ctx.safeDirId}, { keepMapSheet: true })">${S.pickupCoords ? 'Відкрити екіпаж' : 'Вказати старт авто'}</button>`
+                ? `<button class="btn btn-primary" onclick="doOpenCrew(${ctx.safeDirId}, { keepMapSheet: true })">${S.pickupCoords ? 'Відкрити місця' : 'Постав авто на карту'}</button>`
                 : `<button class="btn btn-primary" onclick="pickPickupLocation(${ctx.safeDirId}, { kind: 'passenger_wait', persistUserLocation: true, closeSheetAfterConfirm: true })">${S.pickupCoords ? 'Точка очікування ✓' : 'Вказати де чекати'}</button>`;
             openSheet(`
                 ${renderMapInviteContextHeader(ctx)}
@@ -5904,6 +5908,82 @@
             return true;
         }
 
+        function crewPassengerMembers(trip) {
+            return (Array.isArray(trip?.members) ? trip.members : [])
+                .filter(m => String(m?.role || '').toLowerCase() !== 'driver');
+        }
+
+        function buildCrewPresenceSummary(trip) {
+            if (!trip) return '';
+            const passengers = crewPassengerMembers(trip);
+            const names = passengers.map(m => m?.name || `#${m?.user_id || '?'}`).filter(Boolean);
+            const safeNames = names.slice(0, 3).map(escapeHtml).join(', ');
+            const overflow = names.length > 3 ? ` +${names.length - 3}` : '';
+            const isStarted = !!trip.is_started;
+            const isPickup = trip.status === 'pickup';
+            const isDriver = trip.viewer_role === 'driver';
+            const label = isStarted
+                ? 'У дорозі разом'
+                : (isDriver ? 'Забрати попутників' : 'Ваш екіпаж');
+            const text = safeNames
+                ? `${safeNames}${overflow}`
+                : (isDriver ? 'Поки без попутників' : 'Екіпаж формується');
+            const hint = isStarted
+                ? 'Карта показує людей у поїздці.'
+                : (isPickup ? 'Водій уже біля точки збору.' : 'Карта показує маршрут збору та хто їде разом.');
+            return `<div data-crew-presence-summary="true" style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);">
+                <div style="font-size:11px;font-weight:900;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.6px;">${label}</div>
+                <div style="font-size:14px;font-weight:800;margin-top:3px;">${text}</div>
+                <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">${hint}</div>
+            </div>`;
+        }
+
+        async function openTripMap() {
+            if (!S.activeTrip) { switchScreen('explore'); return; }
+            switchScreen('explore');
+            await refreshMap();
+            openMapTripCoordinationSheet();
+        }
+
+        function openMapTripCoordinationSheet() {
+            const t = S.activeTrip;
+            if (!t) return false;
+            const isDriver = t.viewer_role === 'driver';
+            const isStarted = !!t.is_started;
+            const isPickup = t.status === 'pickup';
+            const safeReqId = parseInt(t.request_id || t.id || 0, 10) || 0;
+            const safePartnerId = parseInt(isDriver ? (t.client_id || 0) : (t.driver_id || 0), 10) || 0;
+            const title = isStarted ? 'У дорозі до події' : (isPickup ? 'Збір екіпажу' : 'Екіпаж домовився');
+            const status = isStarted
+                ? 'Усі в авто. Карта лишається як просторовий контекст поїздки.'
+                : (isDriver
+                    ? 'На карті видно, кого забрати і маршрут збору. Коли всі в авто — стартуйте до події.'
+                    : 'На карті видно водія, вас та інших учасників екіпажу.');
+            const actions = isStarted
+                ? `<button class="btn btn-secondary" onclick="closeSheet();openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
+                   <button class="btn btn-success" onclick="closeSheet();finishTrip()">✅ Завершити</button>
+                   <button class="btn btn-ghost" onclick="closeSheet()">Карта</button>`
+                : (isDriver
+                    ? `${!isPickup ? `<button class="btn btn-secondary" onclick="arriveAtPickup().then(ok => { if (ok) openTripMap(); })">🚗 Я біля точки збору</button>` : ''}
+                       <button class="btn btn-primary" onclick="startTrip().then(ok => { if (ok) openTripMap(); })">🚀 Усі в авто — поїхали</button>
+                       <button class="btn btn-ghost" onclick="closeSheet();switchScreen('trips')">Екіпаж</button>`
+                    : `<button class="btn btn-primary" onclick="closeSheet()">Дивитись карту</button>
+                       <button class="btn btn-secondary" onclick="closeSheet();switchScreen('trips')">Екіпаж</button>
+                       <button class="btn btn-ghost" onclick="closeSheet()">Пізніше</button>`);
+            openSheet(`
+                <div data-map-trip-coordination="true">
+                    <div style="font-size:11px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:var(--blue);margin-bottom:6px;">Карта екіпажу</div>
+                    <div class="sheet-title">${escapeHtml(title)}</div>
+                    <div class="sheet-sub">${escapeHtml(status)}</div>
+                    ${buildCrewPresenceSummary(t)}
+                </div>
+                <div class="sheet-actions" data-map-command-count="3">
+                    ${actions}
+                </div>
+            `, { maxHeight: '58vh' });
+            return true;
+        }
+
         // ─── TRIPS ───
         async function renderTrips() {
             const container = document.getElementById('trips-content');
@@ -5943,6 +6023,7 @@
                         <div class="hero-title">${escapeHtml(t.direction_title || 'Поїздка')}</div>
                         <div class="hero-sub">Екіпаж #${t.crew_id || '—'} • ${isDriver ? '🚗 Ви водій' : '👤 Ви попутник'}</div>
                         ${buildCrewTree(t)}
+                        ${buildCrewPresenceSummary(t)}
                         <div class="lifecycle-progress">
                             <div class="lifecycle-step done"><div class="lifecycle-dot"></div>Збіг</div>
                             <div class="lifecycle-arrow"></div>
@@ -5954,9 +6035,9 @@
                             <div class="lifecycle-arrow"></div>
                             <div class="lifecycle-step"><div class="lifecycle-dot"></div>Завершення</div>
                         </div>
-                        ${liveLocationActive ? `<div style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);font-size:13px;color:var(--text-secondary);display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="switchScreen('explore')">
+                        ${liveLocationActive ? `<div style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);font-size:13px;color:var(--text-secondary);display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="openTripMap()">
                             <span style="font-size:18px;">🗺️</span>
-                            <span>${isStarted ? 'Відкрити карту з маркерами екіпажу' : 'Відкрити live-мапу точки збору'}</span>
+                            <span>${isStarted ? 'Відкрити карту екіпажу' : 'Відкрити карту збору'}</span>
                             <span style="margin-left:auto;color:var(--accent);">→</span>
                         </div>` : ''}
                         ${cancelPending ? `<div style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);font-size:13px;color:var(--red);">⚠️ Партнер хоче скасувати поїздку</div>` : ''}
@@ -5964,8 +6045,8 @@
                         ${partnerFinished && !viewerFinished ? `<div style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);font-size:13px;color:var(--green);">🏁 Партнер вже відмітив фініш. Підтвердіть завершення, коли подорож справді завершена.</div>` : ''}
                         ${viewerFinished && !partnerFinished ? `<div style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(255,193,7,0.1);border:1px solid rgba(255,193,7,0.3);font-size:13px;color:var(--amber);">⏳ Ви відмітили фініш. Очікуємо підтвердження партнера.</div>` : ''}
                         <div style="margin-top:16px;display:flex;flex-direction:column;gap:10px;">
-                            ${!isStarted && isDriver && !isPickup && !cancelRequested ? `<button class="btn btn-secondary" onclick="arriveAtPickup()">🚗 Я прибув</button>` : ''}
-                            ${!isStarted && isDriver && !cancelRequested ? `<button class="btn btn-primary" onclick="startTrip()">🚀 Поїхали!</button>` : ''}
+                            ${!isStarted && isDriver && !isPickup && !cancelRequested ? `<button class="btn btn-secondary" onclick="arriveAtPickup()">🚗 Я біля точки збору</button>` : ''}
+                            ${!isStarted && isDriver && !cancelRequested ? `<button class="btn btn-primary" onclick="startTrip()">🚀 Усі в авто — поїхали</button>` : ''}
                             ${isPickup && !isDriver ? `<div style="margin-top:4px;padding:10px;border-radius:10px;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.3);font-size:13px;color:var(--blue);">🚗 Водій прибув до точки збору</div>` : ''}
                             ${isStarted ? `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="openChat(${t.request_id || t.id || 0}, ${isDriver ? (t.client_id || 0) : (t.driver_id || 0)})">💬 Чат</button><button class="btn btn-success" style="flex:1;" onclick="finishTrip()">✅ Завершити подорож</button></div>` : ''}
                             ${cancelPending ? `<div style="display:flex;gap:10px;"><button class="btn btn-primary" style="flex:1;" onclick="confirmCancelTrip()">✅ Згоден скасувати</button><button class="btn btn-secondary" style="flex:1;" onclick="rejectCancelTrip()">❌ Відмовити</button></div>` : ''}
@@ -6451,8 +6532,8 @@
             const crewLabel = t.crew_id ? ` #${parseInt(t.crew_id, 10) || ''}` : '';
             return new Promise(resolve => {
                 openSheet(`
-                    <div class="sheet-title">🚀 Почати поїздку${crewLabel}?</div>
-                    <div class="sheet-sub">Після старту екіпаж перейде у стан «В дорозі». Скасування буде заблоковано, далі доступне тільки завершення подорожі.</div>
+                    <div class="sheet-title">🚀 Усі в авто — поїхали${crewLabel}?</div>
+                    <div class="sheet-sub">Після цього екіпаж переходить із режиму збору в дорогу до події. Скасування буде закрито, далі доступні тільки чат і завершення подорожі.</div>
                     <div class="sheet-actions">
                         <button class="btn btn-primary" id="confirm-start-trip-yes">Так, поїхали</button>
                         <button class="btn btn-ghost" id="confirm-start-trip-no">Ще ні</button>
@@ -6464,27 +6545,29 @@
         }
 
         async function startTrip() {
-            if (!S.activeTrip) return;
-            if (!await confirmStartTripIntent()) return;
-            if (!beginOp('start_trip')) return;
+            if (!S.activeTrip) return false;
+            if (!await confirmStartTripIntent()) return false;
+            if (!beginOp('start_trip')) return false;
             try {
                 const reqId = currentRequestId();
-                if (!reqId) { showToast('Немає активної поїздки', 'error'); return; }
+                if (!reqId) { showToast('Немає активної поїздки', 'error'); return false; }
                 const res = await api('/api/v3/trip/start', { method: 'POST', body: JSON.stringify({ request_id: reqId, user_id: S.userId }) });
-                if (res?.status === 'ok') { showToast('🚀 Поїхали!', 'success'); await hydrate(); }
-                else showToast('Помилка старту', 'error');
+                if (res?.status === 'ok') { showToast('🚀 Поїхали!', 'success'); await hydrate(); return true; }
+                showToast('Помилка старту', 'error');
+                return false;
             } finally { endOp('start_trip'); }
         }
 
         async function arriveAtPickup() {
-            if (!S.activeTrip) return;
-            if (!beginOp('arrive_at_pickup')) return;
+            if (!S.activeTrip) return false;
+            if (!beginOp('arrive_at_pickup')) return false;
             try {
                 const reqId = currentRequestId();
-                if (!reqId) { showToast('Немає активної поїздки', 'error'); return; }
+                if (!reqId) { showToast('Немає активної поїздки', 'error'); return false; }
                 const res = await api('/api/v3/trip/arrive', { method: 'POST', body: JSON.stringify({ request_id: reqId, user_id: S.userId }) });
-                if (res?.status === 'ok') { showToast('📍 Ви на місці! Пасажири сповіщені', 'success'); await hydrate(); }
-                else showToast('Помилка', 'error');
+                if (res?.status === 'ok') { showToast('📍 Ви біля точки збору. Пасажири сповіщені', 'success'); await hydrate(); return true; }
+                showToast('Помилка', 'error');
+                return false;
             } finally { endOp('arrive_at_pickup'); }
         }
 
@@ -7524,12 +7607,12 @@
                     lat: S.pickupCoords?.lat,
                     lng: S.pickupCoords?.lng,
                     hint: isDriverStart
-                        ? 'Перетягни карту так, щоб пін був у точці старту авто'
+                        ? 'Перетягни карту так, щоб пін був там, звідки стартує твоє авто'
                         : 'Перетягни карту так, щоб пін був там, де чекати водія',
                     searchPlaceholder: isDriverStart
-                        ? '🔍 Звідки стартує авто'
+                        ? '🔍 Звідки стартуєш'
                         : '🔍 Де чекати водія',
-                    confirmLabel: isDriverStart ? '✓ Старт авто' : '✓ Точка очікування',
+                    confirmLabel: isDriverStart ? '✓ Авто на карті' : '✓ Точка очікування',
                     onCancel: () => resolve(null),
                     onConfirm: async ({ lat, lng, label }) => {
                         S.pickupCoords = { lat, lng };
@@ -7540,7 +7623,7 @@
                             const saved = await persistPickupPointForCoordination();
                             if (!saved) { showToast('Не вдалося зберегти точку', 'error'); resolve(null); return; }
                         }
-                        showToast(isDriverStart ? '✓ Старт авто вказано' : '✓ Точку очікування вказано', 'success');
+                        showToast(isDriverStart ? '✓ Авто на карті' : '✓ Точку очікування вказано', 'success');
                         if (options?.closeSheetAfterConfirm) closeSheet();
                         resolve(S.pickupCoords);
                     }
