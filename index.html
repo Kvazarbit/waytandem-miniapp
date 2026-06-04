@@ -4646,7 +4646,7 @@
             const statusLine = auto ? autoStatus : manualStatus;
             const primary = isDriver
                 ? `<button class="btn btn-primary" onclick="doOpenCrew(${ctx.safeDirId}, { keepMapSheet: true })">${S.pickupCoords ? 'Відкрити екіпаж' : 'Вказати старт авто'}</button>`
-                : `<button class="btn btn-primary" onclick="pickPickupLocation(${ctx.safeDirId}, { kind: 'passenger_wait', persistUserLocation: true })">${S.pickupCoords ? 'Точка очікування ✓' : 'Вказати де чекати'}</button>`;
+                : `<button class="btn btn-primary" onclick="pickPickupLocation(${ctx.safeDirId}, { kind: 'passenger_wait', persistUserLocation: true, closeSheetAfterConfirm: true })">${S.pickupCoords ? 'Точка очікування ✓' : 'Вказати де чекати'}</button>`;
             openSheet(`
                 ${renderMapInviteContextHeader(ctx)}
                 <div class="sheet-title">${escapeHtml(title)}</div>
@@ -7541,6 +7541,7 @@
                             if (!saved) { showToast('Не вдалося зберегти точку', 'error'); resolve(null); return; }
                         }
                         showToast(isDriverStart ? '✓ Старт авто вказано' : '✓ Точку очікування вказано', 'success');
+                        if (options?.closeSheetAfterConfirm) closeSheet();
                         resolve(S.pickupCoords);
                     }
                 });
