@@ -1411,6 +1411,12 @@
             box-shadow: 0 0 18px var(--accent-glow), 0 6px 18px rgba(0,0,0,0.28);
         }
 
+        .map-pin-passenger {
+            background: #65d48f;
+            color: #07130d;
+            box-shadow: 0 0 0 4px rgba(101,212,143,0.22), 0 0 18px rgba(101,212,143,0.46), 0 6px 18px rgba(0,0,0,0.28);
+        }
+
         .map-pin-focused {
             background: #fbbf24;
             transform: scale(1.08);
@@ -1653,6 +1659,35 @@
             background: var(--accent-dim);
             color: var(--accent);
             white-space: nowrap;
+        }
+
+        .map-popup-roster {
+            display: grid;
+            gap: 6px;
+            margin: 8px 0;
+            text-align: left;
+        }
+
+        .map-popup-member {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px;
+            border-radius: 8px;
+            background: rgba(15, 23, 42, 0.72);
+            border: 1px solid rgba(148, 163, 184, 0.22);
+        }
+
+        .map-popup-avatar {
+            width: 26px !important;
+            height: 26px !important;
+            font-size: 11px;
+        }
+
+        .map-popup-role {
+            font-size: 10px;
+            color: var(--text-secondary);
+            font-weight: 700;
         }
 
         /* Спільний абсолютний стек для смуг над картою: «Режим:» + банери-фільтри.
@@ -2826,7 +2861,7 @@
             miniAppShortName: localStorage.getItem('wt_mini_app_short_name') || '',
             pendingStartDirectionId: null,
             startDirectionHandled: false,
-            activeTrip: null, pendingMatches: [], directions: [], news: [], mapCrews: [],
+            activeTrip: null, pendingMatches: [], directions: [], news: [], mapCrews: [], mapPassengers: [],
             map: null, mapMarkers: [], currentScreen: 'explore',
             chatRequestId: null, chatPartnerId: null, busy: false,
             boardParentId: null, boardStack: [], boardSubSet: new Set(),
@@ -3841,13 +3876,32 @@
             if (!S.apiBase) return;
             const crews = await api('/api/v3/map/crews');
             if (!crews) return;
-            S.mapCrews = crews || [];
+            const focusedDirIdForPassengers = mapFocusedDirectionId();
+            let passengers = [];
+            let crewMembersById = new Map();
+            if (focusedDirIdForPassengers && S.userId) {
+                const params = new URLSearchParams({
+                    direction_id: String(focusedDirIdForPassengers),
+                    user_id: String(S.userId)
+                });
+                const passengerRes = await api(`/api/v3/map/passengers?${params.toString()}`);
+                passengers = Array.isArray(passengerRes) ? passengerRes : [];
+                const crewMembersRes = await api(`/api/v3/map/crew-members?${params.toString()}`);
+                const crewMemberRows = Array.isArray(crewMembersRes?.crews) ? crewMembersRes.crews : [];
+                crewMembersById = new Map(crewMemberRows.map(c => [String(c?.crew_id || ''), Array.isArray(c?.members) ? c.members : []]));
+            }
+            const enrichedCrews = (crews || []).map(c => ({
+                ...c,
+                members: crewMembersById.get(String(c?.crew_id || '')) || []
+            }));
+            S.mapCrews = enrichedCrews;
+            S.mapPassengers = passengers;
             S.lastMapSyncAt = Date.now();
             S.mapMarkers.forEach(m => S.map.removeLayer(m));
             S.mapMarkers = [];
             S.eventMarkers.forEach(m => S.map.removeLayer(m));
             S.eventMarkers = [];
-            const visibleCrews = visibleMapCrewsForContext(crews || []);
+            const visibleCrews = visibleMapCrewsForContext(enrichedCrews);
             visibleCrews.forEach(c => {
                 if (!c.lat || !c.lng) return;
                 // Highlight crews going to the same direction as active trip
@@ -3879,18 +3933,20 @@
                         iconAnchor: [17, 17]
                     })
                 }).addTo(S.map);
-                const canRequest = S.userId && String(S.userId) !== String(c.organizer_id) && S.userRole !== 'driver';
+                const canRequest = S.userId && String(S.userId) !== String(c.organizer_id) && S.userRole !== 'driver' && freeSeats > 0;
                 const safeOrganizerId = Number.isFinite(Number(c.organizer_id)) ? Number(c.organizer_id) : 0;
                 const safeDirectionId = Number.isFinite(Number(c.direction_id)) ? Number(c.direction_id) : 0;
                 const popupName = isMine ? 'Ваше авто' : (c.driver_name || c.organizer_name || 'Екіпаж');
                 const popupDirection = escapeHtml(c.direction_title || '');
+                const crewRosterHtml = renderMapCrewRoster(c);
                 const requestBtn = canRequest
                     ? `<button onclick="requestJoin(${safeOrganizerId}, ${safeDirectionId}, { source: 'map', keepMapContext: true })" style="flex:1;padding:8px;border-radius:10px;background:rgba(163,230,53,0.15);color:#a3e635;border:1px solid rgba(163,230,53,0.3);font-weight:700;font-size:12px;cursor:pointer;">✓ Запроситись</button>`
                     : '';
                 const openBtn = '<button onclick="openDirectionFromMap(' + safeDirectionId + ')" style="flex:1;padding:8px;border-radius:10px;background:rgba(56,189,248,0.14);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-weight:700;font-size:12px;cursor:pointer;">→ Напрямок</button>';
-                marker.bindPopup('<div style="text-align:center;min-width:180px;"><div style="font-weight:800;font-size:14px;margin-bottom:4px;">' + escapeHtml(popupName) + '</div><div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">' + popupDirection + '</div><div style="display:flex;gap:8px;">' + requestBtn + openBtn + '</div></div>');
+                marker.bindPopup('<div style="text-align:center;min-width:210px;"><div style="font-weight:800;font-size:14px;margin-bottom:4px;">' + escapeHtml(popupName) + '</div><div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">' + popupDirection + '</div>' + crewRosterHtml + '<div style="display:flex;gap:8px;">' + requestBtn + openBtn + '</div></div>');
                 S.mapMarkers.push(marker);
             });
+            renderMapPassengersOnMap();
             // Re-draw pickup marker if exists
             if (S.pickupCoords && S._pickupMarker) { S._pickupMarker.addTo(S.map); }
             // Show live crew member markers during reservation pickup + Phase 2
@@ -4190,6 +4246,31 @@
             `, { maxHeight: '65vh' });
         }
 
+        function openMapSignalResultSheet(dirId, passengerId, res = {}) {
+            const ctx = mapInviteContext(dirId);
+            const safeDirId = ctx.safeDirId || (parseInt(dirId) || 0);
+            const safePassengerId = parseInt(passengerId, 10) || 0;
+            const mutual = !!res?.mutual;
+            const switched = Array.isArray(res?.switched_from) && res.switched_from.length > 0;
+            const title = mutual ? 'Екіпаж готовий' : (switched ? 'Сигнал перемкнено' : 'Сигнал надіслано');
+            const statusLine = mutual
+                ? 'Попутник підтвердився. Перейдіть до екрана екіпажу, щоб узгодити деталі.'
+                : 'Чекаємо підтвердження попутника. Карта лишається відкритою, а статус оновиться автоматично.';
+            const tertiary = mutual
+                ? `<button class="btn btn-ghost" onclick="openStartDirectionInvite(${safeDirId}, { source: 'map', sheetMaxHeight: '65vh', fullInvite: true })">Деталі</button>`
+                : `<button class="btn btn-danger" onclick="stopSearchFromMatchSheet(${safePassengerId}, ${safeDirId})">Скасувати сигнал</button>`;
+            openSheet(`
+                ${ctx.safeDirId ? renderMapInviteContextHeader(ctx) : ''}
+                <div class="sheet-title">${escapeHtml(title)}</div>
+                <div class="sheet-sub">${escapeHtml(statusLine)}</div>
+                <div class="sheet-actions" data-map-command-count="3">
+                    <button class="btn btn-primary" onclick="switchScreen('trips')">Екіпаж</button>
+                    <button class="btn btn-secondary" onclick="closeSheet()">Зрозуміло</button>
+                    ${tertiary}
+                </div>
+            `, { maxHeight: '65vh' });
+        }
+
         async function requestJoin(orgId, dirId, opts = {}) {
             if (!requireRoleForAction('запроситись до екіпажу', () => requestJoin(orgId, dirId, opts))) return;
             if (_isDriverRole(S.userRole)) { showToast('Запроситись може тільки попутник', 'error'); return; }
@@ -4236,6 +4317,55 @@
                 showToast('Немає з\'єднання — спробуйте ще раз', 'error');
                 return false;
             } finally { endOp('request_join'); }
+        }
+
+        async function signalPassenger(passengerId, dirId, opts = {}) {
+            if (!requireRoleForAction('сигналити попутнику', () => signalPassenger(passengerId, dirId, opts))) return false;
+            if (!_isDriverRole(S.userRole)) { showToast('Сигналити попутнику може тільки водій', 'error'); return false; }
+            const safePassengerId = parseInt(passengerId, 10) || 0;
+            const safeDirId = parseInt(dirId, 10) || 0;
+            if (!safePassengerId || !safeDirId) { showToast('Не вдалося визначити попутника', 'error'); return false; }
+            if (!driverHasOpenCrewForDirection(safeDirId)) {
+                showToast('Спершу відкрийте екіпаж, щоб попутник бачив ваше авто', 'error');
+                openMapSubscribedSheet(safeDirId, { sheetMaxHeight: '65vh' });
+                return false;
+            }
+            const confirmed = await confirmOutgoingSwitchIfNeeded(safePassengerId, safeDirId);
+            if (!confirmed) return false;
+            const fromMap = opts?.source === 'map' || !!opts?.keepMapContext;
+            if (!beginOp('signal_passenger')) return false;
+            try {
+                const res = await api('/api/v3/match/invite', {
+                    method: 'POST',
+                    body: JSON.stringify({ user_id: S.userId, target_id: safePassengerId, direction_id: safeDirId, replace_existing: true })
+                });
+                if (res?.status === 'ok') {
+                    if (!fromMap) {
+                        if (res.mutual) { showToast('✓ Екіпаж готовий!', 'success'); }
+                        else if (Array.isArray(res.switched_from) && res.switched_from.length) { showToast('↪ Сигнал перемкнено', 'success'); }
+                        else { showToast('⏳ Сигнал надіслано', 'success'); }
+                    }
+                    persistCriticalState();
+                    await hydrate();
+                    if (fromMap) {
+                        if (S.map?.closePopup) S.map.closePopup();
+                        switchScreen('explore');
+                        renderNewsStrip();
+                        await refreshMap();
+                        focusActiveMapContext();
+                        openMapSignalResultSheet(safeDirId, safePassengerId, res);
+                        return true;
+                    }
+                    closeSheet();
+                    switchScreen('trips');
+                    return true;
+                }
+                showToast(getErrorMessage(res, 'Не вдалось надіслати сигнал'), 'error');
+                return false;
+            } catch (e) {
+                showToast('Немає з\'єднання — спробуйте ще раз', 'error');
+                return false;
+            } finally { endOp('signal_passenger'); }
         }
 
         // ─── NEWS ───
@@ -4661,15 +4791,28 @@
         }
 
         function livePassengerCountForMapContext(context = activeMapContextForMap()) {
-            if (!context || !S.activeTrip || String(S.activeTrip.direction_id || '') !== String(context.dirId || '')) return 0;
-            const members = Array.isArray(S.activeTrip.members) ? S.activeTrip.members : [];
-            return members.filter(m =>
-                String(m?.role || '').toLowerCase() !== 'driver' &&
-                m?.lat != null &&
-                m?.lng != null &&
-                Number.isFinite(Number(m.lat)) &&
-                Number.isFinite(Number(m.lng))
-            ).length;
+            if (!context) return 0;
+            const dirId = String(context.dirId || '');
+            const seen = new Set();
+            let count = 0;
+            const addPassenger = (id, lat, lng) => {
+                if (lat == null || lng == null || !Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) return;
+                const key = String(id || `${Number(lat).toFixed(5)},${Number(lng).toFixed(5)}`);
+                if (seen.has(key)) return;
+                seen.add(key);
+                count += 1;
+            };
+            (S.mapPassengers || []).forEach(p => {
+                if (String(p?.direction_id || '') !== dirId) return;
+                if (S.userId && String(p?.user_id || '') === String(S.userId)) return;
+                addPassenger(p?.user_id, p?.lat, p?.lng);
+            });
+            const members = (S.activeTrip && String(S.activeTrip.direction_id || '') === dirId && Array.isArray(S.activeTrip.members)) ? S.activeTrip.members : [];
+            members.forEach(m => {
+                if (String(m?.role || '').toLowerCase() === 'driver') return;
+                addPassenger(m?.user_id || m?.id || m?.client_id, m?.lat, m?.lng);
+            });
+            return count;
         }
 
         function eventPointForMapContext(context = activeMapContextForMap()) {
@@ -4807,6 +4950,9 @@
                     });
                 }
                 if (ef === 'passengers' || ef === 'all') {
+                    (S.mapPassengers || []).forEach(p => {
+                        if (String(p?.direction_id || '') === dirId) _pushMapCoord(coords, p.lat, p.lng);
+                    });
                     const members = (S.activeTrip && String(S.activeTrip.direction_id || '') === dirId
                         && Array.isArray(S.activeTrip.members)) ? S.activeTrip.members : [];
                     members.forEach(m => {
@@ -5246,6 +5392,101 @@
             });
         }
 
+        function renderMapCrewRoster(crew) {
+            const members = Array.isArray(crew?.members) ? crew.members : [];
+            const driverName = crew?.driver_name || crew?.organizer_name || 'Водій';
+            const roster = [
+                {
+                    user_id: crew?.organizer_id,
+                    name: driverName,
+                    role: 'driver',
+                    photo_url: crew?.driver_photo_url || crew?.organizer_photo_url || ''
+                },
+                ...members.map(m => ({
+                    user_id: m?.user_id,
+                    name: m?.name || 'Попутник',
+                    role: 'passenger',
+                    photo_url: m?.photo_url || '',
+                    matched_into_crew: true
+                }))
+            ];
+            const visible = roster.slice(0, 5);
+            const hidden = Math.max(0, roster.length - visible.length);
+            const rows = visible.map(m => {
+                const roleText = String(m.role || '').toLowerCase() === 'driver' ? 'водій' : 'у екіпажі';
+                const absorbed = m.matched_into_crew ? ' matched-into-crew' : '';
+                return `<div class="map-popup-member${absorbed}" data-map-crew-member="${escapeAttr(m.role || 'passenger')}">
+                    ${renderAvatarInline(m.name || '?', m.photo_url || '', 26, 'crew-mini-avatar map-popup-avatar')}
+                    <div class="crew-mini-info">
+                        <div class="crew-mini-name">${escapeHtml(m.name || '?')}</div>
+                        <div class="map-popup-role">${escapeHtml(roleText)}</div>
+                    </div>
+                </div>`;
+            }).join('');
+            const hiddenRow = hidden > 0
+                ? `<div class="map-popup-role" style="text-align:center;">+${hidden} ще в екіпажі</div>`
+                : '';
+            return `<div class="map-popup-roster" data-map-crew-roster="matched-into-crew">${rows}${hiddenRow}</div>`;
+        }
+
+        function visibleMapPassengersForContext(passengers) {
+            const focusedDirId = mapFocusedDirectionId();
+            return (passengers || []).filter(p => {
+                if (!focusedDirId || !p || p.lat == null || p.lng == null) return false;
+                const eventFilter = S.mapEventFilter || 'all';
+                if (eventFilter !== 'all' && eventFilter !== 'passengers') return false;
+                if (String(p?.direction_id || '') !== String(focusedDirId)) return false;
+                if (S.userId && String(p?.user_id || '') === String(S.userId)) return false;
+                return Number.isFinite(Number(p.lat)) && Number.isFinite(Number(p.lng));
+            });
+        }
+
+        function driverHasOpenCrewForDirection(dirId) {
+            const safeDirId = parseInt(dirId, 10) || 0;
+            if (!safeDirId || !_isDriverRole(S.userRole)) return false;
+            return (S.mapCrews || []).some(c => {
+                const freeSeats = safeCount(c?.seats_free ?? c?.free_seats ?? c?.available_seats);
+                return String(c?.direction_id || '') === String(safeDirId)
+                    && String(c?.organizer_id || '') === String(S.userId || '')
+                    && freeSeats > 0;
+            });
+        }
+
+        function renderMapPassengersOnMap() {
+            if (!S.map) return;
+            visibleMapPassengersForContext(S.mapPassengers || []).forEach(p => {
+                const safePassengerId = Number.isFinite(Number(p.user_id)) ? Number(p.user_id) : 0;
+                const safeDirectionId = Number.isFinite(Number(p.direction_id)) ? Number(p.direction_id) : 0;
+                const lat = Number(p.lat);
+                const lng = Number(p.lng);
+                if (!safePassengerId || !safeDirectionId || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
+                const name = p.name || 'Попутник';
+                const markerLabel = escapeAttr(`Попутник чекає: ${name}`);
+                const marker = L.marker([lat, lng], {
+                    title: markerLabel,
+                    alt: markerLabel,
+                    icon: L.divIcon({
+                        className: '',
+                        html: `<div class="map-pin map-pin-passenger" data-map-passenger-pin="wait" role="button" aria-label="${markerLabel}">👤</div>`,
+                        iconSize: [34, 34],
+                        iconAnchor: [17, 17]
+                    }),
+                    riseOnHover: true,
+                    zIndexOffset: 80
+                }).addTo(S.map);
+                const directionTitle = escapeHtml(p.direction_title || '');
+                const canSignal = _isDriverRole(S.userRole) && driverHasOpenCrewForDirection(safeDirectionId);
+                const primaryBtn = canSignal
+                    ? `<button onclick="signalPassenger(${safePassengerId}, ${safeDirectionId}, { source: 'map', keepMapContext: true })" style="flex:1;padding:8px;border-radius:10px;background:rgba(101,212,143,0.16);color:#65d48f;border:1px solid rgba(101,212,143,0.34);font-weight:700;font-size:12px;cursor:pointer;">↗ Сигналити</button>`
+                    : (_isDriverRole(S.userRole)
+                        ? `<button onclick="doOpenCrew(${safeDirectionId}, { keepMapSheet: true })" style="flex:1;padding:8px;border-radius:10px;background:rgba(251,191,36,0.14);color:#fbbf24;border:1px solid rgba(251,191,36,0.32);font-weight:700;font-size:12px;cursor:pointer;">🚗 Відкрити екіпаж</button>`
+                        : '');
+                const openBtn = `<button onclick="openDirectionFromMap(${safeDirectionId})" style="flex:1;padding:8px;border-radius:10px;background:rgba(56,189,248,0.14);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-weight:700;font-size:12px;cursor:pointer;">→ Подія</button>`;
+                marker.bindPopup('<div style="text-align:center;min-width:180px;"><div style="font-weight:800;font-size:14px;margin-bottom:4px;">' + escapeHtml(name) + '</div><div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">Чекає на водія' + (directionTitle ? ' · ' + directionTitle : '') + '</div><div style="display:flex;gap:8px;">' + primaryBtn + openBtn + '</div></div>');
+                S.mapMarkers.push(marker);
+            });
+        }
+
         function _pushMapCoord(coords, lat, lng) {
             const y = Number(lat);
             const x = Number(lng);
@@ -5258,6 +5499,9 @@
             const coords = [];
             (S.mapCrews || []).forEach(c => {
                 if (String(c?.direction_id || '') === dirId) _pushMapCoord(coords, c.lat, c.lng);
+            });
+            (S.mapPassengers || []).forEach(p => {
+                if (String(p?.direction_id || '') === dirId) _pushMapCoord(coords, p.lat, p.lng);
             });
             (S.news || []).forEach(n => {
                 if (String(n?.direction_id || '') === dirId && isDiscoveryNewsItem(n)) _pushMapCoord(coords, n.lat, n.lng);
