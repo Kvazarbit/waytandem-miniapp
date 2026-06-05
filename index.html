@@ -4465,23 +4465,93 @@
             return `https://t.me/${botUsername}?start=dir_${safeDirId}`;
         }
 
-        async function shareDirectionInvite(dirId) {
+        function openDirectionShareSheet(dirId, dir, inviteLink) {
             const safeDirId = parseInt(dirId) || 0;
-            if (!safeDirId) { showToast('Ідею не знайдено', 'error'); return; }
-            const botUsername = await ensureBotUsernameForShare(safeDirId);
-            if (!botUsername) return;
+            const title = escapeHtml(dir?.title || dir?.name || 'Подія WayTandem');
+            const creatorName = escapeHtml(dir?.creator_name || S.userName || 'Організатор');
+            openSheet(`
+                <div data-invite-share-sheet="true">
+                    <div class="sheet-title">Запрошення готове</div>
+                    <div class="sheet-sub">Щоб у чаті не було довгого посилання, надішліть собі картку від бота з кнопкою. Її можна переслати людям або в групу.</div>
+                    <div style="margin:12px 0;padding:12px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);">
+                        <div style="font-size:11px;font-weight:900;color:var(--blue);text-transform:uppercase;letter-spacing:.6px;">Превʼю картки</div>
+                        <div style="font-size:15px;font-weight:850;margin-top:6px;">${title}</div>
+                        <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">Організатор: ${creatorName}</div>
+                        <a href="${escapeAttr(inviteLink)}" target="_blank" rel="noopener" data-invite-button-preview="true" style="display:inline-flex;margin-top:10px;padding:9px 12px;border-radius:9px;background:rgba(56,189,248,0.16);border:1px solid rgba(56,189,248,0.34);color:var(--blue);font-size:12px;font-weight:850;text-decoration:none;">Відкрити запрошення</a>
+                    </div>
+                </div>
+                <div class="sheet-actions" data-invite-command-count="3">
+                    <button class="btn btn-primary" onclick="sendDirectionInviteCard(${safeDirId})">Надіслати мені картку з кнопкою</button>
+                    <button class="btn btn-secondary" onclick="shareDirectionInviteViaTelegram(${safeDirId})">Поділитись звичайно</button>
+                    <button class="btn btn-ghost" onclick="copyDirectionInviteLink(${safeDirId})">Копіювати посилання</button>
+                </div>
+            `, { maxHeight: '62vh' });
+        }
+
+        async function loadDirectionForShare(safeDirId) {
             const data = S.apiBase
                 ? await api(`/api/v3/fractal/organizers?direction_id=${safeDirId}&lang=${S.lang}&user_id=${S.userId || ''}`, { silent: true })
                 : null;
             const localDir = (S.myDirections || []).find(d => String(d.id) === String(safeDirId))
                 || allDirections.find(d => String(d.id) === String(safeDirId))
                 || {};
-            const dir = { ...localDir, ...(data?.direction || {}) };
+            return { ...localDir, ...(data?.direction || {}) };
+        }
+
+        async function shareDirectionInvite(dirId) {
+            const safeDirId = parseInt(dirId) || 0;
+            if (!safeDirId) { showToast('Ідею не знайдено', 'error'); return; }
+            const botUsername = await ensureBotUsernameForShare(safeDirId);
+            if (!botUsername) return;
+            const dir = await loadDirectionForShare(safeDirId);
+            const inviteLink = buildDirectionInviteLink(botUsername, safeDirId);
+            openDirectionShareSheet(safeDirId, dir, inviteLink);
+        }
+
+        async function shareDirectionInviteViaTelegram(dirId) {
+            const safeDirId = parseInt(dirId) || 0;
+            if (!safeDirId) { showToast('Ідею не знайдено', 'error'); return; }
+            const botUsername = await ensureBotUsernameForShare(safeDirId);
+            if (!botUsername) return;
+            const dir = await loadDirectionForShare(safeDirId);
             const inviteLink = buildDirectionInviteLink(botUsername, safeDirId);
             const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(buildDirectionInviteText(dir))}`;
             const tg = window.Telegram?.WebApp;
             if (tg?.openTelegramLink) tg.openTelegramLink(shareUrl);
             else window.open(shareUrl, '_blank', 'noopener');
+        }
+
+        async function sendDirectionInviteCard(dirId) {
+            const safeDirId = parseInt(dirId) || 0;
+            if (!safeDirId || !S.userId) { showToast('Ідею не знайдено', 'error'); return; }
+            const resp = await apiWithStatus('/api/v3/direction/invite-card', {
+                method: 'POST',
+                body: JSON.stringify({ user_id: S.userId, direction_id: safeDirId }),
+                opKey: 'send_invite_card'
+            });
+            if (resp.ok && resp.data?.status === 'ok') {
+                showToast('Картку з кнопкою надіслано в Telegram', 'success');
+                return;
+            }
+            showToast(resp?.data?.detail || 'Не вдалося надіслати картку', 'error');
+        }
+
+        async function copyDirectionInviteLink(dirId) {
+            const safeDirId = parseInt(dirId) || 0;
+            const botUsername = await ensureBotUsernameForShare(safeDirId);
+            if (!safeDirId || !botUsername) return;
+            const inviteLink = buildDirectionInviteLink(botUsername, safeDirId);
+            try {
+                await navigator.clipboard.writeText(inviteLink);
+                showToast('Посилання скопійовано', 'success');
+            } catch (_) {
+                openSheet(`
+                    <div class="sheet-title">Посилання</div>
+                    <div class="sheet-sub">Скопіюйте вручну, якщо буфер обміну недоступний.</div>
+                    <input class="board-search" readonly value="${escapeAttr(inviteLink)}" style="margin-top:12px;">
+                    <button class="btn btn-primary" style="margin-top:12px;" onclick="closeSheet()">Готово</button>
+                `);
+            }
         }
 
         function openStartDirectionLoadingSheet(dirId) {
@@ -5512,6 +5582,10 @@
             });
             if (S.activeTrip && String(S.activeTrip.direction_id || '') === dirId) {
                 _pushMapCoord(coords, S.activeTrip.pickup_lat, S.activeTrip.pickup_lng);
+                orderedCrewMembersForMap(S.activeTrip).forEach(m => {
+                    const c = crewMemberMapCoord(m, S.activeTrip);
+                    if (c) coords.push([c.lat, c.lng]);
+                });
             }
             if (S.pickupCoords && context?.kind === 'trip') {
                 _pushMapCoord(coords, S.pickupCoords.lat, S.pickupCoords.lng);
@@ -5775,7 +5849,7 @@
                     <button class="btn btn-secondary" onclick="closeSheet()">Закрити</button>
                 </div>
                 <div style="font-size:12px;color:var(--text-secondary);line-height:1.45;margin:-2px 0 10px;">${isSub ? 'Ви ще не в поїздці. Очікуйте запит або запросіться до водія.' : 'Напрямок може створити водій або попутник. Після підписки ви дієте за своєю роллю.'}</div>
-                ${isSub ? `<button class="btn btn-secondary" style="width:100%;margin-bottom:8px;font-size:12px;" onclick="pickPickupLocation(${dirId}, { kind: ${_isDriverRole(S.userRole) ? "'driver_start'" : "'passenger_wait'"}, persistUserLocation: ${_isDriverRole(S.userRole) ? 'false' : 'true'} })">${hasPickup ? '📍 Точка вказана ✓' : (_isDriverRole(S.userRole) ? '📍 Вказати старт авто' : '📍 Вказати де чекати водія')}</button>` : ''}
+                ${isSub ? `<button class="btn btn-secondary" style="width:100%;margin-bottom:8px;font-size:12px;" onclick="pickPickupLocation(${dirId}, { kind: ${_isDriverRole(S.userRole) ? "'driver_start'" : "'passenger_wait'"}, persistUserLocation: ${_isDriverRole(S.userRole) ? 'false' : 'true'} })">${hasPickup ? '📍 Точка вказана ✓' : (_isDriverRole(S.userRole) ? '🚗 Поставити авто на карту' : '📍 Вказати де чекати водія')}</button>` : ''}
                 ${availOrgs.length > 1 ? `<button class="btn btn-secondary" style="width:100%;margin-bottom:8px;font-size:12px;color:var(--blue);" onclick="groupJoinDirection(${dirId}, [${availOrgs.map(o => o.user_id).join(',')}])">🔀 Запроситись до доступного екіпажу (${availOrgs.length})</button>` : ''}
                 ${orgs.length ? `
                     <div style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--text-muted);letter-spacing:1px;margin:8px 0 4px;">Водії та екіпажі</div>
@@ -5913,6 +5987,101 @@
                 .filter(m => String(m?.role || '').toLowerCase() !== 'driver');
         }
 
+        function crewDriverMember(trip) {
+            return (Array.isArray(trip?.members) ? trip.members : [])
+                .find(m => String(m?.role || '').toLowerCase() === 'driver') || null;
+        }
+
+        function orderedPickupPassengers(trip) {
+            return crewPassengerMembers(trip).sort((a, b) => {
+                const aoRaw = Number(a?.pickup_order ?? a?.order);
+                const boRaw = Number(b?.pickup_order ?? b?.order);
+                const ao = Number.isFinite(aoRaw) ? aoRaw : Number.POSITIVE_INFINITY;
+                const bo = Number.isFinite(boRaw) ? boRaw : Number.POSITIVE_INFINITY;
+                if (ao !== bo) return ao - bo;
+                return String(a?.name || a?.user_id || '').localeCompare(String(b?.name || b?.user_id || ''));
+            });
+        }
+
+        function firstFiniteLatLng(...pairs) {
+            for (const [lat, lng] of pairs) {
+                const y = Number(lat);
+                const x = Number(lng);
+                if (Number.isFinite(y) && Number.isFinite(x)) return { lat: y, lng: x };
+            }
+            return null;
+        }
+
+        function crewMemberMapCoord(member, trip) {
+            const role = String(member?.role || '').toLowerCase();
+            if (role === 'driver') {
+                return firstFiniteLatLng(
+                    [member?.lat, member?.lng],
+                    [member?.pickup_lat, member?.pickup_lng],
+                    [trip?.pickup_lat, trip?.pickup_lng]
+                );
+            }
+            return firstFiniteLatLng(
+                [member?.pickup_lat, member?.pickup_lng],
+                [member?.lat, member?.lng]
+            );
+        }
+
+        function orderedCrewMembersForMap(trip) {
+            const driver = crewDriverMember(trip);
+            const passengers = orderedPickupPassengers(trip);
+            return driver ? [driver, ...passengers] : passengers;
+        }
+
+        function buildPickupSequence(trip) {
+            if (!trip) return '';
+            const passengers = orderedPickupPassengers(trip);
+            if (!passengers.length) return '';
+            const driver = crewDriverMember(trip);
+            const driverName = driver?.name || trip.driver_name || 'Водій';
+            const isStarted = !!trip.is_started;
+            const isPickup = trip.status === 'pickup';
+            const title = isStarted ? 'Екіпаж у дорозі' : 'Порядок збору';
+            const hint = isStarted
+                ? 'Усі вже в авто; карта лишається спільним простором поїздки.'
+                : (isPickup ? 'Водій біля точки збору. Далі — посадка і старт.' : 'Спочатку авто, потім точки попутників.');
+            const startLabel = driver && String(driver.user_id) === String(S.userId) ? 'Ваш старт авто' : `Старт авто: ${driverName}`;
+            const startMeta = driver?.pickup || trip.pickup || 'точка старту на карті';
+            const rows = [{
+                type: 'driver-start',
+                icon: '🚗',
+                title: startLabel,
+                meta: startMeta,
+                badge: isStarted ? 'в дорозі' : 'старт',
+                isSelf: driver && String(driver.user_id) === String(S.userId),
+            }, ...passengers.map((p, index) => {
+                const isSelf = String(p.user_id) === String(S.userId);
+                const name = p.name || `#${p.user_id || '?'}`;
+                return {
+                    type: 'passenger-stop',
+                    icon: isSelf ? '🟢' : '👤',
+                    title: isSelf ? 'Ваша точка очікування' : `Забрати: ${name}`,
+                    meta: p.pickup || p.pickup_label || 'точка на карті',
+                    badge: isStarted ? 'в авто' : (index === 0 ? 'наступний' : 'далі'),
+                    isSelf,
+                };
+            })];
+            return `<div data-crew-pickup-sequence="true" style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.18);">
+                <div style="font-size:11px;font-weight:900;color:var(--blue);text-transform:uppercase;letter-spacing:.6px;">${escapeHtml(title)}</div>
+                <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">${escapeHtml(hint)}</div>
+                <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;">
+                    ${rows.map((row, index) => `<div data-pickup-stop="${escapeAttr(row.type)}" style="display:grid;grid-template-columns:28px 1fr auto;gap:8px;align-items:center;padding:8px;border-radius:8px;background:${row.isSelf ? 'rgba(52,211,153,0.10)' : 'rgba(255,255,255,0.04)'};border:1px solid ${row.isSelf ? 'rgba(52,211,153,0.24)' : 'rgba(255,255,255,0.06)'};">
+                        <div style="width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,0.58);font-size:13px;">${row.icon}</div>
+                        <div style="min-width:0;">
+                            <div style="font-size:13px;font-weight:850;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${index + 1}. ${escapeHtml(row.title)}</div>
+                            <div style="font-size:11px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(row.meta)}</div>
+                        </div>
+                        <div style="font-size:10px;font-weight:850;color:${row.isSelf ? 'var(--green)' : 'var(--text-secondary)'};text-transform:uppercase;">${escapeHtml(row.badge)}</div>
+                    </div>`).join('')}
+                </div>
+            </div>`;
+        }
+
         function buildCrewPresenceSummary(trip) {
             if (!trip) return '';
             const passengers = crewPassengerMembers(trip);
@@ -5976,6 +6145,7 @@
                     <div class="sheet-title">${escapeHtml(title)}</div>
                     <div class="sheet-sub">${escapeHtml(status)}</div>
                     ${buildCrewPresenceSummary(t)}
+                    ${buildPickupSequence(t)}
                 </div>
                 <div class="sheet-actions" data-map-command-count="3">
                     ${actions}
@@ -6024,6 +6194,7 @@
                         <div class="hero-sub">Екіпаж #${t.crew_id || '—'} • ${isDriver ? '🚗 Ви водій' : '👤 Ви попутник'}</div>
                         ${buildCrewTree(t)}
                         ${buildCrewPresenceSummary(t)}
+                        ${buildPickupSequence(t)}
                         <div class="lifecycle-progress">
                             <div class="lifecycle-step done"><div class="lifecycle-dot"></div>Збіг</div>
                             <div class="lifecycle-arrow"></div>
@@ -7740,7 +7911,7 @@
             const eventFilter = S.mapEventFilter || 'all';
             if (context && String(t.direction_id || '') !== String(context.dirId || '')) return;
             if (context && eventFilter === 'event') return;
-            const members = (t.members || []).filter(m => {
+            const members = orderedCrewMembersForMap(t).filter(m => {
                 if (!context || eventFilter === 'all') return true;
                 const role = String(m?.role || '').toLowerCase();
                 if (eventFilter === 'drivers') return role === 'driver';
@@ -7748,15 +7919,16 @@
                 return true;
             });
             members.forEach(m => {
-                if (!m.lat || !m.lng) return;
-                coords.push([m.lat, m.lng]);
+                const c = crewMemberMapCoord(m, t);
+                if (!c) return;
+                coords.push([c.lat, c.lng]);
                 const isMe = String(m.user_id) === String(S.userId);
                 const emoji = m.role === 'driver' ? '🚗' : '👤';
                 const color = isMe ? '#34d399' : '#38bdf8';
                 const name = isMe ? 'Ви' : escapeHtml(m.name || '?');
                 const phaseLabel = t.is_started ? 'в дорозі' : 'зустріч';
                 const statusLabel = `${m.role === 'driver' ? 'водій' : 'попутник'} · ${phaseLabel}`;
-                const marker = L.marker([m.lat, m.lng], {
+                const marker = L.marker([c.lat, c.lng], {
                     icon: L.divIcon({
                         className: '',
                         html: `<div style="width:36px;height:36px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;font-size:16px;border:2px solid rgba(0,0,0,0.4);box-shadow:0 2px 12px ${color}66;">${emoji}</div>`,
