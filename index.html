@@ -3646,7 +3646,40 @@
 
         function activeTripCrewNumber(trip) {
             if (!trip) return '—';
-            return trip.crew_display_id || trip.crew_id || trip.request_id || trip.id || '—';
+            const eventNumber = crewEventDisplayNumber(trip);
+            return eventNumber || trip.crew_display_id || trip.crew_id || trip.request_id || trip.id || '—';
+        }
+
+        function crewEventDisplayNumber(item) {
+            const direct = Number(item?.crew_event_number ?? item?.event_crew_number);
+            if (Number.isFinite(direct) && direct > 0) return String(Math.trunc(direct));
+
+            const dirId = String(item?.direction_id || '');
+            if (!dirId) return '';
+            const candidateIds = [
+                item?.crew_real_id,
+                item?.crew_id,
+                item?.crew_display_id,
+                item?.request_id,
+                item?.id
+            ].filter(v => v !== undefined && v !== null && String(v) !== '').map(v => String(v));
+            const driverId = String(item?.driver_id || item?.organizer_id || '');
+
+            const match = (S.mapCrews || []).find(c => {
+                if (String(c?.direction_id || '') !== dirId) return false;
+                const crewIds = [c?.crew_real_id, c?.crew_id, c?.crew_display_id]
+                    .filter(v => v !== undefined && v !== null && String(v) !== '')
+                    .map(v => String(v));
+                if (candidateIds.some(id => crewIds.includes(id))) return true;
+                return driverId && String(c?.organizer_id || '') === driverId;
+            });
+            if (!match) return '';
+            const mapped = Number(match?.crew_event_number ?? match?.event_crew_number);
+            if (Number.isFinite(mapped) && mapped > 0) return String(Math.trunc(mapped));
+
+            const directionCrews = (S.mapCrews || []).filter(c => String(c?.direction_id || '') === dirId);
+            const idx = directionCrews.findIndex(c => c === match);
+            return idx >= 0 ? String(idx + 1) : '';
         }
 
         function activeTripSubBarLabel(trip) {
@@ -3682,7 +3715,10 @@
             if (incoming.length > 0) parts.push(`<div class="sub-bar-pending" onclick="switchScreen('trips')">📩 ${incoming.length} запит${incoming.length > 1 ? 'ів' : ''}</div>`);
             const outgoing = S.pendingMatches.filter(m => m.scope === 'outgoing');
             if (outgoing.length > 0) parts.push(`<div class="sub-bar-pending" onclick="switchScreen('trips')">⏳ ${outgoing.length} очікує</div>`);
-            if (S.myCrew) parts.push(`<div class="sub-bar-crew" title="${escapeAttr('Екіпаж #' + (S.myCrew.crew_id || '—'))}" aria-label="${escapeAttr('Екіпаж #' + (S.myCrew.crew_id || '—'))}" onclick="switchScreen('trips')">🚗 Екіпаж #${escapeHtml(S.myCrew.crew_id || '—')}</div>`);
+            if (S.myCrew) {
+                const crewNo = activeTripCrewNumber(S.myCrew);
+                parts.push(`<div class="sub-bar-crew" title="${escapeAttr('Екіпаж #' + crewNo)}" aria-label="${escapeAttr('Екіпаж #' + crewNo)}" onclick="switchScreen('trips')">🚗 Екіпаж #${escapeHtml(crewNo)}</div>`);
+            }
             const subs = S.subscriptions || [];
             if (subs.length > 0 && !S.activeTrip) {
                 subs.slice(0, 3).forEach(s => {
@@ -3738,7 +3774,7 @@
                 }
                 const res = await api('/api/v3/crews/open', { method: 'POST', body: JSON.stringify(payload) });
                 if (res?.status === 'ok' || res?.crew_id) {
-                    S.myCrew = { crew_id: res.crew_id, direction_id: dirId };
+                    S.myCrew = { crew_id: res.crew_id, crew_real_id: res.crew_id, crew_event_number: res.crew_event_number, direction_id: dirId };
                     showToast('🚗 Екіпаж відкрито! Очікуйте попутників', 'success');
                     await hydrate();
                     if (options?.keepMapSheet) {
@@ -3943,6 +3979,9 @@
                 if (isMine) {
                     S.myCrew = {
                         crew_id: c.crew_id,
+                        crew_real_id: c.crew_real_id,
+                        crew_event_number: c.crew_event_number,
+                        crew_display_label: c.crew_display_label,
                         direction_id: c.direction_id,
                         seats_total: c.seats_total,
                         seats_free: freeSeats
@@ -6216,7 +6255,7 @@
                             ${isStarted ? '🚀 В ДОРОЗІ' : (isPickup ? '🚗 ТОЧКА ЗБОРУ' : '⏳ ЕКІПАЖ ФОРМУЄТЬСЯ')}
                         </div>
                         <div class="hero-title">${escapeHtml(t.direction_title || 'Поїздка')}</div>
-                        <div class="hero-sub">Екіпаж #${t.crew_id || '—'} • ${isDriver ? '🚗 Ви водій' : '👤 Ви попутник'}</div>
+                        <div class="hero-sub">Екіпаж #${activeTripCrewNumber(t)} • ${isDriver ? '🚗 Ви водій' : '👤 Ви попутник'}</div>
                         ${buildCrewTree(t)}
                         ${buildCrewPresenceSummary(t)}
                         ${buildPickupSequence(t)}
@@ -6725,7 +6764,7 @@
         function confirmStartTripIntent() {
             if (!S.activeTrip) return;
             const t = S.activeTrip;
-            const crewLabel = t.crew_id ? ` #${parseInt(t.crew_id, 10) || ''}` : '';
+            const crewLabel = ` #${activeTripCrewNumber(t)}`;
             return new Promise(resolve => {
                 openSheet(`
                     <div class="sheet-title">🚀 Усі в авто — поїхали${crewLabel}?</div>
@@ -6802,7 +6841,7 @@
         async function cancelTrip() {
             if (!S.activeTrip) return;
             const t = S.activeTrip;
-            const crewLabel = t.crew_id ? `#${t.crew_id}` : '';
+            const crewLabel = `#${activeTripCrewNumber(t)}`;
             const isDriver = t.viewer_role === 'driver';
             openSheet(`
                 <div class="sheet-title">❌ Покинути домовленість ${crewLabel}?</div>
