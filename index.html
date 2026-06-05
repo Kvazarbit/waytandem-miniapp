@@ -3634,6 +3634,31 @@
             return true;
         }
 
+        function activeTripSubBarPhase(trip) {
+            if (!trip) return 'Екіпаж';
+            const cancelBy = trip.cancel_requested_by;
+            if (cancelBy && !trip.is_started) {
+                return String(cancelBy) === String(S.userId) ? 'Скасування' : 'Запит скасування';
+            }
+            if (trip.is_started) return 'В дорозі';
+            return 'Резервація';
+        }
+
+        function activeTripCrewNumber(trip) {
+            if (!trip) return '—';
+            return trip.crew_display_id || trip.crew_id || trip.request_id || trip.id || '—';
+        }
+
+        function activeTripSubBarLabel(trip) {
+            const icon = trip?.viewer_role === 'driver' ? '🚗' : '👤';
+            return `${icon} Екіпаж #${escapeHtml(activeTripCrewNumber(trip))} · ${escapeHtml(activeTripSubBarPhase(trip))}`;
+        }
+
+        function activeTripSubBarTitle(trip) {
+            const title = trip?.direction_title || 'Поїздка';
+            return `${title} · Екіпаж #${activeTripCrewNumber(trip)} · ${activeTripSubBarPhase(trip)}`;
+        }
+
         // ─── SUBSCRIPTION BAR ───
         function renderSubBar() {
             const bar = document.getElementById('sub-bar');
@@ -3641,14 +3666,14 @@
             const parts = [];
             if (S.activeTrip) {
                 const t = S.activeTrip;
-                const isDriver = t.viewer_role === 'driver';
                 const partnerDone = tripPartnerFinished(t);
                 const myDone = tripViewerFinished(t);
                 if (partnerDone && !myDone) {
                     parts.push(`<div class="sub-bar-pending" onclick="switchScreen('trips')">🏁 Партнер чекає фініш</div>`);
                 }
-                const phase = t.is_started ? '🚀 В дорозі' : '⏳ Резервація';
-                parts.push(`<div class="sub-bar-crew" onclick="switchScreen('trips')">${isDriver ? '🚗' : '👤'} ${phase} · ${escapeHtml(t.direction_title || 'Поїздка')} #${t.crew_id || '—'}</div>`);
+                const label = activeTripSubBarLabel(t);
+                const title = activeTripSubBarTitle(t);
+                parts.push(`<div class="sub-bar-crew" title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}" onclick="switchScreen('trips')">${label}</div>`);
             }
             if (waitingForPartner) {
                 parts.push(`<div class="sub-bar-pending" onclick="switchScreen('trips')">⏳ Очікування партнера</div>`);
@@ -3657,7 +3682,7 @@
             if (incoming.length > 0) parts.push(`<div class="sub-bar-pending" onclick="switchScreen('trips')">📩 ${incoming.length} запит${incoming.length > 1 ? 'ів' : ''}</div>`);
             const outgoing = S.pendingMatches.filter(m => m.scope === 'outgoing');
             if (outgoing.length > 0) parts.push(`<div class="sub-bar-pending" onclick="switchScreen('trips')">⏳ ${outgoing.length} очікує</div>`);
-            if (S.myCrew) parts.push(`<div class="sub-bar-crew" onclick="switchScreen('trips')">🚗 Екіпаж #${S.myCrew.crew_id || '—'}</div>`);
+            if (S.myCrew) parts.push(`<div class="sub-bar-crew" title="${escapeAttr('Екіпаж #' + (S.myCrew.crew_id || '—'))}" aria-label="${escapeAttr('Екіпаж #' + (S.myCrew.crew_id || '—'))}" onclick="switchScreen('trips')">🚗 Екіпаж #${escapeHtml(S.myCrew.crew_id || '—')}</div>`);
             const subs = S.subscriptions || [];
             if (subs.length > 0 && !S.activeTrip) {
                 subs.slice(0, 3).forEach(s => {
