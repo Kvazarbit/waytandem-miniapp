@@ -6067,6 +6067,31 @@
             });
         }
 
+        function passengerPickupStatus(member) {
+            return String(member?.passenger_pickup_status || member?.pickup_status || 'waiting').toLowerCase();
+        }
+
+        function isPassengerPickedUp(member) {
+            return passengerPickupStatus(member) === 'picked_up';
+        }
+
+        function passengerRequestId(member) {
+            return parseInt(member?.request_id || member?.id || 0, 10) || 0;
+        }
+
+        function passengerDisplayName(member) {
+            return member?.name || `#${member?.user_id || '?'}`;
+        }
+
+        function nextPickupPassenger(trip) {
+            return orderedPickupPassengers(trip).find(p => !isPassengerPickedUp(p)) || null;
+        }
+
+        function allPickupPassengersPickedUp(trip) {
+            const passengers = orderedPickupPassengers(trip);
+            return !passengers.length || passengers.every(isPassengerPickedUp);
+        }
+
         function firstFiniteLatLng(...pairs) {
             for (const [lat, lng] of pairs) {
                 const y = Number(lat);
@@ -6105,10 +6130,11 @@
             const driverName = driver?.name || trip.driver_name || 'Водій';
             const isStarted = !!trip.is_started;
             const isPickup = trip.status === 'pickup';
+            const nextPassenger = nextPickupPassenger(trip);
             const title = isStarted ? 'Екіпаж у дорозі' : 'Порядок збору';
             const hint = isStarted
                 ? 'Усі вже в авто; карта лишається спільним простором поїздки.'
-                : (isPickup ? 'Водій біля точки збору. Далі — посадка і старт.' : 'Спочатку авто, потім точки попутників.');
+                : (isPickup ? 'Позначайте попутників по одному, коли вони вже в авто.' : 'Спочатку авто, потім точки попутників.');
             const startLabel = driver && String(driver.user_id) === String(S.userId) ? 'Ваш старт авто' : `Старт авто: ${driverName}`;
             const startMeta = driver?.pickup || trip.pickup || 'точка старту на карті';
             const rows = [{
@@ -6120,21 +6146,24 @@
                 isSelf: driver && String(driver.user_id) === String(S.userId),
             }, ...passengers.map((p, index) => {
                 const isSelf = String(p.user_id) === String(S.userId);
-                const name = p.name || `#${p.user_id || '?'}`;
+                const name = passengerDisplayName(p);
+                const pickedUp = isPassengerPickedUp(p);
+                const isNext = !pickedUp && nextPassenger && String(nextPassenger.user_id) === String(p.user_id);
                 return {
                     type: 'passenger-stop',
-                    icon: isSelf ? '🟢' : '👤',
+                    icon: pickedUp ? '✅' : (isSelf ? '🟢' : '👤'),
                     title: isSelf ? 'Ваша точка очікування' : `Забрати: ${name}`,
                     meta: p.pickup || p.pickup_label || 'точка на карті',
-                    badge: isStarted ? 'в авто' : (index === 0 ? 'наступний' : 'далі'),
+                    badge: pickedUp || isStarted ? 'в авто' : (isPickup && isNext ? 'зараз' : (index === 0 ? 'наступний' : 'далі')),
                     isSelf,
+                    status: pickedUp || isStarted ? 'picked_up' : (isPickup && isNext ? 'next' : 'waiting'),
                 };
             })];
             return `<div data-crew-pickup-sequence="true" style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.18);">
                 <div style="font-size:11px;font-weight:900;color:var(--blue);text-transform:uppercase;letter-spacing:.6px;">${escapeHtml(title)}</div>
                 <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">${escapeHtml(hint)}</div>
                 <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;">
-                    ${rows.map((row, index) => `<div data-pickup-stop="${escapeAttr(row.type)}" style="display:grid;grid-template-columns:28px 1fr auto;gap:8px;align-items:center;padding:8px;border-radius:8px;background:${row.isSelf ? 'rgba(52,211,153,0.10)' : 'rgba(255,255,255,0.04)'};border:1px solid ${row.isSelf ? 'rgba(52,211,153,0.24)' : 'rgba(255,255,255,0.06)'};">
+                    ${rows.map((row, index) => `<div data-pickup-stop="${escapeAttr(row.type)}" data-pickup-status="${escapeAttr(row.status || '')}" style="display:grid;grid-template-columns:28px 1fr auto;gap:8px;align-items:center;padding:8px;border-radius:8px;background:${row.isSelf ? 'rgba(52,211,153,0.10)' : 'rgba(255,255,255,0.04)'};border:1px solid ${row.isSelf ? 'rgba(52,211,153,0.24)' : 'rgba(255,255,255,0.06)'};">
                         <div style="width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,0.58);font-size:13px;">${row.icon}</div>
                         <div style="min-width:0;">
                             <div style="font-size:13px;font-weight:850;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${index + 1}. ${escapeHtml(row.title)}</div>
@@ -6143,6 +6172,36 @@
                         <div style="font-size:10px;font-weight:850;color:${row.isSelf ? 'var(--green)' : 'var(--text-secondary)'};text-transform:uppercase;">${escapeHtml(row.badge)}</div>
                     </div>`).join('')}
                 </div>
+            </div>`;
+        }
+
+        function buildPickupActionPanel(trip, options = {}) {
+            if (!trip || trip.is_started || trip.status !== 'pickup') return '';
+            const includeAction = options.includeAction !== false;
+            const passengers = orderedPickupPassengers(trip);
+            if (!passengers.length) return '';
+            const isDriver = trip.viewer_role === 'driver';
+            const selfPassenger = passengers.find(p => String(p.user_id) === String(S.userId));
+            if (!isDriver) {
+                if (selfPassenger && isPassengerPickedUp(selfPassenger)) {
+                    return `<div data-pickup-action-panel="passenger-picked" style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(16,185,129,0.10);border:1px solid rgba(16,185,129,0.28);font-size:13px;color:var(--green);">✅ Ви вже в авто. Чекаємо старту екіпажу.</div>`;
+                }
+                return `<div data-pickup-action-panel="passenger-waiting" style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(56,189,248,0.10);border:1px solid rgba(56,189,248,0.28);font-size:13px;color:var(--blue);">🚗 Водій біля точки збору. Чекайте на своїй точці.</div>`;
+            }
+            const next = nextPickupPassenger(trip);
+            if (!next) {
+                return `<div data-pickup-action-panel="all-picked" style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(16,185,129,0.10);border:1px solid rgba(16,185,129,0.28);font-size:13px;color:var(--green);">✅ Усі попутники в авто. Можна стартувати до події.</div>`;
+            }
+            const reqId = passengerRequestId(next);
+            const passengerId = parseInt(next.user_id || 0, 10) || 0;
+            const name = passengerDisplayName(next);
+            const meta = next.pickup || next.pickup_label || 'точка на карті';
+            const disabled = !reqId || !passengerId;
+            return `<div data-pickup-action-panel="driver-next" style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);">
+                <div style="font-size:11px;font-weight:900;color:var(--amber);text-transform:uppercase;letter-spacing:.6px;">Зараз забрати</div>
+                <div style="font-size:15px;font-weight:850;margin-top:4px;">${escapeHtml(name)}</div>
+                <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">${escapeHtml(meta)}</div>
+                ${includeAction ? `<button class="btn btn-primary" data-pickup-current-action="true" style="width:100%;margin-top:10px;" ${disabled ? 'disabled' : ''} onclick="markPassengerPickedUp(${reqId}, ${passengerId})">✅ ${escapeHtml(name)} в авто</button>` : ''}
             </div>`;
         }
 
@@ -6184,21 +6243,27 @@
             const isDriver = t.viewer_role === 'driver';
             const isStarted = !!t.is_started;
             const isPickup = t.status === 'pickup';
+            const allPickedUp = allPickupPassengersPickedUp(t);
+            const nextPassenger = nextPickupPassenger(t);
             const safeReqId = parseInt(t.request_id || t.id || 0, 10) || 0;
             const safePartnerId = parseInt(isDriver ? (t.client_id || 0) : (t.driver_id || 0), 10) || 0;
             const title = isStarted ? 'У дорозі до події' : (isPickup ? 'Збір екіпажу' : 'Екіпаж домовився');
             const status = isStarted
                 ? 'Усі в авто. Карта лишається як просторовий контекст поїздки.'
                 : (isDriver
-                    ? 'На карті видно, кого забрати і маршрут збору. Коли всі в авто — стартуйте до події.'
+                    ? 'На карті видно, кого забрати і маршрут збору. Позначайте попутників по одному.'
                     : 'На карті видно водія, вас та інших учасників екіпажу.');
+            const nextReqId = passengerRequestId(nextPassenger);
+            const nextPassengerId = parseInt(nextPassenger?.user_id || 0, 10) || 0;
+            const nextName = nextPassenger ? passengerDisplayName(nextPassenger) : '';
             const actions = isStarted
                 ? `<button class="btn btn-secondary" onclick="closeSheet();openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
                    <button class="btn btn-success" onclick="closeSheet();finishTrip()">✅ Завершити</button>
                    <button class="btn btn-ghost" onclick="closeSheet()">Карта</button>`
                 : (isDriver
                     ? `${!isPickup ? `<button class="btn btn-secondary" onclick="arriveAtPickup().then(ok => { if (ok) openTripMap(); })">🚗 Я біля точки збору</button>` : ''}
-                       <button class="btn btn-primary" onclick="startTrip().then(ok => { if (ok) openTripMap(); })">🚀 Усі в авто — поїхали</button>
+                       ${isPickup && nextPassenger ? `<button class="btn btn-primary" onclick="markPassengerPickedUp(${nextReqId}, ${nextPassengerId}).then(ok => { if (ok) openTripMap(); })">✅ ${escapeHtml(nextName)} в авто</button>` : ''}
+                       ${isPickup && allPickedUp ? `<button class="btn btn-primary" onclick="startTrip().then(ok => { if (ok) openTripMap(); })">🚀 Усі в авто — поїхали</button>` : ''}
                        <button class="btn btn-ghost" onclick="closeSheet();switchScreen('trips')">Екіпаж</button>`
                     : `<button class="btn btn-primary" onclick="closeSheet()">Дивитись карту</button>
                        <button class="btn btn-secondary" onclick="closeSheet();switchScreen('trips')">Екіпаж</button>
@@ -6210,6 +6275,7 @@
                     <div class="sheet-sub">${escapeHtml(status)}</div>
                     ${buildCrewPresenceSummary(t)}
                     ${buildPickupSequence(t)}
+                    ${buildPickupActionPanel(t, { includeAction: false })}
                 </div>
                 <div class="sheet-actions" data-map-command-count="3">
                     ${actions}
@@ -6239,6 +6305,11 @@
                 const isDriver = t.viewer_role === 'driver';
                 const isStarted = !!t.is_started;
                 const isPickup = t.status === 'pickup';
+                const allPickedUp = allPickupPassengersPickedUp(t);
+                const nextPassenger = nextPickupPassenger(t);
+                const nextReqId = passengerRequestId(nextPassenger);
+                const nextPassengerId = parseInt(nextPassenger?.user_id || 0, 10) || 0;
+                const nextName = nextPassenger ? passengerDisplayName(nextPassenger) : '';
                 const partnerFinished = tripPartnerFinished(t);
                 const viewerFinished = tripViewerFinished(t);
                 const cancelBy = t.cancel_requested_by;
@@ -6259,6 +6330,7 @@
                         ${buildCrewTree(t)}
                         ${buildCrewPresenceSummary(t)}
                         ${buildPickupSequence(t)}
+                        ${buildPickupActionPanel(t, { includeAction: false })}
                         <div class="lifecycle-progress">
                             <div class="lifecycle-step done"><div class="lifecycle-dot"></div>Збіг</div>
                             <div class="lifecycle-arrow"></div>
@@ -6281,7 +6353,8 @@
                         ${viewerFinished && !partnerFinished ? `<div style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(255,193,7,0.1);border:1px solid rgba(255,193,7,0.3);font-size:13px;color:var(--amber);">⏳ Ви відмітили фініш. Очікуємо підтвердження партнера.</div>` : ''}
                         <div style="margin-top:16px;display:flex;flex-direction:column;gap:10px;">
                             ${!isStarted && isDriver && !isPickup && !cancelRequested ? `<button class="btn btn-secondary" onclick="arriveAtPickup()">🚗 Я біля точки збору</button>` : ''}
-                            ${!isStarted && isDriver && !cancelRequested ? `<button class="btn btn-primary" onclick="startTrip()">🚀 Усі в авто — поїхали</button>` : ''}
+                            ${!isStarted && isDriver && isPickup && nextPassenger && !cancelRequested ? `<button class="btn btn-primary" onclick="markPassengerPickedUp(${nextReqId}, ${nextPassengerId})">✅ ${escapeHtml(nextName)} в авто</button>` : ''}
+                            ${!isStarted && isDriver && isPickup && allPickedUp && !cancelRequested ? `<button class="btn btn-primary" onclick="startTrip()">🚀 Усі в авто — поїхали</button>` : ''}
                             ${isPickup && !isDriver ? `<div style="margin-top:4px;padding:10px;border-radius:10px;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.3);font-size:13px;color:var(--blue);">🚗 Водій прибув до точки збору</div>` : ''}
                             ${isStarted ? `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="openChat(${t.request_id || t.id || 0}, ${isDriver ? (t.client_id || 0) : (t.driver_id || 0)})">💬 Чат</button><button class="btn btn-success" style="flex:1;" onclick="finishTrip()">✅ Завершити подорож</button></div>` : ''}
                             ${cancelPending ? `<div style="display:flex;gap:10px;"><button class="btn btn-primary" style="flex:1;" onclick="confirmCancelTrip()">✅ Згоден скасувати</button><button class="btn btn-secondary" style="flex:1;" onclick="rejectCancelTrip()">❌ Відмовити</button></div>` : ''}
@@ -6781,6 +6854,16 @@
 
         async function startTrip() {
             if (!S.activeTrip) return false;
+            if (S.activeTrip.viewer_role === 'driver') {
+                if (S.activeTrip.status !== 'pickup') {
+                    showToast('Спочатку відмітьте, що ви біля точки збору', 'error');
+                    return false;
+                }
+                if (!allPickupPassengersPickedUp(S.activeTrip)) {
+                    showToast('Спочатку позначте попутників, які вже в авто', 'error');
+                    return false;
+                }
+            }
             if (!await confirmStartTripIntent()) return false;
             if (!beginOp('start_trip')) return false;
             try {
@@ -6791,6 +6874,29 @@
                 showToast('Помилка старту', 'error');
                 return false;
             } finally { endOp('start_trip'); }
+        }
+
+        async function markPassengerPickedUp(requestId, passengerId) {
+            const reqId = parseInt(requestId || 0, 10) || 0;
+            const paxId = parseInt(passengerId || 0, 10) || 0;
+            if (!reqId || !paxId) {
+                showToast('Немає конкретного попутника для позначки', 'error');
+                return false;
+            }
+            if (!beginOp(`pickup_passenger_${reqId}`)) return false;
+            try {
+                const res = await api('/api/v3/trip/pickup', {
+                    method: 'POST',
+                    body: JSON.stringify({ request_id: reqId, user_id: S.userId, passenger_id: paxId })
+                });
+                if (res?.status === 'ok') {
+                    showToast('✅ Попутник у авто', 'success');
+                    await hydrate();
+                    return true;
+                }
+                showToast('Не вдалося позначити посадку', 'error');
+                return false;
+            } finally { endOp(`pickup_passenger_${reqId}`); }
         }
 
         async function arriveAtPickup() {
@@ -7988,9 +8094,10 @@
                 coords.push([c.lat, c.lng]);
                 const isMe = String(m.user_id) === String(S.userId);
                 const emoji = m.role === 'driver' ? '🚗' : '👤';
-                const color = isMe ? '#34d399' : '#38bdf8';
+                const pickedUp = String(m.role || '').toLowerCase() !== 'driver' && isPassengerPickedUp(m);
+                const color = pickedUp ? '#10b981' : (isMe ? '#34d399' : '#38bdf8');
                 const name = isMe ? 'Ви' : escapeHtml(m.name || '?');
-                const phaseLabel = t.is_started ? 'в дорозі' : 'зустріч';
+                const phaseLabel = pickedUp ? 'в авто' : (t.is_started ? 'в дорозі' : 'зустріч');
                 const statusLabel = `${m.role === 'driver' ? 'водій' : 'попутник'} · ${phaseLabel}`;
                 const marker = L.marker([c.lat, c.lng], {
                     icon: L.divIcon({
