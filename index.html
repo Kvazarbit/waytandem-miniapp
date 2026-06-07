@@ -4732,6 +4732,9 @@
             S.pendingRoleAction = null;
             const roleOk = await setRole(normalizedRole, { keepSheetOpen: true, silentToast: true, skipPendingAction: true });
             if (!roleOk) return false;
+            // Водій: спершу скільки місць → звідки старт → як шукати (без порожнього
+            // повторення «постав авто»). Попутник лишається на старому метод-кроці.
+            if (_isDriverRole(S.userRole)) return openMapDriverSeatsSheet(safeDirId);
             return openMapInviteMethodSheet(safeDirId);
         }
 
@@ -4764,6 +4767,59 @@
             const autoMatch = !!auto;
             clearPickupPoint();
             return subscribeDir(safeDirId, { afterSuccessScreen: 'explore', keepSheetOpen: true, mapInline: true, manualOnly: !autoMatch });
+        }
+
+        // ─── Водійський онбординг: місця → старт → метод (замість потрійного «постав авто») ───
+        function openMapDriverSeatsSheet(dirId) {
+            const ctx = mapInviteContext(dirId);
+            if (!ctx.safeDirId) return false;
+            const chip = (n) => `<div class="btn btn-secondary" role="button" data-seat="${n}" style="flex:1;text-align:center;" onclick="chooseDriverSeats(${ctx.safeDirId}, ${n})">${n}</div>`;
+            openSheet(`
+                ${renderMapInviteContextHeader(ctx)}
+                <div class="sheet-title">Скільки місць для попутників?</div>
+                <div class="sheet-sub">Стільки людей зможе сісти до тебе в авто. Можна змінити пізніше.</div>
+                <div style="display:flex;gap:8px;margin:12px 0 4px;">${chip(1)}${chip(2)}${chip(3)}${chip(4)}</div>
+                <div class="sheet-actions" data-map-command-count="1">
+                    <button class="btn btn-ghost" onclick="openMapInviteRoleSheet(${ctx.safeDirId})">Назад</button>
+                </div>
+            `, { maxHeight: '65vh' });
+            return true;
+        }
+
+        async function chooseDriverSeats(dirId, seats) {
+            const safeDirId = parseInt(dirId) || 0;
+            if (!safeDirId) return false;
+            S.seats = Math.max(1, Math.min(8, parseInt(seats) || 1));
+            // Звідки стартуєш? Точку беремо ДО підписки — pickPickupLocation її не вимагає.
+            const picked = await pickPickupLocation(safeDirId, { kind: 'driver_start' });
+            if (!picked) return false;
+            return openMapDriverMethodSheet(safeDirId);
+        }
+
+        function openMapDriverMethodSheet(dirId) {
+            const ctx = mapInviteContext(dirId);
+            if (!ctx.safeDirId) return false;
+            openSheet(`
+                ${renderMapInviteContextHeader(ctx)}
+                <div class="sheet-title">Як знайти попутників?</div>
+                <div class="sheet-sub">Місць: ${S.seats}. Старт авто вказано на карті. Обери, як шукати людей.</div>
+                <div class="sheet-actions" data-map-command-count="3">
+                    <button class="btn btn-primary" onclick="chooseDriverMethod(${ctx.safeDirId}, true)">✨ Знайти автоматично</button>
+                    <button class="btn btn-secondary" onclick="chooseDriverMethod(${ctx.safeDirId}, false)">🗺 Я знайду на карті</button>
+                    <button class="btn btn-ghost" onclick="openMapDriverSeatsSheet(${ctx.safeDirId})">Назад</button>
+                </div>
+            `, { maxHeight: '65vh' });
+            return true;
+        }
+
+        async function chooseDriverMethod(dirId, auto) {
+            const safeDirId = parseInt(dirId) || 0;
+            if (!safeDirId) return false;
+            const autoMatch = !!auto;
+            const ok = await subscribeDir(safeDirId, { afterSuccessScreen: 'explore', keepSheetOpen: true, mapInline: true, manualOnly: !autoMatch, suppressSubscribedSheet: true });
+            if (!ok) return false;
+            // Місця й старт уже відомі → одразу відкриваємо екіпаж («Екіпаж відкрито»).
+            return doOpenCrew(safeDirId, { keepMapSheet: true });
         }
 
         function openMapSubscribedSheet(dirId, options = {}) {
@@ -5995,8 +6051,10 @@
                 if (showCoordinationMap) {
                     await openCoordinationMap();
                     if (keepSheetOpen) {
-                        openMapSubscribedSheet(dirId, { sheetMaxHeight: '65vh', auto: !manualOnly });
-                        showToast('Підписка активна на карті', 'success');
+                        if (!options?.suppressSubscribedSheet) {
+                            openMapSubscribedSheet(dirId, { sheetMaxHeight: '65vh', auto: !manualOnly });
+                            showToast('Підписка активна на карті', 'success');
+                        }
                         return true;
                     }
                     if (resp.ok && (status === 'ok' || status === 'already_subscribed')) {
@@ -6010,7 +6068,7 @@
                 showToast(manualOnly ? 'Подія відкрита на карті' : (status === 'already_subscribed' ? 'Ви вже в черзі' : '✓ Ви в черзі. Поїздку ще не підтверджено.'), 'success');
                 if (showCoordinationMap) {
                     await openCoordinationMap();
-                    if (keepSheetOpen) openMapSubscribedSheet(dirId, { sheetMaxHeight: '65vh', auto: !manualOnly });
+                    if (keepSheetOpen && !options?.suppressSubscribedSheet) openMapSubscribedSheet(dirId, { sheetMaxHeight: '65vh', auto: !manualOnly });
                     return true;
                 }
                 // Re-hydrate after delay to catch handshakes created by async matching task
