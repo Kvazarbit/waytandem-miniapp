@@ -1411,13 +1411,22 @@
             box-shadow: 0 0 18px var(--accent-glow), 0 6px 18px rgba(0,0,0,0.28);
         }
 
-        /* Discovery preview popup (iter 3, 2026-06-10): легкий погляд на чужу подію без шторки */
-        .leaflet-popup-content-wrapper { border-radius: 14px; box-shadow: 0 10px 32px rgba(0,0,0,0.35); }
-        .leaflet-popup-content { margin: 10px 12px; }
-        .map-preview-card { font-family: inherit; min-width: 180px; max-width: 230px; }
-        .map-preview-title { font-weight: 800; font-size: 14px; line-height: 1.25; color: #0d1b2a; }
-        .map-preview-row { margin-top: 4px; font-size: 12px; color: #4b5563; }
-        .map-preview-btn { display: block; width: 100%; margin-top: 8px; padding: 9px 10px; border: 0; border-radius: 10px; background: var(--accent); color: #081018; font-weight: 700; font-size: 13px; cursor: pointer; }
+        /* Discovery preview popup (iter 3, 2026-06-10): картка зі стилю iconpins-прикладу —
+           кольорова шапка категорії + іконка-плитка + рядки + кнопка «Детальніше» */
+        .leaflet-popup-content-wrapper { border-radius: 16px; box-shadow: 0 12px 36px rgba(0,0,0,0.38); padding: 0; overflow: hidden; }
+        .leaflet-popup-content { margin: 0; }
+        .leaflet-popup-close-button { color: rgba(8,16,24,0.6); font-size: 18px; padding: 6px 8px 0 0; }
+        .map-preview-card { font-family: inherit; width: 224px; color: #0d1b2a; }
+        .map-preview-hd { display: flex; align-items: center; gap: 10px; padding: 12px 14px; color: #081018; }
+        .map-preview-hd .map-preview-ico { width: 34px; height: 34px; border-radius: 10px; background: rgba(255,255,255,0.38); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+        .map-preview-hd .map-preview-ttl { font-weight: 800; font-size: 15px; line-height: 1.2; }
+        .map-preview-bd { padding: 10px 14px 12px; background: #fff; }
+        .map-preview-row { display: flex; gap: 8px; align-items: center; margin: 4px 0; font-size: 13px; color: #4b5563; }
+        .map-preview-btn { display: block; width: 100%; margin-top: 8px; padding: 10px; border: 0; border-radius: 10px; background: var(--accent); color: #081018; font-weight: 700; font-size: 14px; cursor: pointer; }
+        .map-preview-hd.k-event { background: #fbbf24; }
+        .map-preview-hd.k-theocracy { background: #a78bfa; }
+        .map-preview-hd.k-leisure { background: #34d399; }
+        .map-preview-hd.k-work { background: #38bdf8; }
 
         .map-pin-passenger {
             background: #65d48f;
@@ -4165,7 +4174,7 @@
                     marker.on('click', () => openDirectionInviteFromMap(dId));
                 } else {
                     // Discovery (iter 3): попап-прев'ю; «Детальніше» → та сама шторка.
-                    marker.bindPopup(buildMapEventPreviewHtml(point, dId), { closeButton: false, autoPan: true });
+                    marker.bindPopup(buildMapEventPreviewHtml(point, dId), { closeButton: true, autoPan: true, maxWidth: 240 });
                 }
                 S.eventMarkers.push(marker);
             });
@@ -4187,13 +4196,19 @@
             const title = point.title || point.direction_title || point.dir_title || `Подія #${dId}`;
             const drivers = safeCount(point?.drivers ?? point?.drivers_count);
             const passengers = safeCount(point?.passengers ?? point?.passengers_count);
-            const counts = (drivers || passengers)
-                ? `<div class="map-preview-row">🚗 ${drivers} · 👤 ${passengers}</div>`
-                : '';
+            const total = drivers + passengers;
+            const rows = [];
+            if (total) rows.push(`<div class="map-preview-row">👥 ${total} ${pluralUk(total, 'учасник', 'учасники', 'учасників')}</div>`);
+            if (drivers) rows.push(`<div class="map-preview-row">🚗 ${drivers} ${pluralUk(drivers, 'водій з місцями', 'водії з місцями', 'водіїв з місцями')}</div>`);
             return `<div class="map-preview-card">
-                <div class="map-preview-title">${_eventMarkerEmoji(kind)} ${escapeHtml(title)}</div>
-                ${counts}
-                <button type="button" class="map-preview-btn" onclick="openDirectionFromMapPreview(${Number(dId) || 0})">Детальніше</button>
+                <div class="map-preview-hd k-${escapeAttr(kind)}">
+                    <div class="map-preview-ico">${_eventMarkerEmoji(kind)}</div>
+                    <div class="map-preview-ttl">${escapeHtml(title)}</div>
+                </div>
+                <div class="map-preview-bd">
+                    ${rows.join('')}
+                    <button type="button" class="map-preview-btn" onclick="openDirectionFromMapPreview(${Number(dId) || 0})">Детальніше</button>
+                </div>
             </div>`;
         }
 
@@ -4865,12 +4880,18 @@
             if (!safeDirId) return false;
             const autoMatch = !!auto;
             clearPickupPoint();
-            const picked = await pickPickupLocation(safeDirId, { kind: 'passenger_wait', persistUserLocation: true });
+            // closeSheetAfterConfirm: 06-04 UX-trap (sheet поверх карти блокував тап по
+            // машині) — прямий шлях до пікера зобов'язаний закривати шторку після
+            // підтвердження, людина лишається на карті зі своїм піном.
+            const picked = await pickPickupLocation(safeDirId, { kind: 'passenger_wait', persistUserLocation: true, closeSheetAfterConfirm: true });
             if (!picked) {
                 openMapInviteMethodSheet(safeDirId);
                 return false;
             }
-            return subscribeDir(safeDirId, { afterSuccessScreen: 'explore', keepSheetOpen: true, mapInline: true, manualOnly: !autoMatch });
+            // suppressSubscribedSheet: map-manual шлях лишає людину НА КАРТІ зі своїм
+            // піном (канон 06-04); «підписка активна» шторка тут була б тією ж
+            // пасткою, що блокує тапи по екіпажах.
+            return subscribeDir(safeDirId, { afterSuccessScreen: 'explore', keepSheetOpen: true, mapInline: true, manualOnly: !autoMatch, suppressSubscribedSheet: true });
         }
 
         // ─── Водійський онбординг: місця → старт → метод (замість потрійного «постав авто») ───
