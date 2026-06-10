@@ -3299,9 +3299,43 @@
         }
 
         // ─── API ───
+        // Stale-auth UX (2026-06-10): initData живе 24 год (server_v3.py, auth_date guard).
+        // Після спливання кожен запит ловить 401, а тихий поллінг добиває IP до 429 (I-151).
+        // Тому: показуємо sheet «перевідкрий Mini App» ОДИН раз і вмикаємо circuit breaker,
+        // який зупиняє весь трафік до перевідкриття. Лікується лише relaunch-ом WebApp,
+        // бо Telegram видає свіжий initData тільки при відкритті Mini App.
+        let _authExpiredShown = false;
+        function _showAuthExpiredSheet() {
+            openSheet(`
+                <div style="text-align:center;padding:8px 4px;">
+                    <div style="font-size:40px;">⏳</div>
+                    <h3 style="margin:8px 0;">Сесія Telegram застаріла</h3>
+                    <p style="opacity:.8;margin:0 0 14px;">Минуло понад 24 години з відкриття додатку. Закрийте Mini App і відкрийте знову — все відновиться, дані не втрачено.</p>
+                    <button id="btn-auth-reopen" class="btn btn-primary" type="button" style="width:100%;">🔄 Закрити для перевідкриття</button>
+                </div>`);
+            const btn = document.getElementById('btn-auth-reopen');
+            if (btn) btn.onclick = () => {
+                const t = window.Telegram?.WebApp;
+                if (t && typeof t.close === 'function') t.close(); else location.reload();
+            };
+        }
+        function _maybeHandleAuthExpired(detail) {
+            const d = String(detail || '');
+            const stale = d.includes('initData expired') || d.includes('Invalid initData') || d.includes('Invalid auth_date');
+            if (!stale) return false;
+            S.authExpired = true;
+            if (!_authExpiredShown) { _authExpiredShown = true; _showAuthExpiredSheet(); }
+            return true;
+        }
+
         // Centralized API wrapper (I-FRONT-2, I-FRONT-3)
         async function apiWithStatus(path, opts = {}) {
             if (!S.apiBase) return { ok: false, status: 0, data: null };
+            // Circuit breaker: auth протух — не б'ємо сервер (захист від 429, I-151).
+            if (S.authExpired) {
+                if (!opts.silent) _showAuthExpiredSheet();
+                return { ok: false, status: 401, data: { detail: 'initData expired (24h)' } };
+            }
 
             // Handle busy state if not silent
             const opKey = opts.opKey || path;
@@ -3319,7 +3353,9 @@
                 } catch (_) { /* payload remains null */ }
 
                 if (!r.ok) {
-                    if (!opts.silent) {
+                    // 401 зі застарілим initData обробляється sheet-ом, не toast-ом.
+                    const consumed = r.status === 401 && _maybeHandleAuthExpired(payload?.detail);
+                    if (!opts.silent && !consumed) {
                         showToast(payload?.detail || `Помилка ${r.status}`, 'error');
                     }
                     return { ok: false, status: r.status, data: payload };
@@ -3474,7 +3510,7 @@
         function startPolling() {
             if (!S.apiBase || !S.userId) return;
             setInterval(async () => {
-                if (!S.apiBase || !S.userId || pollInFlight) return;
+                if (!S.apiBase || !S.userId || pollInFlight || S.authExpired) return;
                 pollInFlight = true;
                 try {
                     const data = await api(`/api/v3/hydrate?user_id=${S.userId}&include_outgoing=1`, { silent: true });
@@ -3958,6 +3994,25 @@
             S.mapCrews = enrichedCrews;
             S.mapPassengers = passengers;
             S.lastMapSyncAt = Date.now();
+            // Zombie-state guard (2026-06-10, I-FRONT-8 / I-170): «мій екіпаж»
+            // перераховується З НУЛЯ зі свіжих серверних даних при кожному refreshMap.
+            // Раніше S.myCrew лише ПРИЗНАЧАВСЯ (doOpenCrew, цикл пінів) і ніколи не
+            // скидався: після відписки водія сервер закривав open crew (I-170),
+            // пін зникав, а чип «🚗 Екіпаж #N» у sub-bar лишався вічно.
+            // Важливо: шукаємо в enrichedCrews (повний список), а не у visibleCrews,
+            // щоб event-фільтр карти не занулив живий екіпаж.
+            const _prevMyCrewId = S.myCrew ? String(S.myCrew.crew_id || '') : '';
+            const _mineCrew = S.userId ? enrichedCrews.find(c => String(c?.organizer_id || '') === String(S.userId)) : null;
+            S.myCrew = _mineCrew ? {
+                crew_id: _mineCrew.crew_id,
+                crew_real_id: _mineCrew.crew_real_id,
+                crew_event_number: _mineCrew.crew_event_number,
+                crew_display_label: _mineCrew.crew_display_label,
+                direction_id: _mineCrew.direction_id,
+                seats_total: _mineCrew.seats_total,
+                seats_free: safeCount(_mineCrew?.seats_free ?? _mineCrew?.free_seats ?? _mineCrew?.available_seats)
+            } : null;
+            if (_prevMyCrewId !== (S.myCrew ? String(S.myCrew.crew_id || '') : '')) renderSubBar();
             S.mapMarkers.forEach(m => S.map.removeLayer(m));
             S.mapMarkers = [];
             S.eventMarkers.forEach(m => S.map.removeLayer(m));
@@ -3976,17 +4031,8 @@
                 const seatBadge = freeSeats > 0 ? `<span class="map-pin-badge">${freeSeats}</span>` : '';
                 const selfDot = isMine ? '<span class="map-pin-self-dot" aria-hidden="true"></span>' : '';
                 const crewLabel = escapeAttr(`${isMine ? 'Ваш екіпаж' : 'Екіпаж'}: ${c.driver_name || c.organizer_name || c.direction_title || ''}`.trim());
-                if (isMine) {
-                    S.myCrew = {
-                        crew_id: c.crew_id,
-                        crew_real_id: c.crew_real_id,
-                        crew_event_number: c.crew_event_number,
-                        crew_display_label: c.crew_display_label,
-                        direction_id: c.direction_id,
-                        seats_total: c.seats_total,
-                        seats_free: freeSeats
-                    };
-                }
+                // S.myCrew більше не призначається тут: єдине джерело — повний
+                // перерахунок вище (zombie-state guard), інакше дублікати логіки розходяться.
                 const marker = L.marker([c.lat, c.lng], {
                     title: crewLabel,
                     alt: crewLabel,
