@@ -5986,16 +5986,18 @@
             const creatorInitial = (creatorDisplay || 'О')[0].toUpperCase();
             const creatorAvatarBg = _avatarGradient(creatorDisplay || 'О');
             const creatorContactBlock = creatorId ? `
-                <div style="display:flex;align-items:center;gap:12px;margin:12px 0 14px;padding:12px;border-radius:12px;background:rgba(255,255,255,0.04);border:1px solid var(--border);">
+                <div style="display:flex;align-items:center;gap:12px;margin:16px 0 20px;">
                     <div style="width:40px;height:40px;border-radius:50%;background:${creatorAvatarBg};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:#fff;flex-shrink:0;">${escapeHtml(creatorInitial)}</div>
                     <div style="flex:1;min-width:0;">
-                        <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Організатор:</div>
-                        <div style="font-size:13px;font-weight:700;color:var(--text-primary);">${escapeHtml(creatorDisplay || 'Організатор')}${creatorUsername ? ` <span style="font-weight:400;color:var(--blue);">(@${escapeHtml(creatorUsername)})</span>` : ''}</div>
+                        <div style="font-size:12px;color:var(--text-muted);line-height:1.2;">Організатор:</div>
+                        <div style="font-size:14px;font-weight:700;color:var(--text-primary);margin-top:2px;">
+                            ${escapeHtml(creatorDisplay || 'Організатор')}${creatorUsername ? ` <span style="font-weight:400;color:var(--blue);">(@${escapeHtml(creatorUsername)})</span>` : ''}
+                        </div>
                     </div>
-                    ${!isMyDir ? `<button class="btn btn-secondary" style="padding:8px 12px;font-size:12px;min-height:36px;border-radius:10px;white-space:nowrap;" data-tg-username="${escapeAttr(creatorUsername)}" data-tg-user-id="${parseInt(creatorId, 10) || 0}" onclick="openTelegramContactFromButton(this)">💬 Написати організатору</button>` : `<span class="tag tag-green">Ваша ідея</span>`}
+                    ${!isMyDir ? `<button class="btn btn-secondary" style="border:1px solid rgba(56,189,248,0.4);background:rgba(56,189,248,0.08);color:var(--blue);padding:8px 12px;border-radius:12px;font-size:12px;font-weight:600;min-height:36px;white-space:nowrap;cursor:pointer;" data-tg-username="${escapeAttr(creatorUsername)}" data-tg-user-id="${parseInt(creatorId, 10) || 0}" onclick="openTelegramContactFromButton(this)">💬 Написати організатору</button>` : `<span class="tag tag-green">Ваша ідея</span>`}
                 </div>` : '';
             const hasPickup = !!S.pickupCoords;
-            const directionStats = buildDirectionCardStats(dir);
+
             const dirMeta = data?.direction || dir || {};
             const meetingPoint = dirMeta.meeting_point || dir.meeting_point || '';
             const desc = dirMeta.description || dir.description || '';
@@ -6003,16 +6005,37 @@
             const endAt = dirMeta.end_date || dir.end_date || '';
             const whenText = startAt && endAt ? `${formatIdeaDate(startAt)} — ${formatIdeaDate(endAt)}` : (formatIdeaDate(startAt) || formatIdeaDate(endAt));
 
+            // Dynamic days calculation
+            let daysText = '';
+            if (startAt && endAt) {
+                const startD = new Date(startAt);
+                const endD = new Date(endAt);
+                const diffTime = Math.abs(endD - startD);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                if (diffDays > 0) {
+                    daysText = `🗓 ${diffDays} ${pluralUk(diffDays, 'день', 'дні', 'днів')}`;
+                }
+            } else if (startAt) {
+                daysText = '🗓 1 день';
+            }
+
+            const drivers = Number(dir.drivers || 0);
+            const passengers = Number(dir.passengers || 0);
+            const totalParticipants = drivers + passengers;
+            const participantsText = `👥 ${totalParticipants} ${pluralUk(totalParticipants, 'Учасник', 'Учасники', 'Учасників')}`;
+            const crewsText = `🚗 ${drivers} ${pluralUk(drivers, 'Екіпаж', 'Екіпажі', 'Екіпажів')}`;
+            const customStatsLine = [daysText, participantsText, crewsText].filter(Boolean).join(' • ');
+
             // --- Detail card: horizontal location + date row, description below ---
             const hasDetailMeta = meetingPoint || whenText;
             const hasDetailCard = hasDetailMeta || desc;
             const detailCardHtml = hasDetailCard ? `
                 <div style="margin:10px 0 6px;padding:14px;border-radius:12px;background:rgba(255,255,255,0.05);border:1px solid rgba(56,189,248,0.15);backdrop-filter:blur(6px);">
-                    ${hasDetailMeta ? `<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:${desc ? '10px' : '0'};">
-                        ${meetingPoint ? `<div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-primary);font-weight:600;"><span style="color:var(--blue);font-size:15px;">📍</span> ${escapeHtml(meetingPoint)}</div>` : ''}
-                        ${whenText ? `<div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-primary);font-weight:600;"><span style="color:var(--accent);font-size:15px;">🗓</span> ${escapeHtml(whenText)}</div>` : ''}
+                    ${hasDetailMeta ? `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:${desc ? '12px' : '0'};">
+                        ${meetingPoint ? `<div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-primary);font-weight:600;"><span style="color:var(--blue);font-size:15px;">📍</span> ${escapeHtml(meetingPoint)}</div>` : '<div></div>'}
+                        ${whenText ? `<div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-primary);font-weight:600;"><span style="color:var(--accent);font-size:15px;">🗓</span> ${escapeHtml(whenText)}</div>` : '<div></div>'}
                     </div>` : ''}
-                    ${desc ? `<div style="font-size:13px;color:var(--text-secondary);line-height:1.55;white-space:pre-wrap;${hasDetailMeta ? 'border-top:1px solid var(--border);padding-top:10px;' : ''}">${escapeHtml(desc)}</div>` : ''}
+                    ${desc ? `<div style="font-size:13px;color:var(--text-secondary);line-height:1.55;white-space:pre-wrap;${hasDetailMeta ? 'border-top:1px solid rgba(255,255,255,0.08);padding-top:12px;' : ''}">${escapeHtml(desc)}</div>` : ''}
                 </div>` : '';
 
             openSheet(`
@@ -6020,7 +6043,7 @@
                     <div style="font-size:28px;">🧭</div>
                     <div style="flex:1;">
                         <div class="sheet-title" style="margin-bottom:2px;">${escapeHtml(dir.title || 'Напрямок')}</div>
-                        <div style="font-size:12px;color:var(--text-secondary);font-weight:600;">${escapeHtml(directionStats.primary)}<br><span style="color:var(--text-muted);">${escapeHtml(directionStats.secondary)}</span></div>
+                        <div style="font-size:12px;color:var(--text-secondary);font-weight:600;">${escapeHtml(customStatsLine)}</div>
                     </div>
                     ${isMyDir ? `<div style="display:flex;gap:6px;flex-shrink:0;"><button onclick="shareDirectionInvite(${parseInt(dirId) || 0})" style="padding:6px 10px;border-radius:8px;background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.28);color:var(--blue);font-size:14px;cursor:pointer;" title="Запросити учасників">📨</button><button data-dir-id="${parseInt(dirId) || 0}" data-dir-title="${escapeAttr(String(dir.title || ''))}" onclick="openEditDirectionFromButton(this)" style="padding:6px 10px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text-secondary);font-size:14px;cursor:pointer;" title="Редагувати">✏️</button></div>` : ''}
                 </div>
@@ -6029,25 +6052,31 @@
                 <div style="display:flex;flex-direction:column;gap:8px;margin:14px 0 10px;">
                     ${isSub
                     ? `<button class="btn btn-danger" style="width:100%;font-size:15px;padding:13px 0;border-radius:12px;" onclick="unsubscribeDir(${dirId})">🚫 Відписатись</button>`
-                    : `<button class="btn btn-primary" style="width:100%;font-size:15px;font-weight:700;padding:13px 0;border-radius:12px;background:var(--accent);color:#000;" onclick="joinInvitedDirection(${dirId})">Хочу поїхати</button>`}
-                    <button class="btn btn-secondary" style="width:100%;font-size:15px;padding:13px 0;border-radius:12px;" onclick="closeSheet()">Закрити</button>
+                    : `<button class="btn btn-primary" style="width:100%;font-size:16px;font-weight:700;padding:14px 0;border-radius:12px;background:#00c9a7;color:#000000;border:none;cursor:pointer;" onclick="joinInvitedDirection(${dirId})">Хочу поїхати</button>`}
+                    <button class="btn btn-secondary" style="width:100%;font-size:16px;font-weight:700;padding:14px 0;border-radius:12px;background:#334155;color:#ffffff;border:none;cursor:pointer;" onclick="closeSheet()">Закрити</button>
                 </div>
                 ${isSub ? `<button class="btn btn-secondary" style="width:100%;margin-bottom:8px;font-size:12px;" onclick="pickPickupLocation(${dirId}, { kind: ${_isDriverRole(S.userRole) ? "'driver_start'" : "'passenger_wait'"}, persistUserLocation: ${_isDriverRole(S.userRole) ? 'false' : 'true'} })">${hasPickup ? '📍 Точка вказана ✓' : (_isDriverRole(S.userRole) ? '🚗 Поставити авто на карту' : '📍 Вказати де чекати водія')}</button>` : ''}
                 ${orgs.length ? `
-                    <div style="font-size:13px;font-weight:800;color:var(--text-primary);margin:12px 0 8px;">Водії та екіпажі</div>
-                    ${orgs.slice(0, 6).map(o => `
-                        <div style="display:flex;align-items:center;gap:12px;padding:12px;margin-bottom:6px;border-radius:12px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-left:3px solid var(--accent);">
-                            ${renderAvatarInline(o.name || 'Водій', o.photo_url || '', 40)}
+                    <div style="font-size:16px;font-weight:800;color:var(--text-primary);margin:24px 0 12px;">Водії та екіпажі</div>
+                    ${orgs.slice(0, 6).map(o => {
+                        const accentColor = normalizeRole(o.role || 'driver') === 'driver' ? '#22c55e' : '#38bdf8';
+                        return `
+                        <div style="display:flex;align-items:center;gap:12px;padding:12px;margin-bottom:8px;border-radius:14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-left:4px solid ${accentColor};">
+                            ${renderAvatarInline(o.name || 'Водій', o.photo_url || '', 42)}
                             <div style="flex:1;min-width:0;">
-                                <div style="font-weight:700;font-size:14px;">${escapeHtml(o.name || 'Водій')}</div>
-                                <div style="font-size:12px;color:var(--text-secondary);">${normalizeRole(o.role || 'driver') === 'driver' ? '🚗 Водій' : '👤 Попутник'}${o.seats_free > 0 ? ' • <span style="color:var(--accent);font-weight:600;">' + o.seats_free + ' вільних місця</span>' : ''}</div>
+                                <div style="font-weight:700;font-size:15px;color:#fff;">${escapeHtml(o.name || 'Водій')}</div>
+                                <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">
+                                    ${normalizeRole(o.role || 'driver') === 'driver' ? '🚗 Водій' : '👤 Попутник'}
+                                    ${o.seats_free > 0 ? ` • <span style="color:#22c55e;font-weight:600;">${o.seats_free} ${pluralUk(o.seats_free, 'вільне місце', 'вільні місця', 'вільних місць')}</span>` : ''}
+                                </div>
                             </div>
                             ${String(o.user_id) !== String(S.userId)
                             ? (isSub && S.userRole !== 'driver' && normalizeRole(o.role || 'driver') === 'driver'
                             ? `<button class="btn btn-primary" style="padding:8px 12px;font-size:12px;min-height:36px;border-radius:10px;" onclick="requestJoin(${o.user_id}, ${dirId}, { closeSheetOnSuccess: true })">Запроситись</button>`
                             : '')
-                            : '<span class="tag tag-green">Ви</span>'}
-                        </div>`).join('')}`
+                            : '<span class="tag tag-green" style="border-radius:6px;padding:3px 6px;">Ви</span>'}
+                        </div>`;
+                    }).join('')}`
                     : '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">Поки немає відкритих екіпажів. Можете стати в чергу.</div>'}
             `);
         }
