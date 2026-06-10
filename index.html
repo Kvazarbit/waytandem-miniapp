@@ -5262,43 +5262,38 @@
                 let currentId = parentId;
                 const maxDepth = 20; // safety limit
                 let depth = 0;
-                while (currentId && depth < maxDepth) {
-                    const dir = allDirections.find(d => String(d.id) === String(currentId));
-                    if (!dir) break;
-                    path.unshift({ id: dir.id, title: dir.title || `#${dir.id}` });
-                    currentId = dir.parent_id;
-                    depth++;
-                }
-                // Now navigate through the path
-                S.boardStack = [];
-                S.boardParentId = null;
-                for (const folder of path) {
-                    S.boardStack.push(folder);
-                    S.boardParentId = folder.id;
-                }
-                // Render the board at the parent folder level, then open the direction
-                await renderBoard();
-                await openDirection(dirId);
-            } else {
-                // No parent — just open the direction detail
-                await openDirection(dirId);
+               function buildDirectionCardStats(d) {
+            const drivers = safeCount(d?.drivers ?? d?.drivers_count);
+            const passengers = safeCount(d?.passengers ?? d?.passengers_count);
+            const freeSeats = safeCount(d?.free_seats ?? d?.seats_free ?? d?.available_seats);
+            const role = normalizeRole(S.userRole || 'client');
+            if (isFolderNode(d)) {
+                const total = drivers + passengers;
+                return { primary: `${total} учасників нижче`, secondary: '', is_helper: false };
             }
-        }
-
-        function renderNewsFeedItems(items) {
-            return items.slice(0, 60).map(n => {
-                const dId = Number(n?.direction_id || 0);
-                const clickHandler = dId > 0 ? `onclick="openNewsDirection(${dId})"` : '';
-                const cursorStyle = dId > 0 ? 'cursor:pointer;' : '';
-                return `
-                <div class="news-feed-item" ${clickHandler} style="${cursorStyle}">
-                    <div style="font-size:13px;font-weight:700;line-height:1.45;">${escapeHtml(n.text || 'Новина')}</div>
-                    <div class="news-feed-meta">${escapeHtml(n.dir_title || 'Без напряму')} • ${formatNewsTime(n.created_at)}</div>
-                </div>
-            `}).join('');
-        }
-
-        // Перемикач "Підписка" ⇄ "Загальна" біля заголовка стрічки.
+            if (_isDriverRole(role)) {
+                return {
+                    primary: `👤 ${passengers} ${pluralUk(passengers, 'попутник чекає', 'попутники чекають', 'попутників чекають')}`,
+                    secondary: `🚗 ${drivers} ${pluralUk(drivers, 'водій вже відкрив місця', 'водії вже відкрили місця', 'водіїв вже відкрили місця')}`,
+                    is_helper: false
+                };
+            }
+            if (_isPassengerRole(role)) {
+                const seatText = freeSeats > 0
+                    ? ` • 💺 ${freeSeats} ${pluralUk(freeSeats, 'вільне місце', 'вільні місця', 'вільних місць')}`
+                    : '';
+                return {
+                    primary: `🚗 ${drivers} ${pluralUk(drivers, 'водій з місцями', 'водії з місцями', 'водіїв з місцями')}${seatText}`,
+                    secondary: `👤 ${passengers} ${pluralUk(passengers, 'попутник у черзі', 'попутники у черзі', 'попутників у черзі')}`,
+                    is_helper: false
+                };
+            }
+            return {
+                primary: `🚗 ${drivers} ${pluralUk(drivers, 'водій', 'водії', 'водіїв')} • 👤 ${passengers} ${pluralUk(passengers, 'попутник', 'попутники', 'попутників')}`,
+                secondary: 'Оберіть роль перед дією',
+                is_helper: true
+            };
+        }   "Загальна" біля заголовка стрічки.
         function toggleNewsScope() {
             S.newsScope = (S.newsScope === 'sub') ? 'all' : 'sub';
             renderNewsScreen();
@@ -5560,11 +5555,12 @@
                     ? `<svg viewBox="0 0 24 24"><path d="M12 3l7 4.5v9L12 21l-7-4.5v-9L12 3z"></path><path d="M12 7v10"></path><path d="M8 12h8"></path></svg>`
                     : `<svg viewBox="0 0 24 24"><path d="M12 3l8 9-8 9-8-9 8-9z"></path><circle cx="12" cy="12" r="2.5"></circle></svg>`;
                 const click = isFolder ? `boardOpenFolder(${d.id})` : `openDirection(${d.id})`;
+                const secondaryClass = stats.is_helper ? 'dir-card-context' : 'dir-card-total';
                 return `<div class="dir-card ${isSub ? 'subscribed' : ''}" onclick="${click}">
                     <div class="dir-card-icon" style="background:${isSub ? 'var(--green-dim)' : 'rgba(255,255,255,0.04)'};color:${isSub ? 'var(--green)' : (isFolder ? 'var(--text-secondary)' : 'var(--accent)')};">${sigil}</div>
                     <div class="dir-card-info">
                         <div class="dir-card-name">${escapeHtml(d.title || 'Напрямок')}</div>
-                        <div class="dir-card-stats"><span class="dir-card-total">${escapeHtml(stats.primary)}</span><span class="dir-card-context">${escapeHtml(stats.secondary)}</span></div>
+                        <div class="dir-card-stats"><span class="dir-card-total">${escapeHtml(stats.primary)}</span>${stats.secondary ? `<span class="${secondaryClass}">${escapeHtml(stats.secondary)}</span>` : ''}</div>
                     </div>
                     <div class="dir-card-arrow">›</div>
                 </div>`;
