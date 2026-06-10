@@ -4819,6 +4819,11 @@
             if (!safeDirId) return false;
             const autoMatch = !!auto;
             clearPickupPoint();
+            const picked = await pickPickupLocation(safeDirId, { kind: 'passenger_wait', persistUserLocation: true });
+            if (!picked) {
+                openMapInviteMethodSheet(safeDirId);
+                return false;
+            }
             return subscribeDir(safeDirId, { afterSuccessScreen: 'explore', keepSheetOpen: true, mapInline: true, manualOnly: !autoMatch });
         }
 
@@ -5989,7 +5994,6 @@
                         ${!isMyDir ? `<button class="btn btn-secondary" style="padding:7px 10px;font-size:12px;min-height:34px;" data-tg-username="${escapeAttr(creatorUsername)}" data-tg-user-id="${parseInt(creatorId, 10) || 0}" onclick="openTelegramContactFromButton(this)">💬 Написати організатору</button>` : `<span class="tag tag-green">Ваша ідея</span>`}
                     </div>
                 </div>` : '';
-            const availOrgs = orgs.filter(o => String(o.user_id) !== String(S.userId) && (o.seats_free > 0 || o.role !== 'driver'));
             const hasPickup = !!S.pickupCoords;
             const directionStats = buildDirectionCardStats(dir);
             const dirMeta = data?.direction || dir || {};
@@ -6001,7 +6005,6 @@
             const detailRows = [
                 meetingPoint ? `<div style="font-size:12px;color:var(--text-secondary);line-height:1.4;">📍 ${escapeHtml(meetingPoint)}</div>` : '',
                 whenText ? `<div style="font-size:12px;color:var(--text-secondary);line-height:1.4;">🗓 ${escapeHtml(whenText)}</div>` : '',
-                desc ? `<div style="font-size:12px;color:var(--text-secondary);line-height:1.45;margin-top:6px;white-space:pre-wrap;">${escapeHtml(desc)}</div>` : ''
             ].filter(Boolean).join('');
 
             openSheet(`
@@ -6013,17 +6016,17 @@
                     </div>
                     ${isMyDir ? `<div style="display:flex;gap:6px;flex-shrink:0;"><button onclick="shareDirectionInvite(${parseInt(dirId) || 0})" style="padding:6px 10px;border-radius:8px;background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.28);color:var(--blue);font-size:14px;cursor:pointer;" title="Запросити учасників">📨</button><button data-dir-id="${parseInt(dirId) || 0}" data-dir-title="${escapeAttr(String(dir.title || ''))}" onclick="openEditDirectionFromButton(this)" style="padding:6px 10px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text-secondary);font-size:14px;cursor:pointer;" title="Редагувати">✏️</button></div>` : ''}
                 </div>
+                ${desc ? `<div style="font-size:13px;color:var(--text-primary);line-height:1.5;margin:8px 0 4px;white-space:pre-wrap;">${escapeHtml(desc)}</div>` : ''}
+                ${detailRows ? `<div style="margin:8px 0 10px;padding:10px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid var(--border);">${detailRows}</div>` : ''}
                 ${creatorContactBlock}
-                ${detailRows ? `<div style="margin:10px 0 12px;padding:10px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid var(--border);">${detailRows}</div>` : ''}
                 <div style="display:flex;gap:8px;margin:12px 0 8px;">
                     ${isSub
                     ? `<button class="btn btn-danger" style="flex:1;" onclick="unsubscribeDir(${dirId})">🚫 Відписатись</button>`
                     : `<button class="btn btn-primary" style="flex:1;" onclick="joinInvitedDirection(${dirId})">Хочу поїхати</button>`}
                     <button class="btn btn-secondary" onclick="closeSheet()">Закрити</button>
                 </div>
-                <div style="font-size:12px;color:var(--text-secondary);line-height:1.45;margin:-2px 0 10px;">${isSub ? 'Ви ще не в поїздці. Очікуйте запит або запросіться до водія.' : 'Напрямок може створити водій або попутник. Після підписки ви дієте за своєю роллю.'}</div>
+                <div style="font-size:12px;color:var(--text-secondary);line-height:1.45;margin:-2px 0 10px;">${isSub ? 'Ви підписані. Очікуйте запит або запросіться до водія нижче.' : 'Натисніть «Хочу поїхати» щоб стати в чергу і отримати доступ до екіпажів.'}</div>
                 ${isSub ? `<button class="btn btn-secondary" style="width:100%;margin-bottom:8px;font-size:12px;" onclick="pickPickupLocation(${dirId}, { kind: ${_isDriverRole(S.userRole) ? "'driver_start'" : "'passenger_wait'"}, persistUserLocation: ${_isDriverRole(S.userRole) ? 'false' : 'true'} })">${hasPickup ? '📍 Точка вказана ✓' : (_isDriverRole(S.userRole) ? '🚗 Поставити авто на карту' : '📍 Вказати де чекати водія')}</button>` : ''}
-                ${availOrgs.length > 1 ? `<button class="btn btn-secondary" style="width:100%;margin-bottom:8px;font-size:12px;color:var(--blue);" onclick="groupJoinDirection(${dirId}, [${availOrgs.map(o => o.user_id).join(',')}])">🔀 Запроситись до доступного екіпажу (${availOrgs.length})</button>` : ''}
                 ${orgs.length ? `
                     <div style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--text-muted);letter-spacing:1px;margin:8px 0 4px;">Водії та екіпажі</div>
                     ${orgs.slice(0, 6).map(o => `
@@ -6034,7 +6037,7 @@
                                 <div style="font-size:11px;color:var(--text-secondary);">${normalizeRole(o.role || 'driver') === 'driver' ? '🚗 Водій' : '👤 Попутник'}${o.seats_free > 0 ? ' • <span style="color:var(--accent);">' + o.seats_free + ' місць</span>' : ''}</div>
                             </div>
                             ${String(o.user_id) !== String(S.userId)
-                            ? (S.userRole !== 'driver' && normalizeRole(o.role || 'driver') === 'driver'
+                            ? (isSub && S.userRole !== 'driver' && normalizeRole(o.role || 'driver') === 'driver'
                             ? `<button class="btn btn-primary" style="padding:6px 10px;font-size:12px;min-height:36px;" onclick="requestJoin(${o.user_id}, ${dirId}, { closeSheetOnSuccess: true })">Запроситись</button>`
                             : '')
                             : '<span class="tag tag-green">Ви</span>'}
