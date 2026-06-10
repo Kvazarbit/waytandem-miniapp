@@ -5448,7 +5448,8 @@
             const role = normalizeRole(S.userRole || 'client');
             if (isFolderNode(d)) {
                 const total = drivers + passengers;
-                return { primary: `${total} учасників нижче`, secondary: 'Відкрити розділ каталогу' };
+                // Visual Silence: іконка + стрілка вже кажуть «це розділ»; текст-дублер прибрано (2026-06-10)
+                return { primary: `${total} учасників нижче`, secondary: '' };
             }
             if (_isDriverRole(role)) {
                 return {
@@ -5564,7 +5565,7 @@
                     <div class="dir-card-icon" style="background:${isSub ? 'var(--green-dim)' : 'rgba(255,255,255,0.04)'};color:${isSub ? 'var(--green)' : (isFolder ? 'var(--text-secondary)' : 'var(--accent)')};">${sigil}</div>
                     <div class="dir-card-info">
                         <div class="dir-card-name">${escapeHtml(d.title || 'Напрямок')}</div>
-                        <div class="dir-card-stats"><span class="dir-card-total">${escapeHtml(stats.primary)}</span><span class="dir-card-context">${escapeHtml(stats.secondary)}</span></div>
+                        <div class="dir-card-stats"><span class="dir-card-total">${escapeHtml(stats.primary)}</span>${stats.secondary ? `<span class="dir-card-context">${escapeHtml(stats.secondary)}</span>` : ''}</div>
                     </div>
                     <div class="dir-card-arrow">›</div>
                 </div>`;
