@@ -4157,11 +4157,14 @@
         }
 
         async function openDirectionInviteFromMap(dirId) {
-            // UX 2026-06-10: пін події одразу відкриває ПОВНЕ «Запрошення до події».
-            // Раніше: пін → компактна шторка → «Деталі» → те саме повніше → «Деталі» →
-            // знову той самий контекст. Три шари одного й того ж плутали користувача;
-            // компактний проміжний крок (openMapCompactDirectionInviteSheet) прибрано з шляху.
-            await openStartDirectionInvite(dirId, { source: 'map', sheetMaxHeight: '65vh', fullInvite: true });
+            // UX 2026-06-10 (iter 2, за пропозицією користувача): пін події одразу
+            // відкриває ГОЛОВНУ шторку напрямку (openDirection) — вона є надмножиною
+            // «Запрошення до події»: організатор+контакт, дати/місце/опис, CTA,
+            // список водіїв з «Запроситись». Раніше було 3 шари одного контексту
+            // (компактна → запрошення → учасники), тепер один.
+            // «Запрошення до події» лишається ТІЛЬКИ для deep-link інвайтів
+            // (openStartDirectionIfNeeded) — там доречний фрейм «вас запросили».
+            await openDirection(dirId);
         }
 
         async function openDirectionFromMap(dirId) { switchScreen('board'); openDirection(dirId); }
@@ -6015,7 +6018,7 @@
                 <div style="display:flex;gap:8px;margin:12px 0 8px;">
                     ${isSub
                     ? `<button class="btn btn-danger" style="flex:1;" onclick="unsubscribeDir(${dirId})">🚫 Відписатись</button>`
-                    : `<button class="btn btn-primary" style="flex:1;" onclick="subscribeAndPickup(${dirId})">Шукати місце / партнера</button>`}
+                    : `<button class="btn btn-primary" style="flex:1;" onclick="joinInvitedDirection(${dirId})">Хочу поїхати</button>`}
                     <button class="btn btn-secondary" onclick="closeSheet()">Закрити</button>
                 </div>
                 <div style="font-size:12px;color:var(--text-secondary);line-height:1.45;margin:-2px 0 10px;">${isSub ? 'Ви ще не в поїздці. Очікуйте запит або запросіться до водія.' : 'Напрямок може створити водій або попутник. Після підписки ви дієте за своєю роллю.'}</div>
