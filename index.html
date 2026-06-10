@@ -5983,16 +5983,16 @@
             const creatorName = data?.direction?.creator_name || dir?.creator_name || (isMyDir ? S.userName : '');
             const creatorUsername = sanitizeBotUsername(data?.direction?.creator_username || dir?.creator_username || (isMyDir ? S.userUsername : ''));
             const creatorDisplay = creatorName || (creatorId ? `#${creatorId}` : '');
+            const creatorInitial = (creatorDisplay || 'О')[0].toUpperCase();
+            const creatorAvatarBg = _avatarGradient(creatorDisplay || 'О');
             const creatorContactBlock = creatorId ? `
-                <div style="margin:10px 0 12px;padding:10px;border-radius:8px;background:rgba(56,189,248,0.07);border:1px solid rgba(56,189,248,0.18);">
-                    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
-                        <div style="font-size:12px;color:var(--text-secondary);line-height:1.45;">
-                            <span style="color:var(--text-muted);">Організатор:</span>
-                            <strong style="color:var(--text-primary);">${escapeHtml(creatorDisplay || 'Організатор')}</strong>
-                            ${creatorUsername ? `<span style="color:var(--blue);">@${escapeHtml(creatorUsername)}</span>` : ''}
-                        </div>
-                        ${!isMyDir ? `<button class="btn btn-secondary" style="padding:7px 10px;font-size:12px;min-height:34px;" data-tg-username="${escapeAttr(creatorUsername)}" data-tg-user-id="${parseInt(creatorId, 10) || 0}" onclick="openTelegramContactFromButton(this)">💬 Написати організатору</button>` : `<span class="tag tag-green">Ваша ідея</span>`}
+                <div style="display:flex;align-items:center;gap:12px;margin:12px 0 14px;padding:12px;border-radius:12px;background:rgba(255,255,255,0.04);border:1px solid var(--border);">
+                    <div style="width:40px;height:40px;border-radius:50%;background:${creatorAvatarBg};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:#fff;flex-shrink:0;">${escapeHtml(creatorInitial)}</div>
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Організатор:</div>
+                        <div style="font-size:13px;font-weight:700;color:var(--text-primary);">${escapeHtml(creatorDisplay || 'Організатор')}${creatorUsername ? ` <span style="font-weight:400;color:var(--blue);">(@${escapeHtml(creatorUsername)})</span>` : ''}</div>
                     </div>
+                    ${!isMyDir ? `<button class="btn btn-secondary" style="padding:8px 12px;font-size:12px;min-height:36px;border-radius:10px;white-space:nowrap;" data-tg-username="${escapeAttr(creatorUsername)}" data-tg-user-id="${parseInt(creatorId, 10) || 0}" onclick="openTelegramContactFromButton(this)">💬 Написати організатору</button>` : `<span class="tag tag-green">Ваша ідея</span>`}
                 </div>` : '';
             const hasPickup = !!S.pickupCoords;
             const directionStats = buildDirectionCardStats(dir);
@@ -6002,43 +6002,49 @@
             const startAt = dirMeta.start_date || dir.start_date || '';
             const endAt = dirMeta.end_date || dir.end_date || '';
             const whenText = startAt && endAt ? `${formatIdeaDate(startAt)} — ${formatIdeaDate(endAt)}` : (formatIdeaDate(startAt) || formatIdeaDate(endAt));
-            const detailRows = [
-                meetingPoint ? `<div style="font-size:12px;color:var(--text-secondary);line-height:1.4;">📍 ${escapeHtml(meetingPoint)}</div>` : '',
-                whenText ? `<div style="font-size:12px;color:var(--text-secondary);line-height:1.4;">🗓 ${escapeHtml(whenText)}</div>` : '',
-            ].filter(Boolean).join('');
+
+            // --- Detail card: horizontal location + date row, description below ---
+            const hasDetailMeta = meetingPoint || whenText;
+            const hasDetailCard = hasDetailMeta || desc;
+            const detailCardHtml = hasDetailCard ? `
+                <div style="margin:10px 0 6px;padding:14px;border-radius:12px;background:rgba(255,255,255,0.05);border:1px solid rgba(56,189,248,0.15);backdrop-filter:blur(6px);">
+                    ${hasDetailMeta ? `<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:${desc ? '10px' : '0'};">
+                        ${meetingPoint ? `<div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-primary);font-weight:600;"><span style="color:var(--blue);font-size:15px;">📍</span> ${escapeHtml(meetingPoint)}</div>` : ''}
+                        ${whenText ? `<div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-primary);font-weight:600;"><span style="color:var(--accent);font-size:15px;">🗓</span> ${escapeHtml(whenText)}</div>` : ''}
+                    </div>` : ''}
+                    ${desc ? `<div style="font-size:13px;color:var(--text-secondary);line-height:1.55;white-space:pre-wrap;${hasDetailMeta ? 'border-top:1px solid var(--border);padding-top:10px;' : ''}">${escapeHtml(desc)}</div>` : ''}
+                </div>` : '';
 
             openSheet(`
                 <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;">
                     <div style="font-size:28px;">🧭</div>
                     <div style="flex:1;">
-                        <div class="sheet-title" style="margin-bottom:0;">${escapeHtml(dir.title || 'Напрямок')}</div>
+                        <div class="sheet-title" style="margin-bottom:2px;">${escapeHtml(dir.title || 'Напрямок')}</div>
                         <div style="font-size:12px;color:var(--text-secondary);font-weight:600;">${escapeHtml(directionStats.primary)}<br><span style="color:var(--text-muted);">${escapeHtml(directionStats.secondary)}</span></div>
                     </div>
                     ${isMyDir ? `<div style="display:flex;gap:6px;flex-shrink:0;"><button onclick="shareDirectionInvite(${parseInt(dirId) || 0})" style="padding:6px 10px;border-radius:8px;background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.28);color:var(--blue);font-size:14px;cursor:pointer;" title="Запросити учасників">📨</button><button data-dir-id="${parseInt(dirId) || 0}" data-dir-title="${escapeAttr(String(dir.title || ''))}" onclick="openEditDirectionFromButton(this)" style="padding:6px 10px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text-secondary);font-size:14px;cursor:pointer;" title="Редагувати">✏️</button></div>` : ''}
                 </div>
-                ${desc ? `<div style="font-size:13px;color:var(--text-primary);line-height:1.5;margin:8px 0 4px;white-space:pre-wrap;">${escapeHtml(desc)}</div>` : ''}
-                ${detailRows ? `<div style="margin:8px 0 10px;padding:10px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid var(--border);">${detailRows}</div>` : ''}
+                ${detailCardHtml}
                 ${creatorContactBlock}
-                <div style="display:flex;gap:8px;margin:12px 0 8px;">
+                <div style="display:flex;flex-direction:column;gap:8px;margin:14px 0 10px;">
                     ${isSub
-                    ? `<button class="btn btn-danger" style="flex:1;" onclick="unsubscribeDir(${dirId})">🚫 Відписатись</button>`
-                    : `<button class="btn btn-primary" style="flex:1;" onclick="joinInvitedDirection(${dirId})">Хочу поїхати</button>`}
-                    <button class="btn btn-secondary" onclick="closeSheet()">Закрити</button>
+                    ? `<button class="btn btn-danger" style="width:100%;font-size:15px;padding:13px 0;border-radius:12px;" onclick="unsubscribeDir(${dirId})">🚫 Відписатись</button>`
+                    : `<button class="btn btn-primary" style="width:100%;font-size:15px;font-weight:700;padding:13px 0;border-radius:12px;background:var(--accent);color:#000;" onclick="joinInvitedDirection(${dirId})">Хочу поїхати</button>`}
+                    <button class="btn btn-secondary" style="width:100%;font-size:15px;padding:13px 0;border-radius:12px;" onclick="closeSheet()">Закрити</button>
                 </div>
-                <div style="font-size:12px;color:var(--text-secondary);line-height:1.45;margin:-2px 0 10px;">${isSub ? 'Ви підписані. Очікуйте запит або запросіться до водія нижче.' : 'Натисніть «Хочу поїхати» щоб стати в чергу і отримати доступ до екіпажів.'}</div>
                 ${isSub ? `<button class="btn btn-secondary" style="width:100%;margin-bottom:8px;font-size:12px;" onclick="pickPickupLocation(${dirId}, { kind: ${_isDriverRole(S.userRole) ? "'driver_start'" : "'passenger_wait'"}, persistUserLocation: ${_isDriverRole(S.userRole) ? 'false' : 'true'} })">${hasPickup ? '📍 Точка вказана ✓' : (_isDriverRole(S.userRole) ? '🚗 Поставити авто на карту' : '📍 Вказати де чекати водія')}</button>` : ''}
                 ${orgs.length ? `
-                    <div style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--text-muted);letter-spacing:1px;margin:8px 0 4px;">Водії та екіпажі</div>
+                    <div style="font-size:13px;font-weight:800;color:var(--text-primary);margin:12px 0 8px;">Водії та екіпажі</div>
                     ${orgs.slice(0, 6).map(o => `
-                        <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">
-                            ${renderAvatarInline(o.name || 'Водій', o.photo_url || '', 36)}
+                        <div style="display:flex;align-items:center;gap:12px;padding:12px;margin-bottom:6px;border-radius:12px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-left:3px solid var(--accent);">
+                            ${renderAvatarInline(o.name || 'Водій', o.photo_url || '', 40)}
                             <div style="flex:1;min-width:0;">
-                                <div style="font-weight:700;font-size:13px;">${escapeHtml(o.name || 'Водій')}</div>
-                                <div style="font-size:11px;color:var(--text-secondary);">${normalizeRole(o.role || 'driver') === 'driver' ? '🚗 Водій' : '👤 Попутник'}${o.seats_free > 0 ? ' • <span style="color:var(--accent);">' + o.seats_free + ' місць</span>' : ''}</div>
+                                <div style="font-weight:700;font-size:14px;">${escapeHtml(o.name || 'Водій')}</div>
+                                <div style="font-size:12px;color:var(--text-secondary);">${normalizeRole(o.role || 'driver') === 'driver' ? '🚗 Водій' : '👤 Попутник'}${o.seats_free > 0 ? ' • <span style="color:var(--accent);font-weight:600;">' + o.seats_free + ' вільних місця</span>' : ''}</div>
                             </div>
                             ${String(o.user_id) !== String(S.userId)
                             ? (isSub && S.userRole !== 'driver' && normalizeRole(o.role || 'driver') === 'driver'
-                            ? `<button class="btn btn-primary" style="padding:6px 10px;font-size:12px;min-height:36px;" onclick="requestJoin(${o.user_id}, ${dirId}, { closeSheetOnSuccess: true })">Запроситись</button>`
+                            ? `<button class="btn btn-primary" style="padding:8px 12px;font-size:12px;min-height:36px;border-radius:10px;" onclick="requestJoin(${o.user_id}, ${dirId}, { closeSheetOnSuccess: true })">Запроситись</button>`
                             : '')
                             : '<span class="tag tag-green">Ви</span>'}
                         </div>`).join('')}`
