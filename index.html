@@ -1411,6 +1411,14 @@
             box-shadow: 0 0 18px var(--accent-glow), 0 6px 18px rgba(0,0,0,0.28);
         }
 
+        /* Discovery preview popup (iter 3, 2026-06-10): легкий погляд на чужу подію без шторки */
+        .leaflet-popup-content-wrapper { border-radius: 14px; box-shadow: 0 10px 32px rgba(0,0,0,0.35); }
+        .leaflet-popup-content { margin: 10px 12px; }
+        .map-preview-card { font-family: inherit; min-width: 180px; max-width: 230px; }
+        .map-preview-title { font-weight: 800; font-size: 14px; line-height: 1.25; color: #0d1b2a; }
+        .map-preview-row { margin-top: 4px; font-size: 12px; color: #4b5563; }
+        .map-preview-btn { display: block; width: 100%; margin-top: 8px; padding: 9px 10px; border: 0; border-radius: 10px; background: var(--accent); color: #081018; font-weight: 700; font-size: 13px; cursor: pointer; }
+
         .map-pin-passenger {
             background: #65d48f;
             color: #07130d;
@@ -4142,7 +4150,8 @@
                     className: '',
                     html: `<div class="map-pin map-pin-event map-pin-${escapeAttr(kind)}" role="button" aria-label="${markerLabel}">${_eventMarkerEmoji(kind)}</div>`,
                     iconSize: [34, 34],
-                    iconAnchor: [17, 17]
+                    iconAnchor: [17, 17],
+                    popupAnchor: [0, -18]
                 });
                 const marker = L.marker([Number(point.lat), Number(point.lng)], {
                     icon,
@@ -4151,9 +4160,46 @@
                     riseOnHover: true,
                     zIndexOffset: 120
                 }).addTo(S.map);
-                marker.on('click', () => openDirectionInviteFromMap(dId));
+                if (isOwnDirectionOnMap(dId)) {
+                    // Власний контекст: тап = дія → одразу головна шторка (канон iter 2).
+                    marker.on('click', () => openDirectionInviteFromMap(dId));
+                } else {
+                    // Discovery (iter 3): попап-прев'ю; «Детальніше» → та сама шторка.
+                    marker.bindPopup(buildMapEventPreviewHtml(point, dId), { closeButton: false, autoPan: true });
+                }
                 S.eventMarkers.push(marker);
             });
+        }
+
+        // ─── Discovery preview (iter 3, 2026-06-10) ────────────────────────────
+        // Чужий event-пін у браузингу → легкий попап (без накриття карти шторкою);
+        // «Детальніше» → канонічна головна шторка (iter 2). Пін ВЛАСНОГО контексту
+        // відкриває шторку одразу — там тап означає дію, не цікавість.
+        function isOwnDirectionOnMap(dirId) {
+            // Toggle-незалежна перевірка «це мій контекст?»: навмисно RAW
+            // activeMapContextForMap (виняток задокументовано в chokepoint-guard).
+            const own = activeMapContextForMap();
+            return !!(own && String(own.dirId || '') === String(dirId || ''));
+        }
+
+        function buildMapEventPreviewHtml(point, dId) {
+            const kind = classifyNewsItem(point);
+            const title = point.title || point.direction_title || point.dir_title || `Подія #${dId}`;
+            const drivers = safeCount(point?.drivers ?? point?.drivers_count);
+            const passengers = safeCount(point?.passengers ?? point?.passengers_count);
+            const counts = (drivers || passengers)
+                ? `<div class="map-preview-row">🚗 ${drivers} · 👤 ${passengers}</div>`
+                : '';
+            return `<div class="map-preview-card">
+                <div class="map-preview-title">${_eventMarkerEmoji(kind)} ${escapeHtml(title)}</div>
+                ${counts}
+                <button type="button" class="map-preview-btn" onclick="openDirectionFromMapPreview(${Number(dId) || 0})">Детальніше</button>
+            </div>`;
+        }
+
+        async function openDirectionFromMapPreview(dirId) {
+            if (S.map) S.map.closePopup();
+            await openDirectionInviteFromMap(dirId);
         }
 
         async function openDirectionInviteFromMap(dirId) {
