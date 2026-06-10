@@ -4157,7 +4157,11 @@
         }
 
         async function openDirectionInviteFromMap(dirId) {
-            await openStartDirectionInvite(dirId, { source: 'map', sheetMaxHeight: '65vh' });
+            // UX 2026-06-10: пін події одразу відкриває ПОВНЕ «Запрошення до події».
+            // Раніше: пін → компактна шторка → «Деталі» → те саме повніше → «Деталі» →
+            // знову той самий контекст. Три шари одного й того ж плутали користувача;
+            // компактний проміжний крок (openMapCompactDirectionInviteSheet) прибрано з шляху.
+            await openStartDirectionInvite(dirId, { source: 'map', sheetMaxHeight: '65vh', fullInvite: true });
         }
 
         async function openDirectionFromMap(dirId) { switchScreen('board'); openDirection(dirId); }
@@ -4765,7 +4769,7 @@
                 <div class="sheet-actions" data-map-command-count="3">
                     <button class="btn ${isDriver ? 'btn-primary' : 'btn-secondary'}" onclick="chooseMapInviteRole(${ctx.safeDirId}, 'driver')">🚗 Можу взяти людей</button>
                     <button class="btn ${isClient ? 'btn-primary' : 'btn-secondary'}" onclick="chooseMapInviteRole(${ctx.safeDirId}, 'client')">👤 Шукаю місце</button>
-                    <button class="btn btn-ghost" onclick="openStartDirectionInvite(${ctx.safeDirId}, { source: 'map', sheetMaxHeight: '65vh' })">Назад</button>
+                    <button class="btn btn-ghost" onclick="openStartDirectionInvite(${ctx.safeDirId}, { source: 'map', sheetMaxHeight: '65vh', fullInvite: true })">Назад</button>
                 </div>
             `, { maxHeight: '65vh' });
             return true;
@@ -4975,7 +4979,7 @@
                 </div>
                 <button class="btn btn-primary" style="width:100%;margin-bottom:8px;" onclick="joinInvitedDirection(${joinArgs})">Хочу поїхати</button>
                 <div style="display:flex;gap:8px;">
-                    <button class="btn btn-secondary" style="flex:1;font-size:12px;" onclick="openDirection(${safeDirId})">Деталі</button>
+                    <button class="btn btn-secondary" style="flex:1;font-size:12px;" onclick="openDirection(${safeDirId})">👥 Учасники</button>
                     <button class="btn btn-ghost" style="flex:1;font-size:12px;" onclick="closeSheet()">Пізніше</button>
                 </div>
                 ${contactButton}
