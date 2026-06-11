@@ -5395,9 +5395,16 @@
                     Number.isFinite(Number(c.lat)) &&
                     Number.isFinite(Number(c.lng))
                 ).length;
+                // Консенсус форуму 2026-06-12: чесний counter label — чип «Водії»
+                // розрізняє «усі водії vs з місцями», щоб muted повні авто не
+                // робили лічильник брехливим («3 водії · 1 з місцями»).
+                const driversWithSeats = (S.mapCrews || []).filter(c =>
+                    String(c?.direction_id || '') === String(context.dirId || '') &&
+                    safeCount(c?.seats_free ?? c?.free_seats ?? c?.available_seats) > 0
+                ).length;
                 const cards = [
                     { key: 'event', title: 'Подія', color: '#fbbf24', count: eventPinCountForMapContext(context) },
-                    { key: 'drivers', title: 'Водії', color: '#38bdf8', count: drivers },
+                    { key: 'drivers', title: 'Водії', color: '#38bdf8', count: drivers, sub: drivers > 0 ? `${driversWithSeats} з місцями` : '' },
                     { key: 'passengers', title: 'Попутники', color: '#34d399', count: livePassengerCountForMapContext(context) },
                 ];
                 strip.style.display = 'grid';
@@ -5408,6 +5415,7 @@
                     return `<div class="news-banner ${active ? 'active' : ''}" onclick="setMapEventFilter('${nextFilter}')" style="background:${active ? c.color : 'var(--bg-card)'};border-color:${active ? c.color : 'var(--border)'};">
                         <div class="news-banner-title">${c.title}</div>
                         <div class="news-banner-count">${c.count}</div>
+                        ${c.sub ? `<div style="font-size:9px;color:${active ? 'rgba(8,16,24,0.7)' : 'var(--text-muted)'};margin-top:1px;">${c.sub}</div>` : ''}
                     </div>`;
                 }).join('');
                 return;
@@ -8544,14 +8552,22 @@
                 return true;
             });
             members.forEach(m => {
-                const c = crewMemberMapCoord(m, t);
+                const isMe = String(m.user_id) === String(S.userId);
+                let c = crewMemberMapCoord(m, t);
+                // Консенсус форуму 2026-06-12 («Моя поїздка»): користувач ЗАВЖДИ
+                // бачить себе. Сервер свідомо не віддає глядачу його пін
+                // (map/passengers: di.user_id != viewer), а без live-consent
+                // координат нема — фолбек: статична точка очікування з
+                // S.pickupCoords. API і приватність незмінні: себе рендеримо локально.
+                if (!c && isMe && Number.isFinite(Number(S.pickupCoords?.lat)) && Number.isFinite(Number(S.pickupCoords?.lng))) {
+                    c = { lat: Number(S.pickupCoords.lat), lng: Number(S.pickupCoords.lng) };
+                }
                 if (!c) return;
                 coords.push([c.lat, c.lng]);
-                const isMe = String(m.user_id) === String(S.userId);
                 const emoji = m.role === 'driver' ? '🚗' : '👤';
                 const pickedUp = String(m.role || '').toLowerCase() !== 'driver' && isPassengerPickedUp(m);
                 const color = pickedUp ? '#10b981' : (isMe ? '#34d399' : '#38bdf8');
-                const name = isMe ? 'Ви' : escapeHtml(m.name || '?');
+                const name = isMe ? 'Ви тут' : escapeHtml(m.name || '?');
                 const phaseLabel = pickedUp ? 'в авто' : (t.is_started ? 'в дорозі' : 'зустріч');
                 const statusLabel = `${m.role === 'driver' ? 'водій' : 'попутник'} · ${phaseLabel}`;
                 const marker = L.marker([c.lat, c.lng], {
