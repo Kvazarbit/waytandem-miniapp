@@ -4819,8 +4819,25 @@
             const safeDirId = parseInt(dirId) || 0;
             const cached = S.directionDetailsCache?.[safeDirId] || {};
             const localDir = allDirections.find(d => String(d.id) === String(safeDirId)) || {};
-            const dir = { ...localDir, ...(cached.direction || {}), id: safeDirId };
-            const orgs = Array.isArray(cached.organizers) ? cached.organizers : [];
+            // UX-fix (ChatFlowLogic беклог №1): візард не має права казати
+            // «Подія #ID» і «Водії ще збираються», коли пам'ять мапи вже знає
+            // правду. Дотягуємо контекст з живих джерел: фід-пін (назва/лічильники)
+            // і екіпажі мапи (водії+вільні місця). Холодний кеш дозаповнюється
+            // асинхронно (_hydrateInviteContextOnce) з in-place оновленням хедера.
+            const feedItem = (Array.isArray(S.news) ? S.news : [])
+                .find(n => String(n?.direction_id || n?.id) === String(safeDirId)) || {};
+            const dirCrews = (S.mapCrews || [])
+                .filter(c => String(c?.direction_id || '') === String(safeDirId));
+            const dir = { ...feedItem, ...localDir, ...(cached.direction || {}), id: safeDirId };
+            const orgs = (Array.isArray(cached.organizers) && cached.organizers.length)
+                ? cached.organizers
+                : dirCrews.map(c => ({
+                    user_id: c.organizer_id,
+                    name: c.driver_name || c.organizer_name || '',
+                    role: 'driver',
+                    seats_free: safeCount(c?.seats_free ?? c?.free_seats ?? c?.available_seats),
+                }));
+            _hydrateInviteContextOnce(safeDirId);
             const creatorId = dir.creator_id || dir.user_id || '';
             const isMyDir = creatorId && String(creatorId) === String(S.userId);
             const creatorName = dir.creator_name || (isMyDir ? S.userName : '') || '';
@@ -4830,7 +4847,7 @@
                 safeDirId,
                 dir,
                 orgs,
-                title: dir.title || dir.name || `Подія #${safeDirId}`,
+                title: dir.title || dir.name || dir.direction_title || `Подія #${safeDirId}`,
                 creatorDisplay,
                 proof: directionInviteSocialProof(dir, orgs)
             };
@@ -4838,10 +4855,40 @@
 
         function renderMapInviteContextHeader(ctx) {
             return `
-                <div data-map-sheet-context="event" style="padding:10px;border:1px solid rgba(56,189,248,0.22);border-radius:8px;background:rgba(56,189,248,0.07);margin-bottom:12px;">
+                <div data-map-sheet-context="event" data-map-sheet-dir-id="${parseInt(ctx.safeDirId) || 0}" style="padding:10px;border:1px solid rgba(56,189,248,0.22);border-radius:8px;background:rgba(56,189,248,0.07);margin-bottom:12px;">
                     <div style="font-size:13px;font-weight:900;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(ctx.title)}</div>
                     <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(ctx.creatorDisplay)} · ${escapeHtml(ctx.proof.participantLine)} · ${escapeHtml(ctx.proof.driverLine)}</div>
                 </div>`;
+        }
+
+        // Холодний кеш деталей: тихо тягнемо правду і оновлюємо хедер візарда
+        // НА МІСЦІ (без перевідкриття шторки). Якщо шторку вже закрили або
+        // відкрили для іншої події — no-op.
+        function _refreshMapInviteContextHeaderDom(dirId) {
+            const safeDirId = parseInt(dirId) || 0;
+            const el = document.querySelector('[data-map-sheet-context="event"]');
+            if (!el) return;
+            if (String(el.getAttribute('data-map-sheet-dir-id') || '') !== String(safeDirId)) return;
+            el.outerHTML = renderMapInviteContextHeader(mapInviteContext(safeDirId));
+        }
+
+        function _hydrateInviteContextOnce(dirId) {
+            const safeDirId = parseInt(dirId) || 0;
+            if (!safeDirId || !S.apiBase) return;
+            S.directionDetailsCache = S.directionDetailsCache || {};
+            if (S.directionDetailsCache[safeDirId]?.direction) return;
+            S.directionDetailsFetching = S.directionDetailsFetching || new Set();
+            if (S.directionDetailsFetching.has(safeDirId)) return;
+            S.directionDetailsFetching.add(safeDirId);
+            api(`/api/v3/fractal/organizers?direction_id=${safeDirId}&lang=${S.lang}&user_id=${S.userId || ''}`)
+                .then(data => {
+                    if (data && (data.direction || data.organizers)) {
+                        S.directionDetailsCache[safeDirId] = data;
+                        _refreshMapInviteContextHeaderDom(safeDirId);
+                    }
+                })
+                .catch(() => {})
+                .finally(() => S.directionDetailsFetching.delete(safeDirId));
         }
 
         function openMapCompactDirectionInviteSheet(dirId, dir, data = {}, options = {}) {
