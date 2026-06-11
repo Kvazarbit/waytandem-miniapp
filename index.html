@@ -1427,6 +1427,9 @@
         .map-preview-hd.k-theocracy { background: #a78bfa; }
         .map-preview-hd.k-leisure { background: #34d399; }
         .map-preview-hd.k-work { background: #38bdf8; }
+        /* Тап по піну не має лишати фокус-рамку (раніше шторка одразу накривала її) */
+        .leaflet-marker-icon:focus, .leaflet-marker-icon:focus-visible { outline: none; }
+        .map-pin { -webkit-tap-highlight-color: transparent; }
 
         .map-pin-passenger {
             background: #65d48f;
@@ -4198,8 +4201,11 @@
             const passengers = safeCount(point?.passengers ?? point?.passengers_count);
             const total = drivers + passengers;
             const rows = [];
+            // Дата: у моделі map-точки її поки немає (дати живуть на рівні поїздок
+            // організаторів) — рядок з'явиться сам, щойно бек віддасть одне з полів.
+            const when = point?.date || point?.event_date || point?.nearest_trip_date || '';
+            if (when) rows.push(`<div class="map-preview-row">📅 ${escapeHtml(String(when))}</div>`);
             if (total) rows.push(`<div class="map-preview-row">👥 ${total} ${pluralUk(total, 'учасник', 'учасники', 'учасників')}</div>`);
-            if (drivers) rows.push(`<div class="map-preview-row">🚗 ${drivers} ${pluralUk(drivers, 'водій з місцями', 'водії з місцями', 'водіїв з місцями')}</div>`);
             return `<div class="map-preview-card">
                 <div class="map-preview-hd k-${escapeAttr(kind)}">
                     <div class="map-preview-ico">${_eventMarkerEmoji(kind)}</div>
