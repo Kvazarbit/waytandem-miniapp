@@ -3666,7 +3666,15 @@
                     const detail = resp?.data?.detail;
                     const reason = (detail && typeof detail === 'object') ? detail.reason : String(detail || '');
                     if (reason === 'role_change_blocked_by_opposite_interest') {
-                        showToast('Спочатку відпишіться: є зацікавлені з протилежної ролі', 'error');
+                        // Не глухий кут: показуємо, ДЕ саме скасувати активність.
+                        openSheet(`
+                            <div class="sheet-title">Зміна ролі поки заблокована</div>
+                            <div class="sheet-sub">У вас є активна підписка або запити в поточній ролі. Скасуйте їх на екрані «Поїздки» («Скасувати запит» чи «Вийти з події») — і одразу зможете змінити роль.</div>
+                            <div class="sheet-actions">
+                                <button class="btn btn-primary" onclick="closeSheet(); switchScreen('trips')">Відкрити Поїздки</button>
+                                <button class="btn btn-ghost" onclick="closeSheet()">Зрозуміло</button>
+                            </div>
+                        `);
                     } else if (reason === 'role_change_blocked_active_trip' || reason === 'cannot_change_role_active_trip') {
                         showToast('Неможливо змінити роль під час активної поїздки', 'error');
                     } else {
@@ -3907,6 +3915,14 @@
         }
 
         // ─── MAP ───
+        // UX-fix: режим-бар і чипи категорій лежать ПОВЕРХ карти (z-index вище за
+        // leaflet-панелі), тому попап, відкритий близько до верху, ховався під ними.
+        // autoPan з верхнім відступом ~170px гарантує, що попап завжди видно повністю.
+        const MAP_POPUP_PAN_OPTS = {
+            autoPan: true,
+            autoPanPaddingTopLeft: [12, 170],
+            autoPanPaddingBottomRight: [12, 96]
+        };
         function initMap() {
             S.map = L.map('map', { zoomControl: false, attributionControl: false }).setView([S.homeCity.lat, S.homeCity.lng], 11);
             L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(S.map);
@@ -4075,7 +4091,7 @@
                     ? `<button onclick="requestJoin(${safeOrganizerId}, ${safeDirectionId}, { source: 'map', keepMapContext: true })" style="flex:1;padding:8px;border-radius:10px;background:rgba(163,230,53,0.15);color:#a3e635;border:1px solid rgba(163,230,53,0.3);font-weight:700;font-size:12px;cursor:pointer;">✓ Запроситись</button>`
                     : '';
                 const openBtn = '<button onclick="openDirectionFromMap(' + safeDirectionId + ')" style="flex:1;padding:8px;border-radius:10px;background:rgba(56,189,248,0.14);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-weight:700;font-size:12px;cursor:pointer;">→ Напрямок</button>';
-                marker.bindPopup('<div style="text-align:center;min-width:210px;"><div style="font-weight:800;font-size:14px;margin-bottom:4px;">' + escapeHtml(popupName) + '</div><div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">' + popupDirection + '</div>' + crewRosterHtml + '<div style="display:flex;gap:8px;">' + requestBtn + openBtn + '</div></div>');
+                marker.bindPopup('<div style="text-align:center;min-width:210px;"><div style="font-weight:800;font-size:14px;margin-bottom:4px;">' + escapeHtml(popupName) + '</div><div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">' + popupDirection + '</div>' + crewRosterHtml + '<div style="display:flex;gap:8px;">' + requestBtn + openBtn + '</div></div>', MAP_POPUP_PAN_OPTS);
                 S.mapMarkers.push(marker);
             });
             renderMapPassengersOnMap();
@@ -4179,7 +4195,7 @@
                     marker.on('click', () => openDirectionInviteFromMap(dId));
                 } else {
                     // Discovery (iter 3): попап-прев'ю; «Детальніше» → та сама шторка.
-                    marker.bindPopup(buildMapEventPreviewHtml(point, dId), { closeButton: true, autoPan: true, maxWidth: 240, className: 'map-preview-popup' });
+                    marker.bindPopup(buildMapEventPreviewHtml(point, dId), { closeButton: true, maxWidth: 240, className: 'map-preview-popup', ...MAP_POPUP_PAN_OPTS });
                 }
                 S.eventMarkers.push(marker);
             });
@@ -4298,6 +4314,7 @@
             'user_blocked': 'Користувач заблокував взаємодію',
             'not_subscribed': 'Спочатку підпишіться на цей напрямок',
             'already_subscribed': 'Ви вже в черзі на цей напрямок',
+            'direction_expired': 'Подія вже завершилась — оберіть актуальну в каталозі',
         };
 
         function getErrorMessage(res, fallback = 'Помилка') {
@@ -4419,7 +4436,7 @@
                 <div class="sheet-actions">
                     <button class="btn btn-primary" onclick="respondFromMatchSheet(${partnerId}, ${dirId}, true)">${acceptText}</button>
                     <button class="btn btn-danger" onclick="respondFromMatchSheet(${partnerId}, ${dirId}, false)">${declineText}</button>
-                    <button class="btn btn-secondary" onclick="stopSearchFromMatchSheet(${partnerId}, ${dirId})">⏹️ Зупинити пошук</button>
+                    <button class="btn btn-secondary" onclick="stopSearchFromMatchSheet(${partnerId}, ${dirId})">🚪 Вийти з події</button>
                 </div>
             `);
         }
@@ -4437,21 +4454,24 @@
         function openMapRequestJoinResultSheet(dirId, res = {}) {
             const ctx = mapInviteContext(dirId);
             const safeDirId = ctx.safeDirId || (parseInt(dirId) || 0);
-            const mutual = !!res?.mutual;
+            // Ядро може створити екіпаж миттєво (взаємний інтерес) — не брешемо «чекаємо
+            // підтвердження», якщо hydrate вже приніс активну поїздку по цій події.
+            const tripMatched = !!(S.activeTrip && String(S.activeTrip.direction_id || '') === String(safeDirId));
+            const mutual = !!res?.mutual || tripMatched;
             const switched = Array.isArray(res?.switched_from) && res.switched_from.length > 0;
-            const title = mutual ? 'Екіпаж готовий' : (switched ? 'Запит перемкнено' : 'Запит надіслано');
+            const title = mutual ? '🎉 Екіпаж готовий!' : (switched ? 'Запит перемкнено' : 'Запит надіслано');
             const statusLine = mutual
-                ? 'Ви вже в екіпажі. Перейдіть до екрана екіпажу, щоб узгодити деталі.'
+                ? 'Водій уже відкрив місця — резервацію створено одразу. Деталі в екрані екіпажу.'
                 : 'Чекаємо підтвердження водія. Карта лишається відкритою, а статус оновиться автоматично.';
             const tertiary = mutual
                 ? `<button class="btn btn-ghost" onclick="openStartDirectionInvite(${safeDirId}, { source: 'map', sheetMaxHeight: '65vh', fullInvite: true })">Деталі</button>`
-                : `<button class="btn btn-danger" onclick="unsubscribeDir(${safeDirId})">Зупинити пошук</button>`;
+                : `<button class="btn btn-danger" onclick="unsubscribeDir(${safeDirId})">🚪 Вийти з події</button>`;
             openSheet(`
                 ${ctx.safeDirId ? renderMapInviteContextHeader(ctx) : ''}
                 <div class="sheet-title">${escapeHtml(title)}</div>
                 <div class="sheet-sub">${escapeHtml(statusLine)}</div>
                 <div class="sheet-actions" data-map-command-count="3">
-                    <button class="btn btn-primary" onclick="switchScreen('trips')">Екіпаж</button>
+                    <button class="btn btn-primary" onclick="closeSheet(); switchScreen('trips')">Екіпаж</button>
                     <button class="btn btn-secondary" onclick="closeSheet()">Зрозуміло</button>
                     ${tertiary}
                 </div>
@@ -4925,7 +4945,84 @@
             // suppressSubscribedSheet: map-manual шлях лишає людину НА КАРТІ зі своїм
             // піном (канон 06-04); «підписка активна» шторка тут була б тією ж
             // пасткою, що блокує тапи по екіпажах.
-            return subscribeDir(safeDirId, { afterSuccessScreen: 'explore', keepSheetOpen: true, mapInline: true, manualOnly: !autoMatch, suppressSubscribedSheet: true });
+            const subOk = await subscribeDir(safeDirId, { afterSuccessScreen: 'explore', keepSheetOpen: true, mapInline: true, manualOnly: !autoMatch, suppressSubscribedSheet: true });
+            // UX-fix #4: «Виберу водія сам» більше не кидає людину на порожню карту —
+            // одразу показуємо ранжований список екіпажів (відстань від точки очікування),
+            // з якого можна запроситись в один тап. Карта лишається доступною («Закрити»).
+            if (subOk && !autoMatch && !S.activeTrip) openNearbyCrewsSheet(safeDirId);
+            return subOk;
+        }
+
+        function _geoDistKm(lat1, lng1, lat2, lng2) {
+            const toRad = (v) => (Number(v) || 0) * Math.PI / 180;
+            const R = 6371;
+            const dLat = toRad(lat2 - lat1);
+            const dLng = toRad(lng2 - lng1);
+            const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        }
+
+        function _fmtDistKm(km) {
+            if (!Number.isFinite(km)) return '';
+            if (km < 1) return `≈ ${Math.max(50, Math.round(km * 1000 / 50) * 50)} м`;
+            return `≈ ${km < 10 ? km.toFixed(1) : Math.round(km)} км`;
+        }
+
+        function openNearbyCrewsSheet(dirId) {
+            const safeDirId = parseInt(dirId) || 0;
+            if (!safeDirId) return false;
+            const myLat = Number(S.pickupCoords?.lat);
+            const myLng = Number(S.pickupCoords?.lng);
+            const hasMyPoint = Number.isFinite(myLat) && Number.isFinite(myLng);
+            const crews = (S.mapCrews || [])
+                .filter(c => String(c?.direction_id || '') === String(safeDirId))
+                .filter(c => String(c?.organizer_id || '') !== String(S.userId))
+                .map(c => {
+                    const lat = Number(c?.lat), lng = Number(c?.lng);
+                    const dist = hasMyPoint && Number.isFinite(lat) && Number.isFinite(lng)
+                        ? _geoDistKm(myLat, myLng, lat, lng) : NaN;
+                    return { ...c, _dist: dist };
+                })
+                .sort((a, b) => (Number.isFinite(a._dist) ? a._dist : 1e9) - (Number.isFinite(b._dist) ? b._dist : 1e9));
+            if (!crews.length) {
+                openSheet(`
+                    <div class="sheet-title">Поки немає відкритих екіпажів</div>
+                    <div class="sheet-sub">У цій події ще ніхто не відкрив місця. Ви підписані — щойно з'явиться водій, побачите його на карті та отримаєте запит тут.</div>
+                    <div class="sheet-actions">
+                        <button class="btn btn-primary" onclick="closeSheet()">Зрозуміло</button>
+                    </div>
+                `, { maxHeight: '50vh' });
+                return true;
+            }
+            const rows = crews.slice(0, 12).map(c => {
+                const orgId = parseInt(c.organizer_id) || 0;
+                const name = c.driver_name || c.organizer_name || 'Екіпаж';
+                const freeSeats = safeCount(c?.seats_free ?? c?.free_seats ?? c?.available_seats);
+                const seatsHtml = freeSeats > 0
+                    ? `<span style="color:#22c55e;font-weight:700;">${freeSeats} ${pluralUk(freeSeats, 'місце', 'місця', 'місць')}</span>`
+                    : `<span style="color:var(--text-muted);">місць немає</span>`;
+                const distHtml = Number.isFinite(c._dist) ? ` · ${_fmtDistKm(c._dist)} від вас` : '';
+                const btn = freeSeats > 0
+                    ? `<button class="btn btn-primary" style="padding:8px 12px;font-size:12px;min-height:36px;width:auto;" onclick="requestJoin(${orgId}, ${safeDirId}, { source: 'map', keepMapContext: true })">Запроситись</button>`
+                    : '';
+                return `<div style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:rgba(255,255,255,0.03);">
+                    ${renderAvatarInline(name, c.driver_photo_url || c.organizer_photo_url || '', 38)}
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-weight:800;font-size:13px;">${escapeHtml(name)}</div>
+                        <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${seatsHtml}${escapeHtml(distHtml)}</div>
+                    </div>
+                    ${btn}
+                </div>`;
+            }).join('');
+            openSheet(`
+                <div class="sheet-title">Оберіть екіпаж</div>
+                <div class="sheet-sub">Водії цієї події, найближчі до вашої точки очікування — зверху.</div>
+                <div style="margin:12px 0 4px;max-height:42vh;overflow-y:auto;">${rows}</div>
+                <div class="sheet-actions">
+                    <button class="btn btn-secondary" onclick="closeSheet()">🗺 Дивитись на карті</button>
+                </div>
+            `, { maxHeight: '70vh' });
+            return true;
         }
 
         // ─── Водійський онбординг: місця → старт → метод (замість потрійного «постав авто») ───
@@ -5854,7 +5951,7 @@
                         ? `<button onclick="doOpenCrew(${safeDirectionId}, { keepMapSheet: true })" style="flex:1;padding:8px;border-radius:10px;background:rgba(251,191,36,0.14);color:#fbbf24;border:1px solid rgba(251,191,36,0.32);font-weight:700;font-size:12px;cursor:pointer;">🚗 Відкрити екіпаж</button>`
                         : '');
                 const openBtn = `<button onclick="openDirectionFromMap(${safeDirectionId})" style="flex:1;padding:8px;border-radius:10px;background:rgba(56,189,248,0.14);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-weight:700;font-size:12px;cursor:pointer;">→ Подія</button>`;
-                marker.bindPopup('<div style="text-align:center;min-width:180px;"><div style="font-weight:800;font-size:14px;margin-bottom:4px;">' + escapeHtml(name) + '</div><div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">Чекає на водія' + (directionTitle ? ' · ' + directionTitle : '') + '</div><div style="display:flex;gap:8px;">' + primaryBtn + openBtn + '</div></div>');
+                marker.bindPopup('<div style="text-align:center;min-width:180px;"><div style="font-weight:800;font-size:14px;margin-bottom:4px;">' + escapeHtml(name) + '</div><div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">Чекає на водія' + (directionTitle ? ' · ' + directionTitle : '') + '</div><div style="display:flex;gap:8px;">' + primaryBtn + openBtn + '</div></div>', MAP_POPUP_PAN_OPTS);
                 S.mapMarkers.push(marker);
             });
         }
@@ -5934,7 +6031,7 @@
             const dirId = parseInt(context.dirId) || 0;
             const title = escapeHtml(context.title || `#${dirId}`);
             const stopButton = context.kind === 'subscription'
-                ? '<button class="btn btn-danger" id="map-filter-stop">Зупинити пошук</button>'
+                ? '<button class="btn btn-danger" id="map-filter-stop">🚪 Вийти з події</button>'
                 : '';
             openSheet(`
                 <div class="sheet-title">У вас активний пошук</div>
@@ -5979,7 +6076,7 @@
                 : (openCrews > 0 ? 'Є відкриті екіпажі на цьому напрямку.' : 'Поки немає відкритих водіїв, але ваша підписка активна.');
             const pollSec = Math.round(POLL_INTERVAL_MS / 1000);
             const stopButton = dirId
-                ? `<button class="btn btn-ghost" style="margin-top:8px;width:100%;" onclick="unsubscribeDir(${dirId})">⏹️ Зупинити пошук</button>`
+                ? `<button class="btn btn-ghost" style="margin-top:8px;width:100%;" onclick="unsubscribeDir(${dirId})">🚪 Вийти з події (відписатись)</button>`
                 : '';
             return `
                 <div style="margin:16px auto 0;max-width:360px;text-align:left;padding:14px;border:1px solid rgba(56,189,248,0.22);border-radius:12px;background:rgba(56,189,248,0.07);">
@@ -6288,7 +6385,7 @@
                 switchScreen('explore');
                 renderNewsStrip();
                 await refreshMap();
-                focusActiveMapContext();
+                focusMapByFilter();
             };
             if (S.pendingMatches.length > 0) {
                 if (showCoordinationMap) {
@@ -6342,7 +6439,7 @@
             }
             S._recentlyUnsubbed = { id: String(dirId), until: Date.now() + 8000 };
             await hydrate();
-            showToast('Відписано');
+            showToast('🚪 Ви вийшли з події: підписку та запити скасовано');
             closeSheet();
             return true;
         }
@@ -6684,8 +6781,8 @@
                                 <div class="tag ${isIncoming ? 'tag-amber' : 'tag-blue'}">${isIncoming ? '📩 Вхідний' : '📤 Очікування'}</div>
                             </div>
                             ${isIncoming
-                            ? `<div style="display:flex;gap:10px;"><button class="btn btn-primary" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, true)">✓ Прийняти</button><button class="btn btn-danger" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false)">✕ Відхилити</button></div><button class="btn btn-secondary" style="width:100%;margin-top:10px;" onclick="stopSearchFromHandshake(${partnerId}, ${m.direction_id})">⏹️ Зупинити пошук</button>`
-                            : `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false)">🛑 Скасувати запит</button><button class="btn btn-danger" style="flex:1;" onclick="stopSearchFromHandshake(${partnerId}, ${m.direction_id})">⏹️ Зупинити пошук</button></div>`}
+                            ? `<div style="display:flex;gap:10px;"><button class="btn btn-primary" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, true)">✓ Прийняти</button><button class="btn btn-danger" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false)">✕ Відхилити</button></div><button class="btn btn-secondary" style="width:100%;margin-top:10px;" onclick="stopSearchFromHandshake(${partnerId}, ${m.direction_id})">🚪 Вийти з події</button><div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.45;">«Відхилити» — лише цей запит, ви лишаєтесь у події. «Вийти з події» — скасує запити та підписку.</div>`
+                            : `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false, 'cancel')">🛑 Скасувати запит</button><button class="btn btn-danger" style="flex:1;" onclick="stopSearchFromHandshake(${partnerId}, ${m.direction_id})">🚪 Вийти з події</button></div><div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.45;">«Скасувати запит» — лише цей екіпаж, ви лишаєтесь у події. «Вийти з події» — скасує запит і підписку.</div>`}
                         </div>`;
                 }).join('')}`;
                 return;
@@ -6833,8 +6930,9 @@
                     contextHintHtml = `
                         <div style="display:flex;align-items:center;gap:8px;padding:10px;border-radius:10px;background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.15);margin-top:12px;text-align:left;">
                             <span style="font-size:16px;flex-shrink:0;">📡</span>
-                            <span style="font-size:12px;color:var(--text-secondary);line-height:1.4;">Система шукає відкриті екіпажі для вас. Щойно знайдеться водій — ви побачите запит тут.</span>
-                        </div>`;
+                            <span style="font-size:12px;color:var(--text-secondary);line-height:1.4;">Ви підписані на подію. Відкрийте карту й оберіть екіпаж самостійно — або чекайте, поки водій надішле вам запит.</span>
+                        </div>
+                        <button class="btn btn-secondary" style="width:100%;margin-top:10px;" onclick="switchScreen('explore'); focusActiveMapContext();">🗺 Обрати екіпаж на карті</button>`;
                 }
 
                 const freshnessText = formatRadarSyncAge(S.lastHydrateAt || S.lastMapSyncAt);
@@ -6843,7 +6941,7 @@
                     ${eventAccordionHtml}
                     <div class="card animate-in" style="margin-top:10px;text-align:center;">
                         <div class="status-header">
-                            🟢 Пошук активний
+                            🟢 Підписка активна
                         </div>
                         ${capacityPanelHtml}
                         ${contextHintHtml}
@@ -6853,7 +6951,7 @@
                         </div>
                     </div>
                     <div style="padding:0 16px;margin-top:16px;margin-bottom:20px;max-width:360px;margin-left:auto;margin-right:auto;">
-                        <button class="btn btn-danger" style="width:100%;background:transparent;color:var(--red);border:1px solid rgba(248,113,113,0.2);" onclick="unsubscribeDir(${dirId})">⏹️ Зупинити пошук</button>
+                        <button class="btn btn-danger" style="width:100%;background:transparent;color:var(--red);border:1px solid rgba(248,113,113,0.2);" onclick="unsubscribeDir(${dirId})">🚪 Вийти з події (відписатись)</button>
                     </div>
                 `;
             } else {
@@ -6884,13 +6982,14 @@
                 </div>`;
         }
 
-        async function respondHandshake(partnerId, dirId, accept) {
+        async function respondHandshake(partnerId, dirId, accept, mode = '') {
+            // mode='cancel' — користувач скасовує ВЛАСНИЙ вихідний запит (не відмова партнера).
             if (!beginOp('respond_handshake')) return;
             try {
                 const res = await api('/api/v3/match/respond', { method: 'POST', body: JSON.stringify({ user_id: S.userId, target_id: partnerId, direction_id: dirId, accept }) });
                 if (res?.status === 'ok') {
                     if (accept) notifyCriticalEvent('crew_formed_manual', `${partnerId}:${dirId}`);
-                    showToast(accept ? '✓ Ваш екіпаж готовий!' : 'Запит відхилено', accept ? 'success' : '');
+                    showToast(accept ? '✓ Ваш екіпаж готовий!' : (mode === 'cancel' ? '🛑 Запит скасовано. Ви далі підписані на подію' : 'Ви відхилили запит'), accept ? 'success' : '');
                     clearCriticalState();
                     await hydrate();
                     return true;
@@ -6920,7 +7019,7 @@
                     body: JSON.stringify({ user_id: S.userId, target_id: safePartnerId, direction_id: safeDirId })
                 });
                 if (res?.status === 'ok') {
-                    showToast('Пошук зупинено', 'success');
+                    showToast('🚪 Ви вийшли з події: запити та підписку скасовано', 'success');
                     clearCriticalState();
                     removePendingMatchByPair(safePartnerId, safeDirId);
                     renderSubBar();
@@ -6966,7 +7065,7 @@
                     <button class="btn btn-primary" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, true)">✓ Прийняти</button>
                     <button class="btn btn-danger" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false)">✕ Відхилити</button>
                 </div>
-                <button class="btn btn-secondary" style="width:100%;margin-top:10px;" onclick="stopSearchFromHandshake(${partnerId}, ${m.direction_id})">⏹️ Зупинити пошук</button>
+                <button class="btn btn-secondary" style="width:100%;margin-top:10px;" onclick="stopSearchFromHandshake(${partnerId}, ${m.direction_id})">🚪 Вийти з події</button>
             `;
             panel.classList.add('open');
         }
@@ -8302,6 +8401,12 @@
             const consentKey = _stateKey('live_location_consent');
             if (localStorage.getItem(consentKey) !== '1') {
                 if (isAppInBackground || isSheetOpen() || _locationConsentPromptOpen || _locationConsentDeclinedForReqId === reqId || isLiveLocationDeclined(reqId)) return;
+                // UX-fix: не питаємо геолокацію, поки людина не ПОБАЧИЛА резервацію.
+                // Питаємо тільки на екрані «Поїздки», після ≥2.5 с перегляду екіпажу.
+                if (S.currentScreen !== 'trips') { S._liveLocArm = null; return; }
+                const _now = Date.now();
+                if (!S._liveLocArm || S._liveLocArm.reqId !== reqId) { S._liveLocArm = { reqId, at: _now }; return; }
+                if (_now - S._liveLocArm.at < 2500) return;
                 _locationConsentPromptOpen = true;
                 const phase = S.activeTrip?.is_started ? 'на маршруті' : 'біля точки збору';
                 openSheet(`
