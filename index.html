@@ -5660,9 +5660,11 @@
             const freeSeats = safeCount(d?.free_seats ?? d?.seats_free ?? d?.available_seats);
             const role = normalizeRole(S.userRole || 'client');
             if (isFolderNode(d)) {
-                const total = drivers + passengers;
-                // Visual Silence: іконка + стрілка вже кажуть «це розділ»; текст-дублер прибрано (2026-06-10)
-                return { primary: formatCountLabel('folderParticipants', total), secondary: '' };
+                const totalEvents = safeCount(
+                    d?.event_count ?? d?.events_count ?? d?.events ?? d?.descendant_events ?? d?.descendant_events_count
+                );
+                // Каталог відповідає "скільки тут подій"; учасники з'являються вже на рівні події.
+                return { primary: formatCountLabel('folderEvents', totalEvents), secondary: '' };
             }
             if (_isDriverRole(role)) {
                 return {
