@@ -5181,6 +5181,14 @@
             if (S._mapScopeDirId !== rawDirId) {
                 S.mapScope = 'sub';
                 S._mapScopeDirId = rawDirId;
+                // Роль-лінза за замовчуванням (2026-06-11): підписка з роллю = декларація
+                // наміру → фільтр одразу на комплементарну роль (водій бачить попутників,
+                // попутник — водіїв). Ручний вибір далі ЛИПКИЙ у межах цієї підписки;
+                // у trip-режимі або без підписки — повертаємось на 'all'.
+                S.mapEventFilter = rawDirId
+                    ? (_isDriverRole(S.userRole) ? 'passengers'
+                        : (_isPassengerRole(S.userRole) ? 'drivers' : 'all'))
+                    : 'all';
             }
             const scoped = mapContextScoped();
             const value = scoped ? 'координація події' : 'пошук виїзду';
@@ -5397,7 +5405,10 @@
                 if (S._newsScopeDirId !== String(context.dirId)) {
                     S._newsScopeDirId = String(context.dirId);
                     S.newsScope = 'sub';
-                    S.newsEventFilter = 'all'; // скидаємо фільтр при зміні підписки
+                    // Роль-лінза за замовчуванням (2026-06-11), дзеркально до карти:
+                    // нова підписка → комплементарний фільтр; ручний вибір липкий далі.
+                    S.newsEventFilter = _isDriverRole(S.userRole) ? 'passengers'
+                        : (_isPassengerRole(S.userRole) ? 'drivers' : 'all');
                 }
             } else {
                 S._newsScopeDirId = null;
@@ -5710,8 +5721,11 @@
             return (crews || []).filter(c => {
                 if (!c || c.lat == null || c.lng == null) return false;
                 if (focusedDirId) {
+                    // Власне авто — ПОЗА роль-фільтром (урок zombie-фіксу: фільтр не
+                    // має ховати власний контекст), але в межах свого напрямку.
+                    const isMine = S.userId && String(c?.organizer_id || '') === String(S.userId);
                     const eventFilter = S.mapEventFilter || 'all';
-                    if (eventFilter !== 'all' && eventFilter !== 'drivers') return false;
+                    if (!isMine && eventFilter !== 'all' && eventFilter !== 'drivers') return false;
                     return String(c?.direction_id || '') === String(focusedDirId);
                 }
                 return false;
