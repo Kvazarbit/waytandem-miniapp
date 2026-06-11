@@ -1413,10 +1413,11 @@
 
         /* Discovery preview popup (iter 3, 2026-06-10): картка зі стилю iconpins-прикладу —
            кольорова шапка категорії + іконка-плитка + рядки + кнопка «Детальніше» */
-        .leaflet-popup-content-wrapper { border-radius: 16px; box-shadow: 0 12px 36px rgba(0,0,0,0.38); padding: 0; overflow: hidden; }
-        .leaflet-popup-content { margin: 0; }
-        .leaflet-popup-close-button { color: rgba(8,16,24,0.6); font-size: 18px; padding: 6px 8px 0 0; }
-        .map-preview-card { font-family: inherit; width: 224px; color: #0d1b2a; }
+        .map-preview-popup .leaflet-popup-content-wrapper { background: transparent !important; border: 0 !important; border-radius: 16px !important; box-shadow: 0 12px 36px rgba(0,0,0,0.38) !important; padding: 0 !important; overflow: hidden !important; }
+        .map-preview-popup .leaflet-popup-content { margin: 0 !important; width: 224px !important; }
+        .map-preview-popup .leaflet-popup-tip { background: #fff !important; border: 0 !important; }
+        .map-preview-popup .leaflet-popup-close-button { color: rgba(8,16,24,0.6); font-size: 18px; padding: 6px 8px 0 0; }
+        .map-preview-card { font-family: inherit; width: 224px; color: #0d1b2a; background: #fff; border-radius: 16px; overflow: hidden; }
         .map-preview-hd { display: flex; align-items: center; gap: 10px; padding: 12px 14px; color: #081018; }
         .map-preview-hd .map-preview-ico { width: 34px; height: 34px; border-radius: 10px; background: rgba(255,255,255,0.38); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
         .map-preview-hd .map-preview-ttl { font-weight: 800; font-size: 15px; line-height: 1.2; }
@@ -4178,7 +4179,7 @@
                     marker.on('click', () => openDirectionInviteFromMap(dId));
                 } else {
                     // Discovery (iter 3): попап-прев'ю; «Детальніше» → та сама шторка.
-                    marker.bindPopup(buildMapEventPreviewHtml(point, dId), { closeButton: true, autoPan: true, maxWidth: 240 });
+                    marker.bindPopup(buildMapEventPreviewHtml(point, dId), { closeButton: true, autoPan: true, maxWidth: 240, className: 'map-preview-popup' });
                 }
                 S.eventMarkers.push(marker);
             });
@@ -4195,6 +4196,34 @@
             return !!(own && String(own.dirId || '') === String(dirId || ''));
         }
 
+        function formatMapPreviewWhen(point) {
+            const startAt = String(point?.start_date || point?.start_at || point?.starts_at || '').trim();
+            const endAt = String(point?.end_date || point?.end_at || point?.ends_at || '').trim();
+            const explicit = String(point?.date || point?.event_date || point?.nearest_trip_date || point?.departure || '').trim();
+            const startRaw = startAt || explicit;
+            const endRaw = endAt;
+            if (!startRaw && !endRaw) return '';
+
+            const months = [
+                'січня', 'лютого', 'березня', 'квітня', 'травня', 'червня',
+                'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня'
+            ];
+            const parsedStart = startRaw ? new Date(startRaw) : null;
+            const parsedEnd = endRaw ? new Date(endRaw) : null;
+            const startOk = parsedStart && !Number.isNaN(parsedStart.getTime());
+            const endOk = parsedEnd && !Number.isNaN(parsedEnd.getTime());
+
+            if (startOk && endOk) {
+                if (parsedStart.getFullYear() === parsedEnd.getFullYear() && parsedStart.getMonth() === parsedEnd.getMonth()) {
+                    return `${parsedStart.getDate()} - ${parsedEnd.getDate()} ${months[parsedStart.getMonth()]}`;
+                }
+                return `${parsedStart.getDate()} ${months[parsedStart.getMonth()]} - ${parsedEnd.getDate()} ${months[parsedEnd.getMonth()]}`;
+            }
+            if (startOk) return `${parsedStart.getDate()} ${months[parsedStart.getMonth()]}`;
+            if (endOk) return `${parsedEnd.getDate()} ${months[parsedEnd.getMonth()]}`;
+            return startRaw || endRaw;
+        }
+
         function buildMapEventPreviewHtml(point, dId) {
             const kind = classifyNewsItem(point);
             const title = point.title || point.direction_title || point.dir_title || `Подія #${dId}`;
@@ -4202,9 +4231,7 @@
             const passengers = safeCount(point?.passengers ?? point?.passengers_count);
             const total = drivers + passengers;
             const rows = [];
-            // Дата: у моделі map-точки її поки немає (дати живуть на рівні поїздок
-            // організаторів) — рядок з'явиться сам, щойно бек віддасть одне з полів.
-            const when = point?.date || point?.event_date || point?.nearest_trip_date || '';
+            const when = formatMapPreviewWhen(point);
             if (when) rows.push(`<div class="map-preview-row">📅 ${escapeHtml(String(when))}</div>`);
             if (total) rows.push(`<div class="map-preview-row">👥 ${total} ${pluralUk(total, 'учасник', 'учасники', 'учасників')}</div>`);
             return `<div class="map-preview-card">
