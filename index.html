@@ -4436,13 +4436,13 @@
             const safePassengerId = parseInt(passengerId, 10) || 0;
             const mutual = !!res?.mutual;
             const switched = Array.isArray(res?.switched_from) && res.switched_from.length > 0;
-            const title = mutual ? 'Екіпаж готовий' : (switched ? 'Сигнал перемкнено' : 'Сигнал надіслано');
+            const title = mutual ? 'Екіпаж готовий' : (switched ? 'Запрошення перемкнено' : 'Запрошення надіслано');
             const statusLine = mutual
                 ? 'Попутник підтвердився. Перейдіть до екрана екіпажу, щоб узгодити деталі.'
                 : 'Чекаємо підтвердження попутника. Карта лишається відкритою, а статус оновиться автоматично.';
             const tertiary = mutual
                 ? `<button class="btn btn-ghost" onclick="openStartDirectionInvite(${safeDirId}, { source: 'map', sheetMaxHeight: '65vh', fullInvite: true })">Деталі</button>`
-                : `<button class="btn btn-danger" onclick="stopSearchFromMatchSheet(${safePassengerId}, ${safeDirId})">Скасувати сигнал</button>`;
+                : `<button class="btn btn-danger" onclick="stopSearchFromMatchSheet(${safePassengerId}, ${safeDirId})">Скасувати запрошення</button>`;
             openSheet(`
                 ${ctx.safeDirId ? renderMapInviteContextHeader(ctx) : ''}
                 <div class="sheet-title">${escapeHtml(title)}</div>
@@ -4504,8 +4504,8 @@
         }
 
         async function signalPassenger(passengerId, dirId, opts = {}) {
-            if (!requireRoleForAction('сигналити попутнику', () => signalPassenger(passengerId, dirId, opts))) return false;
-            if (!_isDriverRole(S.userRole)) { showToast('Сигналити попутнику може тільки водій', 'error'); return false; }
+            if (!requireRoleForAction('запросити попутника', () => signalPassenger(passengerId, dirId, opts))) return false;
+            if (!_isDriverRole(S.userRole)) { showToast('Запрошувати попутника може тільки водій', 'error'); return false; }
             const safePassengerId = parseInt(passengerId, 10) || 0;
             const safeDirId = parseInt(dirId, 10) || 0;
             if (!safePassengerId || !safeDirId) { showToast('Не вдалося визначити попутника', 'error'); return false; }
@@ -4526,8 +4526,8 @@
                 if (res?.status === 'ok') {
                     if (!fromMap) {
                         if (res.mutual) { showToast('✓ Екіпаж готовий!', 'success'); }
-                        else if (Array.isArray(res.switched_from) && res.switched_from.length) { showToast('↪ Сигнал перемкнено', 'success'); }
-                        else { showToast('⏳ Сигнал надіслано', 'success'); }
+                        else if (Array.isArray(res.switched_from) && res.switched_from.length) { showToast('↪ Запрошення перемкнено', 'success'); }
+                        else { showToast('⏳ Запрошення надіслано', 'success'); }
                     }
                     persistCriticalState();
                     await hydrate();
@@ -4544,7 +4544,7 @@
                     switchScreen('trips');
                     return true;
                 }
-                showToast(getErrorMessage(res, 'Не вдалось надіслати сигнал'), 'error');
+                showToast(getErrorMessage(res, 'Не вдалось надіслати запрошення'), 'error');
                 return false;
             } catch (e) {
                 showToast('Немає з\'єднання — спробуйте ще раз', 'error');
@@ -4864,7 +4864,7 @@
             const isDriver = _isDriverRole(S.userRole);
             const title = isDriver ? 'Постав авто на карту' : 'Як шукати?';
             const sub = isDriver
-                ? 'Спершу покажи, звідки стартуєш. Далі попутники побачать твою машину, а ти зможеш сигналити людям на карті.'
+                ? 'Спершу покажи, звідки стартуєш. Далі попутники побачать твою машину, а ти зможеш запрошувати людей на карті.'
                 : 'Обери спосіб. Резервація зʼявиться тільки після згоди обох сторін.';
             const manualLabel = isDriver ? '🚗 Поставити авто на карту' : '🗺 Виберу водія сам';
             const autoLabel = isDriver ? '✨ Автоматичний пошук попутників' : '✨ Знайти місце автоматично';
@@ -5803,7 +5803,7 @@
                 const directionTitle = escapeHtml(p.direction_title || '');
                 const canSignal = _isDriverRole(S.userRole) && driverHasOpenCrewForDirection(safeDirectionId);
                 const primaryBtn = canSignal
-                    ? `<button onclick="signalPassenger(${safePassengerId}, ${safeDirectionId}, { source: 'map', keepMapContext: true })" style="flex:1;padding:8px;border-radius:10px;background:rgba(101,212,143,0.16);color:#65d48f;border:1px solid rgba(101,212,143,0.34);font-weight:700;font-size:12px;cursor:pointer;">↗ Сигналити</button>`
+                    ? `<button onclick="signalPassenger(${safePassengerId}, ${safeDirectionId}, { source: 'map', keepMapContext: true })" style="flex:1;padding:8px;border-radius:10px;background:rgba(101,212,143,0.16);color:#65d48f;border:1px solid rgba(101,212,143,0.34);font-weight:700;font-size:12px;cursor:pointer;">↗ Запросити</button>`
                     : (_isDriverRole(S.userRole)
                         ? `<button onclick="doOpenCrew(${safeDirectionId}, { keepMapSheet: true })" style="flex:1;padding:8px;border-radius:10px;background:rgba(251,191,36,0.14);color:#fbbf24;border:1px solid rgba(251,191,36,0.32);font-weight:700;font-size:12px;cursor:pointer;">🚗 Відкрити екіпаж</button>`
                         : '');
