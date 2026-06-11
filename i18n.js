@@ -2,6 +2,12 @@
     const dictionaries = {
         uk: {
             counts: {
+                folderEvents: {
+                    one: "{count} подія",
+                    few: "{count} події",
+                    many: "{count} подій",
+                    other: "{count} подій",
+                },
                 folderParticipants: {
                     one: "{count} учасник",
                     few: "{count} учасники",
@@ -12,6 +18,12 @@
         },
         pl: {
             counts: {
+                folderEvents: {
+                    one: "{count} wydarzenie",
+                    few: "{count} wydarzenia",
+                    many: "{count} wydarzeń",
+                    other: "{count} wydarzeń",
+                },
                 folderParticipants: {
                     one: "{count} uczestnik",
                     few: "{count} uczestników",
@@ -22,6 +34,10 @@
         },
         en: {
             counts: {
+                folderEvents: {
+                    one: "{count} event",
+                    other: "{count} events",
+                },
                 folderParticipants: {
                     one: "{count} participant",
                     other: "{count} participants",
