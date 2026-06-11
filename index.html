@@ -2869,6 +2869,7 @@
     <div class="toast" id="toast"></div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="./i18n.js"></script>
     <script>
         /* ══════════════════════════════════════════════════════════════════
            WAYTANDEM v3.1 — E2E Complete
@@ -5525,6 +5526,10 @@
             return many;
         }
 
+        function formatCountLabel(key, count) {
+            return window.WayTandemI18n?.formatCount?.(key, count, S.lang) || String(safeCount(count));
+        }
+
         function buildDirectionCardStats(d) {
             const drivers = safeCount(d?.drivers ?? d?.drivers_count);
             const passengers = safeCount(d?.passengers ?? d?.passengers_count);
@@ -5533,7 +5538,7 @@
             if (isFolderNode(d)) {
                 const total = drivers + passengers;
                 // Visual Silence: іконка + стрілка вже кажуть «це розділ»; текст-дублер прибрано (2026-06-10)
-                return { primary: `${total} учасників нижче`, secondary: '' };
+                return { primary: formatCountLabel('folderParticipants', total), secondary: '' };
             }
             if (_isDriverRole(role)) {
                 return {
