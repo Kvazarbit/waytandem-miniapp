@@ -3160,6 +3160,16 @@
             else window.location.href = url;
         }
 
+        function openIdeaChat(btn) {
+            // Загальний чат ідеї (chat_link). I-FRONT-11 dual validation:
+            // сервер пускає тільки https://t.me/..., клієнт перевіряє ще раз.
+            const url = String(btn?.dataset?.chatLink || '').trim();
+            if (!url.startsWith('https://t.me/')) { showToast('Посилання чату недоступне', 'error'); return; }
+            const tg = window.Telegram?.WebApp;
+            if (tg?.openTelegramLink) tg.openTelegramLink(url);
+            else window.open(url, '_blank', 'noopener');
+        }
+
         function openTelegramContactFromButton(btn) {
             openTelegramContact(btn?.dataset?.tgUsername || '', btn?.dataset?.tgUserId || '');
         }
@@ -6328,6 +6338,7 @@
 
             const dirMeta = data?.direction || dir || {};
             const meetingPoint = dirMeta.meeting_point || dir.meeting_point || '';
+            const chatLink = String(dirMeta.chat_link || dir.chat_link || '').trim();
             const desc = dirMeta.description || dir.description || '';
             const startAt = dirMeta.start_date || dir.start_date || '';
             const endAt = dirMeta.end_date || dir.end_date || '';
@@ -6412,6 +6423,7 @@
                     ${isSub
                     ? `<button class="btn btn-danger" style="width:100%;font-size:15px;padding:13px 0;border-radius:12px;" onclick="unsubscribeDir(${dirId})">🚫 Відписатись</button>`
                     : `<button class="btn btn-primary" style="width:100%;font-size:16px;font-weight:700;padding:14px 0;border-radius:12px;background:#00c9a7;color:#000000;border:none;cursor:pointer;" onclick="joinInvitedDirection(${dirId})">Хочу поїхати</button>`}
+                    ${chatLink.startsWith('https://t.me/') ? `<button id="btn-idea-chat" class="btn btn-secondary" style="width:100%;font-size:15px;font-weight:700;padding:13px 0;border-radius:12px;border:1px solid rgba(56,189,248,0.35);background:rgba(56,189,248,0.10);color:var(--blue);cursor:pointer;" data-chat-link="${escapeAttr(chatLink)}" onclick="openIdeaChat(this)">💬 Чат події</button>` : ''}
                     <button class="btn btn-secondary" style="width:100%;font-size:16px;font-weight:700;padding:14px 0;border-radius:12px;background:#334155;color:#ffffff;border:none;cursor:pointer;" onclick="closeSheet()">Закрити</button>
                 </div>
                 ${isSub ? `<button class="btn btn-secondary" style="width:100%;margin-bottom:8px;font-size:12px;" onclick="pickPickupLocation(${dirId}, { kind: ${_isDriverRole(S.userRole) ? "'driver_start'" : "'passenger_wait'"}, persistUserLocation: ${_isDriverRole(S.userRole) ? 'false' : 'true'} })">${hasPickup ? '📍 Точка вказана ✓' : (_isDriverRole(S.userRole) ? '🚗 Поставити авто на карту' : '📍 Вказати де чекати водія')}</button>` : ''}
@@ -8181,6 +8193,7 @@
             const current = findLocalDirection(dirId);
             const currentTitle = current.title || current.name || current.direction_title || '';
             const meetingPoint = current.meeting_point || '';
+            const chatLink = current.chat_link || '';
             const description = current.description || '';
             const startDate = dateTimeLocalValue(current.start_date || '');
             const endDate = dateTimeLocalValue(current.end_date || '');
@@ -8203,7 +8216,8 @@
                     <input class="board-search" id="edit-dir-start" type="datetime-local" value="${escapeAttr(startDate)}" title="Початок" style="margin:0;">
                     <input class="board-search" id="edit-dir-end" type="datetime-local" value="${escapeAttr(endDate)}" title="Завершення" style="margin:0;">
                 </div>
-                <textarea class="board-search" id="edit-dir-desc" placeholder="Подробиці для учасників..." maxlength="1200" style="min-height:108px;resize:vertical;margin-bottom:12px;">${escapeHtml(description)}</textarea>
+                <textarea class="board-search" id="edit-dir-desc" placeholder="Подробиці для учасників..." maxlength="1200" style="min-height:108px;resize:vertical;margin-bottom:8px;">${escapeHtml(description)}</textarea>
+                <input class="board-search" id="edit-dir-chat" value="${escapeAttr(chatLink)}" placeholder="💬 Чат події: https://t.me/... (необовʼязково)" maxlength="120" style="margin-bottom:12px;">
                 <div class="sheet-actions">
                     <button class="btn btn-primary" onclick="doEditDirection(${dirId})">💾 Зберегти</button>
                     <button class="btn btn-danger" onclick="confirmDeleteDirection(${dirId})">🗑 Видалити напрямок</button>
@@ -8235,6 +8249,10 @@
             const startDate = document.getElementById('edit-dir-start')?.value || '';
             const endDate = document.getElementById('edit-dir-end')?.value || '';
             const description = document.getElementById('edit-dir-desc')?.value?.trim() || '';
+            let chatLink = document.getElementById('edit-dir-chat')?.value?.trim() || '';
+            if (chatLink && chatLink.startsWith('t.me/')) chatLink = 'https://' + chatLink;
+            // I-FRONT-11: HTML maxlength — підказка, СПРАВЖНЯ перевірка тут + на сервері
+            if (chatLink && !chatLink.startsWith('https://t.me/')) { showToast('Чат події: лише посилання https://t.me/...', 'error'); return; }
             if (!title || title.length < 3) { showToast('Назва має бути від 3 символів', 'error'); return; }
             if (startDate && endDate && endDate < startDate) { showToast('Дата завершення не може бути раніше початку', 'error'); return; }
             const meetingChanged = meetingPoint !== (S._editDirOriginalMeetingPoint || '');
@@ -8246,6 +8264,7 @@
                     direction_id: dirId,
                     title,
                     meeting_point: meetingPoint,
+                    chat_link: chatLink,
                     description,
                     start_date: startDate,
                     end_date: endDate
@@ -8263,6 +8282,7 @@
                         title: updated.title || title,
                         direction_title: updated.title || title,
                         meeting_point: updated.meeting_point ?? payload.meeting_point,
+                        chat_link: updated.chat_link ?? payload.chat_link,
                         description: updated.description ?? payload.description,
                         start_date: updated.start_date ?? payload.start_date,
                         end_date: updated.end_date ?? payload.end_date,
