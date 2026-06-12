@@ -5284,11 +5284,34 @@
                 : (_isPassengerRole(S.userRole) ? 'drivers' : 'all');
         }
 
+        function newsEventLensKey(n) {
+            const explicit = String(n?.item_type || n?.type || '').toLowerCase();
+            if (['event', 'driver', 'passenger', 'passengers', 'client'].includes(explicit)) {
+                if (explicit === 'passengers' || explicit === 'client') return 'passenger';
+                return explicit;
+            }
+            const kind = String(n?.kind || '').toLowerCase();
+            if (['direction_new', 'direction_event', 'event'].includes(kind)) return 'event';
+            if (kind === 'crew_open') return 'driver';
+            if (kind === 'subscription') {
+                const role = String(n?.role || n?.viewer_role || '').toLowerCase();
+                if (role === 'driver') return 'driver';
+                if (role === 'client' || role === 'passenger') return 'passenger';
+                const text = String(n?.text || '').toLowerCase();
+                if (text.includes('🚗') || text.includes('водій')) return 'driver';
+                if (text.includes('👤') || text.includes('попутник')) return 'passenger';
+            }
+            const viewerRole = String(n?.viewer_role || '').toLowerCase();
+            if (viewerRole === 'driver') return 'driver';
+            if (viewerRole === 'client' || viewerRole === 'passenger') return 'passenger';
+            return 'event';
+        }
+
         function filterNewsItemsByEventLens(items, filter) {
             const ef = filter || 'all';
-            if (ef === 'event') return items.filter(n => n?.item_type === 'event' || n?.type === 'event');
-            if (ef === 'drivers') return items.filter(n => n?.item_type === 'driver' || n?.type === 'driver' || n?.viewer_role === 'driver');
-            if (ef === 'passengers') return items.filter(n => n?.item_type === 'passenger' || n?.type === 'passenger' || n?.viewer_role === 'client');
+            if (ef === 'event') return items.filter(n => newsEventLensKey(n) === 'event');
+            if (ef === 'drivers') return items.filter(n => newsEventLensKey(n) === 'driver');
+            if (ef === 'passengers') return items.filter(n => newsEventLensKey(n) === 'passenger');
             return items;
         }
 
@@ -5639,9 +5662,9 @@
                 const ef = S.newsEventFilter || 'all';
 
                 // Підраховуємо кількість для кожного фільтра
-                const eventCount  = dirItems.filter(n => n?.item_type === 'event'  || n?.type === 'event').length  || (dirItems.length ? 1 : 0);
-                const driverCount = dirItems.filter(n => n?.item_type === 'driver' || n?.type === 'driver' || n?.viewer_role === 'driver').length;
-                const paxCount    = dirItems.filter(n => n?.item_type === 'passenger' || n?.type === 'passenger' || n?.viewer_role === 'client').length;
+                const eventCount = filterNewsItemsByEventLens(dirItems, 'event').length;
+                const driverCount = filterNewsItemsByEventLens(dirItems, 'drivers').length;
+                const paxCount = filterNewsItemsByEventLens(dirItems, 'passengers').length;
 
                 const eventCards = [
                     { key: 'event',      title: 'Подія',     color: '#fbbf24', count: eventCount  },
