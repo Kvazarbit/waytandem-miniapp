@@ -3521,7 +3521,7 @@
                 S.myDirections = Array.isArray(myDirs) ? myDirs : [];
             } catch (_) { /* не блокуємо hydrate, якщо запит не вдався */ }
             syncIdentityUI();
-            updateRolePill(); updateBadges(); renderBoard(); renderTrips(); renderSubBar(); refreshMap();
+            updateRolePill(); updateBadges(); updateNewsBadge(); renderBoard(); renderTrips(); renderSubBar(); refreshMap();
             if (S.currentScreen === 'news' || S.currentScreen === 'explore') renderNews();
             // Check handshake panel logic after hydration
             verifyHandshakePanelState();
@@ -5279,10 +5279,33 @@
             await openStartDirectionInvite(dirId);
         }
 
+        function defaultNewsEventFilterForRole() {
+            return _isDriverRole(S.userRole) ? 'passengers'
+                : (_isPassengerRole(S.userRole) ? 'drivers' : 'all');
+        }
+
+        function filterNewsItemsByEventLens(items, filter) {
+            const ef = filter || 'all';
+            if (ef === 'event') return items.filter(n => n?.item_type === 'event' || n?.type === 'event');
+            if (ef === 'drivers') return items.filter(n => n?.item_type === 'driver' || n?.type === 'driver' || n?.viewer_role === 'driver');
+            if (ef === 'passengers') return items.filter(n => n?.item_type === 'passenger' || n?.type === 'passenger' || n?.viewer_role === 'client');
+            return items;
+        }
+
+        function newsBadgeItemsForActiveContext() {
+            const context = activeMapContextForMap();
+            if (!context?.dirId) return [];
+            const dirId = String(context.dirId);
+            const allItems = Array.isArray(S.news) ? S.news.filter(isDiscoveryNewsItem) : [];
+            const dirItems = allItems.filter(n => String(n?.direction_id || '') === dirId);
+            const ef = S.newsEventFilter || defaultNewsEventFilterForRole();
+            return filterNewsItemsByEventLens(dirItems, ef);
+        }
+
         function updateNewsBadge() {
             const badge = document.getElementById('nav-news-badge');
             if (!badge) return;
-            const count = Math.min(99, (S.news || []).filter(isDiscoveryNewsItem).length);
+            const count = Math.min(99, newsBadgeItemsForActiveContext().length);
             if (count > 0) { badge.style.display = 'flex'; badge.textContent = count; }
             else { badge.style.display = 'none'; }
         }
@@ -5562,11 +5585,13 @@
         // Перемикач "Підписка" ⇄ "Загальна" біля заголовка стрічки.
         function toggleNewsScope() {
             S.newsScope = (S.newsScope === 'sub') ? 'all' : 'sub';
+            updateNewsBadge();
             renderNewsScreen();
         }
 
         function setNewsEventFilter(key) {
             S.newsEventFilter = key || 'all';
+            updateNewsBadge();
             renderNewsScreen();
         }
 
@@ -5587,8 +5612,7 @@
                     S.newsScope = 'sub';
                     // Роль-лінза за замовчуванням (2026-06-11), дзеркально до карти:
                     // нова підписка → комплементарний фільтр; ручний вибір липкий далі.
-                    S.newsEventFilter = _isDriverRole(S.userRole) ? 'passengers'
-                        : (_isPassengerRole(S.userRole) ? 'drivers' : 'all');
+                    S.newsEventFilter = defaultNewsEventFilterForRole();
                 }
             } else {
                 S._newsScopeDirId = null;
@@ -5634,10 +5658,7 @@
                 }).join('');
 
                 // Фільтруємо новини по обраному типі
-                let items = dirItems;
-                if (ef === 'event')      items = dirItems.filter(n => n?.item_type === 'event'  || n?.type === 'event');
-                if (ef === 'drivers')    items = dirItems.filter(n => n?.item_type === 'driver' || n?.type === 'driver' || n?.viewer_role === 'driver');
-                if (ef === 'passengers') items = dirItems.filter(n => n?.item_type === 'passenger' || n?.type === 'passenger' || n?.viewer_role === 'client');
+                const items = filterNewsItemsByEventLens(dirItems, ef);
 
                 if (!items.length) {
                     const hint = ef === 'all'
