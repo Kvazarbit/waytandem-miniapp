@@ -8546,6 +8546,8 @@
             if (context && eventFilter === 'event') return;
             const members = orderedCrewMembersForMap(t).filter(m => {
                 if (!context || eventFilter === 'all') return true;
+                const isMe = !!S.userId && String(m?.user_id || '') === String(S.userId);
+                if (isMe) return true;
                 const role = String(m?.role || '').toLowerCase();
                 if (eventFilter === 'drivers') return role === 'driver';
                 if (eventFilter === 'passengers') return role !== 'driver';
