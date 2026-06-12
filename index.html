@@ -4324,6 +4324,13 @@
             return ERROR_MESSAGES[reason] || (reason ? `${fallback}: ${reason}` : fallback);
         }
 
+        function guardPassengerRequestWhileInTrip(opts = {}) {
+            if (!S.activeTrip) return false;
+            showToast(ERROR_MESSAGES.already_in_trip, 'error');
+            if (opts?.openTrips !== false) switchScreen('trips');
+            return true;
+        }
+
         function getOutgoingForDirection(dirId) {
             return (S.pendingMatches || []).find(m => {
                 if (m.scope !== 'outgoing') return false;
@@ -4506,6 +4513,7 @@
         async function requestJoin(orgId, dirId, opts = {}) {
             if (!requireRoleForAction('запроситись до екіпажу', () => requestJoin(orgId, dirId, opts))) return;
             if (_isDriverRole(S.userRole)) { showToast('Запроситись може тільки попутник', 'error'); return; }
+            if (guardPassengerRequestWhileInTrip()) return false;
             const confirmed = await confirmOutgoingSwitchIfNeeded(orgId, dirId);
             if (!confirmed) return;
             if (!S.pickupCoords?.lat || !S.pickupCoords?.lng) {
@@ -4979,6 +4987,7 @@
         async function chooseMapInviteMethod(dirId, auto) {
             const safeDirId = parseInt(dirId) || 0;
             if (!safeDirId) return false;
+            if (guardPassengerRequestWhileInTrip()) return false;
             const autoMatch = !!auto;
             clearPickupPoint();
             // closeSheetAfterConfirm: 06-04 UX-trap (sheet поверх карти блокував тап по
