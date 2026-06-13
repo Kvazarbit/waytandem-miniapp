@@ -8506,8 +8506,9 @@
             if (!_mapPicker.wired) { _wireMapPickerControls(); _mapPicker.wired = true; }
             setTimeout(() => { try { _mapPicker.map.invalidateSize(); } catch (e) {} }, 60);
 
-            // Якщо точних координат немає — пробуємо свіжий GPS, щоб одразу показати, де користувач
-            if (!hasCoords && navigator.geolocation) {
+            // Якщо точних координат немає і немає свіжих кешованих (менше 30 сек) — пробуємо свіжий GPS, щоб одразу показати, де користувач
+            const isFresh = S._lastKnownPos && (Date.now() - S._lastKnownPos.at) < 30000;
+            if (!hasCoords && !isFresh && navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     (p) => {
                         S._lastKnownPos = { lat: p.coords.latitude, lng: p.coords.longitude, at: Date.now() };
@@ -9102,7 +9103,16 @@
                         body: JSON.stringify({ user_id: S.userId, lat: pos.coords.latitude, lng: pos.coords.longitude })
                     }).catch(() => {});
                 },
-                () => {},
+                (err) => {
+                    console.warn("Live location update failed:", err);
+                    const isPermissionDenied = err && err.code === 1;
+                    stopLocationTracking(isPermissionDenied);
+                    if (isPermissionDenied) {
+                        showToast("Доступ до GPS відхилено. Телеметрію вимкнено.", "warning");
+                    } else {
+                        showToast("GPS вимкнено або недоступний. Телеметрію призупинено.", "warning");
+                    }
+                },
                 { enableHighAccuracy: true, timeout: 5000 }
             );
         }
