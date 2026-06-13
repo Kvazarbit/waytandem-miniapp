@@ -3579,6 +3579,7 @@
             if (S.currentScreen === 'news' || S.currentScreen === 'explore') renderNews();
             // Check handshake panel logic after hydration
             verifyHandshakePanelState();
+            verifyMapResultPanelState();
             maybeOpenMatchSheet();
             hideSkeleton();
         }
@@ -3611,6 +3612,7 @@
 
                     syncIdentityUI();
                     verifyHandshakePanelState();
+                    verifyMapResultPanelState();
 
                     const newPendingRaw = JSON.stringify(S.pendingMatches);
                     if (oldPendingRaw !== newPendingRaw) updateBadges();
@@ -4536,7 +4538,7 @@
             `;
         }
 
-        function openMapRequestJoinResultSheet(dirId, res = {}) {
+        function openMapRequestJoinResultSheet(dirId, res = {}, orgId = 0) {
             const ctx = mapInviteContext(dirId);
             const safeDirId = ctx.safeDirId || (parseInt(dirId) || 0);
             // Ядро може створити екіпаж миттєво (взаємний інтерес) — не брешемо «чекаємо
@@ -4545,11 +4547,13 @@
             const mutual = !!res?.mutual || tripMatched;
             if (!mutual) {
                 // Вибір вже зроблено — показуємо лаконічну "процес"-картку (як у "Поїздки"),
-                // а не окрему шторку з тупим "Запит надіслано".
+                // а не окрему шторку з тупим "Запит надіслано". partnerId/directionLabel —
+                // фолбек на orgId/ctx.title, якщо hydrate ще не встиг наповнити
+                // S.pendingMatches (getOutgoingForDirection порожній).
                 openMapResultPanel(`
                     ${ctx.safeDirId ? renderMapInviteContextHeader(ctx) : ''}
-                    ${renderMapOutgoingProcessCard(safeDirId)}
-                `);
+                    ${renderMapOutgoingProcessCard(safeDirId, { partnerId: orgId, directionLabel: ctx.title })}
+                `, { kind: 'outgoing', dirId: safeDirId });
                 return;
             }
             openMapResultPanel(`
@@ -4574,8 +4578,8 @@
                 // вибір зроблено, чекаємо підтвердження попутника.
                 openMapResultPanel(`
                     ${ctx.safeDirId ? renderMapInviteContextHeader(ctx) : ''}
-                    ${renderMapOutgoingProcessCard(safeDirId, { partnerId: safePassengerId })}
-                `);
+                    ${renderMapOutgoingProcessCard(safeDirId, { partnerId: safePassengerId, directionLabel: ctx.title })}
+                `, { kind: 'outgoing', dirId: safeDirId });
                 return;
             }
             openMapResultPanel(`
@@ -4623,7 +4627,7 @@
                         renderNewsStrip();
                         await refreshMap();
                         focusActiveMapContext();
-                        openMapRequestJoinResultSheet(dirId, res);
+                        openMapRequestJoinResultSheet(dirId, res, orgId);
                         return true;
                     }
                     closeSheet();
@@ -7265,11 +7269,16 @@
         // ═══════ MAP RESULT PANEL (non-modal, map stays visible/interactive) ═══════
         // Used for short-lived results of map actions (join request sent, signal sent)
         // — unlike .sheet/#sheet-backdrop, this does NOT dim or block the map.
-        function openMapResultPanel(html) {
+        // `meta` (DM-2026-06-13-005) lets verifyMapResultPanelState() keep a
+        // long-lived "outgoing process" card in sync with hydrate/poll — e.g.
+        // close it once the handshake resolves, so action buttons never point
+        // at an already-settled request.
+        function openMapResultPanel(html, meta = null) {
             const panel = document.getElementById('map-result-panel');
             if (!panel) return;
             panel.innerHTML = html;
             panel.classList.add('open');
+            panel._mapResultMeta = meta;
             document.body.style.paddingBottom = '170px';
         }
 
@@ -7278,10 +7287,42 @@
             if (!panel) return;
             panel.classList.remove('open');
             panel.innerHTML = '';
+            panel._mapResultMeta = null;
             const handshake = document.getElementById('handshake-panel');
             if (!handshake || !handshake.classList.contains('open')) {
                 document.body.style.paddingBottom = '';
             }
+        }
+
+        // DM-2026-06-13-005: тримає компактну "процес"-картку (renderMapOutgoingProcessCard)
+        // синхронною з реальним станом хендшейку на кожному hydrate/poll —
+        // інакше "🛑 Скасувати запит"/"🚪 Вийти з події" можуть лишитись над
+        // уже вирішеним запитом (партнер прийняв/відхилив, або запит
+        // скасовано з "Поїздки" в іншій вкладці).
+        function verifyMapResultPanelState() {
+            const panel = document.getElementById('map-result-panel');
+            if (!panel || !panel.classList.contains('open')) return;
+            const meta = panel._mapResultMeta;
+            if (!meta || meta.kind !== 'outgoing') return;
+            const { dirId } = meta;
+            const tripMatched = !!(S.activeTrip && String(S.activeTrip.direction_id || '') === String(dirId));
+            if (tripMatched) {
+                closeMapResultPanel();
+                showToast('🎉 Екіпаж готовий! Деталі — у "Поїздки"', 'success');
+                return;
+            }
+            if (!getOutgoingForDirection(dirId)) {
+                // Хендшейк уже вирішено (прийнято/відхилено/скасовано) деінде —
+                // картка з "Скасувати запит"/"Вийти з події" більше не актуальна.
+                closeMapResultPanel();
+                return;
+            }
+            // Запит ще в процесі — оновлюємо картку (ім'я/фото партнера могли довантажитись).
+            const ctx = mapInviteContext(dirId);
+            openMapResultPanel(`
+                ${ctx.safeDirId ? renderMapInviteContextHeader(ctx) : ''}
+                ${renderMapOutgoingProcessCard(dirId)}
+            `, meta);
         }
 
         function currentRequestIdFromTrip(trip) {
