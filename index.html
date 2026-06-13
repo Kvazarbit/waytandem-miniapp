@@ -2677,6 +2677,92 @@
         #map-result-panel.open {
             transform: translateY(0);
         }
+
+        /* ═══════ MAP TRIP DOCK (persistent lifecycle dock — "де я в циклі" + дії) ═══════ */
+        /* DM-2026-06-13-006: після рукостискання низ карти лишався порожнім — статус
+           і дії були тільки у вкладці "Поїздки". Цей док тримає поточну фазу екіпажу
+           (домовились → збір → у дорозі) + до двох дій біля великого пальця,
+           авто-оновлюється на кожному hydrate/poll. Поступається панелі вхідного
+           запиту (z-index нижчий) і живе лише на екрані карти. */
+        #map-trip-dock {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 9000;
+            background: var(--bg-elevated);
+            border-top: 1px solid var(--blue);
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
+            padding: 14px 16px;
+            padding-bottom: max(16px, var(--safe-bottom));
+            box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.55);
+            transform: translateY(115%);
+            transition: transform 0.38s cubic-bezier(0.32, 0.72, 0, 1);
+        }
+        #map-trip-dock.open { transform: translateY(0); }
+        /* Згорнуто: тонка смужка над нижньою навігацією — нав лишається доступною. */
+        #map-trip-dock.collapsed {
+            bottom: calc(var(--nav-height) + var(--safe-bottom) + 6px);
+            padding: 0;
+            background: transparent;
+            border-top: none;
+            box-shadow: none;
+        }
+        #map-trip-dock .dock-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        #map-trip-dock .dock-title {
+            font-size: 15px;
+            font-weight: 850;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+        #map-trip-dock .dock-sub {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        #map-trip-dock .dock-collapse {
+            flex-shrink: 0;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-secondary);
+            font-size: 15px;
+            line-height: 1;
+            cursor: pointer;
+        }
+        #map-trip-dock .dock-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+        }
+        #map-trip-dock .dock-actions .btn { flex: 1; }
+        #map-trip-dock .dock-strip {
+            margin: 0 12px;
+            padding: 10px 16px;
+            border-radius: 999px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--blue);
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+            font-size: 13px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            cursor: pointer;
+        }
     </style>
 </head>
 
@@ -2859,6 +2945,9 @@
     <!-- MAP RESULT PANEL (non-modal result of map actions: join request / signal sent) -->
     <div id="map-result-panel"></div>
 
+    <!-- MAP TRIP DOCK (persistent active-crew lifecycle dock on the map) -->
+    <div id="map-trip-dock"></div>
+
     <!-- BOTTOM SHEET -->
     <div class="sheet-backdrop" id="sheet-backdrop"></div>
     <div class="sheet" id="sheet">
@@ -2950,6 +3039,8 @@
             criticalSoundEventIds: new Set(),
             appSoundEnabled: localStorage.getItem('wt_app_sound') !== 'off',
             didInitialHydrate: false,
+            mapTripDockCollapsed: false,
+            mapTripDockPhaseSeen: null,
             myDirections: [],
             roleGateOpen: false,
             pendingRoleAction: null,
@@ -3580,6 +3671,7 @@
             // Check handshake panel logic after hydration
             verifyHandshakePanelState();
             verifyMapResultPanelState();
+            verifyMapTripDockState();
             maybeOpenMatchSheet();
             hideSkeleton();
         }
@@ -3613,6 +3705,7 @@
                     syncIdentityUI();
                     verifyHandshakePanelState();
                     verifyMapResultPanelState();
+                    verifyMapTripDockState();
 
                     const newPendingRaw = JSON.stringify(S.pendingMatches);
                     if (oldPendingRaw !== newPendingRaw) updateBadges();
@@ -4019,6 +4112,7 @@
             if (name === 'board') renderBoard();
             if (name === 'news') renderNewsScreen();
             if (name === 'trips') { renderTrips(); setTimeout(() => maybeOpenMatchSheet(), 0); }
+            verifyMapTripDockState();
             updateBottomNavForBoardDepth();
         }
 
@@ -7468,6 +7562,133 @@
                 ${ctx.safeDirId ? renderMapInviteContextHeader(ctx) : ''}
                 ${renderMapOutgoingProcessCard(dirId)}
             `, meta);
+        }
+
+        // ═══════ MAP TRIP DOCK ═══════
+        // DM-2026-06-13-006: персистентний нижній док активного екіпажу на карті.
+        // Закриває діру "після рукостискання карта порожня, статус і дії — лише у
+        // вкладці Поїздки". Тримає поточну фазу циклу (домовились → збір → у дорозі)
+        // + до двох дій біля великого пальця, авто-синхронний з hydrate/poll.
+        // Працює лише на екрані карти (explore); у Поїздках своя hero-картка.
+        function mapTripDockPhase(t) {
+            if (!t) return null;
+            if (t.is_started) return 'driving';
+            if (t.status === 'pickup') return 'pickup';
+            return 'reservation';
+        }
+
+        function mapTripDockTitle(phase) {
+            if (phase === 'driving') return { icon: '🛣', title: 'У дорозі до події' };
+            if (phase === 'pickup') return { icon: '🚗', title: 'Збір екіпажу' };
+            return { icon: '🤝', title: 'Екіпаж домовився' };
+        }
+
+        function closeMapTripDock() {
+            const panel = document.getElementById('map-trip-dock');
+            if (!panel) return;
+            panel.classList.remove('open');
+            panel.classList.remove('collapsed');
+            panel.innerHTML = '';
+        }
+
+        function toggleMapTripDock() {
+            S.mapTripDockCollapsed = !S.mapTripDockCollapsed;
+            verifyMapTripDockState();
+        }
+
+        function verifyMapTripDockState() {
+            const panel = document.getElementById('map-trip-dock');
+            if (!panel) return;
+            const t = S.activeTrip;
+            const handshake = document.getElementById('handshake-panel');
+            const handshakeOpen = handshake && handshake.classList.contains('open');
+            // Док лише на карті, лише за наявності активного екіпажу. Поступається
+            // панелі вхідного запиту (прийняти нового попутника терміновіше) і не
+            // конкурує з очікуванням підтвердження партнера.
+            if (!t || S.currentScreen !== 'explore' || handshakeOpen || waitingForPartner) {
+                closeMapTripDock();
+                S.mapTripDockPhaseSeen = null;
+                return;
+            }
+            const phase = mapTripDockPhase(t);
+            // Нова фаза циклу — авто-розгортаємо, щоб дії були під рукою.
+            if (phase !== S.mapTripDockPhaseSeen) {
+                S.mapTripDockCollapsed = false;
+                S.mapTripDockPhaseSeen = phase;
+            }
+            if (S.mapTripDockCollapsed) {
+                panel.innerHTML = buildMapTripDockStrip(t, phase);
+                panel.classList.add('open', 'collapsed');
+                return;
+            }
+            panel.classList.remove('collapsed');
+            panel.innerHTML = buildMapTripDockBody(t, phase);
+            panel.classList.add('open');
+        }
+
+        function buildMapTripDockStrip(t, phase) {
+            const head = mapTripDockTitle(phase);
+            return `<div class="dock-strip" onclick="toggleMapTripDock()">
+                <span>${head.icon} ${escapeHtml(head.title)}</span>
+                <span style="opacity:.55;font-size:11px;">розгорнути ▴</span>
+            </div>`;
+        }
+
+        function buildMapTripDockBody(t, phase) {
+            const head = mapTripDockTitle(phase);
+            const isDriver = t.viewer_role === 'driver';
+            const crewNo = activeTripCrewNumber(t);
+            const dir = t.direction_title || 'Поїздка';
+            const metaLine = `Екіпаж #${escapeHtml(String(crewNo))} · ${escapeHtml(dir)} · ${isDriver ? '🚗 Ви водій' : '👤 Ви попутник'}`;
+            const safeReqId = parseInt(t.request_id || t.id || 0, 10) || 0;
+            const safePartnerId = parseInt(isDriver ? (t.client_id || 0) : (t.driver_id || 0), 10) || 0;
+            const nextPassenger = nextPickupPassenger(t);
+            const nextReqId = passengerRequestId(nextPassenger);
+            const nextPassengerId = parseInt(nextPassenger?.user_id || 0, 10) || 0;
+            const nextName = nextPassenger ? passengerDisplayName(nextPassenger) : '';
+            const allPicked = allPickupPassengersPickedUp(t);
+
+            let hint = '';
+            let actions = '';
+            if (phase === 'driving') {
+                hint = isDriver ? 'Усі в авто. Завершіть, коли доїдете до події.' : 'Ви в дорозі з водієм. Завершіть після прибуття.';
+                actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
+                    <button class="btn btn-success" onclick="finishTrip()">✅ Завершити</button>`;
+            } else if (phase === 'pickup') {
+                if (isDriver && nextPassenger) {
+                    hint = `Заберіть: ${escapeHtml(nextName)}. Позначайте по одному.`;
+                    actions = `<button class="btn btn-secondary" onclick="switchScreen('trips')">Екіпаж</button>
+                        <button class="btn btn-primary" ${(!nextReqId || !nextPassengerId) ? 'disabled' : ''} onclick="markPassengerPickedUp(${nextReqId}, ${nextPassengerId})">✅ ${escapeHtml(nextName)} в авто</button>`;
+                } else if (isDriver && allPicked) {
+                    hint = 'Усі попутники в авто. Можна стартувати до події.';
+                    actions = `<button class="btn btn-secondary" onclick="switchScreen('trips')">Екіпаж</button>
+                        <button class="btn btn-primary" onclick="startTrip()">🚀 Поїхали</button>`;
+                } else {
+                    hint = 'Водій біля точки збору. Чекайте на своїй точці.';
+                    actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
+                        <button class="btn btn-ghost" onclick="switchScreen('trips')">Екіпаж</button>`;
+                }
+            } else {
+                if (isDriver) {
+                    hint = 'Рушайте до точки збору й позначте, коли будете на місці.';
+                    actions = `<button class="btn btn-secondary" onclick="switchScreen('trips')">Екіпаж</button>
+                        <button class="btn btn-primary" onclick="arriveAtPickup()">🚗 Я біля точки збору</button>`;
+                } else {
+                    hint = 'Водій вирушає по вас. Стежте за карткою або напишіть у чат.';
+                    actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
+                        <button class="btn btn-ghost" onclick="switchScreen('trips')">Екіпаж</button>`;
+                }
+            }
+
+            return `<div class="dock-head">
+                    <div style="min-width:0;">
+                        <div class="dock-title">${head.icon} ${escapeHtml(head.title)}</div>
+                        <div class="dock-sub">${metaLine}</div>
+                        <div class="dock-sub" style="color:var(--text);margin-top:5px;white-space:normal;">${hint}</div>
+                    </div>
+                    <button class="dock-collapse" onclick="toggleMapTripDock()" title="Згорнути" aria-label="Згорнути">▾</button>
+                </div>
+                <div class="dock-actions">${actions}</div>`;
         }
 
         function currentRequestIdFromTrip(trip) {
