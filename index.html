@@ -199,6 +199,22 @@
             border-radius: 50%;
         }
 
+        .header-help-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            font-weight: 800;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            padding: 0;
+        }
+
         /* 🎯 СОЦІАЛЬНИЙ БАНЕР ПОДІЇ */
         .event-accordion {
             background: linear-gradient(135deg, rgba(56, 189, 248, 0.08) 0%, rgba(17, 24, 39, 0.85) 100%);
@@ -2656,6 +2672,7 @@
         <div class="header">
             <div class="header-title"><span class="accent">Way</span>Tandem</div>
             <div class="header-right">
+                <button class="header-help-btn" id="welcome-help-btn" type="button" title="Як це працює?" onclick="showWelcomeSheet()">?</button>
                 <div class="role-pill none" id="role-pill" onclick="openRoleSelector()"></div>
                 <div class="avatar-btn" id="avatar-btn" onclick="switchScreen('profile')"></div>
             </div>
@@ -7779,15 +7796,20 @@
             const welcomeText = `
                 <div class="sheet-title">Вітаємо у WayTandem!</div>
                 <div class="sheet-sub" style="text-align:left; margin: 12px 0;">
-                    <p>Сервіс спільних подорожей.</p>
-                    <p><strong>Як почати:</strong></p>
+                    <p>Сервіс спільних подорожей: одна подія - один організатор - спільний виїзд.</p>
+                    <p>Оберіть подію на мапі чи в каталозі, натисніть «Хочу поїхати» і вкажіть, як ви їдете:</p>
+                    <p><strong>🚗 Можу взяти людей (я водій):</strong></p>
                     <ol style="padding-left: 20px; margin: 8px 0;">
-                        <li>Оберіть свою роль: <strong>Водій</strong> або <strong>Попутник</strong>.</li>
-                        <li>Створіть або оберіть напрямок подорожі на дошці.</li>
-                        <li>Станьте в чергу, потім запросіться до екіпажу або відкрийте свої місця.</li>
-                        <li>Спілкуйтесь, домовляйтесь, подорожуйте разом!</li>
+                        <li>Вкажіть, скільки у вас вільних місць.</li>
+                        <li>Відкрийте місця - попутники самі постукають до вас.</li>
                     </ol>
-                    <p>Натисніть на логотип WayTandem у верхньому лівому куті, щоб переглянути цю інструкцію знову.</p>
+                    <p><strong>🎒 Шукаю місце (я попутник):</strong></p>
+                    <ol style="padding-left: 20px; margin: 8px 0;">
+                        <li>Оберіть водія на карті самостійно, або</li>
+                        <li>зачекайте, поки водій надішле вам запит.</li>
+                    </ol>
+                    <p>💬 У кожної події є свій чат - кнопка «Чат події» з'явиться після приєднання.</p>
+                    <p>Натисніть «?» у верхньому правому куті (або на логотип WayTandem), щоб переглянути цю інструкцію знову.</p>
                 </div>
                 <button class="btn btn-primary" onclick="closeSheet(); localStorage.setItem('wt_welcome_seen', '1');">Зрозуміло</button>
             `;
