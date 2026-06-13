@@ -4512,6 +4512,30 @@
             if (ok) closeSheet();
         }
 
+        // Компактна "процес"-картка (DM-2026-06-13-005): той самий вигляд, що й
+        // outgoing-картка в "Поїздки" (renderTrips, scope==='outgoing') — аватар
+        // партнера, напрямок, тег «📤 Очікування» і ті самі дії
+        // («🛑 Скасувати запит» / «🚪 Вийти з події»). Показуємо її замість статичного
+        // «Запит надіслано», щоб одразу було видно: вибір зроблено, хендшейк іде.
+        function renderMapOutgoingProcessCard(safeDirId, opts = {}) {
+            const m = getOutgoingForDirection(safeDirId) || {};
+            const partnerId = m.target_id || m.partner_id || opts.partnerId || 0;
+            const partnerName = m.target_name || m.partner_name || opts.partnerName || (partnerId ? `#${partnerId}` : 'Партнер');
+            const partnerPhoto = m.target_photo_url || m.partner_photo_url || '';
+            const directionLabel = m.direction || m.direction_title || opts.directionLabel || 'Напрямок';
+            return `
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+                    ${renderAvatarInline(partnerName, partnerPhoto, 40)}
+                    <div style="flex:1;"><div style="font-weight:800;font-size:14px;">${escapeHtml(partnerName)}</div><div style="font-size:11px;color:var(--text-secondary);">${escapeHtml(directionLabel)}</div></div>
+                    <div class="tag tag-blue">📤 Очікування</div>
+                </div>
+                <div style="display:flex;gap:10px;">
+                    <button class="btn btn-secondary" style="flex:1;" onclick="closeMapResultPanel(); respondHandshake(${partnerId}, ${safeDirId}, false, 'cancel')">🛑 Скасувати запит</button>
+                    <button class="btn btn-danger" style="flex:1;" onclick="closeMapResultPanel(); stopSearchFromHandshake(${partnerId}, ${safeDirId})">🚪 Вийти з події</button>
+                </div>
+            `;
+        }
+
         function openMapRequestJoinResultSheet(dirId, res = {}) {
             const ctx = mapInviteContext(dirId);
             const safeDirId = ctx.safeDirId || (parseInt(dirId) || 0);
@@ -4519,22 +4543,23 @@
             // підтвердження», якщо hydrate вже приніс активну поїздку по цій події.
             const tripMatched = !!(S.activeTrip && String(S.activeTrip.direction_id || '') === String(safeDirId));
             const mutual = !!res?.mutual || tripMatched;
-            const switched = Array.isArray(res?.switched_from) && res.switched_from.length > 0;
-            const title = mutual ? '🎉 Екіпаж готовий!' : (switched ? 'Запит перемкнено' : 'Запит надіслано');
-            const statusLine = mutual
-                ? 'Водій уже відкрив місця — резервацію створено одразу. Деталі в екрані екіпажу.'
-                : 'Чекаємо підтвердження водія. Карта лишається відкритою, а статус оновиться автоматично.';
-            const tertiary = mutual
-                ? `<button class="btn btn-ghost" onclick="closeMapResultPanel(); openStartDirectionInvite(${safeDirId}, { source: 'map', sheetMaxHeight: '65vh', fullInvite: true })">Деталі</button>`
-                : `<button class="btn btn-danger" onclick="closeMapResultPanel(); unsubscribeDir(${safeDirId})">🚪 Вийти з події</button>`;
+            if (!mutual) {
+                // Вибір вже зроблено — показуємо лаконічну "процес"-картку (як у "Поїздки"),
+                // а не окрему шторку з тупим "Запит надіслано".
+                openMapResultPanel(`
+                    ${ctx.safeDirId ? renderMapInviteContextHeader(ctx) : ''}
+                    ${renderMapOutgoingProcessCard(safeDirId)}
+                `);
+                return;
+            }
             openMapResultPanel(`
                 ${ctx.safeDirId ? renderMapInviteContextHeader(ctx) : ''}
-                <div class="sheet-title">${escapeHtml(title)}</div>
-                <div class="sheet-sub">${escapeHtml(statusLine)}</div>
+                <div class="sheet-title">🎉 Екіпаж готовий!</div>
+                <div class="sheet-sub">${escapeHtml('Водій уже відкрив місця — резервацію створено одразу. Деталі в екрані екіпажу.')}</div>
                 <div class="sheet-actions" data-map-command-count="3">
                     <button class="btn btn-primary" onclick="closeMapResultPanel(); switchScreen('trips')">Екіпаж</button>
                     <button class="btn btn-secondary" onclick="closeMapResultPanel()">Зрозуміло</button>
-                    ${tertiary}
+                    <button class="btn btn-ghost" onclick="closeMapResultPanel(); openStartDirectionInvite(${safeDirId}, { source: 'map', sheetMaxHeight: '65vh', fullInvite: true })">Деталі</button>
                 </div>
             `);
         }
@@ -4544,22 +4569,23 @@
             const safeDirId = ctx.safeDirId || (parseInt(dirId) || 0);
             const safePassengerId = parseInt(passengerId, 10) || 0;
             const mutual = !!res?.mutual;
-            const switched = Array.isArray(res?.switched_from) && res.switched_from.length > 0;
-            const title = mutual ? 'Екіпаж готовий' : (switched ? 'Запрошення перемкнено' : 'Запрошення надіслано');
-            const statusLine = mutual
-                ? 'Попутник підтвердився. Перейдіть до екрана екіпажу, щоб узгодити деталі.'
-                : 'Чекаємо підтвердження попутника. Карта лишається відкритою, а статус оновиться автоматично.';
-            const tertiary = mutual
-                ? `<button class="btn btn-ghost" onclick="closeMapResultPanel(); openStartDirectionInvite(${safeDirId}, { source: 'map', sheetMaxHeight: '65vh', fullInvite: true })">Деталі</button>`
-                : `<button class="btn btn-danger" onclick="closeMapResultPanel(); stopSearchFromMatchSheet(${safePassengerId}, ${safeDirId})">Скасувати запрошення</button>`;
+            if (!mutual) {
+                // Те саме лаконічне "процес"-стейт, що й для пасажирського запиту:
+                // вибір зроблено, чекаємо підтвердження попутника.
+                openMapResultPanel(`
+                    ${ctx.safeDirId ? renderMapInviteContextHeader(ctx) : ''}
+                    ${renderMapOutgoingProcessCard(safeDirId, { partnerId: safePassengerId })}
+                `);
+                return;
+            }
             openMapResultPanel(`
                 ${ctx.safeDirId ? renderMapInviteContextHeader(ctx) : ''}
-                <div class="sheet-title">${escapeHtml(title)}</div>
-                <div class="sheet-sub">${escapeHtml(statusLine)}</div>
+                <div class="sheet-title">Екіпаж готовий</div>
+                <div class="sheet-sub">${escapeHtml('Попутник підтвердився. Перейдіть до екрана екіпажу, щоб узгодити деталі.')}</div>
                 <div class="sheet-actions" data-map-command-count="3">
                     <button class="btn btn-primary" onclick="closeMapResultPanel(); switchScreen('trips')">Екіпаж</button>
                     <button class="btn btn-secondary" onclick="closeMapResultPanel()">Зрозуміло</button>
-                    ${tertiary}
+                    <button class="btn btn-ghost" onclick="closeMapResultPanel(); openStartDirectionInvite(${safeDirId}, { source: 'map', sheetMaxHeight: '65vh', fullInvite: true })">Деталі</button>
                 </div>
             `);
         }
