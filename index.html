@@ -5090,6 +5090,10 @@
             // одразу показуємо ранжований список екіпажів (відстань від точки очікування),
             // з якого можна запроситись в один тап. Карта лишається доступною («Закрити»).
             if (subOk && !autoMatch && !S.activeTrip) openNearbyCrewsSheet(safeDirId);
+            // UX-fix: автопошук з карти — показуємо компактний банер «Шукаємо…» внизу
+            // карти. Без нього людина лишається на порожній карті без зворотного зв'язку
+            // (тост зникає за 2 сек, а інформація доступна тільки у вкладці «Поїздки»).
+            if (subOk && autoMatch && !S.activeTrip) openMapAutoSearchPanel(safeDirId);
             return subOk;
         }
 
@@ -5216,6 +5220,26 @@
             if (!ok) return false;
             // Місця й старт уже відомі → одразу відкриваємо екіпаж («Екіпаж відкрито»).
             return doOpenCrew(safeDirId, { keepMapSheet: true });
+        }
+
+        function openMapAutoSearchPanel(dirId) {
+            const ctx = mapInviteContext(dirId);
+            const safeDirId = ctx.safeDirId || (parseInt(dirId) || 0);
+            if (!safeDirId) return;
+            const isDriver = _isDriverRole(S.userRole);
+            const title = isDriver ? '✨ Шукаємо попутників' : '✨ Шукаємо місце';
+            const sub = isDriver
+                ? 'Автоматичний пошук активний. Як тільки попутник знайдеться — ви отримаєте пропозицію.'
+                : 'Автоматичний пошук активний. Як тільки водій знайдеться — ви отримаєте пропозицію.';
+            openMapResultPanel(`
+                ${ctx.safeDirId ? renderMapInviteContextHeader(ctx) : ''}
+                <div class="sheet-title" style="font-size:15px;">${escapeHtml(title)}</div>
+                <div class="sheet-sub" style="font-size:12px;margin-bottom:10px;">${escapeHtml(sub)}</div>
+                <div style="display:flex;gap:10px;">
+                    <button class="btn btn-secondary" style="flex:1;" onclick="closeMapResultPanel(); openStartDirectionInvite(${safeDirId}, { source: 'map', sheetMaxHeight: '65vh', fullInvite: true })">Деталі</button>
+                    <button class="btn btn-danger" style="flex:1;" onclick="closeMapResultPanel(); unsubscribeDir(${safeDirId})">🚪 Зупинити</button>
+                </div>
+            `, { kind: 'auto_search', dirId: safeDirId });
         }
 
         function openMapSubscribedSheet(dirId, options = {}) {
@@ -7303,14 +7327,54 @@
             const panel = document.getElementById('map-result-panel');
             if (!panel || !panel.classList.contains('open')) return;
             const meta = panel._mapResultMeta;
-            if (!meta || meta.kind !== 'outgoing') return;
-            const { dirId } = meta;
+            if (!meta) return;
+            const { dirId, kind } = meta;
+
+            // Обидва типи панелей: якщо вже є активна поїздка — банер більше не потрібен.
             const tripMatched = !!(S.activeTrip && String(S.activeTrip.direction_id || '') === String(dirId));
             if (tripMatched) {
                 closeMapResultPanel();
                 showToast('🎉 Екіпаж готовий! Деталі — у "Поїздки"', 'success');
                 return;
             }
+
+            if (kind === 'auto_search') {
+                // Автопошук: якщо з'явився outgoing хендшейк — переключити на процес-картку.
+                if (getOutgoingForDirection(dirId)) {
+                    const ctx = mapInviteContext(dirId);
+                    openMapResultPanel(`
+                        ${ctx.safeDirId ? renderMapInviteContextHeader(ctx) : ''}
+                        ${renderMapOutgoingProcessCard(dirId)}
+                    `, { kind: 'outgoing', dirId });
+                    return;
+                }
+                // Якщо підписку скасовано (немає в subscriptions) — закрити панель.
+                const stillSubscribed = (S.subscriptions || []).some(s => String(s.direction_id) === String(dirId));
+                if (!stillSubscribed) {
+                    closeMapResultPanel();
+                    return;
+                }
+                // Підписка ще жива, пошук іде — оновлюємо контекст (лічильники могли змінитись).
+                const ctx = mapInviteContext(dirId);
+                const isDriver = _isDriverRole(S.userRole);
+                const title = isDriver ? '✨ Шукаємо попутників' : '✨ Шукаємо місце';
+                const sub = isDriver
+                    ? 'Автоматичний пошук активний. Як тільки попутник знайдеться — ви отримаєте пропозицію.'
+                    : 'Автоматичний пошук активний. Як тільки водій знайдеться — ви отримаєте пропозицію.';
+                openMapResultPanel(`
+                    ${ctx.safeDirId ? renderMapInviteContextHeader(ctx) : ''}
+                    <div class="sheet-title" style="font-size:15px;">${escapeHtml(title)}</div>
+                    <div class="sheet-sub" style="font-size:12px;margin-bottom:10px;">${escapeHtml(sub)}</div>
+                    <div style="display:flex;gap:10px;">
+                        <button class="btn btn-secondary" style="flex:1;" onclick="closeMapResultPanel(); openStartDirectionInvite(${dirId}, { source: 'map', sheetMaxHeight: '65vh', fullInvite: true })">Деталі</button>
+                        <button class="btn btn-danger" style="flex:1;" onclick="closeMapResultPanel(); unsubscribeDir(${dirId})">🚪 Зупинити</button>
+                    </div>
+                `, meta);
+                return;
+            }
+
+            if (kind !== 'outgoing') return;
+
             if (!getOutgoingForDirection(dirId)) {
                 // Хендшейк уже вирішено (прийнято/відхилено/скасовано) деінде —
                 // картка з "Скасувати запит"/"Вийти з події" більше не актуальна.
