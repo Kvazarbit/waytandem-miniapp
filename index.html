@@ -3016,7 +3016,7 @@
             miniAppShortName: localStorage.getItem('wt_mini_app_short_name') || '',
             pendingStartDirectionId: null,
             startDirectionHandled: false,
-            activeTrip: null, pendingMatches: [], directions: [], news: [], mapCrews: [], mapPassengers: [],
+            activeTrip: null, pendingMatches: [], proposedMatch: null, directions: [], news: [], mapCrews: [], mapPassengers: [],
             map: null, mapMarkers: [], currentScreen: 'explore',
             chatRequestId: null, chatPartnerId: null, busy: false,
             boardParentId: null, boardStack: [], boardSubSet: new Set(),
@@ -3647,6 +3647,7 @@
             if (S.activeTrip) lastKnownTripForRating = { ...S.activeTrip };
             else maybeOpenCompletedTripRatingSheet('hydrate');
             S.pendingMatches = resolvePendingMatchesPayload(data);
+            S.proposedMatch = data.proposed_match || null;
             const subs = await api(`/api/v3/user/subscriptions?user_id=${S.userId}`);
             S.subscriptions = subs?.subscriptions || [];
             // Suppress a just-switched-from/unsubscribed direction while the server
@@ -3701,6 +3702,7 @@
                         maybeOpenCompletedTripRatingSheet('poll');
                     }
                     S.pendingMatches = resolvePendingMatchesPayload(data);
+                    S.proposedMatch = data.proposed_match || null;
 
                     syncIdentityUI();
                     verifyHandshakePanelState();
@@ -4620,14 +4622,8 @@
         }
 
         function maybeOpenMatchSheet() {
-            if (S.matchSheetOpen || S.activeTrip || S.roleGateOpen || isAppInBackground) return;
-            const match = (S.pendingMatches || []).find(m => m?.scope === 'incoming' && !S.seenMatchIds.has(matchKey(m)));
-            if (!match) return;
-            if (isSheetOpen() || S.currentScreen !== 'trips') {
-                notifyPendingMatch(match);
-                return;
-            }
-            openMatchSheet(match);
+            // Disabled opening match modal sheet, delegating to map bottom banner (#handshake-panel)
+            verifyHandshakePanelState();
         }
 
         function notifyPendingMatch(match) {
@@ -7430,39 +7426,146 @@
             return false;
         }
 
+        async function inviteProposedMatch(partnerId, dirId) {
+            const safePartnerId = parseInt(partnerId, 10) || 0;
+            const safeDirId = parseInt(dirId, 10) || 0;
+            if (!safePartnerId || !safeDirId) return;
+
+            if (!beginOp('invite_proposed')) return;
+            try {
+                const res = await api('/api/v3/match/invite', {
+                    method: 'POST',
+                    body: JSON.stringify({ user_id: S.userId, target_id: safePartnerId, direction_id: safeDirId })
+                });
+                if (res?.status === 'ok') {
+                    showToast('📤 Запит надіслано! Очікуємо підтвердження.', 'success');
+                    S.proposedMatch = null;
+                    await hydrate();
+                } else {
+                    showToast(getErrorMessage(res, 'Не вдалось надіслати запит'), 'error');
+                }
+            } catch (e) {
+                showToast('Немає з\'єднання — спробуйте ще раз', 'error');
+            } finally {
+                endOp('invite_proposed');
+            }
+        }
+
+        async function declineProposedMatch(partnerId, dirId) {
+            const safePartnerId = parseInt(partnerId, 10) || 0;
+            const safeDirId = parseInt(dirId, 10) || 0;
+            if (!safePartnerId || !safeDirId) return;
+
+            if (!beginOp('decline_proposed')) return;
+            try {
+                const res = await api('/api/v3/match/respond', {
+                    method: 'POST',
+                    body: JSON.stringify({ user_id: S.userId, target_id: safePartnerId, direction_id: safeDirId, accept: false })
+                });
+                if (res?.status === 'declined') {
+                    showToast('✕ Пропущено', 'success');
+                    S.proposedMatch = null;
+                    await hydrate();
+                } else {
+                    showToast(getErrorMessage(res, 'Не вдалось пропустити'), 'error');
+                }
+            } catch (e) {
+                showToast('Немає з\'єднання — спробуйте ще раз', 'error');
+            } finally {
+                endOp('decline_proposed');
+            }
+        }
+
         function verifyHandshakePanelState() {
             const panel = document.getElementById('handshake-panel');
             if (!panel) return;
 
-            // Only show panel if we have incoming matches and NO active trip
             const incoming = S.pendingMatches.filter(m => m.scope === 'incoming');
 
-            if (incoming.length === 0 || (S.activeTrip && S.activeTrip.is_started) || waitingForPartner) {
+            // If there's an active trip, or we are waiting for partner, hide the panel
+            if ((S.activeTrip && S.activeTrip.is_started) || waitingForPartner) {
                 panel.classList.remove('open');
                 panel.innerHTML = '';
                 document.body.style.paddingBottom = '';
+                const nav = document.querySelector('.nav');
+                if (nav) nav.style.display = 'flex';
                 return;
             }
 
-            const m = incoming[0];
-            const partnerName = m.partner_name || m.sender_name || `#${m.partner_id}`;
-            const partnerId = m.partner_id || m.sender_id;
-            const dirTitle = m.direction || m.direction_title || 'Напрямок';
+            // Case A: Incoming handshake
+            if (incoming.length > 0) {
+                const m = incoming[0];
+                const partnerName = m.partner_name || m.sender_name || `#${m.partner_id}`;
+                const partnerId = m.partner_id || m.sender_id;
+                const dirTitle = m.direction || m.direction_title || 'Напрямок';
+                const isDriver = _isDriverRole(S.userRole);
+                const title = isDriver ? '📩 Запит в екіпаж' : '📩 Знайдено водія';
 
-            document.body.style.paddingBottom = '170px';
+                document.body.style.paddingBottom = '175px';
 
-            panel.innerHTML = `
-                <div style="font-weight:800;font-size:14px;margin-bottom:4px;color:var(--accent);">🟢 Вхідний запит!</div>
-                <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-bottom:12px;">
-                    <b>${escapeHtml(partnerName)}</b> • ${escapeHtml(dirTitle)}
-                </div>
-                <div style="display:flex;gap:10px;">
-                    <button class="btn btn-primary" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, true)">✓ Прийняти</button>
-                    <button class="btn btn-danger" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false)">✕ Відхилити</button>
-                </div>
-                <button class="btn btn-secondary" style="width:100%;margin-top:10px;" onclick="stopSearchFromHandshake(${partnerId}, ${m.direction_id})">🚪 Вийти з події</button>
-            `;
-            panel.classList.add('open');
+                panel.innerHTML = `
+                    <div style="font-weight:800;font-size:14px;margin-bottom:10px;color:var(--accent);display:flex;align-items:center;gap:6px;">
+                        🟢 ${escapeHtml(title)}
+                    </div>
+                    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;padding:10px;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border);">
+                        ${renderAvatarInline(partnerName, m.partner_photo_url || m.sender_photo_url || m.target_photo_url || '', 40)}
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(partnerName)}</div>
+                            <div style="font-size:11px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;">🎯 ${escapeHtml(dirTitle)}</div>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:10px;margin-bottom:8px;">
+                        <button class="btn btn-primary" style="flex:1;height:40px;font-size:13px;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, true)">✓ Прийняти</button>
+                        <button class="btn btn-danger" style="flex:1;height:40px;font-size:13px;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false)">✕ Відхилити</button>
+                    </div>
+                    <button class="btn btn-secondary" style="width:100%;height:36px;font-size:12px;background:transparent;border:1px solid rgba(255,255,255,0.15);" onclick="stopSearchFromHandshake(${partnerId}, ${m.direction_id})">🚪 Вийти з події</button>
+                `;
+                panel.classList.add('open');
+                const nav = document.querySelector('.nav');
+                if (nav) nav.style.display = 'none';
+                return;
+            }
+
+            // Case B: Proposed match (automatic search candidate)
+            if (S.proposedMatch) {
+                const pm = S.proposedMatch;
+                const partnerName = pm.partner_name || `#${pm.partner_id}`;
+                const partnerId = pm.partner_id;
+                const dirTitle = pm.direction_title || 'Напрямок';
+                const isDriver = _isDriverRole(S.userRole);
+                const title = isDriver ? '✨ Знайдено попутника' : '✨ Знайдено водія';
+
+                document.body.style.paddingBottom = '175px';
+
+                panel.innerHTML = `
+                    <div style="font-weight:800;font-size:14px;margin-bottom:10px;color:var(--accent);display:flex;align-items:center;gap:6px;">
+                        ${escapeHtml(title)}
+                    </div>
+                    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;padding:10px;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border);">
+                        ${renderAvatarInline(partnerName, pm.partner_photo_url || '', 40)}
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(partnerName)}</div>
+                            <div style="font-size:11px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;">🎯 ${escapeHtml(dirTitle)}</div>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:10px;margin-bottom:8px;">
+                        <button class="btn btn-primary" style="flex:1;height:40px;font-size:13px;" onclick="inviteProposedMatch(${partnerId}, ${pm.direction_id})">✓ Запросити</button>
+                        <button class="btn btn-danger" style="flex:1;height:40px;font-size:13px;" onclick="declineProposedMatch(${partnerId}, ${pm.direction_id})">✕ Пропустити</button>
+                    </div>
+                    <button class="btn btn-secondary" style="width:100%;height:36px;font-size:12px;background:transparent;border:1px solid rgba(255,255,255,0.15);" onclick="stopSearchFromHandshake(${partnerId}, ${pm.direction_id})">🚪 Вийти з події</button>
+                `;
+                panel.classList.add('open');
+                const nav = document.querySelector('.nav');
+                if (nav) nav.style.display = 'none';
+                return;
+            }
+
+            // Case C: No matches/proposals
+            panel.classList.remove('open');
+            panel.innerHTML = '';
+            document.body.style.paddingBottom = '';
+            const nav = document.querySelector('.nav');
+            if (nav) nav.style.display = 'flex';
         }
 
         // ═══════ MAP RESULT PANEL (non-modal, map stays visible/interactive) ═══════
@@ -7611,8 +7714,9 @@
                 return;
             }
             const phase = mapTripDockPhase(t);
-            // Нова фаза циклу — авто-розгортаємо, щоб дії були під рукою.
-            if (phase !== S.mapTripDockPhaseSeen) {
+            // Нова фаза циклу або активне сповіщення (скасування/фініш) — авто-розгортаємо, щоб дії були під рукою.
+            const needsAttention = !!(t.cancel_requested_by || tripPartnerFinished(t));
+            if (phase !== S.mapTripDockPhaseSeen || needsAttention) {
                 S.mapTripDockCollapsed = false;
                 S.mapTripDockPhaseSeen = phase;
             }
@@ -7648,35 +7752,62 @@
             const nextName = nextPassenger ? passengerDisplayName(nextPassenger) : '';
             const allPicked = allPickupPassengersPickedUp(t);
 
+            const partnerFinished = tripPartnerFinished(t);
+            const viewerFinished = tripViewerFinished(t);
+            const cancelBy = t.cancel_requested_by;
+            const cancelPending = cancelBy && !t.is_started && String(cancelBy) !== String(S.userId);
+            const cancelRequested = cancelBy && !t.is_started && String(cancelBy) === String(S.userId);
+
             let hint = '';
             let actions = '';
-            if (phase === 'driving') {
-                hint = isDriver ? 'Усі в авто. Завершіть, коли доїдете до події.' : 'Ви в дорозі з водієм. Завершіть після прибуття.';
-                actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
-                    <button class="btn btn-success" onclick="finishTrip()">✅ Завершити</button>`;
-            } else if (phase === 'pickup') {
-                if (isDriver && nextPassenger) {
-                    hint = `Заберіть: ${escapeHtml(nextName)}. Позначайте по одному.`;
-                    actions = `<button class="btn btn-secondary" onclick="switchScreen('trips')">Екіпаж</button>
-                        <button class="btn btn-primary" ${(!nextReqId || !nextPassengerId) ? 'disabled' : ''} onclick="markPassengerPickedUp(${nextReqId}, ${nextPassengerId})">✅ ${escapeHtml(nextName)} в авто</button>`;
-                } else if (isDriver && allPicked) {
-                    hint = 'Усі попутники в авто. Можна стартувати до події.';
-                    actions = `<button class="btn btn-secondary" onclick="switchScreen('trips')">Екіпаж</button>
-                        <button class="btn btn-primary" onclick="startTrip()">🚀 Поїхали</button>`;
-                } else {
-                    hint = 'Водій біля точки збору. Чекайте на своїй точці.';
-                    actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
-                        <button class="btn btn-ghost" onclick="switchScreen('trips')">Екіпаж</button>`;
-                }
+            let alertStyle = '';
+
+            if (cancelPending) {
+                hint = '⚠️ Партнер хоче скасувати поїздку';
+                alertStyle = 'color: var(--red); font-weight: bold;';
+                actions = `<button class="btn btn-primary" onclick="confirmCancelTrip()">✅ Скасувати</button>
+                           <button class="btn btn-secondary" onclick="rejectCancelTrip()">❌ Відмовити</button>`;
+            } else if (cancelRequested) {
+                hint = '⏳ Очікуємо підтвердження скасування від партнера';
+                alertStyle = 'color: var(--amber); font-weight: bold;';
+                actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>`;
+            } else if (partnerFinished && !viewerFinished) {
+                hint = '🏁 Партнер відмітив фініш. Підтвердіть завершення.';
+                alertStyle = 'color: var(--green); font-weight: bold;';
+                actions = `<button class="btn btn-success" onclick="finishTrip()">✅ Підтвердити фініш</button>`;
+            } else if (viewerFinished && !partnerFinished) {
+                hint = '⏳ Ви відмітили фініш. Очікуємо партнера.';
+                alertStyle = 'color: var(--amber); font-weight: bold;';
+                actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>`;
             } else {
-                if (isDriver) {
-                    hint = 'Рушайте до точки збору й позначте, коли будете на місці.';
-                    actions = `<button class="btn btn-secondary" onclick="switchScreen('trips')">Екіпаж</button>
-                        <button class="btn btn-primary" onclick="arriveAtPickup()">🚗 Я біля точки збору</button>`;
-                } else {
-                    hint = 'Водій вирушає по вас. Стежте за карткою або напишіть у чат.';
+                if (phase === 'driving') {
+                    hint = isDriver ? 'Усі в авто. Завершіть, коли доїдете до події.' : 'Ви в дорозі з водієм. Завершіть після прибуття.';
                     actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
-                        <button class="btn btn-ghost" onclick="switchScreen('trips')">Екіпаж</button>`;
+                        <button class="btn btn-success" onclick="finishTrip()">✅ Завершити</button>`;
+                } else if (phase === 'pickup') {
+                    if (isDriver && nextPassenger) {
+                        hint = `Заберіть: ${escapeHtml(nextName)}. Позначайте по одному.`;
+                        actions = `<button class="btn btn-secondary" onclick="switchScreen('trips')">Екіпаж</button>
+                            <button class="btn btn-primary" ${(!nextReqId || !nextPassengerId) ? 'disabled' : ''} onclick="markPassengerPickedUp(${nextReqId}, ${nextPassengerId})">✅ ${escapeHtml(nextName)} в авто</button>`;
+                    } else if (isDriver && allPicked) {
+                        hint = 'Усі попутники в авто. Можна стартувати до події.';
+                        actions = `<button class="btn btn-secondary" onclick="switchScreen('trips')">Екіпаж</button>
+                            <button class="btn btn-primary" onclick="startTrip()">🚀 Поїхали</button>`;
+                    } else {
+                        hint = '🚗 Водій прибув до точки збору. Чекайте на своїй точці.';
+                        actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
+                            <button class="btn btn-ghost" onclick="switchScreen('trips')">Екіпаж</button>`;
+                    }
+                } else {
+                    if (isDriver) {
+                        hint = 'Рушайте до точки збору й позначте, коли будете на місці.';
+                        actions = `<button class="btn btn-secondary" onclick="switchScreen('trips')">Екіпаж</button>
+                            <button class="btn btn-primary" onclick="arriveAtPickup()">🚗 Я біля точки збору</button>`;
+                    } else {
+                        hint = 'Водій вирушає по вас. Стежте за карткою або напишіть у чат.';
+                        actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
+                            <button class="btn btn-ghost" onclick="switchScreen('trips')">Екіпаж</button>`;
+                    }
                 }
             }
 
@@ -7684,7 +7815,7 @@
                     <div style="min-width:0;">
                         <div class="dock-title">${head.icon} ${escapeHtml(head.title)}</div>
                         <div class="dock-sub">${metaLine}</div>
-                        <div class="dock-sub" style="color:var(--text);margin-top:5px;white-space:normal;">${hint}</div>
+                        <div class="dock-sub" style="${alertStyle || 'color:var(--text);'}margin-top:5px;white-space:normal;">${hint}</div>
                     </div>
                     <button class="dock-collapse" onclick="toggleMapTripDock()" title="Згорнути" aria-label="Згорнути">▾</button>
                 </div>
