@@ -2653,6 +2653,30 @@
         #handshake-panel.open {
             transform: translateY(0);
         }
+
+        /* ═══════ MAP RESULT PANEL (non-modal, map stays visible/interactive) ═══════ */
+        #map-result-panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 10000;
+            background: var(--bg-elevated);
+            border-top: 1px solid var(--accent);
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
+            padding: 16px;
+            padding-bottom: max(16px, var(--safe-bottom));
+            box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.6);
+            max-height: 50vh;
+            overflow-y: auto;
+            transform: translateY(110%);
+            transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+        }
+
+        #map-result-panel.open {
+            transform: translateY(0);
+        }
     </style>
 </head>
 
@@ -2672,7 +2696,7 @@
         <div class="header">
             <div class="header-title"><span class="accent">Way</span>Tandem</div>
             <div class="header-right">
-                <button class="header-help-btn" id="welcome-help-btn" type="button" title="Як це працює?" onclick="showWelcomeSheet()">?</button>
+                <button class="header-help-btn" id="welcome-help-btn" type="button" title="Як це працює?" aria-label="Як це працює?" onclick="showWelcomeSheet()">?</button>
                 <div class="role-pill none" id="role-pill" onclick="openRoleSelector()"></div>
                 <div class="avatar-btn" id="avatar-btn" onclick="switchScreen('profile')"></div>
             </div>
@@ -2831,6 +2855,9 @@
 
     <!-- PERSISTENT HANDSHAKE PANEL -->
     <div id="handshake-panel"></div>
+
+    <!-- MAP RESULT PANEL (non-modal result of map actions: join request / signal sent) -->
+    <div id="map-result-panel"></div>
 
     <!-- BOTTOM SHEET -->
     <div class="sheet-backdrop" id="sheet-backdrop"></div>
@@ -4498,18 +4525,18 @@
                 ? 'Водій уже відкрив місця — резервацію створено одразу. Деталі в екрані екіпажу.'
                 : 'Чекаємо підтвердження водія. Карта лишається відкритою, а статус оновиться автоматично.';
             const tertiary = mutual
-                ? `<button class="btn btn-ghost" onclick="openStartDirectionInvite(${safeDirId}, { source: 'map', sheetMaxHeight: '65vh', fullInvite: true })">Деталі</button>`
-                : `<button class="btn btn-danger" onclick="unsubscribeDir(${safeDirId})">🚪 Вийти з події</button>`;
-            openSheet(`
+                ? `<button class="btn btn-ghost" onclick="closeMapResultPanel(); openStartDirectionInvite(${safeDirId}, { source: 'map', sheetMaxHeight: '65vh', fullInvite: true })">Деталі</button>`
+                : `<button class="btn btn-danger" onclick="closeMapResultPanel(); unsubscribeDir(${safeDirId})">🚪 Вийти з події</button>`;
+            openMapResultPanel(`
                 ${ctx.safeDirId ? renderMapInviteContextHeader(ctx) : ''}
                 <div class="sheet-title">${escapeHtml(title)}</div>
                 <div class="sheet-sub">${escapeHtml(statusLine)}</div>
                 <div class="sheet-actions" data-map-command-count="3">
-                    <button class="btn btn-primary" onclick="closeSheet(); switchScreen('trips')">Екіпаж</button>
-                    <button class="btn btn-secondary" onclick="closeSheet()">Зрозуміло</button>
+                    <button class="btn btn-primary" onclick="closeMapResultPanel(); switchScreen('trips')">Екіпаж</button>
+                    <button class="btn btn-secondary" onclick="closeMapResultPanel()">Зрозуміло</button>
                     ${tertiary}
                 </div>
-            `, { maxHeight: '65vh' });
+            `);
         }
 
         function openMapSignalResultSheet(dirId, passengerId, res = {}) {
@@ -4523,18 +4550,18 @@
                 ? 'Попутник підтвердився. Перейдіть до екрана екіпажу, щоб узгодити деталі.'
                 : 'Чекаємо підтвердження попутника. Карта лишається відкритою, а статус оновиться автоматично.';
             const tertiary = mutual
-                ? `<button class="btn btn-ghost" onclick="openStartDirectionInvite(${safeDirId}, { source: 'map', sheetMaxHeight: '65vh', fullInvite: true })">Деталі</button>`
-                : `<button class="btn btn-danger" onclick="stopSearchFromMatchSheet(${safePassengerId}, ${safeDirId})">Скасувати запрошення</button>`;
-            openSheet(`
+                ? `<button class="btn btn-ghost" onclick="closeMapResultPanel(); openStartDirectionInvite(${safeDirId}, { source: 'map', sheetMaxHeight: '65vh', fullInvite: true })">Деталі</button>`
+                : `<button class="btn btn-danger" onclick="closeMapResultPanel(); stopSearchFromMatchSheet(${safePassengerId}, ${safeDirId})">Скасувати запрошення</button>`;
+            openMapResultPanel(`
                 ${ctx.safeDirId ? renderMapInviteContextHeader(ctx) : ''}
                 <div class="sheet-title">${escapeHtml(title)}</div>
                 <div class="sheet-sub">${escapeHtml(statusLine)}</div>
                 <div class="sheet-actions" data-map-command-count="3">
-                    <button class="btn btn-primary" onclick="switchScreen('trips')">Екіпаж</button>
-                    <button class="btn btn-secondary" onclick="closeSheet()">Зрозуміло</button>
+                    <button class="btn btn-primary" onclick="closeMapResultPanel(); switchScreen('trips')">Екіпаж</button>
+                    <button class="btn btn-secondary" onclick="closeMapResultPanel()">Зрозуміло</button>
                     ${tertiary}
                 </div>
-            `, { maxHeight: '65vh' });
+            `);
         }
 
         async function requestJoin(orgId, dirId, opts = {}) {
@@ -7209,6 +7236,28 @@
             panel.classList.add('open');
         }
 
+        // ═══════ MAP RESULT PANEL (non-modal, map stays visible/interactive) ═══════
+        // Used for short-lived results of map actions (join request sent, signal sent)
+        // — unlike .sheet/#sheet-backdrop, this does NOT dim or block the map.
+        function openMapResultPanel(html) {
+            const panel = document.getElementById('map-result-panel');
+            if (!panel) return;
+            panel.innerHTML = html;
+            panel.classList.add('open');
+            document.body.style.paddingBottom = '170px';
+        }
+
+        function closeMapResultPanel() {
+            const panel = document.getElementById('map-result-panel');
+            if (!panel) return;
+            panel.classList.remove('open');
+            panel.innerHTML = '';
+            const handshake = document.getElementById('handshake-panel');
+            if (!handshake || !handshake.classList.contains('open')) {
+                document.body.style.paddingBottom = '';
+            }
+        }
+
         function currentRequestIdFromTrip(trip) {
             const raw = trip?.id ?? trip?.request_id ?? null;
             const reqId = Number(raw);
@@ -7808,7 +7857,7 @@
                         <li>Оберіть водія на карті самостійно, або</li>
                         <li>зачекайте, поки водій надішле вам запит.</li>
                     </ol>
-                    <p>💬 У кожної події є свій чат - кнопка «Чат події» з'явиться після приєднання.</p>
+                    <p>💬 Якщо організатор додав чат, поруч зʼявиться кнопка «Чат події».</p>
                     <p>Натисніть «?» у верхньому правому куті (або на логотип WayTandem), щоб переглянути цю інструкцію знову.</p>
                 </div>
                 <button class="btn btn-primary" onclick="closeSheet(); localStorage.setItem('wt_welcome_seen', '1');">Зрозуміло</button>
