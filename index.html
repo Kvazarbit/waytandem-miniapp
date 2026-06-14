@@ -2638,6 +2638,8 @@
             bottom: 0;
             left: 0;
             right: 0;
+            max-width: 500px;
+            margin: 0 auto;
             z-index: 10000;
             background: var(--bg-elevated);
             border-top: 1px solid var(--accent);
@@ -2660,6 +2662,8 @@
             bottom: 0;
             left: 0;
             right: 0;
+            max-width: 500px;
+            margin: 0 auto;
             z-index: 10000;
             background: var(--bg-elevated);
             border-top: 1px solid var(--accent);
@@ -2688,6 +2692,8 @@
             position: fixed;
             left: 0;
             right: 0;
+            max-width: 500px;
+            margin: 0 auto;
             bottom: 0;
             z-index: 9000;
             background: var(--bg-elevated);
@@ -4622,8 +4628,16 @@
         }
 
         function maybeOpenMatchSheet() {
-            // Disabled opening match modal sheet, delegating to map bottom banner (#handshake-panel)
             verifyHandshakePanelState();
+            if (document.getElementById('handshake-panel')?.classList.contains('open')) return;
+            if (S.matchSheetOpen || S.activeTrip || S.roleGateOpen || isAppInBackground) return;
+            const match = (S.pendingMatches || []).find(m => m?.scope === 'incoming' && !S.seenMatchIds.has(matchKey(m)));
+            if (!match) return;
+            if (isSheetOpen() || S.currentScreen !== 'trips') {
+                notifyPendingMatch(match);
+                return;
+            }
+            openMatchSheet(match);
         }
 
         function notifyPendingMatch(match) {
