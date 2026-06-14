@@ -3678,6 +3678,7 @@
             // Check handshake panel logic after hydration
             verifyHandshakePanelState();
             verifyMapResultPanelState();
+            maybeOpenMapResultPanelOnHydrate();
             verifyMapTripDockState();
             maybeOpenMatchSheet();
             hideSkeleton();
@@ -7508,6 +7509,11 @@
 
             // Case A: Incoming handshake
             if (incoming.length > 0) {
+                // DM-2026-06-14-003 (addendum): handshake-панель — рішення, що
+                // вимагає дії — має пріоритет над пасивними result-банерами
+                // (auto_search/manual_search/outgoing/rating_due), які мають
+                // той самий z-index і інакше перекривали б цей запит.
+                closeMapResultPanel();
                 const m = incoming[0];
                 const partnerName = m.partner_name || m.sender_name || `#${m.partner_id}`;
                 const partnerId = m.partner_id || m.sender_id;
@@ -7542,6 +7548,8 @@
 
             // Case B: Proposed match (automatic search candidate)
             if (S.proposedMatch) {
+                // DM-2026-06-14-003 (addendum): see Case A — same priority rule.
+                closeMapResultPanel();
                 const pm = S.proposedMatch;
                 const partnerName = pm.partner_name || `#${pm.partner_id}`;
                 const partnerId = pm.partner_id;
@@ -7618,6 +7626,19 @@
         function verifyMapResultPanelState() {
             const panel = document.getElementById('map-result-panel');
             if (!panel || !panel.classList.contains('open')) return;
+
+            // DM-2026-06-14-003 (addendum): handshake-панель (рішення, що
+            // вимагає дії — incoming request / proposed match) має пріоритет
+            // над цією result-панеллю (пасивний статус). Обидві мають
+            // z-index:10000 і однакову позицію — без цього map-result-panel
+            // (пізніше в DOM) перекриває handshake-panel і користувач не
+            // бачить новий запит/матч.
+            const handshake = document.getElementById('handshake-panel');
+            if (handshake && handshake.classList.contains('open')) {
+                closeMapResultPanel();
+                return;
+            }
+
             const meta = panel._mapResultMeta;
             if (!meta) return;
             const { dirId, kind } = meta;
@@ -7679,6 +7700,40 @@
                 ${ctx.safeDirId ? renderMapInviteContextHeader(ctx) : ''}
                 ${renderMapOutgoingProcessCard(dirId)}
             `, meta);
+        }
+
+        // DM-2026-06-14-005: проактивне відкриття map-result "процес"-банера на
+        // cold-start. Після F5 DOM #map-result-panel створюється закритим, а
+        // panel._mapResultMeta втрачено, тож verifyMapResultPanelState() (refresh-
+        // only: бейлиться, поки панель закрита) НЕ відновлює активний outgoing-
+        // запит — користувач бачить порожню карту, хоча запрошення ще живе в
+        // "Поїздки". Будуємо банер заново зі стану S на hydrate, як це робить
+        // verifyHandshakePanelState() (завжди ребілдить Case A/B).
+        // Гейти (DM-2026-06-14-003 + сервер/клієнт-аналіз банерів):
+        //   • активна поїздка -> картою володіє trip-dock, і сервер може віддати
+        //     застарілий outgoing під час 'driving' (фантом) -> НЕ відкривати;
+        //   • відкритий handshake -> рішення важливіше за пасивний статус -> НЕ відкривати;
+        //   • панель уже .open -> verifyMapResultPanelState() тримає її синхронною.
+        function maybeOpenMapResultPanelOnHydrate() {
+            const panel = document.getElementById('map-result-panel');
+            if (!panel || panel.classList.contains('open')) return;
+            if (S.activeTrip) return;
+            const handshake = document.getElementById('handshake-panel');
+            if (handshake && handshake.classList.contains('open')) return;
+            // Банер 5 (outgoing): активний запит/запрошення, що чекає на партнера.
+            const outgoing = (S.pendingMatches || []).find(m => m && m.scope === 'outgoing' && m.direction_id != null);
+            if (outgoing) {
+                const dirId = outgoing.direction_id;
+                const ctx = mapInviteContext(dirId);
+                openMapResultPanel(`
+                    ${ctx.safeDirId ? renderMapInviteContextHeader(ctx) : ''}
+                    ${renderMapOutgoingProcessCard(dirId)}
+                `, { kind: 'outgoing', dirId });
+                return;
+            }
+            // EXTENSION (DM-2026-06-14-004): тут підключиться cold-start банера 1
+            // (manual_search) / банера 2 (auto_search) — dirId з активної
+            // непаузованої підписки без outgoing, дзеркало openMapAutoSearchPanel.
         }
 
         // ═══════ MAP TRIP DOCK ═══════
@@ -7744,10 +7799,22 @@
             panel.classList.add('open');
         }
 
+        // DM-2026-06-14-003 (addendum, gap #2 partial): компактний лічильник
+        // зайнятих місць для ВОДІЯ — зайнято = пасажири в екіпажі
+        // (crewPassengerMembers), total = seats_total, якщо payload його віддає.
+        // Дзеркалить crew-presence з вкладки "Поїздки" одним числом, видимий
+        // навіть у згорнутому (мікро) стані дока.
+        function tripSeatsLabel(t) {
+            const occupied = crewPassengerMembers(t).length;
+            const total = Number(t?.seats_total || 0);
+            return total > 0 ? `💺 ${occupied}/${total}` : `💺 ${occupied}`;
+        }
+
         function buildMapTripDockStrip(t, phase) {
             const head = mapTripDockTitle(phase);
+            const seats = (t && t.viewer_role === 'driver') ? ` · ${tripSeatsLabel(t)}` : '';
             return `<div class="dock-strip" onclick="toggleMapTripDock()">
-                <span>${head.icon} ${escapeHtml(head.title)}</span>
+                <span>${head.icon} ${escapeHtml(head.title)}${seats}</span>
                 <span style="opacity:.55;font-size:11px;">розгорнути ▴</span>
             </div>`;
         }
@@ -7757,7 +7824,8 @@
             const isDriver = t.viewer_role === 'driver';
             const crewNo = activeTripCrewNumber(t);
             const dir = t.direction_title || 'Поїздка';
-            const metaLine = `Екіпаж #${escapeHtml(String(crewNo))} · ${escapeHtml(dir)} · ${isDriver ? '🚗 Ви водій' : '👤 Ви попутник'}`;
+            const seatsChip = isDriver ? ` · ${tripSeatsLabel(t)}` : '';
+            const metaLine = `Екіпаж #${escapeHtml(String(crewNo))} · ${escapeHtml(dir)} · ${isDriver ? '🚗 Ви водій' : '👤 Ви попутник'}${seatsChip}`;
             const safeReqId = parseInt(t.request_id || t.id || 0, 10) || 0;
             const safePartnerId = parseInt(isDriver ? (t.client_id || 0) : (t.driver_id || 0), 10) || 0;
             const nextPassenger = nextPickupPassenger(t);
