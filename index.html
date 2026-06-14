@@ -1461,9 +1461,25 @@
         }
 
         .map-pin-mine {
+            position: relative;
             background: #38bdf8;
             color: #07111a;
             box-shadow: 0 0 0 4px rgba(56,189,248,0.28), 0 0 0 7px rgba(255,255,255,0.16), 0 0 18px rgba(56,189,248,0.5), 0 6px 18px rgba(0,0,0,0.28);
+        }
+        /* Пінешка ВЛАСНОГО екіпажу водія дихає сонар-пульсом — динамічна відмітка
+           «ти на карті» (замінює модал «Екіпаж відкрито», DM-2026-06-14-008). */
+        .map-pin-mine::after {
+            content: '';
+            position: absolute;
+            inset: -3px;
+            border-radius: 50%;
+            border: 2px solid rgba(56,189,248,0.65);
+            pointer-events: none;
+            animation: mapPinMinePulse 1.8s ease-out infinite;
+        }
+        @keyframes mapPinMinePulse {
+            0%   { transform: scale(1);   opacity: 0.7; }
+            100% { transform: scale(2.2); opacity: 0;   }
         }
 
         .map-pin-full {
@@ -2681,6 +2697,34 @@
         #map-result-panel.open {
             transform: translateY(0);
         }
+        /* Згорнуто (мікро): тонка смужка над нижньою навігацією — нав лишається
+           доступною (дзеркало #map-trip-dock.collapsed). СТАТУС-банери (підписка/
+           авто-ручний пошук/очікування) згортаються сюди; ДІЯ-банери (handshake)
+           не згортаються. */
+        #map-result-panel.collapsed {
+            bottom: calc(var(--nav-height) + var(--safe-bottom) + 6px);
+            padding: 0;
+            background: transparent;
+            border-top: none;
+            box-shadow: none;
+            max-height: none;
+            overflow: visible;
+        }
+        #map-result-panel .result-strip {
+            margin: 0 12px;
+            padding: 10px 16px;
+            border-radius: 999px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--accent);
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+            font-size: 13px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            cursor: pointer;
+        }
 
         /* ═══════ MAP TRIP DOCK (persistent lifecycle dock — "де я в циклі" + дії) ═══════ */
         /* DM-2026-06-13-006: після рукостискання низ карти лишався порожнім — статус
@@ -3046,6 +3090,7 @@
             appSoundEnabled: localStorage.getItem('wt_app_sound') !== 'off',
             didInitialHydrate: false,
             mapTripDockCollapsed: false,
+            mapResultCollapsed: false,
             mapTripDockPhaseSeen: null,
             myDirections: [],
             roleGateOpen: false,
@@ -3079,12 +3124,16 @@
                 else localStorage.removeItem(_stateKey('wfp'));
                 if (lastKnownTripForRating) localStorage.setItem(_stateKey('ltr'), JSON.stringify(lastKnownTripForRating));
                 else localStorage.removeItem(_stateKey('ltr'));
+                // Вибір «мікро» для СТАТУС-банера переживає F5 (I-FRONT-8: парний removeItem).
+                if (S.mapResultCollapsed) localStorage.setItem(_stateKey('mrc'), '1');
+                else localStorage.removeItem(_stateKey('mrc'));
             } catch (_) { }
         }
 
         function restoreCriticalState() {
             try {
                 waitingForPartner = localStorage.getItem(_stateKey('wfp')) === '1';
+                S.mapResultCollapsed = localStorage.getItem(_stateKey('mrc')) === '1';
                 const ltr = localStorage.getItem(_stateKey('ltr'));
                 if (ltr) lastKnownTripForRating = JSON.parse(ltr);
             } catch (_) { waitingForPartner = false; lastKnownTripForRating = null; }
@@ -3155,8 +3204,11 @@
         });
 
         document.addEventListener('DOMContentLoaded', async () => {
-            restoreCriticalState(); // Restore state before anything else
             resolveUser();
+            // ПІСЛЯ resolveUser: ключі стану (_stateKey) неймспейсяться по S.userId.
+            // Якщо викликати раніше — читаємо `wt_state_undefined_*` і весь F5-стан
+            // (mapResultCollapsed/wfp/ltr) губиться (фікс DM-2026-06-14-007).
+            restoreCriticalState();
             await hydrateAppConfig();
             initAppSoundUnlock();
             initRolePill();
@@ -3714,6 +3766,7 @@
                     syncIdentityUI();
                     verifyHandshakePanelState();
                     verifyMapResultPanelState();
+                    maybeOpenMapResultPanelOnHydrate();
                     verifyMapTripDockState();
 
                     const newPendingRaw = JSON.stringify(S.pendingMatches);
@@ -4086,8 +4139,14 @@
                         switchScreen('explore');
                         renderNewsStrip();
                         await refreshMap();
-                        focusActiveMapContext();
-                        openMapCrewOpenedSheet(dirId);
+                        // Модал «Екіпаж відкрито» прибрано (DM-2026-06-14-008): карта
+                        // сама показує статус — власна пінешка (map-pin-mine + пульс) +
+                        // тост + СТАТУС-банер. Фокусуємось саме на своїй машині.
+                        if (S.pickupCoords?.lat && S.pickupCoords?.lng && S.map) {
+                            S.map.flyTo([S.pickupCoords.lat, S.pickupCoords.lng], 16, { duration: 0.8 });
+                        } else {
+                            focusActiveMapContext();
+                        }
                         return true;
                     }
                     closeSheet();
@@ -5275,7 +5334,7 @@
             // UX-fix #4: «Виберу водія сам» більше не кидає людину на порожню карту —
             // одразу показуємо ранжований список екіпажів (відстань від точки очікування),
             // з якого можна запроситись в один тап. Карта лишається доступною («Закрити»).
-            if (subOk && !autoMatch && !S.activeTrip) openNearbyCrewsSheet(safeDirId);
+            if (subOk && !autoMatch && !S.activeTrip) { openMapManualSearchPanel(safeDirId); openNearbyCrewsSheet(safeDirId); }
             // UX-fix: автопошук з карти — показуємо компактний банер «Шукаємо…» внизу
             // карти. Без нього людина лишається на порожній карті без зворотного зв'язку
             // (тост зникає за 2 сек, а інформація доступна тільки у вкладці «Поїздки»).
@@ -5408,24 +5467,127 @@
             return doOpenCrew(safeDirId, { keepMapSheet: true });
         }
 
+        // Мікро-смужка СТАТУС-банера (спливає над навігацією). label — короткий
+        // підпис (вже екранований); права частина — «розгорнути ▴». Тап =
+        // toggleMapResultCollapse. Так нижнє меню стає доступним.
+        function mapResultStrip(label) {
+            return `<div class="result-strip" onclick="toggleMapResultCollapse()">
+                <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${label}</span>
+                <span style="opacity:.55;font-size:11px;flex-shrink:0;">розгорнути ▴</span>
+            </div>`;
+        }
+
+        // Лічильник зайнятих місць ВОДІЯ у фазі пошуку (до екіпажу): джерело —
+        // S.myCrew (відкритий екіпаж водія, seats_total/seats_free). Порожньо для
+        // попутника або коли крю не цього напрямку. Дзеркало tripSeatsLabel для
+        // до-trip фази (вимога: водій бачить зайняті місця + режим пошуку).
+        function searchSeatsLabel(dirId) {
+            const mc = S.myCrew;
+            if (!mc || String(mc.direction_id) !== String(dirId)) return '';
+            const total = Number(mc.seats_total || 0);
+            if (total <= 0) return '';
+            const occupied = Math.max(0, total - Number(mc.seats_free || 0));
+            return `💺 ${occupied}/${total}`;
+        }
+
         function openMapAutoSearchPanel(dirId) {
             const ctx = mapInviteContext(dirId);
             const safeDirId = ctx.safeDirId || (parseInt(dirId) || 0);
             if (!safeDirId) return;
             const isDriver = _isDriverRole(S.userRole);
             const title = isDriver ? '✨ Шукаємо попутників' : '✨ Шукаємо місце';
+            const seats = isDriver ? searchSeatsLabel(safeDirId) : '';
+            const chip = `✨ Авто${seats ? ' · ' + seats : ''}`;
             const sub = isDriver
                 ? 'Автоматичний пошук активний. Як тільки попутник знайдеться — ви отримаєте пропозицію.'
                 : 'Автоматичний пошук активний. Як тільки водій знайдеться — ви отримаєте пропозицію.';
             openMapResultPanel(`
                 ${ctx.safeDirId ? renderMapInviteContextHeader(ctx) : ''}
-                <div class="sheet-title" style="font-size:15px;">${escapeHtml(title)}</div>
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+                    <div class="sheet-title" style="font-size:15px;">${escapeHtml(title)}</div>
+                    <span onclick="toggleMapResultCollapse()" style="cursor:pointer;opacity:.6;font-size:18px;line-height:1;" title="Згорнути">▾</span>
+                </div>
+                <div class="sheet-sub" style="font-size:12px;margin:4px 0 4px;"><span style="display:inline-block;padding:2px 8px;border-radius:999px;background:rgba(56,189,248,0.12);font-weight:700;">${escapeHtml(chip)}</span></div>
                 <div class="sheet-sub" style="font-size:12px;margin-bottom:10px;">${escapeHtml(sub)}</div>
                 <div style="display:flex;gap:10px;">
                     <button class="btn btn-secondary" style="flex:1;" onclick="closeMapResultPanel(); openStartDirectionInvite(${safeDirId}, { source: 'map', sheetMaxHeight: '65vh', fullInvite: true })">Деталі</button>
                     <button class="btn btn-danger" style="flex:1;" onclick="closeMapResultPanel(); unsubscribeDir(${safeDirId})">🚪 Зупинити</button>
                 </div>
-            `, { kind: 'auto_search', dirId: safeDirId });
+            `, { kind: 'auto_search', dirId: safeDirId }, mapResultStrip(escapeHtml(`${title}${seats ? ' · ' + seats : ''}`)));
+        }
+
+        // DM-2026-06-14-004: банер 1 — підписка активна в РУЧНОМУ режимі
+        // (auto_match=false). Постійний згортаний банер унизу карти для попутника
+        // (і водія), з діями «Включити автопошук» / «Вийти». Дзеркало
+        // openMapAutoSearchPanel; переживає F5 через maybeOpenMapResultPanelOnHydrate
+        // (бо auto_match тепер персистентний у web_subscriptions).
+        function openMapManualSearchPanel(dirId) {
+            const ctx = mapInviteContext(dirId);
+            const safeDirId = ctx.safeDirId || (parseInt(dirId) || 0);
+            if (!safeDirId) return;
+            const isDriver = _isDriverRole(S.userRole);
+            const seats = isDriver ? searchSeatsLabel(safeDirId) : '';
+            const chip = `📍 Ручний${seats ? ' · ' + seats : ''}`;
+            const sub = isDriver
+                ? 'Ви на карті як водій. Тапайте попутників, щоб запросити — або увімкніть автопошук, і система знайде їх сама.'
+                : 'Ви на карті. Тапайте машини, щоб запроситись — або увімкніть автопошук, і система знайде водія сама.';
+            openMapResultPanel(`
+                ${ctx.safeDirId ? renderMapInviteContextHeader(ctx) : ''}
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+                    <div class="sheet-title" style="font-size:15px;">📍 Підписані · пошук вручну</div>
+                    <span onclick="toggleMapResultCollapse()" style="cursor:pointer;opacity:.6;font-size:18px;line-height:1;" title="Згорнути">▾</span>
+                </div>
+                <div class="sheet-sub" style="font-size:12px;margin:4px 0 4px;"><span style="display:inline-block;padding:2px 8px;border-radius:999px;background:rgba(56,189,248,0.12);font-weight:700;">${escapeHtml(chip)}</span></div>
+                <div class="sheet-sub" style="font-size:12px;margin:0 0 10px;">${escapeHtml(sub)}</div>
+                <div style="display:flex;gap:10px;">
+                    <button class="btn btn-primary" style="flex:1;" onclick="enableAutoSearch(${safeDirId})">✨ Включити автопошук</button>
+                    <button class="btn btn-danger" style="flex:1;" onclick="closeMapResultPanel(); unsubscribeDir(${safeDirId})">🚪 Вийти</button>
+                </div>
+            `, { kind: 'manual_search', dirId: safeDirId }, mapResultStrip(escapeHtml(`📍 ${ctx.title || 'Підписка'} · ручний${seats ? ' · ' + seats : ''}`)));
+        }
+
+        // СТАТУС-банер «Очікування відповіді партнера» (outgoing). За рішенням —
+        // очікування = пасивний статус, тож згортається в мікро над навігацією
+        // (нижнє меню доступне), на відміну від ДІЯ-банера #handshake-panel.
+        // Єдиний рендер outgoing-картки (verify/poll/hydrate кличуть саме його).
+        function openMapOutgoingPanel(dirId) {
+            const safeDirId = parseInt(dirId) || 0;
+            if (!safeDirId) return;
+            const ctx = mapInviteContext(safeDirId);
+            openMapResultPanel(`
+                <div style="display:flex;justify-content:flex-end;margin-bottom:2px;">
+                    <span onclick="toggleMapResultCollapse()" style="cursor:pointer;opacity:.6;font-size:18px;line-height:1;" title="Згорнути">▾</span>
+                </div>
+                ${ctx.safeDirId ? renderMapInviteContextHeader(ctx) : ''}
+                ${renderMapOutgoingProcessCard(safeDirId)}
+            `, { kind: 'outgoing', dirId: safeDirId }, mapResultStrip('📤 Очікуємо відповіді партнера'));
+        }
+
+        // Згортання map-result банера (міні <-> мікро), як у #map-trip-dock.
+        // Диспетчеризація по meta.kind — будь-який СТАТУС-банер згортається.
+        // persistCriticalState() одразу: вибір «мікро» переживає F5.
+        function toggleMapResultCollapse() {
+            S.mapResultCollapsed = !S.mapResultCollapsed;
+            persistCriticalState();
+            const panel = document.getElementById('map-result-panel');
+            const meta = panel && panel._mapResultMeta;
+            if (!meta || !meta.dirId) return;
+            if (meta.kind === 'manual_search') openMapManualSearchPanel(meta.dirId);
+            else if (meta.kind === 'auto_search') openMapAutoSearchPanel(meta.dirId);
+            else if (meta.kind === 'outgoing') openMapOutgoingPanel(meta.dirId);
+        }
+
+        // «✨ Включити автопошук»: ре-підписка з auto_match=true (без нового роуту,
+        // I-LA-1), потім переключення банера на auto_search.
+        async function enableAutoSearch(dirId) {
+            const safeDirId = parseInt(dirId) || 0;
+            if (!safeDirId) return;
+            S.mapResultCollapsed = false;
+            const ok = await subscribeDir(safeDirId, { afterSuccessScreen: 'explore', keepSheetOpen: true, mapInline: true, manualOnly: false, suppressSubscribedSheet: true });
+            if (ok) {
+                S.subscriptions = (S.subscriptions || []).map(s => String(s.direction_id) === String(safeDirId) ? { ...s, auto_match: true } : s);
+                openMapAutoSearchPanel(safeDirId);
+            }
         }
 
         function openMapSubscribedSheet(dirId, options = {}) {
@@ -5459,20 +5621,9 @@
             `, { maxHeight: options?.sheetMaxHeight || '65vh' });
         }
 
-        function openMapCrewOpenedSheet(dirId) {
-            const ctx = mapInviteContext(dirId);
-            if (!ctx.safeDirId) return;
-            openSheet(`
-                ${renderMapInviteContextHeader(ctx)}
-                <div class="sheet-title">Екіпаж відкрито</div>
-                <div class="sheet-sub">Твоя машина вже на карті. Коли хтось запроситься, ти отримаєш запит на підтвердження.</div>
-                <div class="sheet-actions" data-map-command-count="3">
-                    <button class="btn btn-primary" onclick="closeSheet()">Зрозуміло</button>
-                    <button class="btn btn-secondary" onclick="switchScreen('trips')">Екіпаж</button>
-                    <button class="btn btn-ghost" onclick="openStartDirectionInvite(${ctx.safeDirId}, { source: 'map', sheetMaxHeight: '65vh', fullInvite: true })">Деталі</button>
-                </div>
-            `, { maxHeight: '65vh' });
-        }
+        // openMapCrewOpenedSheet видалено (DM-2026-06-14-008): модал «Екіпаж відкрито»
+        // дублював те, що карта вже показує — власну пінешку (map-pin-mine + сонар-пульс),
+        // тост і СТАТУС-банер. Як «історичний шум» прибрано; статус живе на карті.
 
         function openDirectionInviteSheet(dirId, dir, data = {}, options = {}) {
             const safeDirId = parseInt(dirId) || 0;
@@ -7597,19 +7748,25 @@
         // long-lived "outgoing process" card in sync with hydrate/poll — e.g.
         // close it once the handshake resolves, so action buttons never point
         // at an already-settled request.
-        function openMapResultPanel(html, meta = null) {
+        function openMapResultPanel(html, meta = null, stripHtml = null) {
             const panel = document.getElementById('map-result-panel');
             if (!panel) return;
-            panel.innerHTML = html;
+            // СТАТУС-банер може жити у мікро-смужці над навігацією (stripHtml +
+            // S.mapResultCollapsed) — тоді нижнє меню доступне. Без stripHtml
+            // банер завжди повний (перекриває нав).
+            const micro = !!(stripHtml && S.mapResultCollapsed);
+            panel.innerHTML = micro ? stripHtml : html;
             panel.classList.add('open');
+            panel.classList.toggle('collapsed', micro);
             panel._mapResultMeta = meta;
-            document.body.style.paddingBottom = '170px';
+            document.body.style.paddingBottom = micro ? '' : '170px';
         }
 
         function closeMapResultPanel() {
             const panel = document.getElementById('map-result-panel');
             if (!panel) return;
             panel.classList.remove('open');
+            panel.classList.remove('collapsed');
             panel.innerHTML = '';
             panel._mapResultMeta = null;
             const handshake = document.getElementById('handshake-panel');
@@ -7653,36 +7810,22 @@
 
             if (kind === 'auto_search') {
                 // Автопошук: якщо з'явився outgoing хендшейк — переключити на процес-картку.
-                if (getOutgoingForDirection(dirId)) {
-                    const ctx = mapInviteContext(dirId);
-                    openMapResultPanel(`
-                        ${ctx.safeDirId ? renderMapInviteContextHeader(ctx) : ''}
-                        ${renderMapOutgoingProcessCard(dirId)}
-                    `, { kind: 'outgoing', dirId });
-                    return;
-                }
+                if (getOutgoingForDirection(dirId)) { openMapOutgoingPanel(dirId); return; }
                 // Якщо підписку скасовано (немає в subscriptions) — закрити панель.
                 const stillSubscribed = (S.subscriptions || []).some(s => String(s.direction_id) === String(dirId));
-                if (!stillSubscribed) {
-                    closeMapResultPanel();
-                    return;
-                }
-                // Підписка ще жива, пошук іде — оновлюємо контекст (лічильники могли змінитись).
-                const ctx = mapInviteContext(dirId);
-                const isDriver = _isDriverRole(S.userRole);
-                const title = isDriver ? '✨ Шукаємо попутників' : '✨ Шукаємо місце';
-                const sub = isDriver
-                    ? 'Автоматичний пошук активний. Як тільки попутник знайдеться — ви отримаєте пропозицію.'
-                    : 'Автоматичний пошук активний. Як тільки водій знайдеться — ви отримаєте пропозицію.';
-                openMapResultPanel(`
-                    ${ctx.safeDirId ? renderMapInviteContextHeader(ctx) : ''}
-                    <div class="sheet-title" style="font-size:15px;">${escapeHtml(title)}</div>
-                    <div class="sheet-sub" style="font-size:12px;margin-bottom:10px;">${escapeHtml(sub)}</div>
-                    <div style="display:flex;gap:10px;">
-                        <button class="btn btn-secondary" style="flex:1;" onclick="closeMapResultPanel(); openStartDirectionInvite(${dirId}, { source: 'map', sheetMaxHeight: '65vh', fullInvite: true })">Деталі</button>
-                        <button class="btn btn-danger" style="flex:1;" onclick="closeMapResultPanel(); unsubscribeDir(${dirId})">🚪 Зупинити</button>
-                    </div>
-                `, meta);
+                if (!stillSubscribed) { closeMapResultPanel(); return; }
+                // Підписка ще жива, пошук іде — оновлюємо банер (контекст/місця/режим, мікро-стан).
+                openMapAutoSearchPanel(dirId);
+                return;
+            }
+
+            if (kind === 'manual_search') {
+                // Виник outgoing хендшейк (запросився) — перемкнути на процес-картку.
+                if (getOutgoingForDirection(dirId)) { openMapOutgoingPanel(dirId); return; }
+                const sub = (S.subscriptions || []).find(s => String(s.direction_id) === String(dirId));
+                if (!sub) { closeMapResultPanel(); return; }      // підписку скасовано деінде
+                if (sub.auto_match) { openMapAutoSearchPanel(dirId); return; }  // перемкнули на авто
+                openMapManualSearchPanel(dirId);                  // оновити (контекст/місця/режим, мікро-стан)
                 return;
             }
 
@@ -7695,11 +7838,7 @@
                 return;
             }
             // Запит ще в процесі — оновлюємо картку (ім'я/фото партнера могли довантажитись).
-            const ctx = mapInviteContext(dirId);
-            openMapResultPanel(`
-                ${ctx.safeDirId ? renderMapInviteContextHeader(ctx) : ''}
-                ${renderMapOutgoingProcessCard(dirId)}
-            `, meta);
+            openMapOutgoingPanel(dirId);
         }
 
         // DM-2026-06-14-005: проактивне відкриття map-result "процес"-банера на
@@ -7723,17 +7862,17 @@
             // Банер 5 (outgoing): активний запит/запрошення, що чекає на партнера.
             const outgoing = (S.pendingMatches || []).find(m => m && m.scope === 'outgoing' && m.direction_id != null);
             if (outgoing) {
-                const dirId = outgoing.direction_id;
-                const ctx = mapInviteContext(dirId);
-                openMapResultPanel(`
-                    ${ctx.safeDirId ? renderMapInviteContextHeader(ctx) : ''}
-                    ${renderMapOutgoingProcessCard(dirId)}
-                `, { kind: 'outgoing', dirId });
+                openMapOutgoingPanel(outgoing.direction_id);
                 return;
             }
-            // EXTENSION (DM-2026-06-14-004): тут підключиться cold-start банера 1
-            // (manual_search) / банера 2 (auto_search) — dirId з активної
-            // непаузованої підписки без outgoing, дзеркало openMapAutoSearchPanel.
+            // Банери 1/2 (DM-2026-06-14-004): активна підписка без поїздки/
+            // handshake/outgoing. Single Subscription Law -> максимум одна активна;
+            // режим вирішує auto_match (персистентний у web_subscriptions).
+            const sub = (S.subscriptions || [])[0];
+            if (sub && sub.direction_id != null) {
+                if (sub.auto_match === false) openMapManualSearchPanel(sub.direction_id);
+                else openMapAutoSearchPanel(sub.direction_id);
+            }
         }
 
         // ═══════ MAP TRIP DOCK ═══════
