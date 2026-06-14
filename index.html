@@ -2726,6 +2726,45 @@
             cursor: pointer;
         }
 
+        /* DM-2026-06-14-011: коли обидві мікро-смужки (#map-result-panel і
+           #map-trip-dock) одночасно .open.collapsed -- напр. активна поїздка
+           по одному напрямку + нова підписка-пошук по іншому -- вони мають
+           однаковий bottom і z-index 10000 result-панелі перекрив би смужку
+           дока. Зсуваємо смужку дока вище, щоб обидві смужки були видимі
+           одна над одною. */
+        #map-trip-dock.collapsed.stacked-above-result {
+            bottom: calc(var(--nav-height) + var(--safe-bottom) + 6px + 50px);
+        }
+
+        /* DM-2026-06-14-011: на час відкритої .sheet ховаємо floating-банери
+           низу карти (їх статус "припарковується" як .sheet-pinned-strip у
+           верхній частині шторки -- openSheet/closeSheet). Стан (.open/
+           .collapsed/_mapResultMeta) не змінюється, лише видимість. */
+        #map-result-panel.hidden-by-sheet,
+        #map-trip-dock.hidden-by-sheet {
+            display: none;
+        }
+
+        /* DM-2026-06-14-011: "припаркований" статус-банер у верхній частині
+           шторки -- замінює прихований floating-банер на час конфліктної дії
+           (напр. "Перемкнути запит?" при тапі на іншу пінешку під час
+           очікування відповіді партнера). */
+        .sheet-pinned-strip {
+            margin: 10px 8px 0;
+            padding: 10px 16px;
+            border-radius: 999px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--accent);
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+            font-size: 13px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            opacity: 0.85;
+        }
+
         /* ═══════ MAP TRIP DOCK (persistent lifecycle dock — "де я в циклі" + дії) ═══════ */
         /* DM-2026-06-13-006: після рукостискання низ карти лишався порожнім — статус
            і дії були тільки у вкладці "Поїздки". Цей док тримає поточну фазу екіпажу
@@ -4645,6 +4684,9 @@
 
             const currentName = current.target_name || current.partner_name || `#${currentTarget}`;
             return await new Promise(resolve => {
+                // DM-2026-06-14-011: попередній статус-банер (📤 очікуємо відповіді)
+                // «припарковуємо» у верхній частині цієї шторки замість того, щоб
+                // він конкурував за нижній простір карти на час підтвердження.
                 openSheet(`
                     <div class="sheet-title">Перемкнути запит?</div>
                     <div class="sheet-sub">Ви вже запросились до "${escapeHtml(String(currentName))}".<br>Перейти до іншого екіпажу?<br><br>Попередній запит буде скасовано.</div>
@@ -4652,7 +4694,7 @@
                         <button class="btn btn-primary" id="confirm-request-switch-yes">✓ Так, перемкнути</button>
                         <button class="btn btn-ghost" id="confirm-request-switch-no">Скасувати</button>
                     </div>
-                `);
+                `, { pinnedStrip: `<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📤 Очікуємо відповіді від ${escapeHtml(String(currentName))}</span>` });
                 document.getElementById('confirm-request-switch-yes').onclick = () => { closeSheet(); resolve(true); };
                 document.getElementById('confirm-request-switch-no').onclick = () => { closeSheet(); resolve(false); };
             });
@@ -5571,10 +5613,12 @@
             persistCriticalState();
             const panel = document.getElementById('map-result-panel');
             const meta = panel && panel._mapResultMeta;
-            if (!meta || !meta.dirId) return;
-            if (meta.kind === 'manual_search') openMapManualSearchPanel(meta.dirId);
-            else if (meta.kind === 'auto_search') openMapAutoSearchPanel(meta.dirId);
-            else if (meta.kind === 'outgoing') openMapOutgoingPanel(meta.dirId);
+            if (meta && meta.dirId) {
+                if (meta.kind === 'manual_search') openMapManualSearchPanel(meta.dirId);
+                else if (meta.kind === 'auto_search') openMapAutoSearchPanel(meta.dirId);
+                else if (meta.kind === 'outgoing') openMapOutgoingPanel(meta.dirId);
+            }
+            syncBottomStripStacking();
         }
 
         // «✨ Включити автопошук»: ре-підписка з auto_match=true (без нового роуту,
@@ -7760,6 +7804,7 @@
             panel.classList.toggle('collapsed', micro);
             panel._mapResultMeta = meta;
             document.body.style.paddingBottom = micro ? '' : '170px';
+            syncBottomStripStacking();
         }
 
         function closeMapResultPanel() {
@@ -7773,6 +7818,7 @@
             if (!handshake || !handshake.classList.contains('open')) {
                 document.body.style.paddingBottom = '';
             }
+            syncBottomStripStacking();
         }
 
         // DM-2026-06-13-005: тримає компактну "процес"-картку (renderMapOutgoingProcessCard)
@@ -7899,12 +7945,28 @@
             if (!panel) return;
             panel.classList.remove('open');
             panel.classList.remove('collapsed');
+            panel.classList.remove('stacked-above-result');
             panel.innerHTML = '';
         }
 
         function toggleMapTripDock() {
             S.mapTripDockCollapsed = !S.mapTripDockCollapsed;
             verifyMapTripDockState();
+        }
+
+        // DM-2026-06-14-011: #map-result-panel.collapsed і #map-trip-dock.collapsed —
+        // обидві мікро-смужки внизу карти з однаковим bottom-офсетом. Якщо ОБИДВІ
+        // .open.collapsed одночасно (напр. активна поїздка по напрямку A + нова
+        // підписка-пошук по напрямку B), result-панель (z-index 10000) перекриє
+        // смужку дока (z-index 9000). Зсуваємо смужку дока вище — обидві видимі.
+        // Викликати після будь-якої зміни .open/.collapsed на цих двох контейнерах.
+        function syncBottomStripStacking() {
+            const dock = document.getElementById('map-trip-dock');
+            if (!dock) return;
+            const result = document.getElementById('map-result-panel');
+            const resultMicro = !!(result && result.classList.contains('open') && result.classList.contains('collapsed'));
+            const dockMicro = dock.classList.contains('open') && dock.classList.contains('collapsed');
+            dock.classList.toggle('stacked-above-result', dockMicro && resultMicro);
         }
 
         function verifyMapTripDockState() {
@@ -7919,6 +7981,7 @@
             if (!t || S.currentScreen !== 'explore' || handshakeOpen || waitingForPartner) {
                 closeMapTripDock();
                 S.mapTripDockPhaseSeen = null;
+                syncBottomStripStacking();
                 return;
             }
             const phase = mapTripDockPhase(t);
@@ -7931,9 +7994,11 @@
             if (S.mapTripDockCollapsed) {
                 panel.innerHTML = buildMapTripDockStrip(t, phase);
                 panel.classList.add('open', 'collapsed');
+                syncBottomStripStacking();
                 return;
             }
             panel.classList.remove('collapsed');
+            panel.classList.remove('stacked-above-result');
             panel.innerHTML = buildMapTripDockBody(t, phase);
             panel.classList.add('open');
         }
@@ -8507,6 +8572,25 @@
             document.getElementById('sheet').classList.add('open');
             const sheet = document.getElementById('sheet');
 
+            // DM-2026-06-14-011: «припарковуємо» активний статус-банер низу карти
+            // у верхній частині шторки (options.pinnedStrip), а самі floating-
+            // контейнери ховаємо на час шторки (.hidden-by-sheet), щоб не
+            // конкурували за простір/z-index. closeSheet() відновлює все.
+            const existingStrip = document.getElementById('sheet-pinned-strip');
+            if (existingStrip) existingStrip.remove();
+            if (options?.pinnedStrip) {
+                const strip = document.createElement('div');
+                strip.id = 'sheet-pinned-strip';
+                strip.className = 'sheet-pinned-strip';
+                strip.innerHTML = options.pinnedStrip;
+                const handle = document.getElementById('sheet-handle');
+                if (handle) handle.insertAdjacentElement('afterend', strip);
+            }
+            const resultPanel = document.getElementById('map-result-panel');
+            const tripDock = document.getElementById('map-trip-dock');
+            if (resultPanel && resultPanel.classList.contains('open')) resultPanel.classList.add('hidden-by-sheet');
+            if (tripDock && tripDock.classList.contains('open')) tripDock.classList.add('hidden-by-sheet');
+
             // Track if sheet is alive (prevents stale event fires)
             const sheetId = Date.now();
             sheet._sheetId = sheetId;
@@ -8614,6 +8698,18 @@
             }
             const body = document.getElementById('sheet-body');
             if (body) body.style.maxHeight = '';
+
+            // DM-2026-06-14-011: знімаємо «парковку» статус-банерів і відновлюємо
+            // їх реальний стан (mini/micro чи закриті) після закриття шторки.
+            const pinnedStrip = document.getElementById('sheet-pinned-strip');
+            if (pinnedStrip) pinnedStrip.remove();
+            const resultPanel = document.getElementById('map-result-panel');
+            const tripDock = document.getElementById('map-trip-dock');
+            if (resultPanel) resultPanel.classList.remove('hidden-by-sheet');
+            if (tripDock) tripDock.classList.remove('hidden-by-sheet');
+            if (typeof verifyMapResultPanelState === 'function') verifyMapResultPanelState();
+            if (typeof verifyMapTripDockState === 'function') verifyMapTripDockState();
+
             setTimeout(() => { maybeOpenPartnerFinishSheet(S.activeTrip); maybeOpenCompletedTripRatingSheet('sheet-close'); maybeOpenMatchSheet(); }, 0);
         }
 
