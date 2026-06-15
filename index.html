@@ -4175,6 +4175,9 @@
                     showToast('🚗 Екіпаж відкрито! Очікуйте попутників', 'success');
                     await hydrate();
                     if (options?.keepMapSheet) {
+                        // DM-2026-06-15-002 (§8.1): закрити wizard-шторку «Як знайти попутників?»
+                        // яка лишалась .open після keepMapSheet-шляху і блокувала maybeOpenMatchSheet().
+                        closeSheet();
                         switchScreen('explore');
                         renderNewsStrip();
                         await refreshMap();
@@ -5503,7 +5506,10 @@
             const safeDirId = parseInt(dirId) || 0;
             if (!safeDirId) return false;
             const autoMatch = !!auto;
-            const ok = await subscribeDir(safeDirId, { afterSuccessScreen: 'explore', keepSheetOpen: true, mapInline: true, manualOnly: !autoMatch, suppressSubscribedSheet: true });
+            // DM-2026-06-15-002 addendum: keepSheetOpen:false — wizard «Як знайти попутників?»
+            // закривається subscribeDir самостійно (рядок if(!keepSheetOpen)closeSheet()),
+            // щоб #handshake-panel з'являвся на чистому екрані без фонової wizard-шторки.
+            const ok = await subscribeDir(safeDirId, { afterSuccessScreen: 'explore', keepSheetOpen: false, mapInline: true, manualOnly: !autoMatch, suppressSubscribedSheet: true });
             if (!ok) return false;
             // Місця й старт уже відомі → одразу відкриваємо екіпаж («Екіпаж відкрито»).
             return doOpenCrew(safeDirId, { keepMapSheet: true });
