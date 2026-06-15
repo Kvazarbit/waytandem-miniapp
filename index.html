@@ -7902,6 +7902,13 @@
         function maybeOpenMapResultPanelOnHydrate() {
             const panel = document.getElementById('map-result-panel');
             if (!panel || panel.classList.contains('open')) return;
+            // DM-2026-06-15: якщо саме зараз відкрита шторка (напр. rating-sheet
+            // після завершення поїздки), не відкривати банер ІНШОЇ підписки —
+            // він стане .open БЕЗ .hidden-by-sheet (бо на момент openSheet() ще
+            // не існував) і перекриє шторку (z-index 10000 > 9001). Дзеркалить
+            // guard з maybeOpenCompletedTripRatingSheet(). Банер коректно
+            // з'явиться після closeSheet() (там цей самий виклик додано нижче).
+            if (isAppInBackground || S.roleGateOpen || S.matchSheetOpen || isSheetOpen()) return;
             if (S.activeTrip) return;
             const handshake = document.getElementById('handshake-panel');
             if (handshake && handshake.classList.contains('open')) return;
@@ -8070,29 +8077,40 @@
                     hint = isDriver ? 'Усі в авто. Завершіть, коли доїдете до події.' : 'Ви в дорозі з водієм. Завершіть після прибуття.';
                     actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
                         <button class="btn btn-success" onclick="finishTrip()">✅ Завершити</button>`;
-                } else if (phase === 'pickup') {
-                    if (isDriver && nextPassenger) {
-                        hint = `Заберіть: ${escapeHtml(nextName)}. Позначайте по одному.`;
-                        actions = `<button class="btn btn-secondary" onclick="switchScreen('trips')">Екіпаж</button>
-                            <button class="btn btn-primary" ${(!nextReqId || !nextPassengerId) ? 'disabled' : ''} onclick="markPassengerPickedUp(${nextReqId}, ${nextPassengerId})">✅ ${escapeHtml(nextName)} в авто</button>`;
-                    } else if (isDriver && allPicked) {
-                        hint = 'Усі попутники в авто. Можна стартувати до події.';
-                        actions = `<button class="btn btn-secondary" onclick="switchScreen('trips')">Екіпаж</button>
-                            <button class="btn btn-primary" onclick="startTrip()">🚀 Поїхали</button>`;
-                    } else {
-                        hint = '🚗 Водій прибув до точки збору. Чекайте на своїй точці.';
-                        actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
-                            <button class="btn btn-ghost" onclick="switchScreen('trips')">Екіпаж</button>`;
-                    }
                 } else {
-                    if (isDriver) {
-                        hint = 'Рушайте до точки збору й позначте, коли будете на місці.';
-                        actions = `<button class="btn btn-secondary" onclick="switchScreen('trips')">Екіпаж</button>
-                            <button class="btn btn-primary" onclick="arriveAtPickup()">🚗 Я біля точки збору</button>`;
+                    // DM-2026-06-15: gap #6 — до старту поїздки ("Поїхали") вихід з
+                    // домовленості можливий лише через взаємну згоду (cancelTrip() ->
+                    // doCancelTrip() -> confirmCancelTrip()/rejectCancelTrip(), як у
+                    // вкладці "Поїздки", isStarted=false). Раніше ця кнопка була
+                    // доступна тільки в "Поїздки" — у нижньому банері карти "вихід"
+                    // був не видний (обрив контексту). Це НЕ новий одноосібний вихід,
+                    // а той самий "рукостискання"-шлях, винесений і в банер.
+                    const leaveBtn = `<button class="btn btn-ghost" onclick="cancelTrip()">🚪 Покинути</button>`;
+                    if (phase === 'pickup') {
+                        if (isDriver && nextPassenger) {
+                            hint = `Заберіть: ${escapeHtml(nextName)}. Позначайте по одному.`;
+                            actions = `<button class="btn btn-secondary" onclick="switchScreen('trips')">Екіпаж</button>
+                                <button class="btn btn-primary" ${(!nextReqId || !nextPassengerId) ? 'disabled' : ''} onclick="markPassengerPickedUp(${nextReqId}, ${nextPassengerId})">✅ ${escapeHtml(nextName)} в авто</button>`;
+                        } else if (isDriver && allPicked) {
+                            hint = 'Усі попутники в авто. Можна стартувати до події.';
+                            actions = `<button class="btn btn-secondary" onclick="switchScreen('trips')">Екіпаж</button>
+                                <button class="btn btn-primary" onclick="startTrip()">🚀 Поїхали</button>`;
+                        } else {
+                            hint = '🚗 Водій прибув до точки збору. Чекайте на своїй точці.';
+                            actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
+                                ${leaveBtn}`;
+                        }
                     } else {
-                        hint = 'Водій вирушає по вас. Стежте за карткою або напишіть у чат.';
-                        actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
-                            <button class="btn btn-ghost" onclick="switchScreen('trips')">Екіпаж</button>`;
+                        if (isDriver) {
+                            hint = 'Рушайте до точки збору й позначте, коли будете на місці.';
+                            actions = `<button class="btn btn-secondary" onclick="switchScreen('trips')">Екіпаж</button>
+                                <button class="btn btn-primary" onclick="arriveAtPickup()">🚗 Я біля точки збору</button>
+                                ${leaveBtn}`;
+                        } else {
+                            hint = 'Водій вирушає по вас. Стежте за карткою або напишіть у чат.';
+                            actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
+                                ${leaveBtn}`;
+                        }
                     }
                 }
             }
@@ -8710,7 +8728,10 @@
             if (typeof verifyMapResultPanelState === 'function') verifyMapResultPanelState();
             if (typeof verifyMapTripDockState === 'function') verifyMapTripDockState();
 
-            setTimeout(() => { maybeOpenPartnerFinishSheet(S.activeTrip); maybeOpenCompletedTripRatingSheet('sheet-close'); maybeOpenMatchSheet(); }, 0);
+            // DM-2026-06-15: після закриття шторки (зокрема rating-sheet) показати
+            // банер іншої активної підписки, якщо такий є — він був стриманий
+            // guard'ом у maybeOpenMapResultPanelOnHydrate() на час відкритої шторки.
+            setTimeout(() => { maybeOpenPartnerFinishSheet(S.activeTrip); maybeOpenCompletedTripRatingSheet('sheet-close'); maybeOpenMatchSheet(); maybeOpenMapResultPanelOnHydrate(); }, 0);
         }
 
         // Backdrop click closes sheet (click only, not drag)
