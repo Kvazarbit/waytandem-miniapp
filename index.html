@@ -3956,7 +3956,7 @@
             if (cancelBy && !trip.is_started) {
                 return String(cancelBy) === String(S.userId) ? 'Скасування' : 'Запит скасування';
             }
-            if (trip.is_started) return 'В дорозі';
+            if (trip.is_started) return 'В дорозі до події'; // C (DM-2026-06-16-003, §8.5)
             return 'Резервація';
         }
 
@@ -4105,7 +4105,10 @@
             if (incoming.length > 0) parts.push(`<div class="sub-bar-pending" onclick="switchScreen('trips')">${escapeHtml(pendingMatchSubBarLabel(incoming, 'incoming'))}</div>`);
             const outgoing = S.pendingMatches.filter(m => m.scope === 'outgoing');
             if (outgoing.length > 0) parts.push(`<div class="sub-bar-pending" onclick="switchScreen('trips')">${escapeHtml(pendingMatchSubBarLabel(outgoing, 'outgoing'))}</div>`);
-            if (S.myCrew) {
+            // C (DM-2026-06-16-003, §8.5): під час їзди до події (is_started) екіпаж уже
+            // не набирає — ховаємо пілл «очікуємо попутників», щоб не
+            // конфліктував з активним «В дорозі до події».
+            if (S.myCrew && !(S.activeTrip && S.activeTrip.is_started)) {
                 const label = myCrewSubBarLabel(S.myCrew);
                 const title = myCrewSubBarTitle(S.myCrew);
                 parts.push(`<div class="sub-bar-crew" title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}" onclick="switchScreen('trips')">${escapeHtml(label)}</div>`);
@@ -8150,7 +8153,9 @@
                         }
                     } else {
                         if (isDriver) {
-                            hint = 'Рушайте до точки збору й позначте, коли будете на місці.';
+                            hint = nextName
+                                ? `🧭 Вирушив за: ${escapeHtml(nextName)}. Рушайте до точки збору й позначте, коли будете на місці.`
+                                : 'Рушайте до точки збору й позначте, коли будете на місці.'; // B (DM-2026-06-16-002, §8.2): поточна ціль, ротація через nextPickupPassenger
                             actions = `<button class="btn btn-secondary" onclick="switchScreen('trips')">Екіпаж</button>
                                 <button class="btn btn-primary" onclick="arriveAtPickup()">🚗 Я біля точки збору</button>
                                 ${leaveBtn}`;
