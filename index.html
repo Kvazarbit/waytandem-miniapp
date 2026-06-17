@@ -7991,6 +7991,23 @@
             // Док лише на карті, лише за наявності активного екіпажу. Поступається
             // панелі вхідного запиту (прийняти нового попутника терміновіше) і не
             // конкурує з очікуванням підтвердження партнера.
+            // Finding A (DM-2026-06-16-001): finish-wait — раніше `waitingForPartner`
+            // повністю ховав док, і водій лишався без банера й без «Чат».
+            // Тепер у стані «ви відмітили фініш, чекаємо партнера» показуємо
+            // компактний банер (статус + «💬 Чат» + «Екіпаж»). `waitingForPartner`
+            // істинний лише коли ВИ відмітили фініш; трип беремо з S.activeTrip
+            // або зі знімка lastKnownTripForRating (сервер міг вже віддати трип).
+            const fwTrip = (waitingForPartner && t && tripViewerFinished(t) && !tripPartnerFinished(t))
+                ? t
+                : (waitingForPartner && lastKnownTripForRating) ? lastKnownTripForRating : null;
+            if (fwTrip && S.currentScreen === 'explore' && !handshakeOpen) {
+                panel.classList.remove('collapsed', 'stacked-above-result');
+                panel.innerHTML = buildMapFinishWaitBody(fwTrip);
+                panel.classList.add('open');
+                S.mapTripDockPhaseSeen = 'finish_wait';
+                syncBottomStripStacking();
+                return;
+            }
             if (!t || S.currentScreen !== 'explore' || handshakeOpen || waitingForPartner) {
                 closeMapTripDock();
                 S.mapTripDockPhaseSeen = null;
@@ -8034,6 +8051,31 @@
                 <span>${head.icon} ${escapeHtml(head.title)}${seats}</span>
                 <span style="opacity:.55;font-size:11px;">розгорнути ▴</span>
             </div>`;
+        }
+
+        // Finding A (DM-2026-06-16-001): компактний банер фази finish-wait
+        // (водій/попутник відмітив фініш, чекає підтвердження партнера).
+        // Не конкурує з rating-sheet: як тільки партнер підтвердив —
+        // res.completed → waitingForPartner=false → ця гілка більше не рендериться.
+        function buildMapFinishWaitBody(t) {
+            const isDriver = t.viewer_role === 'driver';
+            const crewNo = activeTripCrewNumber(t);
+            const dir = t.direction_title || 'Поїздка';
+            const seatsChip = isDriver ? ` · ${tripSeatsLabel(t)}` : '';
+            const metaLine = `Екіпаж #${escapeHtml(String(crewNo))} · ${escapeHtml(dir)} · ${isDriver ? '🚗 Ви водій' : '👤 Ви попутник'}${seatsChip}`;
+            const safeReqId = parseInt(t.request_id || t.id || 0, 10) || 0;
+            const safePartnerId = parseInt(isDriver ? (t.client_id || 0) : (t.driver_id || 0), 10) || 0;
+            return `<div class="dock-head">
+                    <div style="min-width:0;">
+                        <div class="dock-title">⏳ Очікуємо підтвердження</div>
+                        <div class="dock-sub">${metaLine}</div>
+                        <div class="dock-sub" style="color:var(--amber);font-weight:bold;margin-top:5px;white-space:normal;">Ви відмітили фініш. Чекаємо, поки партнер підтвердить завершення.</div>
+                    </div>
+                </div>
+                <div class="dock-actions">
+                    <button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
+                    <button class="btn btn-secondary" onclick="switchScreen('trips')">Екіпаж</button>
+                </div>`;
         }
 
         function buildMapTripDockBody(t, phase) {
