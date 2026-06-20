@@ -5077,8 +5077,14 @@
 
         function buildDirectionInviteLink(botUsername, dirId) {
             const safeDirId = parseInt(dirId) || 0;
-            // Share invites must not expose the raw Mini App hosting URL. Bot /start
-            // is the stable entry point because it can show a controlled card and role gate.
+            // 2026-06-20 (owner request): share invite opens the Mini App DIRECTLY via the
+            // Telegram Mini App deep-link (t.me/<bot>/<app>?startapp=dir_X). This is still a
+            // t.me link (NOT the raw hosting URL) and carries Telegram auth, so a new user is
+            // bootstrapped on open — no bot-chat role gate. Falls back to bot /start when the
+            // Mini App short name is not yet known. Lands on the event invite card (role only
+            // after explicit "Хочу поїхати"), per invite-first design.
+            const app = sanitizeMiniAppShortName(S.miniAppShortName || '');
+            if (botUsername && app) return `https://t.me/${botUsername}/${app}?startapp=dir_${safeDirId}`;
             return `https://t.me/${botUsername}?start=dir_${safeDirId}`;
         }
 
@@ -9069,20 +9075,11 @@
             if (!_mapPicker.wired) { _wireMapPickerControls(); _mapPicker.wired = true; }
             setTimeout(() => { try { _mapPicker.map.invalidateSize(); } catch (e) {} }, 60);
 
-            // Якщо точних координат немає і немає свіжих кешованих (менше 30 сек) — пробуємо свіжий GPS, щоб одразу показати, де користувач
-            const isFresh = S._lastKnownPos && (Date.now() - S._lastKnownPos.at) < 30000;
-            if (!hasCoords && !isFresh && navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    (p) => {
-                        S._lastKnownPos = { lat: p.coords.latitude, lng: p.coords.longitude, at: Date.now() };
-                        if (document.getElementById('map-picker').style.display !== 'none') {
-                            _mapPicker.map.setView([p.coords.latitude, p.coords.longitude], 15);
-                        }
-                    },
-                    () => {},
-                    { enableHighAccuracy: true, maximumAge: 30000, timeout: 8000 }
-                );
-            }
+            // 2026-06-20 (owner): БЕЗ авто getCurrentPosition тут. Авто-GPS при відкритті
+            // пікера перекривав контекст браузерним дозволом GPS ще до вибору точки
+            // (порушення WEB_FLOWS §4.4 «no startup GPS prompt»). Пікер центрується на
+            // цілі (opts.lat/lng = фокус події) / останній відомій / home; GPS — лише по явному
+            // тапу кнопки 🎯 «Моє місце» (#map-picker-gps), ніякого авто-попапа.
 
             if (search) search.value = '';
             const results = document.getElementById('map-picker-results');
