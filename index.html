@@ -4856,7 +4856,7 @@
                 <div class="sheet-actions" data-map-command-count="3">
                     <button class="btn btn-primary" onclick="closeMapResultPanel(); switchScreen('trips')">Екіпаж</button>
                     <button class="btn btn-secondary" onclick="closeMapResultPanel()">Зрозуміло</button>
-                    <button class="btn btn-ghost" onclick="closeMapResultPanel(); openStartDirectionInvite(${safeDirId}, { source: 'map', sheetMaxHeight: '65vh', fullInvite: true })">Деталі</button>
+                    <button class="btn btn-ghost" onclick="closeMapResultPanel(); openSubscribedDirectionDetails(${safeDirId})">Деталі</button>
                 </div>
             `);
         }
@@ -4882,7 +4882,7 @@
                 <div class="sheet-actions" data-map-command-count="3">
                     <button class="btn btn-primary" onclick="closeMapResultPanel(); switchScreen('trips')">Екіпаж</button>
                     <button class="btn btn-secondary" onclick="closeMapResultPanel()">Зрозуміло</button>
-                    <button class="btn btn-ghost" onclick="closeMapResultPanel(); openStartDirectionInvite(${safeDirId}, { source: 'map', sheetMaxHeight: '65vh', fullInvite: true })">Деталі</button>
+                    <button class="btn btn-ghost" onclick="closeMapResultPanel(); openSubscribedDirectionDetails(${safeDirId})">Деталі</button>
                 </div>
             `);
         }
@@ -5561,7 +5561,7 @@
                 <div class="sheet-sub" style="font-size:12px;margin:4px 0 4px;"><span style="display:inline-block;padding:2px 8px;border-radius:999px;background:rgba(56,189,248,0.12);font-weight:700;">${escapeHtml(chip)}</span></div>
                 <div class="sheet-sub" style="font-size:12px;margin-bottom:10px;">${escapeHtml(sub)}</div>
                 <div style="display:flex;gap:10px;">
-                    <button class="btn btn-secondary" style="flex:1;" onclick="closeMapResultPanel(); openStartDirectionInvite(${safeDirId}, { source: 'map', sheetMaxHeight: '65vh', fullInvite: true })">Деталі</button>
+                    <button class="btn btn-secondary" style="flex:1;" onclick="closeMapResultPanel(); openSubscribedDirectionDetails(${safeDirId})">Деталі</button>
                     <button class="btn btn-danger" style="flex:1;" onclick="closeMapResultPanel(); unsubscribeDir(${safeDirId})">🚪 Зупинити</button>
                 </div>
             `, { kind: 'auto_search', dirId: safeDirId }, mapResultStrip(escapeHtml(`${title}${seats ? ' · ' + seats : ''}`)));
@@ -5668,7 +5668,7 @@
                 <div class="sheet-sub">${escapeHtml(statusLine)}</div>
                 <div class="sheet-actions" data-map-command-count="3">
                     ${primary}
-                    <button class="btn btn-secondary" onclick="openStartDirectionInvite(${ctx.safeDirId}, { source: 'map', sheetMaxHeight: '65vh', fullInvite: true })">Деталі події</button>
+                    <button class="btn btn-secondary" onclick="openSubscribedDirectionDetails(${ctx.safeDirId})">Деталі події</button>
                     <button class="btn btn-ghost" onclick="${isDriver ? 'closeSheet()' : `unsubscribeDir(${ctx.safeDirId})`}">${isDriver ? 'Закрити' : 'Зупинити'}</button>
                 </div>
             `, { maxHeight: options?.sheetMaxHeight || '65vh' });
@@ -5713,10 +5713,31 @@
                 ? `<button class="btn btn-secondary" style="width:100%;font-size:12px;margin-top:8px;" data-tg-username="${escapeAttr(creatorUsername)}" data-tg-user-id="${parseInt(creatorId, 10) || 0}" onclick="openTelegramContactFromButton(this)">💬 Написати організатору</button>`
                 : '';
             const joinArgs = options?.source === 'map' ? `${safeDirId}, 'map'` : `${safeDirId}`;
+            const subscribedDetails = !!options?.subscribedDetails;
+            const activeSub = (S.subscriptions || []).find(s => String(s.direction_id || s.id || '') === String(safeDirId));
+            const roleLabel = _isDriverRole(activeSub?.role || S.userRole) ? 'водій' : 'попутник';
+            const searchMode = activeSub?.auto_match === false ? 'ручний пошук' : 'автопошук';
+            const heading = subscribedDetails ? 'Деталі події' : 'Запрошення до події';
+            const introLine = subscribedDetails
+                ? `Ви вже в цій події як ${roleLabel}. ${searchMode === 'автопошук' ? 'Автоматичний пошук триває.' : 'Ручний пошук активний.'}`
+                : (creatorDisplay ? `${escapeHtml(creatorDisplay)}${creatorUsername ? ` (@${escapeHtml(creatorUsername)})` : ''} збирає людей їхати разом.` : 'Вас запросили до спільної поїздки.');
+            const nextStepHtml = subscribedDetails
+                ? `<strong style="color:var(--text-primary);">Ваш стан:</strong> ви вже шукаєте ${_isDriverRole(activeSub?.role || S.userRole) ? 'попутників' : 'місце'} в цій події. Перегляд деталей не запускає вибір ролі або повторну підписку.`
+                : `<strong style="color:var(--text-primary);">Що буде далі:</strong> ви оберете, чи можете взяти людей, чи шукаєте місце. Потім WayTandem покаже відповідний екіпаж або повідомить, щойно знайдеться водій.`;
+            const actionHtml = subscribedDetails
+                ? `<div style="display:flex;gap:8px;">
+                    <button class="btn btn-secondary" style="flex:1;font-size:12px;" onclick="openDirection(${safeDirId})">👥 Учасники</button>
+                    <button class="btn btn-ghost" style="flex:1;font-size:12px;" onclick="closeSheet(); switchScreen('explore'); maybeOpenMapResultPanelOnHydrate();">Назад до пошуку</button>
+                </div>`
+                : `<button class="btn btn-primary" style="width:100%;margin-bottom:8px;" onclick="joinInvitedDirection(${joinArgs})">Хочу поїхати</button>
+                <div style="display:flex;gap:8px;">
+                    <button class="btn btn-secondary" style="flex:1;font-size:12px;" onclick="openDirection(${safeDirId})">👥 Учасники</button>
+                    <button class="btn btn-ghost" style="flex:1;font-size:12px;" onclick="closeSheet()">Пізніше</button>
+                </div>`;
             openSheet(`
-                <div style="font-size:11px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:var(--blue);margin-bottom:6px;">Запрошення до події</div>
+                <div style="font-size:11px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:var(--blue);margin-bottom:6px;">${heading}</div>
                 <div class="sheet-title" style="font-size:22px;line-height:1.15;margin-bottom:8px;">${escapeHtml(title)}</div>
-                <div class="sheet-sub" style="margin-bottom:12px;">${creatorDisplay ? `${escapeHtml(creatorDisplay)}${creatorUsername ? ` (@${escapeHtml(creatorUsername)})` : ''} збирає людей їхати разом.` : 'Вас запросили до спільної поїздки.'}</div>
+                <div class="sheet-sub" style="margin-bottom:12px;">${introLine}</div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0 12px;">
                     <div style="padding:10px;border-radius:8px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.22);">
                         <div style="font-size:11px;color:var(--text-muted);font-weight:800;text-transform:uppercase;">Люди</div>
@@ -5735,15 +5756,35 @@
                 </div>
                 ${topDrivers ? `<div style="font-size:11px;font-weight:900;text-transform:uppercase;color:var(--text-muted);letter-spacing:1px;margin-bottom:2px;">Водії в події</div><div style="margin-bottom:12px;">${topDrivers}</div>` : ''}
                 <div style="padding:10px;border-radius:8px;background:rgba(255,193,7,0.08);border:1px solid rgba(255,193,7,0.2);font-size:12px;color:var(--text-secondary);line-height:1.45;margin-bottom:12px;">
-                    <strong style="color:var(--text-primary);">Що буде далі:</strong> ви оберете, чи можете взяти людей, чи шукаєте місце. Потім WayTandem покаже відповідний екіпаж або повідомить, щойно знайдеться водій.
+                    ${nextStepHtml}
                 </div>
-                <button class="btn btn-primary" style="width:100%;margin-bottom:8px;" onclick="joinInvitedDirection(${joinArgs})">Хочу поїхати</button>
-                <div style="display:flex;gap:8px;">
-                    <button class="btn btn-secondary" style="flex:1;font-size:12px;" onclick="openDirection(${safeDirId})">👥 Учасники</button>
-                    <button class="btn btn-ghost" style="flex:1;font-size:12px;" onclick="closeSheet()">Пізніше</button>
-                </div>
+                ${actionHtml}
                 ${contactButton}
             `, { maxHeight: options?.sheetMaxHeight || '' });
+        }
+
+        async function openSubscribedDirectionDetails(dirId, options = {}) {
+            const safeDirId = parseInt(dirId) || 0;
+            if (!safeDirId) return;
+            S._openDirectionSeq = (S._openDirectionSeq || 0) + 1;
+            const seq = S._openDirectionSeq;
+            openStartDirectionLoadingSheet(safeDirId);
+            const data = await api(`/api/v3/fractal/organizers?direction_id=${safeDirId}&lang=${S.lang}&user_id=${S.userId || ''}`);
+            if (seq !== S._openDirectionSeq) return;
+            const localDir = allDirections.find(d => String(d.id) === String(safeDirId)) || {};
+            const remoteDir = data?.direction && typeof data.direction === 'object' ? data.direction : {};
+            const dir = { ...localDir, ...remoteDir, id: remoteDir.id ?? localDir.id ?? safeDirId };
+            if (!dir || !dir.id) { closeSheet(); showToast('Подія недоступна', 'error'); return; }
+            if (isFolderNode(dir)) { closeSheet(); await boardOpenFolder(safeDirId); return; }
+            S.directionDetailsCache = S.directionDetailsCache || {};
+            S.directionDetailsCache[safeDirId] = { ...(data || {}), direction: dir };
+            openDirectionInviteSheet(safeDirId, dir, data || {}, {
+                ...(options || {}),
+                source: 'map',
+                sheetMaxHeight: options?.sheetMaxHeight || '65vh',
+                fullInvite: true,
+                subscribedDetails: true
+            });
         }
 
         async function openStartDirectionInvite(dirId, options = {}) {
