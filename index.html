@@ -3376,6 +3376,17 @@
             return /^[A-Za-z0-9_]{3,64}$/.test(shortName) ? shortName : '';
         }
 
+        function hasFiniteNumber(value) {
+            return Number.isFinite(Number(value));
+        }
+
+        function seatCount(value, fallback = 0) {
+            const n = Number(value);
+            const fb = Number(fallback);
+            const source = Number.isFinite(n) ? n : (Number.isFinite(fb) ? fb : 0);
+            return Math.max(0, Math.floor(source));
+        }
+
         function telegramContactUrl(username, userId) {
             const safeUsername = sanitizeBotUsername(username);
             if (safeUsername) return `https://t.me/${safeUsername}`;
@@ -4281,6 +4292,15 @@
             focusBtn.hidden = true;
             focusBtn.setAttribute('aria-label', 'Сфокусувати активну подію');
             focusBtn.onclick = focusActiveMapContext;
+            const navBtn = document.createElement('button');
+            navBtn.id = 'map-nav-btn';
+            navBtn.className = 'map-fab map-nav-btn';
+            navBtn.type = 'button';
+            navBtn.textContent = '🧭';
+            navBtn.hidden = true;
+            navBtn.setAttribute('aria-label', 'Відкрити навігацію в Google Maps');
+            navBtn.title = 'Google навігація';
+            navBtn.onclick = openGoogleNavigationFromMap;
             const locBtn = document.createElement('button');
             locBtn.id = 'map-location-btn';
             locBtn.className = 'map-fab';
@@ -4290,6 +4310,7 @@
             locBtn.title = 'Показати мою локацію';
             locBtn.onclick = toggleMyLocation;
             controls.appendChild(focusBtn);
+            controls.appendChild(navBtn);
             controls.appendChild(locBtn);
             document.getElementById('map-container').appendChild(controls);
         }
@@ -5541,9 +5562,12 @@
         function searchSeatsLabel(dirId) {
             const mc = S.myCrew;
             if (!mc || String(mc.direction_id) !== String(dirId)) return '';
-            const total = Number(mc.seats_total || 0);
+            const total = seatCount(mc.seats_total);
             if (total <= 0) return '';
-            const occupied = Math.max(0, total - Number(mc.seats_free || 0));
+            const free = hasFiniteNumber(mc.seats_free)
+                ? Math.min(total, seatCount(mc.seats_free))
+                : Math.max(0, total - seatCount(mc.seats_used));
+            const occupied = Math.min(total, Math.max(0, total - free));
             return `💺 ${occupied}/${total}`;
         }
 
@@ -6649,8 +6673,99 @@
             });
         }
 
+        function googleMapsDestination(value) {
+            if (!value) return '';
+            if (value.lat != null && value.lng != null) {
+                const lat = Number(value.lat);
+                const lng = Number(value.lng);
+                if (Number.isFinite(lat) && Number.isFinite(lng)) return `${lat.toFixed(6)},${lng.toFixed(6)}`;
+            }
+            return String(value.query || value.label || '').trim();
+        }
+
+        function tripEventDestination(trip = S.activeTrip) {
+            if (!trip) return null;
+            const point = firstFiniteLatLng(
+                [trip.direction_lat, trip.direction_lng],
+                [trip.event_lat, trip.event_lng],
+                [trip.destination_lat, trip.destination_lng]
+            );
+            if (point) return { ...point, label: trip.direction_title || trip.destination || 'Подія' };
+            const label = String(trip.destination || trip.direction_title || trip.route_label || '').trim();
+            return label ? { query: label, label: 'Подія' } : null;
+        }
+
+        function currentPassengerMemberForTrip(trip = S.activeTrip) {
+            if (!trip || !Array.isArray(trip.members)) return null;
+            return trip.members.find(m =>
+                String(m?.user_id || '') === String(S.userId || '') &&
+                String(m?.role || '').toLowerCase() !== 'driver'
+            ) || null;
+        }
+
+        function mapGoogleNavigationTarget(trip = S.activeTrip) {
+            if (!trip) return null;
+            if (trip.is_started) return tripEventDestination(trip);
+
+            const isDriver = String(trip.viewer_role || '').toLowerCase() === 'driver';
+            if (isDriver) {
+                const next = nextPickupPassenger(trip);
+                const coord = next ? crewMemberMapCoord(next, trip) : null;
+                if (coord) return { ...coord, label: `Забрати: ${passengerDisplayName(next)}` };
+                if (allPickupPassengersPickedUp(trip)) return tripEventDestination(trip);
+            } else {
+                const mine = currentPassengerMemberForTrip(trip);
+                const coord = mine ? crewMemberMapCoord(mine, trip) : null;
+                if (coord) return { ...coord, label: 'Ваша точка очікування' };
+            }
+
+            const pickup = firstFiniteLatLng([trip.pickup_lat, trip.pickup_lng]);
+            if (pickup) return { ...pickup, label: 'Точка зустрічі' };
+            const label = String(trip.pickup || trip.destination || trip.direction_title || '').trim();
+            return label ? { query: label, label: 'Маршрут' } : null;
+        }
+
+        function googleNavigationUrl(target) {
+            const destination = googleMapsDestination(target);
+            if (!destination) return '';
+            const params = new URLSearchParams({
+                api: '1',
+                destination,
+                travelmode: 'driving',
+                dir_action: 'navigate'
+            });
+            return `https://www.google.com/maps/dir/?${params.toString()}`;
+        }
+
+        function renderMapNavigationButton() {
+            const btn = document.getElementById('map-nav-btn');
+            if (!btn) return;
+            const target = mapGoogleNavigationTarget();
+            if (!target) {
+                btn.hidden = true;
+                return;
+            }
+            const title = `Google навігація: ${target.label || 'маршрут'}`;
+            btn.hidden = false;
+            btn.title = title;
+            btn.setAttribute('aria-label', title);
+        }
+
+        function openGoogleNavigationFromMap() {
+            const target = mapGoogleNavigationTarget();
+            const url = googleNavigationUrl(target);
+            if (!url) {
+                showToast('Немає точки для навігації', '');
+                return;
+            }
+            const tg = window.Telegram?.WebApp;
+            if (tg?.openLink) tg.openLink(url, { try_instant_view: false });
+            else window.open(url, '_blank', 'noopener');
+        }
+
         function renderMapFocusButton() {
             const btn = document.getElementById('map-focus-btn');
+            renderMapNavigationButton();
             if (!btn) return;
             const context = activeMapContextForMap();
             if (!context) {
@@ -7546,25 +7661,29 @@
                 // Capacity panel (driver only)
                 let capacityPanelHtml = '';
                 if (isDriver && S.myCrew) {
-                    const totalSeats = Number(S.myCrew.seats_total || 3);
-                    const freeSeats = Number(S.myCrew.seats_free || 3);
-                    const takenSeats = totalSeats - freeSeats;
-                    let seatsRowHtml = `<div class="seat-dot driver-seat" title="Водій (Ви)">🚗</div>`;
-                    for (let i = 1; i <= totalSeats; i++) {
-                        if (i <= takenSeats) {
-                            seatsRowHtml += `<div class="seat-dot taken" title="Зайнято">👤</div>`;
-                        } else {
-                            seatsRowHtml += `<div class="seat-dot free" title="Вільне місце">${i}</div>`;
+                    const totalSeats = seatCount(S.myCrew.seats_total);
+                    if (totalSeats > 0) {
+                        const freeSeats = hasFiniteNumber(S.myCrew.seats_free)
+                            ? Math.min(totalSeats, seatCount(S.myCrew.seats_free))
+                            : Math.max(0, totalSeats - seatCount(S.myCrew.seats_used));
+                        const takenSeats = Math.min(totalSeats, Math.max(0, totalSeats - freeSeats));
+                        let seatsRowHtml = `<div class="seat-dot driver-seat" title="Водій (Ви)">🚗</div>`;
+                        for (let i = 1; i <= totalSeats; i++) {
+                            if (i <= takenSeats) {
+                                seatsRowHtml += `<div class="seat-dot taken" title="Зайнято">👤</div>`;
+                            } else {
+                                seatsRowHtml += `<div class="seat-dot free" title="Вільне місце">${i}</div>`;
+                            }
                         }
-                    }
-                    capacityPanelHtml = `
-                        <div class="capacity-panel">
-                            <div class="capacity-title">Вільні місця в авто: <span id="free-seats-count">${freeSeats}</span></div>
-                            <div class="seats-row">
-                                ${seatsRowHtml}
+                        capacityPanelHtml = `
+                            <div class="capacity-panel">
+                                <div class="capacity-title">Вільні місця в авто: <span id="free-seats-count">${freeSeats}</span></div>
+                                <div class="seats-row">
+                                    ${seatsRowHtml}
+                                </div>
                             </div>
-                        </div>
-                    `;
+                        `;
+                    }
                 }
 
                 // Context-specific info block
@@ -8090,7 +8209,7 @@
         // навіть у згорнутому (мікро) стані дока.
         function tripSeatsLabel(t) {
             const occupied = crewPassengerMembers(t).length;
-            const total = Number(t?.seats_total || 0);
+            const total = seatCount(t?.seats_total ?? t?.total_seats);
             return total > 0 ? `💺 ${occupied}/${total}` : `💺 ${occupied}`;
         }
 
@@ -8305,7 +8424,7 @@
                 if (b.role === 'driver') return 1;
                 return 0;
             });
-            const totalSeats = trip.total_seats || sorted.length + 1;
+            const totalSeats = Math.max(sorted.length, seatCount(trip.total_seats ?? trip.seats_total, sorted.length));
             const emptySeats = Math.max(0, totalSeats - sorted.length);
             let html = '<div class="crew-tree">';
             sorted.forEach((m, i) => {
