@@ -3829,6 +3829,7 @@
                         const subs = await api(`/api/v3/user/subscriptions?user_id=${S.userId}`, { silent: true });
                         S.subscriptions = subs?.subscriptions || [];
                         S.boardSubSet = new Set(S.subscriptions.map(s => String(s.direction_id)));
+                        await renderBoard();
                     }
 
                     syncIdentityUI();
@@ -6680,6 +6681,8 @@
                     const c = crewMemberMapCoord(m, S.activeTrip);
                     if (c) coords.push([c.lat, c.lng]);
                 });
+                const destination = tripEventDestination(S.activeTrip);
+                if (destination?.lat != null && destination?.lng != null) _pushMapCoord(coords, destination.lat, destination.lng);
             }
             if (S.pickupCoords && context?.kind === 'trip') {
                 _pushMapCoord(coords, S.pickupCoords.lat, S.pickupCoords.lng);
@@ -7322,7 +7325,9 @@
             });
             return firstFiniteLatLng(
                 [crew?.lat, crew?.lng],
-                [trip?.pickup_lat, trip?.pickup_lng]
+                // §8.10 fix: car pin = driver's OWN start (S.pickupCoords), never the
+                // passenger's trip.pickup_lat (that snapped the car onto the passenger).
+                [S.pickupCoords?.lat, S.pickupCoords?.lng]
             );
         }
 
@@ -9895,7 +9900,11 @@
                 }).addTo(S.map).bindPopup(`<b>${name}</b><br>${statusLabel}`);
                 S._crewMemberMarkers.push(marker);
             });
-            // Draw explicit route connection: one car pin -> visible passenger stops.
+            const destination = tripEventDestination(t);
+            if (destination?.lat != null && destination?.lng != null) {
+                coords.push([Number(destination.lat), Number(destination.lng)]);
+            }
+            // Draw explicit route connection: one car pin -> visible passenger stops -> event.
             if (coords.length >= 2) {
                 S._routePolyline = L.polyline(coords, {
                     color: '#38bdf8',
