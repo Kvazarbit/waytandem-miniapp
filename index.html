@@ -7298,9 +7298,7 @@
             const role = String(member?.role || '').toLowerCase();
             if (role === 'driver') {
                 return firstFiniteLatLng(
-                    [member?.lat, member?.lng],
-                    [member?.pickup_lat, member?.pickup_lng],
-                    [trip?.pickup_lat, trip?.pickup_lng]
+                    [member?.lat, member?.lng]
                 );
             }
             return firstFiniteLatLng(
@@ -7325,9 +7323,9 @@
             });
             return firstFiniteLatLng(
                 [crew?.lat, crew?.lng],
-                // §8.10 fix: car pin = driver's OWN start (S.pickupCoords), never the
-                // passenger's trip.pickup_lat (that snapped the car onto the passenger).
-                [S.pickupCoords?.lat, S.pickupCoords?.lng]
+                String(S.userId || '') === driverId
+                    ? [S.pickupCoords?.lat, S.pickupCoords?.lng]
+                    : [null, null]
             );
         }
 
