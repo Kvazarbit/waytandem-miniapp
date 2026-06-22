@@ -4191,6 +4191,7 @@
                 if (res?.status === 'ok' || res?.crew_id) {
                     S.myCrew = { crew_id: res.crew_id, crew_real_id: res.crew_id, crew_event_number: res.crew_event_number, direction_id: dirId };
                     showToast('🚗 Екіпаж відкрито! Очікуйте попутників', 'success');
+                    clearPickupMarkerOnly();
                     await hydrate();
                     if (options?.keepMapSheet) {
                         // DM-2026-06-15-002 (§8.1): закрити wizard-шторку «Як знайти попутників?»
@@ -7291,6 +7292,26 @@
             );
         }
 
+        function crewCarPinCoordForTrip(trip) {
+            const crewId = String(trip?.crew_id || '');
+            const driverId = String(trip?.driver_id || '');
+            const directionId = String(trip?.direction_id || '');
+            const crew = (S.mapCrews || []).find(c => {
+                const sameCrew = crewId && (
+                    String(c?.crew_real_id || '') === crewId ||
+                    String(c?.crew_id || '') === crewId
+                );
+                const sameDriverDirection = driverId && directionId &&
+                    String(c?.organizer_id || '') === driverId &&
+                    String(c?.direction_id || '') === directionId;
+                return sameCrew || sameDriverDirection;
+            });
+            return firstFiniteLatLng(
+                [crew?.lat, crew?.lng],
+                [trip?.pickup_lat, trip?.pickup_lng]
+            );
+        }
+
         function orderedCrewMembersForMap(trip) {
             const driver = crewDriverMember(trip);
             const passengers = orderedPickupPassengers(trip);
@@ -9625,12 +9646,16 @@
         }
 
         // ═══════ PICKUP LOCATION WITH MAP MARKER ═══════
+        function clearPickupMarkerOnly() {
+            if (S._pickupMarker && S.map) { S.map.removeLayer(S._pickupMarker); }
+            S._pickupMarker = null;
+        }
+
         function clearPickupPoint() {
             S.pickupCoords = null;
             S.pickupLabel = '';
             S.pickupKind = '';
-            if (S._pickupMarker && S.map) { S.map.removeLayer(S._pickupMarker); }
-            S._pickupMarker = null;
+            clearPickupMarkerOnly();
         }
 
         function renderPickupMarker(label = 'Моя точка', kind = S.pickupKind || '') {
@@ -9824,8 +9849,12 @@
                 if (eventFilter === 'passengers') return role !== 'driver';
                 return true;
             });
+            const carPinCoord = crewCarPinCoordForTrip(t);
+            if (carPinCoord) coords.push([carPinCoord.lat, carPinCoord.lng]);
             members.forEach(m => {
                 const isMe = String(m.user_id) === String(S.userId);
+                const role = String(m?.role || '').toLowerCase();
+                if (role === 'driver' && carPinCoord) return;
                 let c = crewMemberMapCoord(m, t);
                 // Консенсус форуму 2026-06-12 («Моя поїздка»): користувач ЗАВЖДИ
                 // бачить себе. Сервер свідомо не віддає глядачу його пін
@@ -9837,12 +9866,12 @@
                 }
                 if (!c) return;
                 coords.push([c.lat, c.lng]);
-                const emoji = m.role === 'driver' ? '🚗' : '👤';
-                const pickedUp = String(m.role || '').toLowerCase() !== 'driver' && isPassengerPickedUp(m);
+                const emoji = role === 'driver' ? '🚗' : '👤';
+                const pickedUp = role !== 'driver' && isPassengerPickedUp(m);
                 const color = pickedUp ? '#10b981' : (isMe ? '#34d399' : '#38bdf8');
                 const name = isMe ? 'Ви тут' : escapeHtml(m.name || '?');
                 const phaseLabel = pickedUp ? 'в авто' : (t.is_started ? 'в дорозі' : 'зустріч');
-                const statusLabel = `${m.role === 'driver' ? 'водій' : 'попутник'} · ${phaseLabel}`;
+                const statusLabel = `${role === 'driver' ? 'водій' : 'попутник'} · ${phaseLabel}`;
                 const marker = L.marker([c.lat, c.lng], {
                     icon: L.divIcon({
                         className: '',
