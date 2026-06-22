@@ -1521,6 +1521,11 @@
             z-index: 2;
         }
 
+        .crew-route-line {
+            stroke-linecap: round;
+            filter: drop-shadow(0 0 6px rgba(56,189,248,0.55));
+        }
+
         .pickup-point-pin {
             width: 34px;
             height: 34px;
@@ -3816,6 +3821,15 @@
                     }
                     S.pendingMatches = resolvePendingMatchesPayload(data);
                     S.proposedMatch = data.proposed_match || null;
+                    // Completed trip is a terminal event for this social outing.
+                    // Polling can be the first client to observe partner finish, so
+                    // refresh subscriptions before any map-result banner is allowed
+                    // to reopen from stale in-memory search state.
+                    if (previousTrip && !S.activeTrip) {
+                        const subs = await api(`/api/v3/user/subscriptions?user_id=${S.userId}`, { silent: true });
+                        S.subscriptions = subs?.subscriptions || [];
+                        S.boardSubSet = new Set(S.subscriptions.map(s => String(s.direction_id)));
+                    }
 
                     syncIdentityUI();
                     verifyHandshakePanelState();
@@ -9881,9 +9895,16 @@
                 }).addTo(S.map).bindPopup(`<b>${name}</b><br>${statusLabel}`);
                 S._crewMemberMarkers.push(marker);
             });
-            // Draw route polyline between crew members
+            // Draw explicit route connection: one car pin -> visible passenger stops.
             if (coords.length >= 2) {
-                S._routePolyline = L.polyline(coords, { color: '#38bdf8', weight: 3, opacity: 0.6, dashArray: '8 4' }).addTo(S.map);
+                S._routePolyline = L.polyline(coords, {
+                    color: '#38bdf8',
+                    weight: 4,
+                    opacity: 0.78,
+                    dashArray: '8 5',
+                    className: 'crew-route-line',
+                    interactive: false
+                }).addTo(S.map);
             }
             // Fit bounds
             if (coords.length >= 1) S.map.fitBounds(coords, { padding: [40, 40], maxZoom: 14 });
