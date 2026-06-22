@@ -1517,6 +1517,10 @@
             line-height: 1;
         }
 
+        .map-pin-seat-badge {
+            z-index: 2;
+        }
+
         .pickup-point-pin {
             width: 34px;
             height: 34px;
@@ -4431,7 +4435,7 @@
                 const focusedClass = isSameDirection ? ' map-pin-focused' : '';
                 const isMine = S.userId && String(c?.organizer_id || '') === String(S.userId);
                 const mineClass = isMine ? ' map-pin-mine' : '';
-                const seatBadge = freeSeats > 0 ? `<span class="map-pin-badge">${freeSeats}</span>` : '';
+                const seatBadge = freeSeats > 0 ? `<span class="map-pin-badge map-pin-seat-badge" data-map-driver-seat-badge="free">${freeSeats}</span>` : '';
                 const selfDot = isMine ? '<span class="map-pin-self-dot" aria-hidden="true"></span>' : '';
                 const crewLabel = escapeAttr(`${isMine ? 'Ваш екіпаж' : 'Екіпаж'}: ${c.driver_name || c.organizer_name || c.direction_title || ''}`.trim());
                 // S.myCrew більше не призначається тут: єдине джерело — повний
@@ -4444,7 +4448,8 @@
                         html: `<div class="map-pin map-pin-crew${focusedClass}${mineClass}${fullClass}" role="button" aria-label="${crewLabel}">🚗${seatBadge}${selfDot}</div>`,
                         iconSize: [34, 34],
                         iconAnchor: [17, 17]
-                    })
+                    }),
+                    zIndexOffset: isMine ? 180 : 120
                 }).addTo(S.map);
                 const canRequest = S.userId && String(S.userId) !== String(c.organizer_id) && S.userRole !== 'driver' && freeSeats > 0;
                 const safeOrganizerId = Number.isFinite(Number(c.organizer_id)) ? Number(c.organizer_id) : 0;
