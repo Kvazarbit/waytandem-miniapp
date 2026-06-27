@@ -8327,7 +8327,7 @@
             } else if (partnerFinished && !viewerFinished) {
                 hint = '🏁 Партнер відмітив фініш. Підтвердіть завершення.';
                 alertStyle = 'color: var(--green); font-weight: bold;';
-                actions = `<button class="btn btn-success" onclick="finishTrip()">✅ Підтвердити фініш</button>`;
+                actions = `<button class="btn btn-success" onclick="finishTrip()">✅ Підтвердити завершення</button>`;
             } else if (viewerFinished && !partnerFinished) {
                 hint = '⏳ Ви відмітили фініш. Очікуємо партнера.';
                 alertStyle = 'color: var(--amber); font-weight: bold;';
@@ -8413,6 +8413,12 @@
             if (!reqId || !shouldPromptPartnerFinish(trip)) return false;
             if (S.partnerFinishSheetShownIds.has(reqId)) return false;
             if (isAppInBackground || S.roleGateOpen || S.matchSheetOpen || isSheetOpen()) return false;
+            // На мапі ('explore') нижній док уже показує інлайн-банер
+            // "🏁 Партнер відмітив фініш. Підтвердіть завершення." + кнопку
+            // (buildMapTripDockBody, гілка partnerFinished && !viewerFinished),
+            // тож модал тут дублює док. Лишаємо його лише як off-map страхувальник
+            // (поза мапою банера не видно; там працюють тост + critical-notify).
+            if (S.currentScreen === 'explore') return false;
 
             S.partnerFinishSheetShownIds.add(reqId);
             const title = escapeHtml(trip.direction_title || 'поїздка');
