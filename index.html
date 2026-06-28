@@ -4902,8 +4902,17 @@
             });
         }
 
+        function outgoingQueueForDirection(dirId) {
+            return (S.pendingMatches || [])
+                .filter(m => m && m.scope === 'outgoing' && String(m.direction_id) === String(dirId));
+        }
+
+        function currentOutgoingForDirection(dirId) {
+            return outgoingQueueForDirection(dirId)[0] || null;
+        }
+
         async function confirmOutgoingSwitchIfNeeded(orgId, dirId) {
-            const current = getOutgoingForDirection(dirId);
+            const current = currentOutgoingForDirection(dirId);
             if (!current) return true;
             const currentTarget = current.target_id || current.partner_id;
             if (String(currentTarget) === String(orgId)) return true;
@@ -5033,20 +5042,26 @@
         // («🛑 Скасувати запит» / «🚪 Вийти з події»). Показуємо її замість статичного
         // «Запит надіслано», щоб одразу було видно: вибір зроблено, хендшейк іде.
         function renderMapOutgoingProcessCard(safeDirId, opts = {}) {
-            const m = getOutgoingForDirection(safeDirId) || {};
+            const queue = outgoingQueueForDirection(safeDirId);
+            const m = queue[0] || {};
+            const total = queue.length;
             const partnerId = m.target_id || m.partner_id || opts.partnerId || 0;
             const partnerName = m.target_name || m.partner_name || opts.partnerName || (partnerId ? `#${partnerId}` : 'Партнер');
             const partnerPhoto = m.target_photo_url || m.partner_photo_url || '';
             const directionLabel = m.direction || m.direction_title || opts.directionLabel || 'Напрямок';
+            const queueHint = total > 1
+                ? `<div style="font-size:11px;color:var(--text-muted);margin:0 0 10px;line-height:1.35;">На карті показано один запит. Ще ${total - 1} ${pluralUk(total - 1, 'запит', 'запити', 'запитів')} — у «Поїздки».</div>`
+                : `<div style="font-size:11px;color:var(--text-muted);margin:0 0 10px;line-height:1.35;">На карті показано поточний запит. Усі запити — у «Поїздки».</div>`;
             return `
                 <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
                     ${renderAvatarInline(partnerName, partnerPhoto, 40)}
                     <div style="flex:1;"><div style="font-weight:800;font-size:14px;">${escapeHtml(partnerName)}</div><div style="font-size:11px;color:var(--text-secondary);">${escapeHtml(directionLabel)}</div></div>
                     <div class="tag tag-blue">📤 Очікування</div>
                 </div>
+                ${queueHint}
                 <div style="display:flex;gap:10px;">
-                    <button class="btn btn-secondary" style="flex:1;" onclick="closeMapResultPanel(); respondHandshake(${partnerId}, ${safeDirId}, false, 'cancel')">🛑 Скасувати запит</button>
-                    <button class="btn btn-danger" style="flex:1;" onclick="closeMapResultPanel(); stopSearchFromHandshake(${partnerId}, ${safeDirId})">🚪 Вийти з події</button>
+                    <button class="btn btn-secondary" style="flex:1;" onclick="closeMapResultPanel(); respondHandshake(${partnerId}, ${safeDirId}, false, 'cancel')">🛑 Скасувати цей</button>
+                    <button class="btn btn-primary" style="flex:1;" onclick="closeMapResultPanel(); switchScreen('trips')">Усі запити</button>
                 </div>
             `;
         }
@@ -6435,7 +6450,7 @@
                 const cards = [
                     { key: 'event', title: 'Подія', color: '#fbbf24', count: eventPinCountForMapContext(context) },
                     { key: 'drivers', title: 'Водії', color: '#38bdf8', count: drivers, sub: drivers > 0 ? `${driversWithSeats} з місцями` : '' },
-                    { key: 'passengers', title: _isDriverRole(S.userRole) ? 'У екіпажі' : 'Попутники', color: '#34d399', count: livePassengerCountForMapContext(context) },
+                    { key: 'passengers', title: 'Попутники', color: '#34d399', count: livePassengerCountForMapContext(context) },
                 ];
                 strip.style.display = 'grid';
                 strip.style.gridTemplateColumns = 'repeat(3, minmax(0, 1fr))';
@@ -8315,7 +8330,7 @@
                     method: 'POST',
                     body: JSON.stringify({ user_id: S.userId, target_id: safePartnerId, direction_id: safeDirId, accept: false })
                 });
-                if (res?.status === 'declined') {
+                if (res?.status === 'declined' || (res?.status === 'ok' && res?.action === 'declined')) {
                     showToast('✕ Пропущено', 'success');
                     S.proposedMatch = null;
                     await hydrate();
@@ -8327,6 +8342,21 @@
             } finally {
                 endOp('decline_proposed');
             }
+        }
+
+        function closeHandshakeActionPanel() {
+            const panel = document.getElementById('handshake-panel');
+            if (!panel) return;
+            panel.classList.remove('open');
+            panel.innerHTML = '';
+            document.body.style.paddingBottom = '';
+            const nav = document.querySelector('.nav');
+            if (nav) nav.style.display = 'flex';
+        }
+
+        function openTripsFromHandshakePanel() {
+            closeHandshakeActionPanel();
+            switchScreen('trips');
         }
 
         function verifyHandshakePanelState() {
@@ -8376,7 +8406,7 @@
                         <button class="btn btn-primary" style="flex:1;height:40px;font-size:13px;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, true)">✓ Прийняти</button>
                         <button class="btn btn-danger" style="flex:1;height:40px;font-size:13px;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false)">✕ Відхилити</button>
                     </div>
-                    <button class="btn btn-secondary" style="width:100%;height:36px;font-size:12px;background:transparent;border:1px solid rgba(255,255,255,0.15);" onclick="stopSearchFromHandshake(${partnerId}, ${m.direction_id})">🚪 Вийти з події</button>
+                    <button class="btn btn-secondary" style="width:100%;height:36px;font-size:12px;background:transparent;border:1px solid rgba(255,255,255,0.15);" onclick="openTripsFromHandshakePanel()">Усі запити в Поїздки</button>
                 `;
                 panel.classList.add('open');
                 const nav = document.querySelector('.nav');
@@ -8412,7 +8442,7 @@
                         <button class="btn btn-primary" style="flex:1;height:40px;font-size:13px;" onclick="inviteProposedMatch(${partnerId}, ${pm.direction_id})">✓ Запросити</button>
                         <button class="btn btn-danger" style="flex:1;height:40px;font-size:13px;" onclick="declineProposedMatch(${partnerId}, ${pm.direction_id})">✕ Пропустити</button>
                     </div>
-                    <button class="btn btn-secondary" style="width:100%;height:36px;font-size:12px;background:transparent;border:1px solid rgba(255,255,255,0.15);" onclick="stopSearchFromHandshake(${partnerId}, ${pm.direction_id})">🚪 Вийти з події</button>
+                    <button class="btn btn-secondary" style="width:100%;height:36px;font-size:12px;background:transparent;border:1px solid rgba(255,255,255,0.15);" onclick="openTripsFromHandshakePanel()">Усі запити в Поїздки</button>
                 `;
                 panel.classList.add('open');
                 const nav = document.querySelector('.nav');
