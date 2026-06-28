@@ -2227,6 +2227,8 @@
             height: min(72dvh, calc(100dvh - var(--safe-top) - 72px));
             min-height: 360px;
             margin: 0 auto;
+            padding: 0 8px max(8px, var(--safe-bottom));
+            box-sizing: border-box;
             z-index: 9401;
             transform: translateY(calc(100% + 16px));
             transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
@@ -2240,8 +2242,7 @@
 
         .map-chat-card {
             height: 100%;
-            margin: 0 8px;
-            margin-bottom: max(8px, var(--safe-bottom));
+            margin: 0;
             background: var(--bg-elevated);
             border: 1px solid var(--border);
             border-radius: var(--radius-xl) var(--radius-xl) 0 0;
