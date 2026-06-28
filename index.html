@@ -7254,6 +7254,7 @@
                 return false;
             }
             S._recentlyUnsubbed = { id: String(dirId), until: Date.now() + 8000 };
+            clearPickupPoint();
             await hydrate();
             showToast('🚪 Ви вийшли з події: підписку та запити скасовано');
             closeSheet();
@@ -7861,6 +7862,7 @@
                 if (res?.status === 'ok') {
                     showToast('🚪 Ви вийшли з події: запити та підписку скасовано', 'success');
                     clearCriticalState();
+                    clearPickupPoint();
                     removePendingMatchByPair(safePartnerId, safeDirId);
                     renderSubBar();
                     renderTrips();
