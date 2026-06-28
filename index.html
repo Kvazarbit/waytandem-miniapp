@@ -5602,8 +5602,23 @@
             // DM-2026-06-15-002 addendum: keepSheetOpen:false — wizard «Як знайти попутників?»
             // закривається subscribeDir самостійно (рядок if(!keepSheetOpen)closeSheet()),
             // щоб #handshake-panel з'являвся на чистому екрані без фонової wizard-шторки.
+            // DM-2026-06-28-001 (§8.11): зберегти щойно поставлену точку старту авто ДО
+            // subscribeDir. Всередині нього hydrate()→syncTerminalIdleState('hydrate') бачить
+            // ще-порожній S.subscriptions (водійська підписка матеріалізується лише на
+            // /crews/open) і кличе clearPickupPoint(), обнуляючи S.pickupCoords. Без відновлення
+            // doOpenCrew спрацьовує guard if(!S.pickupCoords) і ВДРУГЕ відкриває розміщення авто.
+            const savedPickup = (S.pickupCoords && S.pickupCoords.lat != null && S.pickupCoords.lng != null)
+                ? { lat: S.pickupCoords.lat, lng: S.pickupCoords.lng } : null;
+            const savedPickupLabel = S.pickupLabel;
+            const savedPickupKind = S.pickupKind;
             const ok = await subscribeDir(safeDirId, { afterSuccessScreen: 'explore', keepSheetOpen: false, mapInline: true, manualOnly: !autoMatch, suppressSubscribedSheet: true });
             if (!ok) return false;
+            // Відновлюємо точку, якщо subscribeDir→hydrate її стер (термінально-порожній знімок).
+            if (savedPickup && !(S.pickupCoords && S.pickupCoords.lat != null && S.pickupCoords.lng != null)) {
+                S.pickupCoords = savedPickup;
+                S.pickupLabel = savedPickupLabel;
+                S.pickupKind = savedPickupKind;
+            }
             // Місця й старт уже відомі → одразу відкриваємо екіпаж («Екіпаж відкрито»).
             return doOpenCrew(safeDirId, { keepMapSheet: true });
         }
