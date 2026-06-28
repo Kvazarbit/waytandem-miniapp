@@ -8246,10 +8246,36 @@
             try {
                 const res = await api('/api/v3/match/respond', { method: 'POST', body: JSON.stringify({ user_id: S.userId, target_id: partnerId, direction_id: dirId, accept }) });
                 if (res?.status === 'ok') {
-                    if (accept) notifyCriticalEvent('crew_formed_manual', `${partnerId}:${dirId}`);
-                    showToast(accept ? '✓ Ваш екіпаж готовий!' : (mode === 'cancel' ? '🛑 Запит скасовано. Ви далі підписані на подію' : 'Ви відхилили запит'), accept ? 'success' : '');
-                    clearCriticalState();
+                    // §2.1 Atomic Conveyor + §0.13 Stadium Law:
+                    // accept одного пасажира ≠ екіпаж готовий. Місце зайняте, але
+                    // водій продовжує набирати до N=seats_total. Тост і crew_formed
+                    // відкладаємо до реального стану після hydrate().
+                    // НЕ викликаємо clearCriticalState() — lifecycle не закінчено.
+                    if (!accept) {
+                        showToast(mode === 'cancel' ? '🛑 Запит скасовано. Ви далі підписані на подію' : 'Ви відхилили запит', '');
+                    }
+                    // Для accept — спочатку hydrate, тоді реальний тост зі стану
                     await hydrate();
+                    if (accept) {
+                        // Після hydrate: якщо activeTrip з'явився — handshake завершено
+                        // (перший accept створює поїздку). Якщо ще є вільні місця —
+                        // водій продовжує набір. crew_formed_manual тільки при першому.
+                        const isDriver = _isDriverRole(S.userRole);
+                        const mc = S.myCrew;
+                        const freeSeats = mc
+                            ? Math.max(0, (seatCount(mc.seats_total) || 0) - (seatCount(mc.seats_used) || 0))
+                            : 0;
+                        if (isDriver && freeSeats > 0) {
+                            showToast(`✓ Прийнято! Ще ${freeSeats} ${pluralUk(freeSeats, 'місце вільне', 'місця вільних', 'місць вільних')} — шукаємо далі`, 'success');
+                        } else if (isDriver && freeSeats === 0) {
+                            notifyCriticalEvent('crew_formed_manual', `${partnerId}:${dirId}`);
+                            showToast('✅ Всі місця зайняті! Екіпаж сформовано', 'success');
+                        } else {
+                            // Пасажир прийняв запрошення від водія
+                            notifyCriticalEvent('crew_formed_manual', `${partnerId}:${dirId}`);
+                            showToast('✅ Ви прийняті до екіпажу!', 'success');
+                        }
+                    }
                     return true;
                 } else if (res?.reason === 'action_forbidden') {
                     showToast('Після старту — тільки фініш', 'error');
