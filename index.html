@@ -2202,6 +2202,74 @@
         }
 
         /* ═══════ CHAT ═══════ */
+        .map-chat-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.28);
+            backdrop-filter: blur(2px);
+            z-index: 9400;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+
+        .map-chat-backdrop.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .map-chat-sheet {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            max-width: 500px;
+            height: min(72dvh, calc(100dvh - var(--safe-top) - 72px));
+            min-height: 360px;
+            margin: 0 auto;
+            z-index: 9401;
+            transform: translateY(calc(100% + 16px));
+            transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+            pointer-events: none;
+        }
+
+        .map-chat-sheet.open {
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        .map-chat-card {
+            height: 100%;
+            margin: 0 8px;
+            margin-bottom: max(8px, var(--safe-bottom));
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+            overflow: hidden;
+            box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.45);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .map-chat-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .map-chat-close {
+            width: 36px;
+            height: 36px;
+            border: 1px solid var(--border);
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--text);
+            font-size: 18px;
+            cursor: pointer;
+        }
+
         .chat-container {
             display: flex;
             flex-direction: column;
@@ -3076,14 +3144,12 @@
     </div>
 
     <!-- CHAT OVERLAY -->
-    <div class="sheet-backdrop" id="chat-backdrop" onclick="closeChat()" style="z-index:8999;"></div>
-    <div class="sheet" id="chat-sheet" style="z-index:9000; top:0; bottom:0; transform:translateY(100%);">
-        <div class="sheet-card" style="margin:0; height:100%; border-radius:0; display:flex;
-            flex-direction:column;">
+    <div class="map-chat-backdrop" id="chat-backdrop" onclick="closeChat()"></div>
+    <div class="map-chat-sheet" id="chat-sheet" aria-modal="true" role="dialog" aria-labelledby="chat-title">
+        <div class="map-chat-card">
             <div class="chat-container">
-                <div style="display:flex; align-items:center; gap:12px; padding:14px 16px; border-bottom:1px solid
-                    var(--border);">
-                    <div style="cursor:pointer; font-size:20px;" onclick="closeChat()">←</div>
+                <div class="map-chat-header">
+                    <button class="map-chat-close" onclick="closeChat()" type="button" aria-label="Закрити чат">←</button>
                     <div style="flex:1;">
                         <div style="font-weight:800; font-size:15px;" id="chat-title">Чат</div>
                         <div style="font-size:11px; color:var(--text-muted);" id="chat-subtitle"></div>
@@ -8891,19 +8957,48 @@
         }
 
         // ─── CHAT ───
+        function resetGenericSheetForChat() {
+            const sheet = document.getElementById('sheet');
+            if (sheet && sheet._cleanup) sheet._cleanup();
+            const body = document.getElementById('sheet-body');
+            if (body) body.style.maxHeight = '';
+            const pinnedStrip = document.getElementById('sheet-pinned-strip');
+            if (pinnedStrip) pinnedStrip.remove();
+            const resultPanel = document.getElementById('map-result-panel');
+            const tripDock = document.getElementById('map-trip-dock');
+            if (resultPanel) resultPanel.classList.remove('hidden-by-sheet');
+            if (tripDock) tripDock.classList.remove('hidden-by-sheet');
+            document.getElementById('sheet-backdrop')?.classList.remove('open');
+            if (sheet) {
+                sheet.classList.remove('open');
+                sheet.style.transform = '';
+                sheet.style.transition = '';
+            }
+            S.matchSheetOpen = false;
+            S.activeMatchKey = null;
+        }
+
         async function openChat(requestId, partnerId) {
             S.chatRequestId = requestId; S.chatPartnerId = partnerId;
-            document.getElementById('chat-backdrop').classList.add('open');
-            document.getElementById('chat-sheet').classList.add('open');
+            resetGenericSheetForChat();
+            const backdrop = document.getElementById('chat-backdrop');
+            const sheet = document.getElementById('chat-sheet');
+            backdrop.classList.remove('open');
+            sheet.classList.remove('open');
+            sheet.style.transform = '';
+            void sheet.offsetHeight;
+            backdrop.classList.add('open');
+            sheet.classList.add('open');
             document.getElementById('chat-title').textContent = 'Чат екіпажу';
             document.getElementById('chat-subtitle').textContent = `#${requestId}`;
             await loadChatMessages();
         }
 
         function closeChat() {
-            document.getElementById('chat-backdrop').classList.remove('open');
-            document.getElementById('chat-sheet').classList.remove('open');
+            document.getElementById('chat-backdrop')?.classList.remove('open');
+            document.getElementById('chat-sheet')?.classList.remove('open');
             S.chatRequestId = null;
+            S.chatPartnerId = null;
         }
 
         async function loadChatMessages() {
