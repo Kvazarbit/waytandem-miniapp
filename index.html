@@ -1639,7 +1639,9 @@
             font-weight: 600;
             padding: 7px 12px;
             border-radius: 999px;
-            white-space: nowrap;
+            max-width: calc(100% - 32px);
+            white-space: normal;
+            text-align: center;
             pointer-events: none;
         }
         .map-picker-bottom {
@@ -3750,6 +3752,16 @@
                     S.userPhoto = sanitizeAvatarUrl(prof.photo_url || '');
                 }
             }
+            if (_isDriverRole(S.userRole)) {
+                try {
+                    const driverInfo = await api(`/api/v3/driver/info?user_id=${S.userId}`, { silent: true });
+                    if (driverInfo?.found) {
+                        if (String(driverInfo.car || '').trim()) S.car = String(driverInfo.car || '').trim();
+                        if (hasFiniteNumber(driverInfo.seats_total)) S.seats = seatCount(driverInfo.seats_total, S.seats);
+                        saveProfile();
+                    }
+                } catch (_) { /* driver profile sync is best-effort; hydrate state remains authoritative */ }
+            }
             if (S.userId && String(S.userName || '').trim()) {
                 localStorage.setItem('wt_name_' + S.userId, String(S.userName || '').trim());
             }
@@ -4135,10 +4147,10 @@
             if (incoming.length > 0) parts.push(`<div class="sub-bar-pending" onclick="switchScreen('trips')">${escapeHtml(pendingMatchSubBarLabel(incoming, 'incoming'))}</div>`);
             const outgoing = S.pendingMatches.filter(m => m.scope === 'outgoing');
             if (outgoing.length > 0) parts.push(`<div class="sub-bar-pending" onclick="switchScreen('trips')">${escapeHtml(pendingMatchSubBarLabel(outgoing, 'outgoing'))}</div>`);
-            // C (DM-2026-06-16-003, §8.5): під час їзди до події (is_started) екіпаж уже
-            // не набирає — ховаємо пілл «очікуємо попутників», щоб не
-            // конфліктував з активним «В дорозі до події».
-            if (S.myCrew && !(S.activeTrip && S.activeTrip.is_started)) {
+            // Active trip/reservation owns the lifecycle context. Do not show the
+            // open-crew recruitment pill beside it; capacity remains visible in
+            // the trip dock and map pin.
+            if (S.myCrew && !S.activeTrip) {
                 const label = myCrewSubBarLabel(S.myCrew);
                 const title = myCrewSubBarTitle(S.myCrew);
                 parts.push(`<div class="sub-bar-crew" title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}" onclick="switchScreen('trips')">${escapeHtml(label)}</div>`);
@@ -5262,14 +5274,15 @@
             const dirCrews = (S.mapCrews || [])
                 .filter(c => String(c?.direction_id || '') === String(safeDirId));
             const dir = { ...feedItem, ...localDir, ...(cached.direction || {}), id: safeDirId };
-            const orgs = (Array.isArray(cached.organizers) && cached.organizers.length)
-                ? cached.organizers
-                : dirCrews.map(c => ({
+            const liveCrewOrgs = dirCrews.map(c => ({
                     user_id: c.organizer_id,
                     name: c.driver_name || c.organizer_name || '',
                     role: 'driver',
                     seats_free: safeCount(c?.seats_free ?? c?.free_seats ?? c?.available_seats),
                 }));
+            const orgs = liveCrewOrgs.length
+                ? liveCrewOrgs
+                : (Array.isArray(cached.organizers) ? cached.organizers : []);
             _hydrateInviteContextOnce(safeDirId);
             const creatorId = dir.creator_id || dir.user_id || '';
             const isMyDir = creatorId && String(creatorId) === String(S.userId);
@@ -5434,7 +5447,7 @@
             // UX-fix: автопошук з карти — показуємо компактний банер «Шукаємо…» внизу
             // карти. Без нього людина лишається на порожній карті без зворотного зв'язку
             // (тост зникає за 2 сек, а інформація доступна тільки у вкладці «Поїздки»).
-            if (subOk && autoMatch && !S.activeTrip) openMapAutoSearchPanel(safeDirId);
+            if (subOk && autoMatch && !S.activeTrip && !hasHandshakeActionSurface()) openMapAutoSearchPanel(safeDirId);
             return subOk;
         }
 
@@ -5596,6 +5609,7 @@
             const ctx = mapInviteContext(dirId);
             const safeDirId = ctx.safeDirId || (parseInt(dirId) || 0);
             if (!safeDirId) return;
+            if (hasHandshakeActionSurface()) return;
             const isDriver = _isDriverRole(S.userRole);
             const title = isDriver ? '✨ Шукаємо попутників' : '✨ Шукаємо місце';
             const seats = isDriver ? searchSeatsLabel(safeDirId) : '';
@@ -5616,6 +5630,13 @@
                     <button class="btn btn-danger" style="flex:1;" onclick="closeMapResultPanel(); unsubscribeDir(${safeDirId})">🚪 Зупинити</button>
                 </div>
             `, { kind: 'auto_search', dirId: safeDirId }, mapResultStrip(escapeHtml(`${title}${seats ? ' · ' + seats : ''}`)));
+        }
+
+        function hasHandshakeActionSurface() {
+            const handshake = document.getElementById('handshake-panel');
+            if (handshake && handshake.classList.contains('open')) return true;
+            if (S.proposedMatch) return true;
+            return (S.pendingMatches || []).some(m => m && m.scope === 'incoming');
         }
 
         // DM-2026-06-14-004: банер 1 — підписка активна в РУЧНОМУ режимі
@@ -9716,7 +9737,7 @@
                     lng: S.pickupCoords?.lng,
                     hint: isDriverStart
                         ? 'Перетягни карту так, щоб пін був там, звідки стартує твоє авто'
-                        : 'Перетягни карту так, щоб пін був там, де чекати водія',
+                        : 'Спершу вкажіть, де вас забрати. Перетягни карту так, щоб пін був там, де чекати водія',
                     searchPlaceholder: isDriverStart
                         ? '🔍 Звідки стартуєш'
                         : '🔍 Де чекати водія',
