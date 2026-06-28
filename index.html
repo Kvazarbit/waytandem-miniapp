@@ -3195,6 +3195,32 @@
             // Keep lastKnownTripForRating — renderTrips needs it to show rating sheet
         }
 
+        function hasTerminalIdleTruth() {
+            return !S.activeTrip
+                && !(S.pendingMatches || []).length
+                && !S.proposedMatch
+                && !(S.subscriptions || []).length;
+        }
+
+        function syncTerminalIdleState(source = '') {
+            if (!hasTerminalIdleTruth()) return false;
+            waitingForPartner = false;
+            try { localStorage.removeItem(_stateKey('wfp')); } catch (_) { }
+            if (!lastKnownTripForRating) {
+                try { localStorage.removeItem(_stateKey('ltr')); } catch (_) { }
+            }
+            clearPickupPoint();
+            closeMapResultPanel();
+            closeMapTripDock();
+            const handshake = document.getElementById('handshake-panel');
+            if (handshake) {
+                handshake.classList.remove('open');
+                handshake.innerHTML = '';
+            }
+            stopLocationTracking(true);
+            return true;
+        }
+
         function clearLiveLocationConsent() {
             try { localStorage.removeItem(_stateKey('live_location_consent')); } catch (_) { }
             try {
@@ -3788,6 +3814,7 @@
                 S._recentlyUnsubbed = null;
             }
             S.boardSubSet = new Set(S.subscriptions.map(s => String(s.direction_id)));
+            syncTerminalIdleState('hydrate');
             // Тримаємо "Моя подія" свіжою, щоб миттєва перевірка ліміту (одна подія
             // на користувача) спрацьовувала ще до відкриття форми створення.
             try {
@@ -3841,8 +3868,10 @@
                         const subs = await api(`/api/v3/user/subscriptions?user_id=${S.userId}`, { silent: true });
                         S.subscriptions = subs?.subscriptions || [];
                         S.boardSubSet = new Set(S.subscriptions.map(s => String(s.direction_id)));
+                        syncTerminalIdleState('poll');
                         await renderBoard();
                     }
+                    syncTerminalIdleState('poll');
 
                     syncIdentityUI();
                     verifyHandshakePanelState();
@@ -7523,6 +7552,7 @@
         async function renderTrips() {
             const container = document.getElementById('trips-content');
             if (!S.activeTrip) stopLocationTracking(true);
+            if (hasTerminalIdleTruth()) syncTerminalIdleState('renderTrips');
 
             // Rating gate: if partner already finished and we have a cached trip
             if (!S.activeTrip && !S.pendingMatches.length && lastKnownTripForRating && !waitingForPartner) {
@@ -8780,7 +8810,7 @@
                 </div>
                 <input class="board-search" id="rating-comment" placeholder="Коментар (необов'язково)..." style="margin:0 0 16px;">
                 <button class="btn btn-primary" onclick="submitRating()">Надіслати оцінку</button>
-                <button class="btn btn-ghost" style="width:100%;margin-top:8px;" onclick="closeSheet()">Пропустити</button>
+                <button class="btn btn-ghost" style="width:100%;margin-top:8px;" onclick="dismissRatingSheet()">Пропустити</button>
             `);
             S._ratingScore = null;
         }
@@ -8805,7 +8835,30 @@
             } else {
                 showToast('Контекст оцінки втрачено', 'error');
             }
-            closeSheet(); S._ratingScore = null; S._ratingContext = null;
+            finalizeRatingFlow('submit-rating');
+        }
+
+        function dismissRatingSheet() {
+            finalizeRatingFlow('skip-rating');
+        }
+
+        function finalizeRatingFlow(source = '') {
+            closeSheet();
+            S._ratingScore = null;
+            S._ratingContext = null;
+            lastKnownTripForRating = null;
+            waitingForPartner = false;
+            try {
+                localStorage.removeItem(_stateKey('ltr'));
+                localStorage.removeItem(_stateKey('wfp'));
+            } catch (_) { }
+            syncTerminalIdleState(source);
+            updateBadges();
+            renderTrips();
+            renderSubBar();
+            refreshMap();
+            verifyMapTripDockState();
+            verifyMapResultPanelState();
         }
 
         // ─── CHAT ───
