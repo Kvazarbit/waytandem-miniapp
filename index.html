@@ -3188,6 +3188,7 @@
             chatRequestId: null, chatPartnerId: null, busy: false,
             boardParentId: null, boardStack: [], boardSubSet: new Set(),
             newsFilter: 'all', mapNewsFilter: 'all', mapEventFilter: 'all', newsEventFilter: 'all', eventMarkers: [],
+            catalogRootBuckets: null, catalogRootFolders: [], mapCatalogEvents: [], mapCatalogEventsLoaded: false, mapCatalogEventsLoading: null,
             newsScope: 'sub', // 'sub' = лише новини активної підписки, 'all' = всі новини
             mapScope: 'sub', // 'sub' = піни лише активної підписки, 'all' = всі піни на карті
 
@@ -4152,6 +4153,16 @@
             return `${title} · Екіпаж #${activeTripCrewNumber(trip)} · ${activeTripSubBarPhase(trip)}`;
         }
 
+        function activeTripWaitingSubBarLabel(trip) {
+            const icon = trip?.viewer_role === 'driver' ? '🚗' : '👤';
+            return `${icon} Екіпаж #${escapeHtml(activeTripCrewNumber(trip))} · Очікування партнера`;
+        }
+
+        function activeTripWaitingSubBarTitle(trip) {
+            const title = trip?.direction_title || 'Поїздка';
+            return `${title} · Екіпаж #${activeTripCrewNumber(trip)} · очікуємо підтвердження партнера`;
+        }
+
         function compactSubBarText(value, fallback = '') {
             const text = String(value || '').replace(/\s+/g, ' ').trim();
             if (!text) return fallback;
@@ -4230,15 +4241,22 @@
                 const t = S.activeTrip;
                 const partnerDone = tripPartnerFinished(t);
                 const myDone = tripViewerFinished(t);
-                if (partnerDone && !myDone) {
-                    parts.push(`<div class="sub-bar-pending" onclick="switchScreen('trips')">🏁 Партнер чекає фініш</div>`);
+                let label = activeTripSubBarLabel(t);
+                let title = activeTripSubBarTitle(t);
+                let cls = 'sub-bar-crew';
+                if (waitingForPartner) {
+                    label = activeTripWaitingSubBarLabel(t);
+                    title = activeTripWaitingSubBarTitle(t);
+                    cls = 'sub-bar-pending';
+                } else if (partnerDone && !myDone) {
+                    label = `🏁 Екіпаж #${escapeHtml(activeTripCrewNumber(t))} · Партнер чекає фініш`;
+                    title = `${t?.direction_title || 'Поїздка'} · партнер уже підтвердив фініш`;
+                    cls = 'sub-bar-pending';
                 }
-                const label = activeTripSubBarLabel(t);
-                const title = activeTripSubBarTitle(t);
-                parts.push(`<div class="sub-bar-crew" title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}" onclick="switchScreen('trips')">${label}</div>`);
+                parts.push(`<div class="${cls}" title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}" onclick="switchScreen('trips')">${label}</div>`);
             }
-            if (waitingForPartner) {
-                parts.push(`<div class="sub-bar-pending" onclick="switchScreen('trips')">⏳ Очікування партнера</div>`);
+            if (!S.activeTrip && waitingForPartner) {
+                parts.push(`<div class="sub-bar-pending" onclick="switchScreen('trips')">⏳ Очікуємо підтвердження партнера</div>`);
             }
             if (!S.activeTrip && !waitingForPartner && lastKnownTripForRating) {
                 parts.push(`<div class="sub-bar-pending" onclick="maybeOpenCompletedTripRatingSheet('subbar') || switchScreen('trips')">⭐ Оцініть поїздку</div>`);
@@ -4256,7 +4274,7 @@
                 parts.push(`<div class="sub-bar-crew" title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}" onclick="switchScreen('trips')">${escapeHtml(label)}</div>`);
             }
             const subs = S.subscriptions || [];
-            if (subs.length > 0 && !S.activeTrip) {
+            if (subs.length > 0 && !S.activeTrip && incoming.length === 0 && outgoing.length === 0 && !waitingForPartner) {
                 subs.slice(0, 3).forEach(s => {
                     const dirId = parseInt(s.direction_id ?? s.id, 10) || 0;
                     if (!dirId) return;
@@ -4526,6 +4544,7 @@
                 ...c,
                 members: crewMembersById.get(String(c?.crew_id || '')) || []
             }));
+            await ensureMapCatalogEventsForMap();
             S.mapCrews = enrichedCrews;
             S.mapPassengers = passengers;
             S.lastMapSyncAt = Date.now();
@@ -4639,6 +4658,7 @@
             const points = [];
             const seen = new Set();
             const sources = [
+                ...(Array.isArray(S.mapCatalogEvents) ? S.mapCatalogEvents : []),
                 ...(Array.isArray(S.news) ? S.news.filter(isDiscoveryNewsItem) : []),
                 ...(Array.isArray(allDirections) ? allDirections.filter(d => !isFolderNode(d)) : []),
             ];
@@ -5155,6 +5175,142 @@
             return String(n?.kind || '').toLowerCase() !== 'trip_done';
         }
 
+        function eventCountFromCatalogNode(d) {
+            return safeCount(
+                d?.event_count ?? d?.events_count ?? d?.events ?? d?.descendant_events ?? d?.descendant_events_count
+            );
+        }
+
+        function catalogRowsFromPayload(payload) {
+            return Array.isArray(payload) ? payload : (payload?.directions || []);
+        }
+
+        function isRootCatalogNode(d) {
+            return d?.parent_id === null || d?.parent_id === undefined || d?.parent_id === '';
+        }
+
+        function catalogRootCategory(root) {
+            const k = classifyNewsItem({
+                ...root,
+                root_title: root?.title || root?.root_title || '',
+                direction_title: root?.title || root?.direction_title || ''
+            });
+            return ['theocracy', 'leisure', 'work'].includes(k) ? k : 'other';
+        }
+
+        function rememberCatalogRootsForMap(dirs) {
+            const roots = (dirs || []).filter(d => isRootCatalogNode(d));
+            const folders = roots.filter(isFolderNode);
+            const buckets = { theocracy: 0, leisure: 0, work: 0 };
+            folders.forEach(root => {
+                const k = catalogRootCategory(root);
+                if (k in buckets) buckets[k] += eventCountFromCatalogNode(root);
+            });
+            S.catalogRootFolders = folders.map(root => ({
+                ...root,
+                root_title: root?.title || '',
+                root_category: catalogRootCategory(root)
+            }));
+            S.catalogRootBuckets = buckets;
+        }
+
+        async function fetchCatalogChildrenForMap(parentId = null) {
+            if (!S.apiBase) return [];
+            const qp = new URLSearchParams({ lang: S.lang });
+            if (S.userId) qp.set('user_id', String(S.userId));
+            if (parentId !== null && parentId !== undefined) qp.set('parent_id', String(parentId));
+            return catalogRowsFromPayload(await api(`/api/v3/board?${qp.toString()}`, { silent: true }));
+        }
+
+        function decorateCatalogEventForMap(item, root, parent = null) {
+            const dirId = _directionIdFromMapItem(item);
+            const rootCategory = root?.root_category || catalogRootCategory(root || item);
+            return {
+                ...item,
+                direction_id: dirId,
+                root_title: root?.root_title || root?.title || item?.root_title || '',
+                root_category: rootCategory,
+                category: item?.category || rootCategory,
+                parent_title: parent?.title || item?.parent_title || ''
+            };
+        }
+
+        async function collectCatalogEventsForMap(parentId, root, depth = 0, seen = new Set(), parentTitle = '') {
+            if (!parentId || depth > 8) return [];
+            const key = String(parentId);
+            if (seen.has(key)) return [];
+            seen.add(key);
+            const children = await fetchCatalogChildrenForMap(parentId);
+            const events = [];
+            for (const child of children) {
+                if (isFolderNode(child)) {
+                    events.push(...await collectCatalogEventsForMap(child.id, root, depth + 1, seen, child?.title || parentTitle));
+                } else {
+                    events.push(decorateCatalogEventForMap(child, root, { id: parentId, title: parentTitle }));
+                }
+            }
+            return events;
+        }
+
+        async function ensureMapCatalogEventsForMap(options = {}) {
+            if (!S.apiBase) return [];
+            if (!options.force && S.mapCatalogEventsLoaded) return S.mapCatalogEvents || [];
+            if (S.mapCatalogEventsLoading) return S.mapCatalogEventsLoading;
+            S.mapCatalogEventsLoading = (async () => {
+                const rootRows = await fetchCatalogChildrenForMap(null);
+                rememberCatalogRootsForMap(rootRows);
+                const roots = S.catalogRootFolders || [];
+                let events = [];
+                if (roots.length) {
+                    for (const root of roots) {
+                        if (isFolderNode(root)) {
+                            events.push(...await collectCatalogEventsForMap(root.id, root, 0, new Set()));
+                        } else {
+                            events.push(decorateCatalogEventForMap(root, root));
+                        }
+                    }
+                } else {
+                    events = rootRows.filter(d => !isFolderNode(d)).map(d => decorateCatalogEventForMap(d, d));
+                }
+                const unique = [];
+                const seen = new Set();
+                events.forEach(item => {
+                    const point = mapEventPointFromItem(item);
+                    if (!point) return;
+                    const key = String(point.direction_id);
+                    if (seen.has(key)) return;
+                    seen.add(key);
+                    unique.push(point);
+                });
+                S.mapCatalogEvents = unique;
+                S.mapCatalogEventsLoaded = true;
+                return S.mapCatalogEvents;
+            })().finally(() => { S.mapCatalogEventsLoading = null; });
+            return S.mapCatalogEventsLoading;
+        }
+
+        function catalogCategoryBucketsForMapStrip() {
+            const empty = { theocracy: 0, leisure: 0, work: 0 };
+            if (S.catalogRootBuckets) return { ...empty, ...S.catalogRootBuckets };
+            const rootFolders = (allDirections || []).filter(d =>
+                isFolderNode(d) && isRootCatalogNode(d)
+            );
+            const source = rootFolders.length ? rootFolders : [];
+            source.forEach(d => {
+                const k = catalogRootCategory(d);
+                if (k in empty) empty[k] += eventCountFromCatalogNode(d);
+            });
+            if (empty.theocracy || empty.leisure || empty.work) return empty;
+            // Fallback before the root catalog has loaded. Filtering/focus still uses
+            // map pins; the headline counters switch to catalog totals as soon as
+            // renderBoard() receives the root board payload.
+            mapEventPointsForDiscovery('all').forEach(point => {
+                const k = classifyNewsItem(point);
+                if (k in empty) empty[k] += 1;
+            });
+            return empty;
+        }
+
         function formatNewsTime(ts) {
             if (!ts) return '—';
             try { return new Date(Number(ts) * 1000).toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); }
@@ -5447,6 +5603,12 @@
             const creatorName = dirMeta.creator_name || (isMyDir ? S.userName : '') || '';
             const creatorUsername = sanitizeBotUsername(dirMeta.creator_username || (isMyDir ? S.userUsername : '') || '');
             const creatorDisplay = creatorName || (creatorUsername ? '@' + creatorUsername : ctx.creatorDisplay);
+            const meetingPoint = String(dirMeta.meeting_point || '').trim();
+            const desc = String(dirMeta.description || '').trim();
+            const startAt = String(dirMeta.start_date || '').trim();
+            const endAt = String(dirMeta.end_date || '').trim();
+            const whenText = startAt && endAt ? `${formatIdeaDate(startAt)} — ${formatIdeaDate(endAt)}` : (formatIdeaDate(startAt) || formatIdeaDate(endAt));
+            const detailLine = [whenText ? `🗓 ${whenText}` : '', meetingPoint ? `📍 ${meetingPoint}` : ''].filter(Boolean).join(' · ');
             const subtitle = creatorDisplay
                 ? `${escapeHtml(creatorDisplay)}${creatorUsername && creatorName ? ` (@${escapeHtml(creatorUsername)})` : ''} збирає людей їхати разом.`
                 : 'Організатор збирає людей їхати разом.';
@@ -5455,6 +5617,10 @@
                     <div style="font-size:11px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:var(--blue);margin-bottom:6px;">Подія на карті</div>
                     <div class="sheet-title" style="font-size:21px;line-height:1.15;margin-bottom:8px;">${escapeHtml(ctx.title)}</div>
                     <div class="sheet-sub" style="margin-bottom:12px;">${subtitle}</div>
+                    ${(detailLine || desc) ? `<div style="padding:10px;border:1px solid rgba(255,255,255,0.10);border-radius:8px;background:rgba(255,255,255,0.04);font-size:12px;color:var(--text-secondary);line-height:1.45;margin-bottom:12px;">
+                        ${detailLine ? `<div style="margin-bottom:${desc ? '6px' : '0'};">${escapeHtml(detailLine)}</div>` : ''}
+                        ${desc ? `<div style="white-space:pre-wrap;">${escapeHtml(desc.slice(0, 360))}</div>` : ''}
+                    </div>` : ''}
                     <div style="padding:10px;border:1px solid rgba(56,189,248,0.22);border-radius:8px;background:rgba(56,189,248,0.07);font-size:12px;color:var(--text-secondary);line-height:1.4;margin-bottom:12px;">
                         ${escapeHtml(ctx.proof.participantLine)} · ${escapeHtml(ctx.proof.driverLine)}
                     </div>
@@ -6206,12 +6372,7 @@
                 return;
             }
             S.mapEventFilter = 'all';
-            const items = mapEventPointsForDiscovery('all');
-            const buckets = { theocracy: 0, leisure: 0, work: 0 };
-            items.forEach(point => {
-                const k = classifyNewsItem(point);
-                if (k in buckets) buckets[k] += 1;
-            });
+            const buckets = catalogCategoryBucketsForMapStrip();
             const cards = [
                 { key: 'theocracy', title: 'Теократія', color: '#a78bfa', count: buckets.theocracy },
                 { key: 'leisure', title: 'Відпочинок', color: '#34d399', count: buckets.leisure },
@@ -6585,6 +6746,10 @@
                 S.userId ? api(`/api/v3/user/subscriptions?user_id=${S.userId}`) : Promise.resolve(null),
             ]);
             allDirections = Array.isArray(data) ? data : (data?.directions || []);
+            if (S.boardParentId === null || S.boardParentId === undefined) {
+                rememberCatalogRootsForMap(allDirections);
+                S.mapCatalogEventsLoaded = false;
+            }
             const freshSubscriptions = subs?.subscriptions || [];
             S.subscriptions = freshSubscriptions;
             const subSet = new Set(freshSubscriptions.map(s => String(s.direction_id)));
@@ -7080,6 +7245,7 @@
         function cachedDirectionDetails(dirId) {
             const key = String(dirId);
             const sources = [
+                (S.mapCatalogEvents || []).find(d => String(d?.direction_id || d?.id) === key),
                 allDirections.find(d => String(d?.id) === key),
                 (S.subscriptions || []).find(s => String(s?.direction_id || s?.id) === key),
                 (S.news || []).find(n => String(n?.direction_id || n?.id) === key),
@@ -7474,6 +7640,31 @@
                     ? [S.pickupCoords?.lat, S.pickupCoords?.lng]
                     : [null, null]
             );
+        }
+
+        function crewMemberVisibleMapCoord(member, trip) {
+            const isMe = String(member?.user_id || '') === String(S.userId || '');
+            let c = crewMemberMapCoord(member, trip);
+            // Консенсус форуму 2026-06-12 («Моя поїздка»): користувач ЗАВЖДИ
+            // бачить себе. Сервер свідомо не віддає глядачу його пін
+            // (map/passengers: di.user_id != viewer), а без live-consent
+            // координат нема — фолбек: статична точка очікування з S.pickupCoords.
+            if (!c && isMe && Number.isFinite(Number(S.pickupCoords?.lat)) && Number.isFinite(Number(S.pickupCoords?.lng))) {
+                c = { lat: Number(S.pickupCoords.lat), lng: Number(S.pickupCoords.lng) };
+            }
+            return c;
+        }
+
+        function offsetMapCoordIfNear(referenceCoord, nearCoord, offsetPx = { x: 28, y: -24 }) {
+            if (!referenceCoord || !nearCoord || !S.map || !window.L) return referenceCoord;
+            const ref = L.latLng(referenceCoord.lat, referenceCoord.lng);
+            const near = L.latLng(nearCoord.lat, nearCoord.lng);
+            const point = S.map.latLngToLayerPoint(ref);
+            const nearPoint = S.map.latLngToLayerPoint(near);
+            const pixelDistance = Math.hypot(point.x - nearPoint.x, point.y - nearPoint.y);
+            if (pixelDistance > 38 && ref.distanceTo(near) > 24) return referenceCoord;
+            const shifted = S.map.layerPointToLatLng(L.point(point.x + offsetPx.x, point.y + offsetPx.y));
+            return { lat: shifted.lat, lng: shifted.lng, visualOffset: true };
         }
 
         function orderedCrewMembersForMap(trip) {
@@ -8991,7 +9182,7 @@
             backdrop.classList.add('open');
             sheet.classList.add('open');
             document.getElementById('chat-title').textContent = 'Чат екіпажу';
-            document.getElementById('chat-subtitle').textContent = `#${requestId}`;
+            setChatSubtitle('відкриваємо...');
             await loadChatMessages();
         }
 
@@ -9002,17 +9193,30 @@
             S.chatPartnerId = null;
         }
 
+        function setChatSubtitle(status = 'оновлено щойно') {
+            const subtitle = document.getElementById('chat-subtitle');
+            if (!subtitle || !S.chatRequestId) return;
+            const stamp = new Date().toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+            subtitle.textContent = `#${S.chatRequestId} · ${status === 'оновлено щойно' ? `оновлено ${stamp}` : status}`;
+        }
+
         async function loadChatMessages() {
             if (!S.chatRequestId) return;
             const feed = document.getElementById('chat-feed');
+            const shouldStickToBottom = feed.scrollTop + feed.clientHeight >= feed.scrollHeight - 24;
             const data = await api(`/api/v3/trip/messages?request_id=${S.chatRequestId}&user_id=${S.userId}&limit=50`);
             const msgs = data?.messages || [];
-            if (!msgs.length) { feed.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);font-size:13px;">Повідомлень поки немає 👋</div>'; return; }
+            if (!msgs.length) {
+                feed.innerHTML = '<div data-chat-empty="true" style="text-align:center;padding:40px;color:var(--text-muted);font-size:13px;">Повідомлень поки немає 👋</div>';
+                setChatSubtitle();
+                return;
+            }
             feed.innerHTML = msgs.map(m => {
                 const mine = m.user_id == S.userId;
                 return `<div class="chat-msg ${mine ? 'mine' : 'theirs'}">${!mine ? `<div class="chat-meta">${escapeHtml(m.name || 'Учасник')}</div>` : ''}<div class="chat-bubble">${escapeHtml(m.text || '')}</div></div>`;
             }).join('');
-            feed.scrollTop = feed.scrollHeight;
+            if (shouldStickToBottom) feed.scrollTop = feed.scrollHeight;
+            setChatSubtitle();
         }
 
         async function sendChat() {
@@ -9021,14 +9225,19 @@
             if (!text || !S.chatRequestId) return;
             input.value = '';
             const feed = document.getElementById('chat-feed');
+            const empty = feed.querySelector('[data-chat-empty]');
+            if (empty) empty.remove();
             const div = document.createElement('div'); div.className = 'chat-msg mine';
             div.innerHTML = `<div class="chat-bubble">${escapeHtml(text)}</div>`;
             feed.appendChild(div); feed.scrollTop = feed.scrollHeight;
+            setChatSubtitle('надсилаємо...');
             const res = await api('/api/v3/trip/message', { method: 'POST', body: JSON.stringify({ request_id: S.chatRequestId, user_id: S.userId, text }) });
             if (!res) {
                 if (div.parentNode) div.remove();
                 input.value = text;
                 showToast('Не вдалося надіслати — текст відновлено', 'error');
+            } else {
+                setChatSubtitle('надіслано щойно');
             }
         }
 
@@ -10079,7 +10288,12 @@
                 const driver = members.find(m => String(m?.role || '').toLowerCase() === 'driver');
                 const driverName = driver?.name || t.driver_name || t.partner_name || 'Водій';
                 const carLabel = escapeAttr(`Авто водія: ${driverName}`);
-                const carMarker = L.marker([carPinCoord.lat, carPinCoord.lng], {
+                const closePassengerCoord = members
+                    .filter(m => String(m?.role || '').toLowerCase() !== 'driver')
+                    .map(m => crewMemberVisibleMapCoord(m, t))
+                    .find(Boolean);
+                const carDisplayCoord = offsetMapCoordIfNear(carPinCoord, closePassengerCoord);
+                const carMarker = L.marker([carDisplayCoord.lat, carDisplayCoord.lng], {
                     title: carLabel,
                     alt: carLabel,
                     icon: L.divIcon({
@@ -10089,22 +10303,14 @@
                         iconAnchor: [17, 17]
                     }),
                     zIndexOffset: 160
-                }).addTo(S.map).bindPopup(`<b>${escapeHtml(driverName)}</b><br>авто водія`);
+                }).addTo(S.map).bindPopup(`<b>${escapeHtml(driverName)}</b><br>авто водія${carDisplayCoord.visualOffset ? '<br><span style="font-size:11px;color:#94a3b8;">пін зміщено, щоб не перекривати попутника</span>' : ''}`);
                 S._crewMemberMarkers.push(carMarker);
             }
             members.forEach(m => {
                 const isMe = String(m.user_id) === String(S.userId);
                 const role = String(m?.role || '').toLowerCase();
                 if (role === 'driver' && carPinCoord) return;
-                let c = crewMemberMapCoord(m, t);
-                // Консенсус форуму 2026-06-12 («Моя поїздка»): користувач ЗАВЖДИ
-                // бачить себе. Сервер свідомо не віддає глядачу його пін
-                // (map/passengers: di.user_id != viewer), а без live-consent
-                // координат нема — фолбек: статична точка очікування з
-                // S.pickupCoords. API і приватність незмінні: себе рендеримо локально.
-                if (!c && isMe && Number.isFinite(Number(S.pickupCoords?.lat)) && Number.isFinite(Number(S.pickupCoords?.lng))) {
-                    c = { lat: Number(S.pickupCoords.lat), lng: Number(S.pickupCoords.lng) };
-                }
+                let c = crewMemberVisibleMapCoord(m, t);
                 if (!c) return;
                 coords.push([c.lat, c.lng]);
                 const emoji = role === 'driver' ? '🚗' : '👤';
