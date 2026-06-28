@@ -3209,7 +3209,11 @@
             if (!lastKnownTripForRating) {
                 try { localStorage.removeItem(_stateKey('ltr')); } catch (_) { }
             }
-            clearPickupPoint();
+            // DM-2026-06-28-001 (§8.11): не чистити свіжо-поставлену точку старту авто під час
+            // driver-онбордингу (місця→старт→метод→екіпаж). Поки підписки ще нема, фоновий
+            // poll/hydrate тут бачив би «термінально-порожньо» і обнуляв S.pickupCoords —
+            // через що doOpenCrew відкривав розміщення авто ВДРУГЕ.
+            if (!S._driverOnboardingActive) clearPickupPoint();
             closeMapResultPanel();
             closeMapTripDock();
             const handshake = document.getElementById('handshake-panel');
@@ -4270,7 +4274,7 @@
                     switchScreen('trips');
                 } else { showToast('Помилка: ' + (res?.reason || 'невідома'), 'error'); }
             } catch (e) { showToast('Помилка створення екіпажу', 'error'); }
-            finally { endOp('open_crew_submit'); }
+            finally { endOp('open_crew_submit'); S._driverOnboardingActive = false; }
         }
 
         window.toggleEventAccordion = function(event) {
@@ -5573,6 +5577,10 @@
             const safeDirId = parseInt(dirId) || 0;
             if (!safeDirId) return false;
             S.seats = Math.max(1, Math.min(8, parseInt(seats) || 1));
+            // DM-2026-06-28-001 (§8.11): активний driver-онбординг — щоб фоновий poll/hydrate
+            // (syncTerminalIdleState) не обнуляв щойно поставлену точку старту, поки підписки
+            // ще нема. Прапор знімається в doOpenCrew (finally).
+            S._driverOnboardingActive = true;
             // Звідки стартуєш? Точку беремо ДО підписки — pickPickupLocation її не вимагає.
             const picked = await pickPickupLocation(safeDirId, { kind: 'driver_start' });
             if (!picked) return false;
@@ -6612,6 +6620,12 @@
 
         function visibleMapCrewsForContext(crews) {
             const focusedDirId = mapFocusedDirectionId();
+            if (S.activeTrip && focusedDirId && String(S.activeTrip.direction_id || '') === String(focusedDirId)) {
+                // Active-trip map is route truth, not discovery. The car is drawn
+                // once by renderCrewMembersOnMap() at the driver's start point;
+                // passenger pickup points must never receive a seat-badged car pin.
+                return [];
+            }
             return (crews || []).filter(c => {
                 if (!c || c.lat == null || c.lng == null) return false;
                 if (focusedDirId) {
@@ -9964,7 +9978,24 @@
                 return true;
             });
             const carPinCoord = crewCarPinCoordForTrip(t);
-            if (carPinCoord) coords.push([carPinCoord.lat, carPinCoord.lng]);
+            if (carPinCoord) {
+                coords.push([carPinCoord.lat, carPinCoord.lng]);
+                const driver = members.find(m => String(m?.role || '').toLowerCase() === 'driver');
+                const driverName = driver?.name || t.driver_name || t.partner_name || 'Водій';
+                const carLabel = escapeAttr(`Авто водія: ${driverName}`);
+                const carMarker = L.marker([carPinCoord.lat, carPinCoord.lng], {
+                    title: carLabel,
+                    alt: carLabel,
+                    icon: L.divIcon({
+                        className: '',
+                        html: `<div class="pickup-point-pin pickup-point-driver" role="img" aria-label="${carLabel}">🚗</div>`,
+                        iconSize: [34, 34],
+                        iconAnchor: [17, 17]
+                    }),
+                    zIndexOffset: 160
+                }).addTo(S.map).bindPopup(`<b>${escapeHtml(driverName)}</b><br>авто водія`);
+                S._crewMemberMarkers.push(carMarker);
+            }
             members.forEach(m => {
                 const isMe = String(m.user_id) === String(S.userId);
                 const role = String(m?.role || '').toLowerCase();
