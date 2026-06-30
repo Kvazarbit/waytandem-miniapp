@@ -5635,6 +5635,17 @@
             el.outerHTML = renderMapInviteContextHeader(mapInviteContext(safeDirId));
         }
 
+        function _refreshMapInviteContextSurfaces(dirId) {
+            const safeDirId = parseInt(dirId) || 0;
+            _refreshMapInviteContextHeaderDom(safeDirId);
+            const panel = document.getElementById('map-result-panel');
+            const meta = panel && panel._mapResultMeta;
+            if (!panel || !panel.classList.contains('open') || !meta) return;
+            if (meta.kind === 'auto_search' && String(meta.dirId || '') === String(safeDirId)) {
+                openMapAutoSearchPanel(safeDirId);
+            }
+        }
+
         function _hydrateInviteContextOnce(dirId) {
             const safeDirId = parseInt(dirId) || 0;
             if (!safeDirId || !S.apiBase) return;
@@ -5647,7 +5658,7 @@
                 .then(data => {
                     if (data && (data.direction || data.organizers)) {
                         S.directionDetailsCache[safeDirId] = data;
-                        _refreshMapInviteContextHeaderDom(safeDirId);
+                        _refreshMapInviteContextSurfaces(safeDirId);
                     }
                 })
                 .catch(() => {})
@@ -5979,6 +5990,57 @@
             return `💺 ${occupied}/${total}`;
         }
 
+        function passengerOpenCrewChoices(dirId, ctx = null) {
+            const safeDirId = parseInt(dirId) || 0;
+            if (!safeDirId || !_isPassengerRole(S.userRole)) return [];
+            const byDriver = new Map();
+            const addCrew = (raw) => {
+                const organizerId = parseInt(raw?.organizer_id ?? raw?.user_id ?? raw?.driver_id, 10) || 0;
+                if (!organizerId || String(organizerId) === String(S.userId || '')) return;
+                const rowDirId = parseInt(raw?.direction_id ?? safeDirId, 10) || safeDirId;
+                if (rowDirId !== safeDirId) return;
+                const freeSeats = safeCount(raw?.seats_free ?? raw?.free_seats ?? raw?.available_seats);
+                if (freeSeats <= 0) return;
+                const existing = byDriver.get(organizerId);
+                if (existing && existing.seats_free >= freeSeats) return;
+                byDriver.set(organizerId, {
+                    organizer_id: organizerId,
+                    direction_id: safeDirId,
+                    name: raw?.driver_name || raw?.organizer_name || raw?.name || 'Водій',
+                    photo_url: raw?.driver_photo_url || raw?.organizer_photo_url || raw?.photo_url || '',
+                    seats_free: freeSeats
+                });
+            };
+            (S.mapCrews || []).forEach(addCrew);
+            (Array.isArray(ctx?.orgs) ? ctx.orgs : [])
+                .filter(o => normalizeRole(o?.role || 'driver') === 'driver')
+                .forEach(addCrew);
+            return Array.from(byDriver.values())
+                .sort((a, b) => b.seats_free - a.seats_free || String(a.name).localeCompare(String(b.name)))
+                .slice(0, 3);
+        }
+
+        function renderPassengerOpenCrewChoices(dirId, crews) {
+            const safeDirId = parseInt(dirId) || 0;
+            if (!safeDirId || !Array.isArray(crews) || !crews.length) return '';
+            const rows = crews.map(c => {
+                const orgId = parseInt(c.organizer_id, 10) || 0;
+                const freeSeats = safeCount(c.seats_free);
+                return `<div style="display:flex;align-items:center;gap:8px;padding:8px;border:1px solid rgba(34,197,94,0.22);border-radius:10px;background:rgba(34,197,94,0.07);margin-bottom:6px;">
+                    ${renderAvatarInline(c.name || 'Водій', c.photo_url || '', 30)}
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-size:12px;font-weight:850;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(c.name || 'Водій')}</div>
+                        <div style="font-size:11px;color:#86efac;">${freeSeats} ${pluralUk(freeSeats, 'вільне місце', 'вільні місця', 'вільних місць')}</div>
+                    </div>
+                    <button class="btn btn-primary" style="width:auto;min-height:32px;padding:7px 10px;font-size:12px;border-radius:9px;" onclick="requestJoin(${orgId}, ${safeDirId}, { source: 'auto_search', keepMapContext: true })">Запроситись</button>
+                </div>`;
+            }).join('');
+            return `<div data-auto-search-open-crews="true" style="margin:8px 0 10px;">
+                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Є відкриті екіпажі з місцями. Запит створиться тільки після вашого кліку.</div>
+                ${rows}
+            </div>`;
+        }
+
         function openMapAutoSearchPanel(dirId) {
             const ctx = mapInviteContext(dirId);
             const safeDirId = ctx.safeDirId || (parseInt(dirId) || 0);
@@ -5988,9 +6050,13 @@
             const title = isDriver ? '✨ Шукаємо попутників' : '✨ Шукаємо місце';
             const seats = isDriver ? searchSeatsLabel(safeDirId) : '';
             const chip = `✨ Авто${seats ? ' · ' + seats : ''}`;
+            const crewChoices = isDriver ? [] : passengerOpenCrewChoices(safeDirId, ctx);
+            const crewChoicesHtml = renderPassengerOpenCrewChoices(safeDirId, crewChoices);
             const sub = isDriver
                 ? 'Автоматичний пошук активний. Як тільки попутник знайдеться — ви отримаєте пропозицію.'
-                : 'Автоматичний пошук активний. Як тільки водій знайдеться — ви отримаєте пропозицію.';
+                : (crewChoices.length
+                    ? 'Автоматичний пошук активний, і вже є відкриті місця. Можете запроситись явно або чекати пропозицію.'
+                    : 'Автоматичний пошук активний. Як тільки водій знайдеться — ви отримаєте пропозицію.');
             openMapResultPanel(`
                 ${ctx.safeDirId ? renderMapInviteContextHeader(ctx) : ''}
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
@@ -5999,8 +6065,9 @@
                 </div>
                 <div class="sheet-sub" style="font-size:12px;margin:4px 0 4px;"><span style="display:inline-block;padding:2px 8px;border-radius:999px;background:rgba(56,189,248,0.12);font-weight:700;">${escapeHtml(chip)}</span></div>
                 <div class="sheet-sub" style="font-size:12px;margin-bottom:10px;">${escapeHtml(sub)}</div>
+                ${crewChoicesHtml}
                 <div style="display:flex;gap:10px;">
-                    <button class="btn btn-secondary" style="flex:1;" onclick="closeMapResultPanel(); openSubscribedDirectionDetails(${safeDirId})">Деталі</button>
+                    <button class="btn ${crewChoices.length ? 'btn-primary' : 'btn-secondary'}" style="flex:1;" onclick="closeMapResultPanel(); ${crewChoices.length ? `openNearbyCrewsSheet(${safeDirId})` : `openSubscribedDirectionDetails(${safeDirId})`}">${crewChoices.length ? 'Показати місця' : 'Деталі'}</button>
                     <button class="btn btn-danger" style="flex:1;" onclick="closeMapResultPanel(); unsubscribeDir(${safeDirId})">🚪 Зупинити</button>
                 </div>
             `, { kind: 'auto_search', dirId: safeDirId }, mapResultStrip(escapeHtml(`${title}${seats ? ' · ' + seats : ''}`)));
@@ -8414,6 +8481,8 @@
                 const dirTitle = m.direction || m.direction_title || 'Напрямок';
                 const isDriver = _isDriverRole(S.userRole);
                 const title = isDriver ? '📩 Запит в екіпаж' : '📩 Знайдено водія';
+                const acceptText = isDriver ? '✓ Взяти в екіпаж' : '✓ Прийняти';
+                const declineText = isDriver ? '✕ Пропустити' : '✕ Відхилити';
 
                 document.body.style.paddingBottom = '175px';
 
@@ -8429,8 +8498,8 @@
                         </div>
                     </div>
                     <div style="display:flex;gap:10px;margin-bottom:8px;">
-                        <button class="btn btn-primary" style="flex:1;height:40px;font-size:13px;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, true)">✓ Прийняти</button>
-                        <button class="btn btn-danger" style="flex:1;height:40px;font-size:13px;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false)">✕ Відхилити</button>
+                        <button class="btn btn-primary" style="flex:1;height:40px;font-size:13px;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, true)">${escapeHtml(acceptText)}</button>
+                        <button class="btn btn-danger" style="flex:1;height:40px;font-size:13px;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false)">${escapeHtml(declineText)}</button>
                     </div>
                     <button class="btn btn-secondary" style="width:100%;height:36px;font-size:12px;background:transparent;border:1px solid rgba(255,255,255,0.15);" onclick="openTripsFromHandshakePanel()">Усі запити в Поїздки</button>
                 `;
