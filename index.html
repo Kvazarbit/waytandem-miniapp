@@ -4420,6 +4420,7 @@
         // ─── NAVIGATION ───
         function switchScreen(name) {
             S.currentScreen = name;
+            closeBlockingSheetForScreen(name);
             document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
             document.getElementById('screen-' + name).classList.add('active');
             document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.tab === name));
@@ -4962,6 +4963,18 @@
 
         function isSheetOpen() {
             return document.getElementById('sheet')?.classList.contains('open');
+        }
+
+        function isRatingSheetOpen() {
+            const body = document.getElementById('sheet-body');
+            return !!(body && body.querySelector('#thumb-up, #thumb-down'));
+        }
+
+        function closeBlockingSheetForScreen(name) {
+            if (name !== 'trips') return;
+            if (!S.activeTrip || !isSheetOpen()) return;
+            if (S.roleGateOpen || S.matchSheetOpen || isRatingSheetOpen()) return;
+            closeSheet();
         }
 
         function maybeOpenMatchSheet() {
@@ -6026,7 +6039,7 @@
             const rows = crews.map(c => {
                 const orgId = parseInt(c.organizer_id, 10) || 0;
                 const freeSeats = safeCount(c.seats_free);
-                return `<div style="display:flex;align-items:center;gap:8px;padding:8px;border:1px solid rgba(34,197,94,0.22);border-radius:10px;background:rgba(34,197,94,0.07);margin-bottom:6px;">
+                return `<div data-auto-search-crew-id="${orgId}" style="display:flex;align-items:center;gap:8px;padding:8px;border:1px solid rgba(34,197,94,0.22);border-radius:10px;background:rgba(34,197,94,0.07);margin-bottom:6px;">
                     ${renderAvatarInline(c.name || 'Водій', c.photo_url || '', 30)}
                     <div style="flex:1;min-width:0;">
                         <div style="font-size:12px;font-weight:850;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(c.name || 'Водій')}</div>
@@ -7756,6 +7769,53 @@
             return member?.name || `#${member?.user_id || '?'}`;
         }
 
+        function passengerFinishFlags(member) {
+            return {
+                driverFinished: !!(member?.driver_finished || member?.driver_done),
+                clientFinished: !!(member?.client_finished || member?.client_done),
+            };
+        }
+
+        function buildDriverFinishPanel(trip) {
+            const passengers = orderedPickupPassengers(trip);
+            if (!passengers.length) return '';
+            const activeRows = passengers.map(p => {
+                const reqId = passengerRequestId(p);
+                const passengerId = parseInt(p?.user_id || 0, 10) || 0;
+                const name = passengerDisplayName(p);
+                const flags = passengerFinishFlags(p);
+                const waitingPassenger = flags.driverFinished && !flags.clientFinished;
+                const passengerWaitingDriver = !flags.driverFinished && flags.clientFinished;
+                const status = waitingPassenger
+                    ? 'Очікуємо підтвердження попутника'
+                    : (passengerWaitingDriver ? 'Попутник уже відмітив фініш' : 'У дорозі');
+                const statusColor = waitingPassenger
+                    ? 'var(--amber)'
+                    : (passengerWaitingDriver ? 'var(--green)' : 'var(--text-secondary)');
+                const disabled = !reqId || !passengerId || flags.driverFinished;
+                const actionLabel = flags.driverFinished ? 'Фініш відмічено' : (passengerWaitingDriver ? 'Підтвердити' : 'Висадити');
+                return `<div data-driver-finish-row="true" data-finish-passenger-id="${passengerId}" data-finish-request-id="${reqId}" style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:10px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid var(--border);">
+                    <div style="min-width:0;">
+                        <div style="font-size:14px;font-weight:850;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(name)}</div>
+                        <div style="font-size:11px;color:${statusColor};margin-top:2px;">${escapeHtml(status)}</div>
+                    </div>
+                    <button class="btn ${passengerWaitingDriver ? 'btn-success' : 'btn-secondary'}" style="padding:8px 10px;font-size:12px;" ${disabled ? 'disabled' : ''} onclick="finishTripForRequest(${reqId}, { stayOnCrew: true, partnerId: ${passengerId} })">${actionLabel}</button>
+                </div>`;
+            }).join('');
+            const unfinished = passengers.filter(p => !passengerFinishFlags(p).driverFinished && passengerRequestId(p));
+            const allMarked = unfinished.length === 0;
+            return `<div data-driver-finish-panel="true" style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.22);">
+                <div style="display:flex;gap:8px;align-items:flex-start;justify-content:space-between;">
+                    <div>
+                        <div style="font-size:11px;font-weight:900;color:var(--green);text-transform:uppercase;letter-spacing:.6px;">Фініш екіпажу</div>
+                        <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">Висаджуйте окремих попутників або відмітьте фініш для всіх. Повне завершення буде тільки після підтвердження кожного.</div>
+                    </div>
+                    <button class="btn btn-success" data-finish-all-driver="true" style="padding:8px 10px;font-size:12px;white-space:nowrap;" ${allMarked ? 'disabled' : ''} onclick="finishAllDriverPassengers()">З усіма</button>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;">${activeRows}</div>
+            </div>`;
+        }
+
         function nextPickupPassenger(trip) {
             return orderedPickupPassengers(trip).find(p => !isPassengerPickedUp(p)) || null;
         }
@@ -7975,9 +8035,13 @@
             const nextPassengerId = parseInt(nextPassenger?.user_id || 0, 10) || 0;
             const nextName = nextPassenger ? passengerDisplayName(nextPassenger) : '';
             const actions = isStarted
-                ? `<button class="btn btn-secondary" onclick="closeSheet();openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
-                   <button class="btn btn-success" onclick="closeSheet();finishTrip()">✅ Завершити</button>
-                   <button class="btn btn-ghost" onclick="closeSheet()">Карта</button>`
+                ? (isDriver
+                    ? `<button class="btn btn-secondary" onclick="closeSheet();openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
+                       <button class="btn btn-secondary" onclick="closeSheet();switchScreen('trips')">Екіпаж</button>
+                       <button class="btn btn-ghost" onclick="closeSheet()">Карта</button>`
+                    : `<button class="btn btn-secondary" onclick="closeSheet();openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
+                       <button class="btn btn-success" onclick="closeSheet();finishTrip()">✅ Завершити</button>
+                       <button class="btn btn-ghost" onclick="closeSheet()">Карта</button>`)
                 : (isDriver
                     ? `${!isPickup ? `<button class="btn btn-secondary" onclick="arriveAtPickup().then(ok => { if (ok) openTripMap(); })">🚗 Я біля точки збору</button>` : ''}
                        ${isPickup && nextPassenger ? `<button class="btn btn-primary" onclick="markPassengerPickedUp(${nextReqId}, ${nextPassengerId}).then(ok => { if (ok) openTripMap(); })">✅ ${escapeHtml(nextName)} в авто</button>` : ''}
@@ -8075,7 +8139,8 @@
                             ${!isStarted && isDriver && isPickup && nextPassenger && !cancelRequested ? `<button class="btn btn-primary" onclick="markPassengerPickedUp(${nextReqId}, ${nextPassengerId})">✅ ${escapeHtml(nextName)} в авто</button>` : ''}
                             ${!isStarted && isDriver && isPickup && allPickedUp && !cancelRequested ? `<button class="btn btn-primary" onclick="startTrip()">🚀 Усі в авто — поїхали</button>` : ''}
                             ${isPickup && !isDriver ? `<div style="margin-top:4px;padding:10px;border-radius:10px;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.3);font-size:13px;color:var(--blue);">🚗 Водій прибув до точки збору</div>` : ''}
-                            ${isStarted ? `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="openChat(${t.request_id || t.id || 0}, ${isDriver ? (t.client_id || 0) : (t.driver_id || 0)})">💬 Чат</button><button class="btn btn-success" style="flex:1;" onclick="finishTrip()">✅ Завершити подорож</button></div>` : ''}
+                            ${isStarted && isDriver ? `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="openChat(${t.request_id || t.id || 0}, ${t.client_id || 0})">💬 Чат</button><button class="btn btn-secondary" style="flex:1;" onclick="openTripMap()">🗺️ Карта</button></div>${buildDriverFinishPanel(t)}` : ''}
+                            ${isStarted && !isDriver ? `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="openChat(${t.request_id || t.id || 0}, ${t.driver_id || 0})">💬 Чат</button><button class="btn btn-success" style="flex:1;" onclick="finishTrip()">✅ Завершити подорож</button></div>` : ''}
                             ${cancelPending ? `<div style="display:flex;gap:10px;"><button class="btn btn-primary" style="flex:1;" onclick="confirmCancelTrip()">✅ Згоден скасувати</button><button class="btn btn-secondary" style="flex:1;" onclick="rejectCancelTrip()">❌ Відмовити</button></div>` : ''}
                             ${!isStarted && !cancelPending && !cancelRequested ? `<button class="btn btn-danger" onclick="cancelTrip()">❌ Покинути домовленість</button>` : ''}
                         </div>
@@ -8242,7 +8307,7 @@
                         contextHintHtml = `
                             <div style="display:flex;align-items:center;gap:8px;padding:10px;border-radius:10px;background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.15);margin-top:12px;text-align:left;">
                                 <span style="font-size:16px;flex-shrink:0;">📡</span>
-                                <span style="font-size:12px;color:var(--text-secondary);line-height:1.4;">Автопошук надсилає запити першим попутникам за кількістю вільних місць. Тут видно, хто вже прийняв і скільки місць ще чекає відповіді.</span>
+                                <span style="font-size:12px;color:var(--text-secondary);line-height:1.4;">Автопошук показує перших попутників за кількістю вільних місць. Запит або запрошення створиться тільки після вашого кліку.</span>
                             </div>`;
                     } else {
                         contextHintHtml = `
@@ -8877,7 +8942,9 @@
             } else if (partnerFinished && !viewerFinished) {
                 hint = '🏁 Партнер відмітив фініш. Підтвердіть завершення.';
                 alertStyle = 'color: var(--green); font-weight: bold;';
-                actions = `<button class="btn btn-success" onclick="finishTrip()">✅ Підтвердити завершення</button>`;
+                actions = isDriver
+                    ? `<button class="btn btn-secondary" onclick="switchScreen('trips')">Екіпаж</button>`
+                    : `<button class="btn btn-success" onclick="finishTrip()">✅ Підтвердити завершення</button>`;
             } else if (viewerFinished && !partnerFinished) {
                 hint = '⏳ Ви відмітили фініш. Очікуємо партнера.';
                 alertStyle = 'color: var(--amber); font-weight: bold;';
@@ -8885,8 +8952,11 @@
             } else {
                 if (phase === 'driving') {
                     hint = isDriver ? 'Усі в авто. Завершіть, коли доїдете до події.' : 'Ви в дорозі з водієм. Завершіть після прибуття.';
-                    actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
-                        <button class="btn btn-success" onclick="finishTrip()">✅ Завершити</button>`;
+                    actions = isDriver
+                        ? `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
+                           <button class="btn btn-secondary" onclick="switchScreen('trips')">Екіпаж</button>`
+                        : `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
+                           <button class="btn btn-success" onclick="finishTrip()">✅ Завершити</button>`;
                 } else {
                     // DM-2026-06-15: gap #6 — до старту поїздки ("Поїхали") вихід з
                     // домовленості можливий лише через взаємну згоду (cancelTrip() ->
@@ -8972,17 +9042,22 @@
 
             S.partnerFinishSheetShownIds.add(reqId);
             const title = escapeHtml(trip.direction_title || 'поїздка');
-            const partner = trip.viewer_role === 'driver' ? 'Попутник' : 'Водій';
+            const isDriver = trip.viewer_role === 'driver';
+            const partner = isDriver ? 'Попутник' : 'Водій';
+            const primaryAction = isDriver
+                ? `<button class="btn btn-secondary" id="partner-finish-open">Відкрити Поїздки</button>`
+                : `<button class="btn btn-success" id="partner-finish-confirm">✅ Підтвердити завершення</button>
+                   <button class="btn btn-secondary" id="partner-finish-open">Відкрити Поїздки</button>`;
             openSheet(`
                 <div class="sheet-title">🏁 ${partner} відмітив фініш</div>
-                <div class="sheet-sub">Поїздка «${title}» чекає вашого підтвердження. Натисніть завершення тільки якщо ви справді доїхали.</div>
+                <div class="sheet-sub">Поїздка «${title}» чекає вашого підтвердження. ${isDriver ? 'Підтвердіть потрібного попутника у списку екіпажу.' : 'Натисніть завершення тільки якщо ви справді доїхали.'}</div>
                 <div class="sheet-actions">
-                    <button class="btn btn-success" id="partner-finish-confirm">✅ Підтвердити завершення</button>
-                    <button class="btn btn-secondary" id="partner-finish-open">Відкрити Поїздки</button>
+                    ${primaryAction}
                     <button class="btn btn-ghost" id="partner-finish-later">Ще в дорозі</button>
                 </div>
             `);
-            document.getElementById('partner-finish-confirm').onclick = () => { closeSheet(); finishTrip(); };
+            const confirmBtn = document.getElementById('partner-finish-confirm');
+            if (confirmBtn) confirmBtn.onclick = () => { closeSheet(); finishTrip(); };
             document.getElementById('partner-finish-open').onclick = () => { closeSheet(); switchScreen('trips'); };
             document.getElementById('partner-finish-later').onclick = () => { closeSheet(); showToast('Фініш лишився у Поїздках', ''); };
             return true;
@@ -9186,36 +9261,96 @@
             } finally { endOp('arrive_at_pickup'); }
         }
 
-        async function finishTrip() {
+        function ratingContextForRequest(trip, reqId, partnerId = null) {
+            const requestId = Number(reqId);
+            if (!Number.isFinite(requestId) || requestId <= 0) return null;
+            const partner = Number(partnerId);
+            if (Number.isFinite(partner) && partner > 0) {
+                return { request_id: requestId, partner_id: partner };
+            }
+            if (currentRequestIdFromTrip(trip) === requestId) return buildRatingContext(trip);
+            const passenger = orderedPickupPassengers(trip).find(p => passengerRequestId(p) === requestId);
+            const passengerId = Number(passenger?.user_id || 0);
+            if (trip?.viewer_role === 'driver' && Number.isFinite(passengerId) && passengerId > 0) {
+                return { request_id: requestId, partner_id: passengerId };
+            }
+            return null;
+        }
+
+        async function finishTripForRequest(reqId, options = {}) {
             if (!S.activeTrip) return;
-            if (!beginOp('finish_trip')) return;
+            const opKey = `finish_trip_${reqId || 'current'}`;
+            if (!beginOp(opKey)) return;
             try {
-                const reqId = currentRequestId();
-                const tripSnapshot = S.activeTrip ? { ...S.activeTrip } : null;
-                const ratingContext = buildRatingContext(tripSnapshot);
-                if (!reqId) { showToast('Немає активної поїздки', 'error'); return; }
+                const tripSnapshot = options.tripSnapshot || (S.activeTrip ? { ...S.activeTrip } : null);
+                const safeReqId = Number(reqId);
+                const ratingContext = ratingContextForRequest(tripSnapshot, safeReqId, options.partnerId);
+                if (!safeReqId) { showToast('Немає активної поїздки', 'error'); return; }
                 const res = await api('/api/v3/trip/done', {
                     method: 'POST',
-                    body: JSON.stringify({ request_id: reqId, user_id: S.userId, role: S.activeTrip.viewer_role || S.userRole })
+                    body: JSON.stringify({ request_id: safeReqId, user_id: S.userId, role: S.activeTrip.viewer_role || S.userRole })
                 });
                 if (res?.status === 'ok') {
-                    stopLocationTracking(true);
                     if (res?.completed) {
                         showToast('🎉 Подорож завершена! Дякуємо.', 'success');
                         waitingForPartner = false;
-                        openRatingSheet(ratingContext);
+                        if (ratingContext) openRatingSheet(ratingContext);
                         lastKnownTripForRating = null;
+                        await hydrate();
+                    } else if (options.stayOnCrew) {
+                        showToast('⏳ Фініш відмічено. Чекаємо підтвердження попутника.', '');
+                        waitingForPartner = false;
+                        await hydrate();
+                        if (S.currentScreen === 'trips') renderTrips();
                     } else {
+                        stopLocationTracking(true);
                         showToast('⏳ Очікуємо підтвердження партнера...', '');
                         waitingForPartner = true;
                         if (tripSnapshot) lastKnownTripForRating = tripSnapshot;
                         renderTripsWaiting();
+                        await hydrate();
                     }
-                    await hydrate();
                 } else if (res?.reason === 'action_forbidden') {
                     showToast('Вже завершено — очікуємо партнера', '');
                 } else { showToast('Помилка', 'error'); }
-            } finally { endOp('finish_trip'); }
+            } finally { endOp(opKey); }
+        }
+
+        async function finishAllDriverPassengers() {
+            if (!S.activeTrip || S.activeTrip.viewer_role !== 'driver') return;
+            const passengers = orderedPickupPassengers(S.activeTrip)
+                .filter(p => passengerRequestId(p) && !passengerFinishFlags(p).driverFinished);
+            if (!passengers.length) {
+                showToast('Фініш уже відмічено для всіх активних попутників', '');
+                return;
+            }
+            if (!beginOp('finish_all_driver_passengers')) return;
+            try {
+                let ok = 0;
+                for (const passenger of passengers) {
+                    const reqId = passengerRequestId(passenger);
+                    const passengerId = parseInt(passenger?.user_id || 0, 10) || 0;
+                    const res = await api('/api/v3/trip/done', {
+                        method: 'POST',
+                        body: JSON.stringify({ request_id: reqId, user_id: S.userId, role: 'driver' })
+                    });
+                    if (res?.status === 'ok') ok += 1;
+                    if (res?.completed) {
+                        const ctx = ratingContextForRequest(S.activeTrip, reqId, passengerId);
+                        if (ctx) openRatingSheet(ctx);
+                    }
+                }
+                showToast(`⏳ Фініш відмічено для ${ok}/${passengers.length}. Чекаємо підтверджень попутників.`, ok === passengers.length ? '' : 'error');
+                waitingForPartner = false;
+                await hydrate();
+                if (S.currentScreen === 'trips') renderTrips();
+            } finally { endOp('finish_all_driver_passengers'); }
+        }
+
+        async function finishTrip() {
+            if (!S.activeTrip) return;
+            const tripSnapshot = { ...S.activeTrip };
+            return finishTripForRequest(currentRequestId(), { tripSnapshot });
         }
 
         async function cancelTrip() {
