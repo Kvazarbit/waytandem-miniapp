@@ -7776,6 +7776,49 @@
             };
         }
 
+        function buildDriverCrewCommsPanel(trip) {
+            const passengers = orderedPickupPassengers(trip).filter(p => passengerRequestId(p));
+            if (!passengers.length) return '';
+            const isStarted = !!trip?.is_started;
+            const isPickup = trip?.status === 'pickup';
+            const broadcastKind = isStarted ? 'arrived_all' : (isPickup ? 'pickup_here_all' : 'ready_all');
+            const broadcastLabel = isStarted ? 'Всім: доїхали' : (isPickup ? 'Всім: я біля точки' : 'Всім: готовність?');
+            const rows = passengers.map(p => {
+                const reqId = passengerRequestId(p);
+                const passengerId = parseInt(p?.user_id || 0, 10) || 0;
+                const name = passengerDisplayName(p);
+                const picked = isPassengerPickedUp(p);
+                const flags = passengerFinishFlags(p);
+                const status = isStarted
+                    ? (flags.driverFinished ? 'Фініш відмічено' : 'В дорозі')
+                    : (picked ? 'В авто' : (isPickup ? 'Чекаємо посадку' : 'Домовленість активна'));
+                const quickButtons = [];
+                if (!isStarted && !picked) quickButtons.push(`<button class="btn btn-secondary" data-quick-msg="where" onclick="sendTripQuickMessage(${reqId}, 'where')">Де ти?</button>`);
+                if (isPickup && !picked) quickButtons.push(`<button class="btn btn-primary" data-quick-msg="pickup_here" onclick="sendTripQuickMessage(${reqId}, 'pickup_here')">Виходь</button>`);
+                if (isStarted && !flags.driverFinished) quickButtons.push(`<button class="btn btn-secondary" data-quick-msg="dropoff" onclick="sendTripQuickMessage(${reqId}, 'dropoff')">Висаджую тут</button>`);
+                return `<div data-driver-comms-row="true" data-comm-passenger-id="${passengerId}" data-comm-request-id="${reqId}" style="padding:10px;border-radius:8px;background:rgba(255,255,255,0.035);border:1px solid var(--border);">
+                    <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-size:14px;font-weight:850;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(name)}</div>
+                            <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${escapeHtml(status)}</div>
+                        </div>
+                        <button class="btn btn-secondary" data-comm-chat="true" style="padding:8px 10px;font-size:12px;" onclick="openChat(${reqId}, ${passengerId})">Чат</button>
+                    </div>
+                    ${quickButtons.length ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">${quickButtons.join('')}</div>` : ''}
+                </div>`;
+            }).join('');
+            return `<div data-driver-comms-panel="true" style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(56,189,248,0.07);border:1px solid rgba(56,189,248,0.22);">
+                <div style="display:flex;gap:8px;align-items:flex-start;justify-content:space-between;">
+                    <div>
+                        <div style="font-size:11px;font-weight:900;color:var(--blue);text-transform:uppercase;letter-spacing:.6px;">Звʼязок екіпажу</div>
+                        <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">Швидкі повідомлення й чат біля кожного попутника, без перекриття карти.</div>
+                    </div>
+                    <button class="btn btn-secondary" data-crew-broadcast="${broadcastKind}" style="padding:8px 10px;font-size:12px;white-space:nowrap;" onclick="sendCrewQuickMessage('${broadcastKind}')">${broadcastLabel}</button>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;">${rows}</div>
+            </div>`;
+        }
+
         function buildDriverFinishPanel(trip) {
             const passengers = orderedPickupPassengers(trip);
             if (!passengers.length) return '';
@@ -8114,6 +8157,7 @@
                         ${buildCrewPresenceSummary(t)}
                         ${buildPickupSequence(t)}
                         ${buildPickupActionPanel(t, { includeAction: false })}
+                        ${isDriver ? buildDriverCrewCommsPanel(t) : ''}
                         <div class="lifecycle-progress">
                             <div class="lifecycle-step done"><div class="lifecycle-dot"></div>Збіг</div>
                             <div class="lifecycle-arrow"></div>
@@ -9259,6 +9303,59 @@
                 showToast('Помилка', 'error');
                 return false;
             } finally { endOp('arrive_at_pickup'); }
+        }
+
+        function driverQuickMessageText(kind) {
+            const messages = {
+                where: 'Де ти? Я бачу тебе в екіпажі й чекаю відповідь.',
+                ready_all: 'Підтвердіть, будь ласка, що ви готові до виїзду.',
+                pickup_here: 'Я біля точки збору. Можеш виходити.',
+                pickup_here_all: 'Я біля точки збору. Чекаю екіпаж.',
+                dropoff: 'Висаджую тут. Підтверди фініш, коли вийдеш.',
+                arrived_all: 'Ми доїхали. Підтвердіть фініш, коли вийдете.',
+            };
+            return messages[kind] || '';
+        }
+
+        async function postTripQuickMessage(reqId, text) {
+            const safeReqId = Number(reqId);
+            if (!Number.isFinite(safeReqId) || safeReqId <= 0 || !text) return false;
+            const res = await api('/api/v3/trip/message', {
+                method: 'POST',
+                body: JSON.stringify({ request_id: safeReqId, user_id: S.userId, text })
+            });
+            return res?.status === 'ok';
+        }
+
+        async function sendTripQuickMessage(reqId, kind) {
+            const text = driverQuickMessageText(kind);
+            if (!text) return;
+            const opKey = `quick_msg_${reqId || 'unknown'}_${kind || 'msg'}`;
+            if (!beginOp(opKey)) return;
+            try {
+                const ok = await postTripQuickMessage(reqId, text);
+                showToast(ok ? 'Повідомлення надіслано' : 'Не вдалося надіслати', ok ? '' : 'error');
+                if (ok && S.chatRequestId && String(S.chatRequestId) === String(reqId)) await loadChatMessages();
+            } finally { endOp(opKey); }
+        }
+
+        async function sendCrewQuickMessage(kind) {
+            if (!S.activeTrip || S.activeTrip.viewer_role !== 'driver') return;
+            const text = driverQuickMessageText(kind);
+            const targets = orderedPickupPassengers(S.activeTrip)
+                .map(p => passengerRequestId(p))
+                .filter(reqId => reqId > 0);
+            if (!text || !targets.length) return;
+            const opKey = `crew_quick_msg_${kind || 'msg'}`;
+            if (!beginOp(opKey)) return;
+            try {
+                let sent = 0;
+                for (const reqId of targets) {
+                    if (await postTripQuickMessage(reqId, text)) sent += 1;
+                }
+                showToast(`Надіслано ${sent}/${targets.length}`, sent === targets.length ? '' : 'error');
+                if (sent && S.chatRequestId && targets.map(String).includes(String(S.chatRequestId))) await loadChatMessages();
+            } finally { endOp(opKey); }
         }
 
         function ratingContextForRequest(trip, reqId, partnerId = null) {
