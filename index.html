@@ -3883,7 +3883,7 @@
             else maybeOpenCompletedTripRatingSheet('hydrate');
             S.pendingMatches = resolvePendingMatchesPayload(data);
             S.proposedMatch = (S.activeTrip || S.pendingMatches.length) ? null : (data.proposed_match || null);
-            if (!S.proposedMatch) closeMapResultPanel();
+            if (!S.proposedMatch) closeMapResultPanelIfNoProposedMatch();
             const subs = await api(`/api/v3/user/subscriptions?user_id=${S.userId}`);
             S.subscriptions = subs?.subscriptions || [];
             // Suppress a just-switched-from/unsubscribed direction while the server
@@ -3941,7 +3941,7 @@
                     }
                     S.pendingMatches = resolvePendingMatchesPayload(data);
                     S.proposedMatch = (S.activeTrip || S.pendingMatches.length) ? null : (data.proposed_match || null);
-                    if (!S.proposedMatch) closeMapResultPanel();
+                    if (!S.proposedMatch) closeMapResultPanelIfNoProposedMatch();
                     // Completed trip is a terminal event for this social outing.
                     // Polling can be the first client to observe partner finish, so
                     // refresh subscriptions before any map-result banner is allowed
@@ -6098,7 +6098,34 @@
             const title = isDriver ? '✨ Шукаємо попутників' : '✨ Шукаємо місце';
             const seats = isDriver ? searchSeatsLabel(safeDirId) : '';
             const chip = `✨ Авто${seats ? ' · ' + seats : ''}`;
+            const panel = document.getElementById('map-result-panel');
+            const meta = panel && panel._mapResultMeta;
+            const sameAutoPanel =
+                panel?.classList.contains('open') &&
+                meta?.kind === 'auto_search' &&
+                String(meta?.dirId || '') === String(safeDirId);
+            const collapseStateMatches = !!S.mapResultCollapsed === !!panel?.classList.contains('collapsed');
+            const hasRenderedCrewChoices = !!panel?.querySelector('[data-auto-search-open-crews="true"]');
+            if (sameAutoPanel && collapseStateMatches && (isDriver || S.mapResultCollapsed || hasRenderedCrewChoices)) {
+                return;
+            }
             const crewChoices = isDriver ? [] : passengerOpenCrewChoices(safeDirId, ctx);
+            const renderSignature = [
+                'auto_search',
+                safeDirId,
+                isDriver ? 'driver' : 'passenger',
+                seats,
+                S.mapResultCollapsed ? 'collapsed' : 'open',
+                crewChoices.map(c => `${c.organizer_id}:${c.seats_free}:${c.name || ''}`).join('|')
+            ].join('::');
+            if (
+                panel?.classList.contains('open') &&
+                meta?.kind === 'auto_search' &&
+                String(meta?.dirId || '') === String(safeDirId) &&
+                meta?.renderSignature === renderSignature
+            ) {
+                return;
+            }
             const crewChoicesHtml = renderPassengerOpenCrewChoices(safeDirId, crewChoices);
             const sub = isDriver
                 ? 'Автоматичний пошук активний. Як тільки попутник знайдеться — ви отримаєте пропозицію.'
@@ -6118,7 +6145,7 @@
                     <button class="btn ${crewChoices.length ? 'btn-primary' : 'btn-secondary'}" style="flex:1;" onclick="closeMapResultPanel(); ${crewChoices.length ? `openNearbyCrewsSheet(${safeDirId})` : `openSubscribedDirectionDetails(${safeDirId})`}">${crewChoices.length ? 'Показати місця' : 'Деталі'}</button>
                     <button class="btn btn-danger" style="flex:1;" onclick="closeMapResultPanel(); unsubscribeDir(${safeDirId})">🚪 Зупинити</button>
                 </div>
-            `, { kind: 'auto_search', dirId: safeDirId }, mapResultStrip(escapeHtml(`${title}${seats ? ' · ' + seats : ''}`)));
+            `, { kind: 'auto_search', dirId: safeDirId, renderSignature }, mapResultStrip(escapeHtml(`${title}${seats ? ' · ' + seats : ''}`)));
         }
 
         function hasHandshakeActionSurface() {
@@ -8868,6 +8895,14 @@
                 document.body.style.paddingBottom = '';
             }
             syncBottomStripStacking();
+        }
+
+        function closeMapResultPanelIfNoProposedMatch() {
+            const panel = document.getElementById('map-result-panel');
+            if (!panel || !panel.classList.contains('open')) return;
+            const meta = panel._mapResultMeta;
+            if (meta && ['auto_search', 'manual_search', 'outgoing'].includes(meta.kind)) return;
+            closeMapResultPanel();
         }
 
         // DM-2026-06-13-005: тримає компактну "процес"-картку (renderMapOutgoingProcessCard)
