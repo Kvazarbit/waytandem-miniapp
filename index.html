@@ -3940,7 +3940,8 @@
                         maybeOpenCompletedTripRatingSheet('poll');
                     }
                     S.pendingMatches = resolvePendingMatchesPayload(data);
-                    S.proposedMatch = data.proposed_match || null;
+                    S.proposedMatch = (S.activeTrip || S.pendingMatches.length) ? null : (data.proposed_match || null);
+                    if (!S.proposedMatch) closeMapResultPanel();
                     // Completed trip is a terminal event for this social outing.
                     // Polling can be the first client to observe partner finish, so
                     // refresh subscriptions before any map-result banner is allowed
