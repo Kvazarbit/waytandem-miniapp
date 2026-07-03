@@ -3882,7 +3882,8 @@
             if (S.activeTrip) lastKnownTripForRating = { ...S.activeTrip };
             else maybeOpenCompletedTripRatingSheet('hydrate');
             S.pendingMatches = resolvePendingMatchesPayload(data);
-            S.proposedMatch = data.proposed_match || null;
+            S.proposedMatch = (S.activeTrip || S.pendingMatches.length) ? null : (data.proposed_match || null);
+            if (!S.proposedMatch) closeMapResultPanel();
             const subs = await api(`/api/v3/user/subscriptions?user_id=${S.userId}`);
             S.subscriptions = subs?.subscriptions || [];
             // Suppress a just-switched-from/unsubscribed direction while the server
@@ -7836,6 +7837,43 @@
             };
         }
 
+        function memberCancelRequestedBy(member) {
+            const raw = member?.cancel_requested_by ?? member?.cancel_by ?? null;
+            const id = parseInt(raw || 0, 10);
+            return Number.isFinite(id) && id > 0 ? id : 0;
+        }
+
+        function tripEmptySeats(trip) {
+            const members = Array.isArray(trip?.members) ? trip.members.length : 0;
+            const total = Math.max(members, seatCount(trip?.total_seats ?? trip?.seats_total, members));
+            return Math.max(0, total - members);
+        }
+
+        function tripFormationLabel(trip, isStarted, isPickup) {
+            if (isStarted) return '🚀 В ДОРОЗІ';
+            if (isPickup) return '🚗 ТОЧКА ЗБОРУ';
+            return tripEmptySeats(trip) === 0 ? '✅ ЕКІПАЖ ЗІБРАНО' : '⏳ ЕКІПАЖ ФОРМУЄТЬСЯ';
+        }
+
+        function pendingCrewCancelRequests(trip) {
+            if (!trip || trip.is_started) return [];
+            return orderedPickupPassengers(trip).filter(p => {
+                const by = memberCancelRequestedBy(p);
+                return by && String(by) !== String(S.userId);
+            });
+        }
+
+        function buildCrewCancelAttentionPanel(trip) {
+            const pending = pendingCrewCancelRequests(trip);
+            if (!pending.length) return '';
+            const names = pending.map(p => passengerDisplayName(p)).slice(0, 3).map(escapeHtml).join(', ');
+            const more = pending.length > 3 ? ` +${pending.length - 3}` : '';
+            return `<div data-crew-cancel-attention="true" style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(239,68,68,0.10);border:1px solid rgba(239,68,68,0.30);">
+                <div style="font-size:12px;font-weight:900;color:var(--red);">⚠️ Попутник хоче вийти: ${names}${more}</div>
+                <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">Підтвердьте або відхиліть запит у рядку цього попутника нижче.</div>
+            </div>`;
+        }
+
         function buildDriverCrewCommsPanel(trip) {
             const passengers = orderedPickupPassengers(trip).filter(p => passengerRequestId(p));
             if (!passengers.length) return '';
@@ -7849,13 +7887,23 @@
                 const name = passengerDisplayName(p);
                 const picked = isPassengerPickedUp(p);
                 const flags = passengerFinishFlags(p);
+                const cancelBy = memberCancelRequestedBy(p);
+                const cancelBySelf = cancelBy && String(cancelBy) === String(S.userId);
+                const cancelByPassenger = cancelBy && String(cancelBy) === String(passengerId);
                 const status = isStarted
                     ? (flags.driverFinished ? 'Фініш відмічено' : 'В дорозі')
-                    : (picked ? 'В авто' : (isPickup ? 'Чекаємо посадку' : 'Домовленість активна'));
+                    : (cancelByPassenger ? 'Хоче вийти з екіпажу'
+                        : (cancelBySelf ? 'Ви запросили скасування'
+                            : (picked ? 'В авто' : (isPickup ? 'Чекаємо посадку' : 'Домовленість активна'))));
                 const quickButtons = [];
-                if (!isStarted && !picked) quickButtons.push(`<button class="btn btn-secondary" data-quick-msg="where" onclick="sendTripQuickMessage(${reqId}, 'where')">Де ти?</button>`);
-                if (isPickup && !picked) quickButtons.push(`<button class="btn btn-primary" data-quick-msg="pickup_here" onclick="sendTripQuickMessage(${reqId}, 'pickup_here')">Виходь</button>`);
-                if (isStarted && !flags.driverFinished) quickButtons.push(`<button class="btn btn-secondary" data-quick-msg="dropoff" onclick="sendTripQuickMessage(${reqId}, 'dropoff')">Висаджую тут</button>`);
+                if (cancelByPassenger && !isStarted) {
+                    quickButtons.push(`<button class="btn btn-primary" data-cancel-confirm="${reqId}" onclick="confirmCancelTrip(${reqId})">✅ Погодитись</button>`);
+                    quickButtons.push(`<button class="btn btn-secondary" data-cancel-reject="${reqId}" onclick="rejectCancelTrip(${reqId})">❌ Відмовити</button>`);
+                } else {
+                    if (!isStarted && !picked && !cancelBySelf) quickButtons.push(`<button class="btn btn-secondary" data-quick-msg="where" onclick="sendTripQuickMessage(${reqId}, 'where')">Де ти?</button>`);
+                    if (isPickup && !picked && !cancelBySelf) quickButtons.push(`<button class="btn btn-primary" data-quick-msg="pickup_here" onclick="sendTripQuickMessage(${reqId}, 'pickup_here')">Виходь</button>`);
+                    if (isStarted && !flags.driverFinished) quickButtons.push(`<button class="btn btn-secondary" data-quick-msg="dropoff" onclick="sendTripQuickMessage(${reqId}, 'dropoff')">Висаджую тут</button>`);
+                }
                 return `<div data-driver-comms-row="true" data-comm-passenger-id="${passengerId}" data-comm-request-id="${reqId}" style="padding:10px;border-radius:8px;background:rgba(255,255,255,0.035);border:1px solid var(--border);">
                     <div style="display:flex;align-items:center;gap:10px;min-width:0;">
                         <div style="flex:1;min-width:0;">
@@ -7877,6 +7925,28 @@
                 </div>
                 <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;">${rows}</div>
             </div>`;
+        }
+
+        function tripHumanStatusLabel(trip) {
+            if (!trip) return 'Немає активної домовленості';
+            if (trip.is_started) return 'В дорозі до події';
+            if (trip.status === 'pickup') return 'Збір екіпажу біля точок';
+            if (pendingCrewCancelRequests(trip).length) return 'Потрібна відповідь на вихід попутника';
+            return tripEmptySeats(trip) === 0 ? 'Екіпаж зібрано' : 'Екіпаж домовився, місця ще є';
+        }
+
+        function buildTripHumanSummary(trip) {
+            const driverName = trip?.driver_name || trip?.organizer_name || 'Водій';
+            const passengers = orderedPickupPassengers(trip);
+            const passengerNames = passengers.map(passengerDisplayName).filter(Boolean);
+            const passengerLine = passengerNames.length ? passengerNames.slice(0, 4).join(', ') : 'попутників ще немає';
+            const more = passengerNames.length > 4 ? ` +${passengerNames.length - 4}` : '';
+            return `<div class="section-label">Підсумок</div>
+                <div class="card" data-trip-human-summary="true">
+                    <div class="card-meta">Стан: ${escapeHtml(tripHumanStatusLabel(trip))}</div>
+                    <div class="card-meta">Водій: ${escapeHtml(driverName)}</div>
+                    <div class="card-meta">Попутники: ${escapeHtml(passengerLine)}${escapeHtml(more)}</div>
+                </div>`;
         }
 
         function buildDriverFinishPanel(trip) {
@@ -8201,6 +8271,7 @@
                 const cancelBy = t.cancel_requested_by;
                 const cancelPending = cancelBy && !isStarted && String(cancelBy) !== String(S.userId);
                 const cancelRequested = cancelBy && !isStarted && String(cancelBy) === String(S.userId);
+                const formationLabel = tripFormationLabel(t, isStarted, isPickup);
                 const liveLocationActive = shouldShareLiveLocation(t);
                 // Live location is telemetry for the active crew, not a lifecycle transition.
                 // Use clearConsent=false here: this runs on every poll cycle, so clearing
@@ -8209,7 +8280,7 @@
                 container.innerHTML = `
                     <div class="hero ${isStarted ? 'driving' : 'reservation'} animate-in">
                         <div class="hero-label" style="color:${isStarted ? 'var(--accent)' : (isPickup ? 'var(--blue)' : 'var(--amber)')};">
-                            ${isStarted ? '🚀 В ДОРОЗІ' : (isPickup ? '🚗 ТОЧКА ЗБОРУ' : '⏳ ЕКІПАЖ ФОРМУЄТЬСЯ')}
+                            ${formationLabel}
                         </div>
                         <div class="hero-title">${escapeHtml(t.direction_title || 'Поїздка')}</div>
                         <div class="hero-sub">Екіпаж #${activeTripCrewNumber(t)} • ${isDriver ? '🚗 Ви водій' : '👤 Ви попутник'}</div>
@@ -8218,6 +8289,7 @@
                         ${buildPickupSequence(t)}
                         ${buildPickupActionPanel(t, { includeAction: false })}
                         ${isDriver ? buildDriverCrewCommsPanel(t) : ''}
+                        ${isDriver ? buildCrewCancelAttentionPanel(t) : ''}
                         <div class="lifecycle-progress">
                             <div class="lifecycle-step done"><div class="lifecycle-dot"></div>Збіг</div>
                             <div class="lifecycle-arrow"></div>
@@ -8249,12 +8321,7 @@
                             ${!isStarted && !cancelPending && !cancelRequested ? `<button class="btn btn-danger" onclick="cancelTrip()">❌ Покинути домовленість</button>` : ''}
                         </div>
                     </div>
-                    <div class="section-label">Деталі</div>
-                    <div class="card">
-                        <div class="card-meta">Водій: ${escapeHtml(t.driver_name || '—')}</div>
-                        <div class="card-meta">Пасажир: ${escapeHtml(t.client_name || '—')}</div>
-                        <div class="card-meta">Статус: ${t.status || '—'}</div>
-                    </div>`;
+                    ${buildTripHumanSummary(t)}`;
                 return;
             }
 
@@ -8490,6 +8557,8 @@
                     if (!accept) {
                         showToast(mode === 'cancel' ? '🛑 Запит скасовано. Ви далі підписані на подію' : 'Ви відхилили запит', '');
                     }
+                    S.proposedMatch = null;
+                    closeMapResultPanel();
                     // Для accept — спочатку hydrate, тоді реальний тост зі стану
                     await hydrate();
                     if (accept) {
@@ -8567,6 +8636,7 @@
                 if (res?.status === 'ok') {
                     showToast('📤 Запит надіслано! Очікуємо підтвердження.', 'success');
                     S.proposedMatch = null;
+                    closeMapResultPanel();
                     await hydrate();
                 } else {
                     showToast(getErrorMessage(res, 'Не вдалось надіслати запит'), 'error');
@@ -8592,6 +8662,7 @@
                 if (res?.status === 'declined' || (res?.status === 'ok' && res?.action === 'declined')) {
                     showToast('✕ Пропущено', 'success');
                     S.proposedMatch = null;
+                    closeMapResultPanel();
                     await hydrate();
                 } else {
                     showToast(getErrorMessage(res, 'Не вдалось пропустити'), 'error');
@@ -9548,10 +9619,10 @@
             } finally { endOp('cancel_trip'); }
         }
 
-        async function confirmCancelTrip() {
+        async function confirmCancelTrip(requestId = null) {
             if (!beginOp('confirm_cancel')) return;
             try {
-                const reqId = currentRequestId();
+                const reqId = parseInt(requestId || currentRequestId() || 0, 10) || 0;
                 if (!reqId) { showToast('Немає активної поїздки', 'error'); return; }
                 const res = await api('/api/v3/trip/confirm-cancel', { method: 'POST', body: JSON.stringify({ request_id: reqId, user_id: S.userId }) });
                 if (res?.status === 'ok') {
@@ -9564,10 +9635,10 @@
             } finally { endOp('confirm_cancel'); }
         }
 
-        async function rejectCancelTrip() {
+        async function rejectCancelTrip(requestId = null) {
             if (!beginOp('reject_cancel')) return;
             try {
-                const reqId = currentRequestId();
+                const reqId = parseInt(requestId || currentRequestId() || 0, 10) || 0;
                 if (!reqId) { showToast('Немає активної поїздки', 'error'); return; }
                 const res = await api('/api/v3/trip/reject-cancel', { method: 'POST', body: JSON.stringify({ request_id: reqId, user_id: S.userId }) });
                 if (res?.status === 'ok') {
