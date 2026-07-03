@@ -5991,6 +5991,24 @@
         // S.myCrew (відкритий екіпаж водія, seats_total/seats_free). Порожньо для
         // попутника або коли крю не цього напрямку. Дзеркало tripSeatsLabel для
         // до-trip фази (вимога: водій бачить зайняті місця + режим пошуку).
+        function driverFreeSeatsAfterAccept() {
+            const mc = S.myCrew;
+            const active = S.activeTrip;
+            const total = seatCount(mc?.seats_total ?? active?.seats_total ?? active?.total_seats);
+            if (total <= 0) return 0;
+            if (active && String(active.driver_id || active.organizer_id || '') === String(S.userId || '')) {
+                const members = Array.isArray(active.members) ? active.members : [];
+                const passengerCount = members.filter(m => {
+                    const roleText = String(m?.role || '').toLowerCase();
+                    return roleText !== 'driver' && String(m?.user_id || '') !== String(S.userId || '');
+                }).length;
+                return Math.max(0, total - passengerCount);
+            }
+            if (!mc) return 0;
+            if (hasFiniteNumber(mc.seats_free)) return Math.min(total, seatCount(mc.seats_free));
+            return Math.max(0, total - seatCount(mc.seats_used));
+        }
+
         function searchSeatsLabel(dirId) {
             const mc = S.myCrew;
             if (!mc || String(mc.direction_id) !== String(dirId)) return '';
@@ -8464,10 +8482,7 @@
                         // (перший accept створює поїздку). Якщо ще є вільні місця —
                         // водій продовжує набір. crew_formed_manual тільки при першому.
                         const isDriver = _isDriverRole(S.userRole);
-                        const mc = S.myCrew;
-                        const freeSeats = mc
-                            ? Math.max(0, (seatCount(mc.seats_total) || 0) - (seatCount(mc.seats_used) || 0))
-                            : 0;
+                        const freeSeats = driverFreeSeatsAfterAccept();
                         if (isDriver && freeSeats > 0) {
                             showToast(`✓ Прийнято! Ще ${freeSeats} ${pluralUk(freeSeats, 'місце вільне', 'місця вільних', 'місць вільних')} — шукаємо далі`, 'success');
                         } else if (isDriver && freeSeats === 0) {
