@@ -5179,6 +5179,7 @@
                     persistCriticalState();
                     await hydrate();
                     if (fromMap) {
+                        closeSheet();
                         if (S.map?.closePopup) S.map.closePopup();
                         switchScreen('explore');
                         renderNewsStrip();
@@ -7844,10 +7845,28 @@
             return Number.isFinite(id) && id > 0 ? id : 0;
         }
 
+        function tripPassengerCount(trip) {
+            const passengers = orderedPickupPassengers(trip);
+            if (passengers.length) return passengers.length;
+            return Array.isArray(trip?.members)
+                ? trip.members.filter(m => String(m?.role || '').toLowerCase() !== 'driver').length
+                : 0;
+        }
+
+        function tripSeatTotal(trip) {
+            const direct = trip?.total_seats ?? trip?.seats_total;
+            if (hasFiniteNumber(direct)) return seatCount(direct);
+            const sameCrew = S.myCrew && trip && String(S.myCrew.direction_id || '') === String(trip.direction_id || '');
+            if (sameCrew && hasFiniteNumber(S.myCrew.seats_total)) return seatCount(S.myCrew.seats_total);
+            if (trip?.viewer_role === 'driver' && hasFiniteNumber(S.seats)) return seatCount(S.seats);
+            return 0;
+        }
+
         function tripEmptySeats(trip) {
-            const members = Array.isArray(trip?.members) ? trip.members.length : 0;
-            const total = Math.max(members, seatCount(trip?.total_seats ?? trip?.seats_total, members));
-            return Math.max(0, total - members);
+            const passengers = tripPassengerCount(trip);
+            const total = tripSeatTotal(trip);
+            if (total <= 0) return 1;
+            return Math.max(0, total - passengers);
         }
 
         function tripFormationLabel(trip, isStarted, isPickup) {
@@ -7864,13 +7883,33 @@
             });
         }
 
+        function pendingCrewCancelNames(trip) {
+            const pending = pendingCrewCancelRequests(trip);
+            const names = pending.map(p => passengerDisplayName(p)).filter(Boolean).slice(0, 3);
+            const more = pending.length > 3 ? ` +${pending.length - 3}` : '';
+            return names.length ? `${names.join(', ')}${more}` : 'Партнер';
+        }
+
+        function buildLiveLocationConsentPanel(trip) {
+            const reqId = currentRequestIdFromTrip(trip);
+            if (!reqId || !shouldShareLiveLocation(trip)) return '';
+            if (hasLiveLocationConsent() || isLiveLocationDeclined(reqId)) return '';
+            return `<div data-live-location-inline-consent="true" style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(56,189,248,0.07);border:1px solid rgba(56,189,248,0.22);">
+                <div style="font-size:12px;font-weight:900;color:var(--blue);">Live GPS екіпажу вимкнено</div>
+                <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">Можна ділитися геопозицією під час збору і поїздки. Це не обовʼязково і не перекриває керування екіпажем.</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+                    <button class="btn btn-secondary" style="padding:8px 10px;font-size:12px;" onclick="enableLiveLocationForTrip()">Увімкнути</button>
+                    <button class="btn btn-ghost" style="padding:8px 10px;font-size:12px;" onclick="declineLiveLocationForTrip()">Не зараз</button>
+                </div>
+            </div>`;
+        }
+
         function buildCrewCancelAttentionPanel(trip) {
             const pending = pendingCrewCancelRequests(trip);
             if (!pending.length) return '';
-            const names = pending.map(p => passengerDisplayName(p)).slice(0, 3).map(escapeHtml).join(', ');
-            const more = pending.length > 3 ? ` +${pending.length - 3}` : '';
+            const names = escapeHtml(pendingCrewCancelNames(trip));
             return `<div data-crew-cancel-attention="true" style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(239,68,68,0.10);border:1px solid rgba(239,68,68,0.30);">
-                <div style="font-size:12px;font-weight:900;color:var(--red);">⚠️ Попутник хоче вийти: ${names}${more}</div>
+                <div style="font-size:12px;font-weight:900;color:var(--red);">⚠️ Попутник хоче вийти: ${names}</div>
                 <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">Підтвердьте або відхиліть запит у рядку цього попутника нижче.</div>
             </div>`;
         }
@@ -8088,7 +8127,8 @@
                 ? 'Усі вже в авто; карта лишається спільним простором поїздки.'
                 : (isPickup ? 'Позначайте попутників по одному, коли вони вже в авто.' : 'Спочатку авто, потім точки попутників.');
             const startLabel = driver && String(driver.user_id) === String(S.userId) ? 'Ваш старт авто' : `Старт авто: ${driverName}`;
-            const startMeta = driver?.pickup || trip.pickup || 'точка старту на карті';
+            const ownDriverStart = driver && String(driver.user_id) === String(S.userId) ? String(S.pickupLabel || '').trim() : '';
+            const startMeta = trip.driver_start || trip.driver_pickup || ownDriverStart || 'старт авто на карті';
             const rows = [{
                 type: 'driver-start',
                 icon: '🚗',
@@ -8272,6 +8312,7 @@
                 const cancelBy = t.cancel_requested_by;
                 const cancelPending = cancelBy && !isStarted && String(cancelBy) !== String(S.userId);
                 const cancelRequested = cancelBy && !isStarted && String(cancelBy) === String(S.userId);
+                const showTripLevelCancelActions = cancelPending && !isDriver;
                 const formationLabel = tripFormationLabel(t, isStarted, isPickup);
                 const liveLocationActive = shouldShareLiveLocation(t);
                 // Live location is telemetry for the active crew, not a lifecycle transition.
@@ -8289,6 +8330,7 @@
                         ${buildCrewPresenceSummary(t)}
                         ${buildPickupSequence(t)}
                         ${buildPickupActionPanel(t, { includeAction: false })}
+                        ${buildLiveLocationConsentPanel(t)}
                         ${isDriver ? buildDriverCrewCommsPanel(t) : ''}
                         ${isDriver ? buildCrewCancelAttentionPanel(t) : ''}
                         <div class="lifecycle-progress">
@@ -8307,7 +8349,7 @@
                             <span>${isStarted ? 'Відкрити карту екіпажу' : 'Відкрити карту збору'}</span>
                             <span style="margin-left:auto;color:var(--accent);">→</span>
                         </div>` : ''}
-                        ${cancelPending ? `<div style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);font-size:13px;color:var(--red);">⚠️ Партнер хоче скасувати поїздку</div>` : ''}
+                        ${showTripLevelCancelActions ? `<div style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);font-size:13px;color:var(--red);">⚠️ Партнер хоче скасувати поїздку</div>` : ''}
                         ${cancelRequested ? `<div style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(255,193,7,0.1);border:1px solid rgba(255,193,7,0.3);font-size:13px;color:var(--amber);">⏳ Очікуємо підтвердження партнера</div>` : ''}
                         ${partnerFinished && !viewerFinished ? `<div style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);font-size:13px;color:var(--green);">🏁 Партнер вже відмітив фініш. Підтвердіть завершення, коли подорож справді завершена.</div>` : ''}
                         ${viewerFinished && !partnerFinished ? `<div style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(255,193,7,0.1);border:1px solid rgba(255,193,7,0.3);font-size:13px;color:var(--amber);">⏳ Ви відмітили фініш. Очікуємо підтвердження партнера.</div>` : ''}
@@ -8318,7 +8360,7 @@
                             ${isPickup && !isDriver ? `<div style="margin-top:4px;padding:10px;border-radius:10px;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.3);font-size:13px;color:var(--blue);">🚗 Водій прибув до точки збору</div>` : ''}
                             ${isStarted && isDriver ? `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="openChat(${t.request_id || t.id || 0}, ${t.client_id || 0})">💬 Чат</button><button class="btn btn-secondary" style="flex:1;" onclick="openTripMap()">🗺️ Карта</button></div>${buildDriverFinishPanel(t)}` : ''}
                             ${isStarted && !isDriver ? `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="openChat(${t.request_id || t.id || 0}, ${t.driver_id || 0})">💬 Чат</button><button class="btn btn-success" style="flex:1;" onclick="finishTrip()">✅ Завершити подорож</button></div>` : ''}
-                            ${cancelPending ? `<div style="display:flex;gap:10px;"><button class="btn btn-primary" style="flex:1;" onclick="confirmCancelTrip()">✅ Згоден скасувати</button><button class="btn btn-secondary" style="flex:1;" onclick="rejectCancelTrip()">❌ Відмовити</button></div>` : ''}
+                            ${showTripLevelCancelActions ? `<div style="display:flex;gap:10px;"><button class="btn btn-primary" style="flex:1;" onclick="confirmCancelTrip()">✅ Згоден скасувати</button><button class="btn btn-secondary" style="flex:1;" onclick="rejectCancelTrip()">❌ Відмовити</button></div>` : ''}
                             ${!isStarted && !cancelPending && !cancelRequested ? `<button class="btn btn-danger" onclick="cancelTrip()">❌ Покинути домовленість</button>` : ''}
                         </div>
                     </div>
@@ -9105,10 +9147,16 @@
             let alertStyle = '';
 
             if (cancelPending) {
-                hint = '⚠️ Партнер хоче скасувати поїздку';
                 alertStyle = 'color: var(--red); font-weight: bold;';
-                actions = `<button class="btn btn-primary" onclick="confirmCancelTrip()">✅ Скасувати</button>
-                           <button class="btn btn-secondary" onclick="rejectCancelTrip()">❌ Відмовити</button>`;
+                if (isDriver) {
+                    const names = escapeHtml(pendingCrewCancelNames(t));
+                    hint = `⚠️ Попутник хоче вийти: ${names}. Відповідь у рядку попутника.`;
+                    actions = `<button class="btn btn-primary" onclick="switchScreen('trips')">Відкрити Поїздки</button>`;
+                } else {
+                    hint = '⚠️ Водій хоче скасувати домовленість';
+                    actions = `<button class="btn btn-primary" onclick="confirmCancelTrip()">✅ Скасувати</button>
+                               <button class="btn btn-secondary" onclick="rejectCancelTrip()">❌ Відмовити</button>`;
+                }
             } else if (cancelRequested) {
                 hint = '⏳ Очікуємо підтвердження скасування від партнера';
                 alertStyle = 'color: var(--amber); font-weight: bold;';
@@ -9315,6 +9363,14 @@
             return { request_id: requestId, partner_id: partnerId };
         }
 
+        function isRatingEligibleTripSnapshot(trip) {
+            if (!trip || !currentRequestIdFromTrip(trip)) return false;
+            const status = String(trip.status || '').toLowerCase();
+            if (status === 'cancelled' || status === 'canceled') return false;
+            if (trip.cancel_requested_by || trip.cancel_by) return false;
+            return status === 'completed' || tripViewerFinished(trip) || tripPartnerFinished(trip);
+        }
+
         function getCurrentRatingContext() {
             return S._ratingContext || buildRatingContext(S.activeTrip);
         }
@@ -9324,6 +9380,17 @@
             const reqId = currentRequestIdFromTrip(lastKnownTripForRating);
             const ratingContext = buildRatingContext(lastKnownTripForRating);
             if (!reqId || !ratingContext) return false;
+            if (!isRatingEligibleTripSnapshot(lastKnownTripForRating)) {
+                lastKnownTripForRating = null;
+                waitingForPartner = false;
+                try {
+                    localStorage.removeItem(_stateKey('ltr'));
+                    localStorage.removeItem(_stateKey('wfp'));
+                } catch (_) { }
+                renderSubBar();
+                persistCriticalState();
+                return false;
+            }
 
             waitingForPartner = false;
             try { localStorage.removeItem(_stateKey('wfp')); } catch (_) { }
@@ -9627,9 +9694,10 @@
                 if (!reqId) { showToast('Немає активної поїздки', 'error'); return; }
                 const res = await api('/api/v3/trip/confirm-cancel', { method: 'POST', body: JSON.stringify({ request_id: reqId, user_id: S.userId }) });
                 if (res?.status === 'ok') {
-                    stopLocationTracking(true);
                     showToast('Поїздку скасовано', 'success');
                     await hydrate();
+                    if (!S.activeTrip) stopLocationTracking(true);
+                    else if (!shouldShareLiveLocation(S.activeTrip)) stopLocationTracking(false);
                 } else {
                     showToast(getErrorMessage(res, 'Не вдалося підтвердити скасування'), 'error');
                 }
@@ -10729,8 +10797,15 @@
 
         // ═══════ LIVE LOCATION TRACKING (Reservation pickup + Phase 2) ═══════
         let _locationTrackInterval = null;
-        let _locationConsentPromptOpen = false;
         let _locationConsentDeclinedForReqId = null;
+
+        function liveLocationConsentKey() {
+            return _stateKey('live_location_consent');
+        }
+
+        function hasLiveLocationConsent() {
+            try { return localStorage.getItem(liveLocationConsentKey()) === '1'; } catch (_) { return false; }
+        }
 
         function shouldShareLiveLocation(trip = S.activeTrip) {
             const reqId = currentRequestIdFromTrip(trip);
@@ -10743,43 +10818,38 @@
             return shouldShareLiveLocation(trip) && Array.isArray(trip?.members);
         }
 
+        function enableLiveLocationForTrip() {
+            const reqId = currentRequestId();
+            if (!reqId) return;
+            if (!navigator.geolocation) {
+                showToast('GPS недоступний у цьому браузері', 'warning');
+                return;
+            }
+            try { localStorage.setItem(liveLocationConsentKey(), '1'); } catch (_) { }
+            _locationConsentDeclinedForReqId = null;
+            try { localStorage.removeItem(_declineKey(reqId)); } catch (_) { }
+            if (S.currentScreen === 'trips') renderTrips();
+            startLocationTracking();
+            showToast('Live GPS увімкнено для екіпажу', 'success');
+        }
+
+        function declineLiveLocationForTrip() {
+            const reqId = currentRequestId();
+            if (!reqId) return;
+            _locationConsentDeclinedForReqId = reqId;
+            setLiveLocationDeclined(reqId);
+            if (S.currentScreen === 'trips') renderTrips();
+            showToast('Live GPS вимкнено для цієї поїздки', '');
+        }
+
         function startLocationTracking() {
             if (_locationTrackInterval) return;
             if (!navigator.geolocation) return;
             const reqId = currentRequestId();
             if (!reqId) return;
-            const consentKey = _stateKey('live_location_consent');
-            if (localStorage.getItem(consentKey) !== '1') {
-                if (isAppInBackground || isSheetOpen() || _locationConsentPromptOpen || _locationConsentDeclinedForReqId === reqId || isLiveLocationDeclined(reqId)) return;
-                // UX-fix: не питаємо геолокацію, поки людина не ПОБАЧИЛА резервацію.
-                // Питаємо тільки на екрані «Поїздки», після ≥2.5 с перегляду екіпажу.
-                if (S.currentScreen !== 'trips') { S._liveLocArm = null; return; }
-                const _now = Date.now();
-                if (!S._liveLocArm || S._liveLocArm.reqId !== reqId) { S._liveLocArm = { reqId, at: _now }; return; }
-                if (_now - S._liveLocArm.at < 2500) return;
-                _locationConsentPromptOpen = true;
-                const phase = S.activeTrip?.is_started ? 'на маршруті' : 'біля точки збору';
-                openSheet(`
-                    <div class="sheet-title">📍 Показувати live-локацію екіпажу?</div>
-                    <div class="sheet-sub">WayTandem може надсилати вашу геопозицію учасникам екіпажу кожні 10 секунд у фазі зустрічі та поїздки. Це допомагає знайти одне одного ${phase}.</div>
-                    <div class="sheet-actions">
-                        <button class="btn btn-primary" id="live-location-yes">Дозволити для цієї поїздки</button>
-                        <button class="btn btn-ghost" id="live-location-no">Не зараз</button>
-                    </div>
-                `);
-                document.getElementById('live-location-yes').onclick = () => {
-                    localStorage.setItem(consentKey, '1');
-                    _locationConsentPromptOpen = false;
-                    closeSheet();
-                    startLocationTracking();
-                };
-                document.getElementById('live-location-no').onclick = () => {
-                    _locationConsentDeclinedForReqId = reqId;
-                    setLiveLocationDeclined(reqId);
-                    _locationConsentPromptOpen = false;
-                    closeSheet();
-                    showToast('Live GPS вимкнено для цієї поїздки', '');
-                };
+            if (!hasLiveLocationConsent()) {
+                // Telemetry must not open a blocking sheet over crew actions.
+                // The Trips screen renders an inline opt-in panel instead.
                 return;
             }
             // Send immediately, then every 10 seconds
@@ -10792,7 +10862,6 @@
                 clearInterval(_locationTrackInterval);
                 _locationTrackInterval = null;
             }
-            _locationConsentPromptOpen = false;
             if (clearConsent) {
                 clearLiveLocationConsent();
                 _locationConsentDeclinedForReqId = null;
