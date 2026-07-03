@@ -7560,6 +7560,32 @@
             const participantsText = `👥 ${totalParticipants} ${pluralUk(totalParticipants, 'Учасник', 'Учасники', 'Учасників')}`;
             const crewsText = `🚗 ${drivers} ${pluralUk(drivers, 'Екіпаж', 'Екіпажі', 'Екіпажів')}`;
             const customStatsLine = [daysText, participantsText, crewsText].filter(Boolean).join(' • ');
+            const eventSummary = (data?.event_summary && typeof data.event_summary === 'object') ? data.event_summary : {};
+            const summaryDrivers = safeCount(eventSummary.drivers_total);
+            const summaryOpenSeats = safeCount(eventSummary.open_seats);
+            const summaryWaiting = safeCount(eventSummary.passengers_without_seat ?? eventSummary.passengers_waiting);
+            const summaryMatched = safeCount(eventSummary.passengers_matched);
+            const summaryPending = safeCount(eventSummary.passengers_pending);
+            const summaryRisk = String(eventSummary.risk || 'ok');
+            const summaryRiskText = summaryRisk === 'needs_drivers'
+                ? 'Потрібні ще місця'
+                : (summaryRisk === 'pending_confirmations' ? 'Є запити на підтвердженні' : 'Виїзд виглядає спокійно');
+            const summaryRiskColor = summaryRisk === 'needs_drivers'
+                ? '#f97316'
+                : (summaryRisk === 'pending_confirmations' ? '#fbbf24' : '#22c55e');
+            const organizerEventSummaryHtml = isMyDir ? `
+                <div data-organizer-event-summary style="margin:10px 0 8px;padding:12px;border-radius:12px;background:rgba(15,23,42,0.55);border:1px solid rgba(148,163,184,0.22);">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">
+                        <div style="font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-muted);">Стан виїзду</div>
+                        <div style="font-size:11px;font-weight:800;color:${summaryRiskColor};">${escapeHtml(summaryRiskText)}</div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;">
+                        <div style="min-width:0;"><div style="font-size:18px;font-weight:900;color:#fff;">${summaryDrivers}</div><div style="font-size:10px;color:var(--text-muted);line-height:1.25;">водії</div></div>
+                        <div style="min-width:0;"><div style="font-size:18px;font-weight:900;color:#22c55e;">${summaryOpenSeats}</div><div style="font-size:10px;color:var(--text-muted);line-height:1.25;">вільні місця</div></div>
+                        <div style="min-width:0;"><div style="font-size:18px;font-weight:900;color:#38bdf8;">${summaryMatched}</div><div style="font-size:10px;color:var(--text-muted);line-height:1.25;">мають місце</div></div>
+                        <div style="min-width:0;"><div style="font-size:18px;font-weight:900;color:#fbbf24;">${summaryWaiting + summaryPending}</div><div style="font-size:10px;color:var(--text-muted);line-height:1.25;">чекають місце</div></div>
+                    </div>
+                </div>` : '';
 
             // --- Detail card: horizontal location + date row, description below ---
             const hasDetailMeta = meetingPoint || whenText;
@@ -7583,6 +7609,7 @@
                     ${isMyDir ? `<div style="display:flex;gap:6px;flex-shrink:0;"><button onclick="shareDirectionInvite(${parseInt(dirId) || 0})" style="padding:6px 10px;border-radius:8px;background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.28);color:var(--blue);font-size:14px;cursor:pointer;" title="Запросити учасників">📨</button><button data-dir-id="${parseInt(dirId) || 0}" data-dir-title="${escapeAttr(String(dir.title || ''))}" onclick="openEditDirectionFromButton(this)" style="padding:6px 10px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text-secondary);font-size:14px;cursor:pointer;" title="Редагувати">✏️</button></div>` : ''}
                 </div>
                 ${detailCardHtml}
+                ${organizerEventSummaryHtml}
                 ${creatorContactBlock}
                 <div style="display:flex;flex-direction:column;gap:8px;margin:14px 0 10px;">
                     ${isSub
@@ -9299,7 +9326,7 @@
                 const reqId = currentRequestId();
                 if (!reqId) { showToast('Немає активної поїздки', 'error'); return false; }
                 const res = await api('/api/v3/trip/arrive', { method: 'POST', body: JSON.stringify({ request_id: reqId, user_id: S.userId }) });
-                if (res?.status === 'ok') { showToast('📍 Ви біля точки збору. Пасажири сповіщені', 'success'); await hydrate(); return true; }
+                if (res?.status === 'ok') { showToast('📍 Ви біля точки збору. Екіпаж у режимі посадки', 'success'); await hydrate(); return true; }
                 showToast('Помилка', 'error');
                 return false;
             } finally { endOp('arrive_at_pickup'); }
@@ -9457,7 +9484,7 @@
             const isDriver = t.viewer_role === 'driver';
             openSheet(`
                 <div class="sheet-title">❌ Покинути домовленість ${crewLabel}?</div>
-                <div class="sheet-sub">${isDriver ? 'Ваш екіпаж буде розформовано. Всі попутники отримають сповіщення.' : 'Ви вийдете з екіпажу. Водій та інші попутники залишаться.'}</div>
+                <div class="sheet-sub">${isDriver ? 'Буде надіслано запит на скасування поточної домовленості з вибраним попутником. Інші попутники залишаться в екіпажі.' : 'Ви вийдете з екіпажу. Водій та інші попутники залишаться.'}</div>
                 <div class="sheet-sub" style="margin-top:8px;font-weight:600;">Вкажіть причину:</div>
                 <div class="sheet-actions" style="flex-direction:column;">
                     <button class="btn btn-secondary" onclick="doCancelTrip('plans')">📅 Змінилися плани</button>
@@ -9481,7 +9508,7 @@
                         showToast('⏳ Очікуємо підтвердження партнера', '');
                     } else {
                         stopLocationTracking(true);
-                        showToast('✅ Екіпаж розформовано', 'success');
+                        showToast('✅ Домовленість скасовано', 'success');
                     }
                     await hydrate();
                 } else {
