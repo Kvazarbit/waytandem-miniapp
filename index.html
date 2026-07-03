@@ -3197,6 +3197,7 @@
             subscriptions: [],
             myCrew: null,
             matchSheetOpen: false,
+            directionInviteSheetOpen: false,
             activeMatchKey: null,
             seenMatchIds: new Set(),
             notifiedMatchIds: new Set(),
@@ -4972,9 +4973,22 @@
 
         function closeBlockingSheetForScreen(name) {
             if (name !== 'trips') return;
+            if (closePassiveDirectionInviteSheetForActionSurface('screen:trips')) return;
             if (!S.activeTrip || !isSheetOpen()) return;
             if (S.roleGateOpen || S.matchSheetOpen || isRatingSheetOpen()) return;
             closeSheet();
+        }
+
+        function closePassiveDirectionInviteSheetForActionSurface(source = '') {
+            if (!S.directionInviteSheetOpen || !isSheetOpen()) return false;
+            if (S.roleGateOpen || S.matchSheetOpen || isRatingSheetOpen()) return false;
+            const hasActionSurface = !!S.activeTrip
+                || waitingForPartner
+                || !!S.proposedMatch
+                || (S.pendingMatches || []).length > 0;
+            if (!hasActionSurface) return false;
+            closeSheet();
+            return true;
         }
 
         function maybeOpenMatchSheet() {
@@ -6283,6 +6297,7 @@
                     <button class="btn btn-secondary" style="flex:1;font-size:12px;" onclick="openDirection(${safeDirId})">👥 Учасники</button>
                     <button class="btn btn-ghost" style="flex:1;font-size:12px;" onclick="closeSheet()">Пізніше</button>
                 </div>`;
+            S.directionInviteSheetOpen = true;
             openSheet(`
                 <div style="font-size:11px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:var(--blue);margin-bottom:6px;">${heading}</div>
                 <div class="sheet-title" style="font-size:22px;line-height:1.15;margin-bottom:8px;">${escapeHtml(title)}</div>
@@ -8608,6 +8623,7 @@
             if (!panel) return;
 
             const incoming = S.pendingMatches.filter(m => m.scope === 'incoming');
+            closePassiveDirectionInviteSheetForActionSurface('handshake-panel');
 
             // If there's an active trip, or we are waiting for partner, hide the panel
             if ((S.activeTrip && S.activeTrip.is_started) || waitingForPartner) {
@@ -9868,6 +9884,7 @@
                 S.activeMatchKey = null;
             }
             S.roleGateOpen = false;
+            S.directionInviteSheetOpen = false;
             const sheet = document.getElementById('sheet');
             if (sheet && sheet._cleanup) sheet._cleanup();
             document.getElementById('sheet-backdrop').classList.remove('open');
