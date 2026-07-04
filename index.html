@@ -3532,6 +3532,38 @@
             openTelegramContact(btn?.dataset?.tgUsername || '', btn?.dataset?.tgUserId || '');
         }
 
+        function mapNavigationUrl(lat, lng) {
+            // Зовнішня навігація до точки очікування учасника (§0.60: read-only, без мутацій).
+            const la = Number(lat), ln = Number(lng);
+            if (!Number.isFinite(la) || !Number.isFinite(ln)) return '';
+            return `https://www.google.com/maps/dir/?api=1&destination=${la},${ln}`;
+        }
+
+        function openMapNavigationFromButton(btn) {
+            const url = mapNavigationUrl(btn?.dataset?.navLat, btn?.dataset?.navLng);
+            if (!url) { showToast('Координати недоступні', 'error'); return; }
+            const tg = window.Telegram?.WebApp;
+            if (tg?.openLink) tg.openLink(url, { try_instant_view: false });
+            else window.open(url, '_blank', 'noopener');
+        }
+
+        function crewMemberContactButtonsHtml(member, coord) {
+            // Кнопки контакту на піні учасника екіпажу: 💬 чат у Telegram + 🧭 маршрут.
+            // Тільки для ІНШИХ учасників (не для власного піна). I-148: escapeAttr + numeric ids.
+            if (!member) return '';
+            if (String(member.user_id || '') === String(S.userId || '')) return '';
+            const uid = parseInt(member.user_id, 10) || 0;
+            if (!uid) return '';
+            const uname = escapeAttr(member.telegram_username || '');
+            const btnStyle = 'flex:1;padding:7px;border-radius:10px;font-weight:700;font-size:12px;cursor:pointer;';
+            const chatBtn = `<button data-tg-username="${uname}" data-tg-user-id="${uid}" onclick="openTelegramContactFromButton(this)" style="${btnStyle}background:rgba(56,189,248,0.14);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);">💬 Чат</button>`;
+            const la = Number(coord && coord.lat), ln = Number(coord && coord.lng);
+            const navBtn = (Number.isFinite(la) && Number.isFinite(ln))
+                ? `<button data-nav-lat="${la}" data-nav-lng="${ln}" onclick="openMapNavigationFromButton(this)" style="${btnStyle}background:rgba(163,230,53,0.15);color:#a3e635;border:1px solid rgba(163,230,53,0.3);">🧭 Маршрут</button>`
+                : '';
+            return `<div style="display:flex;gap:8px;margin-top:8px;min-width:180px;">${chatBtn}${navBtn}</div>`;
+        }
+
         function parseStartDirectionId(raw) {
             const value = String(raw || '').trim();
             const m = /^dir_(\d+)$/.exec(value);
@@ -7923,7 +7955,7 @@
             if (hasLiveLocationConsent() || isLiveLocationDeclined(reqId)) return '';
             return `<div data-live-location-inline-consent="true" style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(56,189,248,0.07);border:1px solid rgba(56,189,248,0.22);">
                 <div style="font-size:12px;font-weight:900;color:var(--blue);">Live GPS екіпажу вимкнено</div>
-                <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">Можна ділитися геопозицією під час збору і поїздки. Це не обовʼязково і не перекриває керування екіпажем.</div>
+                <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">Можна ділитися геопозицією під час збору і поїздки — так легше знайти одне одного біля точки збору. Це не обовʼязково і не перекриває керування екіпажем.</div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
                     <button class="btn btn-secondary" style="padding:8px 10px;font-size:12px;" onclick="enableLiveLocationForTrip()">Увімкнути</button>
                     <button class="btn btn-ghost" style="padding:8px 10px;font-size:12px;" onclick="declineLiveLocationForTrip()">Не зараз</button>
@@ -10865,7 +10897,7 @@
             try { localStorage.removeItem(_declineKey(reqId)); } catch (_) { }
             if (S.currentScreen === 'trips') renderTrips();
             startLocationTracking();
-            showToast('Live GPS увімкнено для екіпажу', 'success');
+            showToast('Live GPS увімкнено — так легше знайти одне одного біля точки збору', 'success');
         }
 
         function declineLiveLocationForTrip() {
@@ -10980,7 +11012,7 @@
                         iconAnchor: [17, 17]
                     }),
                     zIndexOffset: 160
-                }).addTo(S.map).bindPopup(`<b>${escapeHtml(driverName)}</b><br>авто водія${carDisplayCoord.visualOffset ? '<br><span style="font-size:11px;color:#94a3b8;">пін зміщено, щоб не перекривати попутника</span>' : ''}`);
+                }).addTo(S.map).bindPopup(`<b>${escapeHtml(driverName)}</b><br>авто водія${carDisplayCoord.visualOffset ? '<br><span style="font-size:11px;color:#94a3b8;">пін зміщено, щоб не перекривати попутника</span>' : ''}` + crewMemberContactButtonsHtml(driver || { user_id: t.driver_id, telegram_username: '' }, carDisplayCoord), MAP_POPUP_PAN_OPTS);
                 S._crewMemberMarkers.push(carMarker);
             }
             members.forEach(m => {
@@ -11002,7 +11034,7 @@
                         html: `<div style="width:36px;height:36px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;font-size:16px;border:2px solid rgba(0,0,0,0.4);box-shadow:0 2px 12px ${color}66;">${emoji}</div>`,
                         iconSize: [36, 36], iconAnchor: [18, 18]
                     })
-                }).addTo(S.map).bindPopup(`<b>${name}</b><br>${statusLabel}`);
+                }).addTo(S.map).bindPopup(`<b>${name}</b><br>${statusLabel}` + crewMemberContactButtonsHtml(m, c), MAP_POPUP_PAN_OPTS);
                 S._crewMemberMarkers.push(marker);
             });
             const destination = tripEventDestination(t);
