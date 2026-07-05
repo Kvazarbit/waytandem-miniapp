@@ -3817,15 +3817,22 @@
         }
 
         async function syncUserIdentityToServer() {
-            if (!S.apiBase || !S.userId || !String(S.userName || '').trim()) return;
+            // ФІКС 2026-07-04 (live-прохід, тупик role-gate): раніше без імені
+            // (link-режим ?user_id=... без Telegram initData) реєстрація мовчки
+            // пропускалась -> юзера НЕМАЄ в БД -> /user/role та subscribe пишуть
+            // у порожнечу -> hydrate повертає пусту роль -> role-gate зациклюється.
+            // Тепер: ім'я = Telegram -> серверний профіль -> fallback «Гість NNNN».
+            if (!S.apiBase || !S.userId) return;
             try {
                 const p = await api(`/api/v3/user/profile?user_id=${S.userId}`);
                 if (!S.userPhoto && p?.photo_url) { S.userPhoto = sanitizeAvatarUrl(p.photo_url); syncIdentityUI(); }
                 const role = normalizeRole(p?.role || S.userRole || 'client');
                 if (!S.userUsername && p?.telegram_username) S.userUsername = sanitizeBotUsername(p.telegram_username);
+                const serverName = String(p?.name || '').trim();
+                const name = String(S.userName || '').trim() || serverName || `Гість ${String(S.userId).slice(-4)}`;
                 await apiWithStatus('/api/v3/user/register', {
                     method: 'POST',
-                    body: JSON.stringify({ user_id: S.userId, name: S.userName, role, telegram_username: S.userUsername || '' })
+                    body: JSON.stringify({ user_id: S.userId, name, role, telegram_username: S.userUsername || '' })
                 });
             } catch (_) { }
         }
@@ -4087,11 +4094,19 @@
             const normalizedRole = normalizeRole(role);
             if (!normalizedRole) return false;
             if (normalizedRole === S.userRole) {
+                // Ghost-guard: локальна роль може випереджати сервер (юзер ще не
+                // зареєстрований у link-режимі). Повторний клік тієї ж ролі має
+                // все одно гарантувати серверний запис, інакше gate зациклиться.
+                if (S.apiBase) await syncUserIdentityToServer();
                 if (!options?.keepSheetOpen) closeSheet();
                 return true;
             }
 
             if (S.apiBase) {
+                // Спершу гарантуємо існування юзера в БД (register ідемпотентний;
+                // для існуючих оновлює лише username) — інакше role POST відповість
+                // «ok», нічого не записавши (UPDATE 0 rows), і тост збреше.
+                await syncUserIdentityToServer();
                 const resp = await apiWithStatus('/api/v3/user/role', {
                     method: 'POST',
                     silent: true,
@@ -7949,6 +7964,18 @@
             return names.length ? `${names.join(', ')}${more}` : 'Партнер';
         }
 
+        function unconfirmedCrewFinishers(trip) {
+            // Попутники, що відмітили фініш і чекають підтвердження водія.
+            // Дзеркало pendingCrewCancelRequests, але для двофазного фінішу.
+            const members = Array.isArray(trip?.members) ? trip.members : [];
+            return members.filter(m =>
+                String(m?.role || '').toLowerCase() !== 'driver'
+                && !!m?.client_finished
+                && !m?.driver_finished
+                && Number(m?.request_id) > 0
+            );
+        }
+
         function buildLiveLocationConsentPanel(trip) {
             const reqId = currentRequestIdFromTrip(trip);
             if (!reqId || !shouldShareLiveLocation(trip)) return '';
@@ -8310,7 +8337,7 @@
             const actions = isStarted
                 ? (isDriver
                     ? `<button class="btn btn-secondary" onclick="closeSheet();openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
-                       <button class="btn btn-secondary" onclick="closeSheet();switchScreen('trips')">Екіпаж</button>
+                       <button class="btn btn-secondary" onclick="closeSheet();openMapTripCrewSheet()">👥 Екіпаж</button>
                        <button class="btn btn-ghost" onclick="closeSheet()">Карта</button>`
                     : `<button class="btn btn-secondary" onclick="closeSheet();openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
                        <button class="btn btn-success" onclick="closeSheet();finishTrip()">✅ Завершити</button>
@@ -8319,9 +8346,9 @@
                     ? `${!isPickup ? `<button class="btn btn-secondary" onclick="arriveAtPickup().then(ok => { if (ok) openTripMap(); })">🚗 Я біля точки збору</button>` : ''}
                        ${isPickup && nextPassenger ? `<button class="btn btn-primary" onclick="markPassengerPickedUp(${nextReqId}, ${nextPassengerId}).then(ok => { if (ok) openTripMap(); })">✅ ${escapeHtml(nextName)} в авто</button>` : ''}
                        ${isPickup && allPickedUp ? `<button class="btn btn-primary" onclick="startTrip().then(ok => { if (ok) openTripMap(); })">🚀 Усі в авто — поїхали</button>` : ''}
-                       <button class="btn btn-ghost" onclick="closeSheet();switchScreen('trips')">Екіпаж</button>`
+                       <button class="btn btn-ghost" onclick="closeSheet();openMapTripCrewSheet()">👥 Екіпаж</button>`
                     : `<button class="btn btn-primary" onclick="closeSheet()">Дивитись карту</button>
-                       <button class="btn btn-secondary" onclick="closeSheet();switchScreen('trips')">Екіпаж</button>
+                       <button class="btn btn-secondary" onclick="closeSheet();openMapTripCrewSheet()">👥 Екіпаж</button>
                        <button class="btn btn-ghost" onclick="closeSheet()">Пізніше</button>`);
             openSheet(`
                 <div data-map-trip-coordination="true">
@@ -9184,8 +9211,41 @@
                 </div>
                 <div class="dock-actions">
                     <button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
-                    <button class="btn btn-secondary" onclick="switchScreen('trips')">Екіпаж</button>
+                    <button class="btn btn-secondary" onclick="openMapTripCrewSheet()">👥 Екіпаж</button>
                 </div>`;
+        }
+
+        function openMapTripCrewSheet() {
+            const t = S.activeTrip;
+            if (!t) return false;
+            const isDriver = t.viewer_role === 'driver';
+            const isStarted = !!t.is_started;
+            const safeReqId = parseInt(t.request_id || t.id || 0, 10) || 0;
+            const safePartnerId = parseInt(isDriver ? (t.client_id || 0) : (t.driver_id || 0), 10) || 0;
+            const title = `Екіпаж #${escapeHtml(activeTripCrewNumber(t))}`;
+            const status = tripHumanStatusLabel(t);
+            const actions = isDriver
+                ? `<button class="btn btn-secondary" onclick="closeSheet();openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
+                   <button class="btn btn-ghost" onclick="closeSheet()">Карта</button>`
+                : `<button class="btn btn-secondary" onclick="closeSheet();openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
+                   ${!isStarted ? `<button class="btn btn-ghost" onclick="closeSheet();cancelTrip()">🚪 Вийти</button>` : ''}
+                   <button class="btn btn-ghost" onclick="closeSheet()">Карта</button>`;
+            openSheet(`
+                <div data-map-trip-crew-sheet="true">
+                    <div style="font-size:11px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:var(--blue);margin-bottom:6px;">Екіпаж на карті</div>
+                    <div class="sheet-title">${title}</div>
+                    <div class="sheet-sub">${escapeHtml(status)}</div>
+                    ${buildCrewPresenceSummary(t)}
+                    ${buildCrewTree(t)}
+                    ${buildPickupSequence(t)}
+                    ${isDriver ? buildDriverCrewCommsPanel(t) : ''}
+                    ${isDriver ? buildDriverFinishPanel(t) : ''}
+                </div>
+                <div class="sheet-actions" data-map-command-count="3">
+                    ${actions}
+                </div>
+            `, { maxHeight: '62vh' });
+            return true;
         }
 
         function buildMapTripDockBody(t, phase) {
@@ -9202,6 +9262,10 @@
             const nextPassengerId = parseInt(nextPassenger?.user_id || 0, 10) || 0;
             const nextName = nextPassenger ? passengerDisplayName(nextPassenger) : '';
             const allPicked = allPickupPassengersPickedUp(t);
+            // P-5 (live-прохід 2026-07-05): канон §9 хоче ІМ'Я, не роль-генерик.
+            // У водія ціль уже персоналізована (nextName). Дзеркалимо для попутника —
+            // щоб той, хто забув, з банера памʼятав, ХТО саме по нього їде.
+            const driverName = t.driver_name || t.organizer_name || 'Водій';
 
             const partnerFinished = tripPartnerFinished(t);
             const viewerFinished = tripViewerFinished(t);
@@ -9216,9 +9280,21 @@
             if (cancelPending) {
                 alertStyle = 'color: var(--red); font-weight: bold;';
                 if (isDriver) {
+                    const pendingCancels = pendingCrewCancelRequests(t);
                     const names = escapeHtml(pendingCrewCancelNames(t));
-                    hint = `⚠️ Попутник хоче вийти: ${names}. Відповідь у рядку попутника.`;
-                    actions = `<button class="btn btn-primary" onclick="switchScreen('trips')">Відкрити Поїздки</button>`;
+                    if (pendingCancels.length === 1) {
+                        const p = pendingCancels[0];
+                        const reqId = passengerRequestId(p);
+                        const passengerId = parseInt(p?.user_id || 0, 10) || safePartnerId;
+                        hint = `⚠️ ${escapeHtml(passengerDisplayName(p))} хоче вийти з екіпажу.`;
+                        actions = `<button class="btn btn-primary" ${!reqId ? 'disabled' : ''} onclick="confirmCancelTrip(${reqId})">✅ Прийняти</button>
+                                   <button class="btn btn-secondary" ${!reqId ? 'disabled' : ''} onclick="rejectCancelTrip(${reqId})">❌ Відмовити</button>
+                                   <button class="btn btn-secondary" onclick="openChat(${reqId || safeReqId}, ${passengerId})">💬 Чат</button>`;
+                    } else {
+                        hint = `⚠️ Попутники хочуть вийти: ${names}. Відповідь у списку екіпажу.`;
+                        actions = `<button class="btn btn-primary" onclick="openMapTripCrewSheet()">👥 Екіпаж</button>
+                                   <button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>`;
+                    }
                 } else {
                     hint = '⚠️ Водій хоче скасувати домовленість';
                     actions = `<button class="btn btn-primary" onclick="confirmCancelTrip()">✅ Скасувати</button>
@@ -9229,21 +9305,47 @@
                 alertStyle = 'color: var(--amber); font-weight: bold;';
                 actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>`;
             } else if (partnerFinished && !viewerFinished) {
-                hint = '🏁 Партнер відмітив фініш. Підтвердіть завершення.';
                 alertStyle = 'color: var(--green); font-weight: bold;';
-                actions = isDriver
-                    ? `<button class="btn btn-secondary" onclick="switchScreen('trips')">Екіпаж</button>`
-                    : `<button class="btn btn-success" onclick="finishTrip()">✅ Підтвердити завершення</button>`;
+                if (!isDriver) {
+                    hint = '🏁 Партнер відмітив фініш. Підтвердіть завершення.';
+                    actions = `<button class="btn btn-success" onclick="finishTrip()">✅ Підтвердити завершення</button>`;
+                } else {
+                    // Фікс L-5 (live-прохід 2026-07-04): ДІЯ-банер мусить нести ДІЮ.
+                    // Раніше водію давали лише «Екіпаж» → Поїздки → скрол → Підтвердити
+                    // (3 кроки). Один фінішер → пряме підтвердження по request_id +
+                    // ім'я (канон №11 + доктрина «map inline confirmation» у FRACTAL_MAP);
+                    // кілька — список імен і перехід у ростер.
+                    const finishers = unconfirmedCrewFinishers(t);
+                    if (finishers.length === 1) {
+                        const f = finishers[0];
+                        const fReqId = Number(f.request_id);
+                        const fPartnerId = Number(f.user_id) || safePartnerId;
+                        hint = `🏁 ${escapeHtml(passengerDisplayName(f))} відмітив(ла) фініш. Підтвердіть завершення.`;
+                        actions = `<button class="btn btn-success" onclick="finishTripForRequest(${fReqId})">✅ Підтвердити</button>
+                                   <button class="btn btn-secondary" onclick="openChat(${fReqId}, ${fPartnerId})">💬 Чат</button>`;
+                    } else if (finishers.length > 1) {
+                        const names = finishers.map(p => passengerDisplayName(p)).filter(Boolean).slice(0, 3).join(', ');
+                        hint = `🏁 Відмітили фініш: ${escapeHtml(names)}. Можете підтвердити всіх або відкрити екіпаж.`;
+                        actions = `<button class="btn btn-success" onclick="confirmAllUnconfirmedFinishers()">✅ Підтвердити всіх</button>
+                                   <button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
+                                   <button class="btn btn-secondary" onclick="openMapTripCrewSheet()">👥 Екіпаж</button>`;
+                    } else {
+                        // Pair-режим без members-знімка — пряме підтвердження якірної пари.
+                        hint = '🏁 Партнер відмітив фініш. Підтвердіть завершення.';
+                        actions = `<button class="btn btn-success" onclick="finishTripForRequest(${safeReqId})">✅ Підтвердити</button>
+                                   <button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>`;
+                    }
+                }
             } else if (viewerFinished && !partnerFinished) {
                 hint = '⏳ Ви відмітили фініш. Очікуємо партнера.';
                 alertStyle = 'color: var(--amber); font-weight: bold;';
                 actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>`;
             } else {
                 if (phase === 'driving') {
-                    hint = isDriver ? 'Усі в авто. Завершіть, коли доїдете до події.' : 'Ви в дорозі з водієм. Завершіть після прибуття.';
+                    hint = isDriver ? 'Усі в авто. Завершіть, коли доїдете до події.' : `Ви в дорозі з ${escapeHtml(driverName)}. Завершіть після прибуття.`;
                     actions = isDriver
                         ? `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
-                           <button class="btn btn-secondary" onclick="switchScreen('trips')">Екіпаж</button>`
+                           <button class="btn btn-secondary" onclick="openMapTripCrewSheet()">👥 Екіпаж</button>`
                         : `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
                            <button class="btn btn-success" onclick="finishTrip()">✅ Завершити</button>`;
                 } else {
@@ -9254,19 +9356,27 @@
                     // доступна тільки в "Поїздки" — у нижньому банері карти "вихід"
                     // був не видний (обрив контексту). Це НЕ новий одноосібний вихід,
                     // а той самий "рукостискання"-шлях, винесений і в банер.
-                    const leaveBtn = `<button class="btn btn-ghost" onclick="cancelTrip()">🚪 Покинути</button>`;
+                    // DM-2026-07-05: напис «🚪 Покинути» був двозначним — голий, читався
+                    // як «покинути подію» (event-scope). Дія ж завжди crew-scoped
+                    // (cancelTrip() → «Ви вийдете з екіпажу. Водій та інші лишаться»).
+                    // Вихід з ПОДІЇ — окремий шлях (unsubscribeDir/stopSearch), живе в
+                    // «Поїздки»/map-filter. Уточнюємо напис, wiring не чіпаємо (gap#6).
+                    const leaveBtn = `<button class="btn btn-ghost" onclick="cancelTrip()">🚪 Вийти з екіпажу</button>`;
                     if (phase === 'pickup') {
                         if (isDriver && nextPassenger) {
                             hint = `Заберіть: ${escapeHtml(nextName)}. Позначайте по одному.`;
-                            actions = `<button class="btn btn-secondary" onclick="switchScreen('trips')">Екіпаж</button>
+                            actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
+                                <button class="btn btn-secondary" onclick="openMapTripCrewSheet()">👥 Екіпаж</button>
                                 <button class="btn btn-primary" ${(!nextReqId || !nextPassengerId) ? 'disabled' : ''} onclick="markPassengerPickedUp(${nextReqId}, ${nextPassengerId})">✅ ${escapeHtml(nextName)} в авто</button>`;
                         } else if (isDriver && allPicked) {
                             hint = 'Усі попутники в авто. Можна стартувати до події.';
-                            actions = `<button class="btn btn-secondary" onclick="switchScreen('trips')">Екіпаж</button>
+                            actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
+                                <button class="btn btn-secondary" onclick="openMapTripCrewSheet()">👥 Екіпаж</button>
                                 <button class="btn btn-primary" onclick="startTrip()">🚀 Поїхали</button>`;
                         } else {
-                            hint = '🚗 Водій прибув до точки збору. Чекайте на своїй точці.';
+                            hint = `🚗 ${escapeHtml(driverName)} прибув(ла) до точки збору. Чекайте на своїй точці.`;
                             actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
+                                <button class="btn btn-secondary" onclick="openMapTripCrewSheet()">👥 Екіпаж</button>
                                 ${leaveBtn}`;
                         }
                     } else {
@@ -9274,12 +9384,13 @@
                             hint = nextName
                                 ? `🧭 Вирушив за: ${escapeHtml(nextName)}. Рушайте до точки збору й позначте, коли будете на місці.`
                                 : 'Рушайте до точки збору й позначте, коли будете на місці.'; // B (DM-2026-06-16-002, §8.2): поточна ціль, ротація через nextPickupPassenger
-                            actions = `<button class="btn btn-secondary" onclick="switchScreen('trips')">Екіпаж</button>
+                            actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
                                 <button class="btn btn-primary" onclick="arriveAtPickup()">🚗 Я біля точки збору</button>
                                 ${leaveBtn}`;
                         } else {
-                            hint = 'Водій вирушає по вас. Стежте за карткою або напишіть у чат.';
+                            hint = `${escapeHtml(driverName)} вирушає по вас. Стежте за карткою або напишіть у чат.`;
                             actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
+                                <button class="btn btn-secondary" onclick="openMapTripCrewSheet()">👥 Екіпаж</button>
                                 ${leaveBtn}`;
                         }
                     }
@@ -9295,6 +9406,15 @@
                     <button class="dock-collapse" onclick="toggleMapTripDock()" title="Згорнути" aria-label="Згорнути">▾</button>
                 </div>
                 <div class="dock-actions">${actions}</div>`;
+        }
+
+        function tripDriverName(trip) {
+            // Ім'я водія для попутникових банерів (P-5, live-прохід 2026-07-04):
+            // попутник має пам'ятати, З КИМ їде — «водій» без імені не допомагає.
+            const fromMembers = (Array.isArray(trip?.members) ? trip.members : [])
+                .find(m => String(m?.role || '').toLowerCase() === 'driver');
+            const raw = fromMembers?.name || trip?.driver_name || trip?.organizer_name || trip?.partner_name || '';
+            return String(raw || '').trim();
         }
 
         function currentRequestIdFromTrip(trip) {
@@ -9444,6 +9564,11 @@
 
         function maybeOpenCompletedTripRatingSheet(source = '') {
             if (S.activeTrip || !lastKnownTripForRating) return false;
+            // ФІКС L-6 (live-прохід 2026-07-04): явний тап пілюлі «⭐ Оцініть» —
+            // це воля користувача, вона НЕ фільтрується евристиками авто-попапів:
+            // ні застряглим isAppInBackground (фонова вкладка), ні one-shot
+            // «вже показували». Інакше пілюля веде в порожні «Поїздки» — тупик.
+            const explicit = source === 'subbar';
             const reqId = currentRequestIdFromTrip(lastKnownTripForRating);
             const ratingContext = buildRatingContext(lastKnownTripForRating);
             if (!reqId || !ratingContext) return false;
@@ -9462,7 +9587,7 @@
             waitingForPartner = false;
             try { localStorage.removeItem(_stateKey('wfp')); } catch (_) { }
 
-            if (isAppInBackground || S.roleGateOpen || S.matchSheetOpen || isSheetOpen()) {
+            if (!explicit && (isAppInBackground || S.roleGateOpen || S.matchSheetOpen || isSheetOpen())) {
                 if (!S.completedRatingNotifiedIds.has(reqId)) {
                     S.completedRatingNotifiedIds.add(reqId);
                     notifyCriticalEvent('trip_completed', reqId);
@@ -9473,7 +9598,8 @@
                 return false;
             }
 
-            if (S.completedRatingSheetShownIds.has(reqId)) return false;
+            if (!explicit && S.completedRatingSheetShownIds.has(reqId)) return false;
+            if (explicit && isSheetOpen()) closeSheet();
             S.completedRatingSheetShownIds.add(reqId);
             notifyCriticalEvent('trip_completed', reqId);
             showToast('🎉 Подорож завершена! Оцініть партнера.', 'success');
@@ -9708,6 +9834,33 @@
             } finally { endOp('finish_all_driver_passengers'); }
         }
 
+        async function confirmAllUnconfirmedFinishers() {
+            if (!S.activeTrip || S.activeTrip.viewer_role !== 'driver') return;
+            const finishers = unconfirmedCrewFinishers(S.activeTrip);
+            if (!finishers.length) {
+                showToast('Немає фінішів, які чекають підтвердження', '');
+                return;
+            }
+            if (!beginOp('confirm_all_finishers')) return;
+            try {
+                let ok = 0;
+                for (const passenger of finishers) {
+                    const reqId = passengerRequestId(passenger);
+                    const passengerId = parseInt(passenger?.user_id || 0, 10) || 0;
+                    const ctx = ratingContextForRequest(S.activeTrip, reqId, passengerId);
+                    const res = await api('/api/v3/trip/done', {
+                        method: 'POST',
+                        body: JSON.stringify({ request_id: reqId, user_id: S.userId, role: 'driver' })
+                    });
+                    if (res?.status === 'ok') ok += 1;
+                    if (res?.completed && ctx) openRatingSheet(ctx);
+                }
+                showToast(`✅ Підтверджено фініш ${ok}/${finishers.length}`, ok === finishers.length ? 'success' : 'error');
+                waitingForPartner = false;
+                await hydrate();
+            } finally { endOp('confirm_all_finishers'); }
+        }
+
         async function finishTrip() {
             if (!S.activeTrip) return;
             const tripSnapshot = { ...S.activeTrip };
@@ -9877,6 +10030,24 @@
             S.activeMatchKey = null;
         }
 
+        // P-6 (2026-07-05): заголовок чату показував внутрішній request_id (#996366)
+        // замість імен — незрозуміло, ДО КОГО пишеш. Збираємо співрозмовників:
+        // попутник бачить водія + інших попутників, водій — усіх попутників (крім себе).
+        function chatHeaderParticipants() {
+            const t = S.activeTrip;
+            if (!t) return [];
+            const out = [];
+            const isDriver = t.viewer_role === 'driver';
+            if (!isDriver) {
+                const driverName = t.driver_name || t.organizer_name || '';
+                if (driverName) out.push(driverName);
+            }
+            crewPassengerMembers(t).forEach(m => {
+                if (String(m?.user_id || '') !== String(S.userId)) out.push(passengerDisplayName(m));
+            });
+            return out.filter(Boolean);
+        }
+
         async function openChat(requestId, partnerId) {
             S.chatRequestId = requestId; S.chatPartnerId = partnerId;
             resetGenericSheetForChat();
@@ -9888,7 +10059,10 @@
             void sheet.offsetHeight;
             backdrop.classList.add('open');
             sheet.classList.add('open');
-            document.getElementById('chat-title').textContent = 'Чат екіпажу';
+            const who = chatHeaderParticipants();
+            document.getElementById('chat-title').textContent = who.length
+                ? `💬 ${who.slice(0, 3).join(', ')}${who.length > 3 ? ` +${who.length - 3}` : ''}`
+                : 'Чат екіпажу';
             setChatSubtitle('відкриваємо...');
             await loadChatMessages();
         }
@@ -9904,7 +10078,8 @@
             const subtitle = document.getElementById('chat-subtitle');
             if (!subtitle || !S.chatRequestId) return;
             const stamp = new Date().toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
-            subtitle.textContent = `#${S.chatRequestId} · ${status === 'оновлено щойно' ? `оновлено ${stamp}` : status}`;
+            // P-6: без внутрішнього #request_id — лише людський статус/час.
+            subtitle.textContent = status === 'оновлено щойно' ? `оновлено ${stamp}` : status;
         }
 
         async function loadChatMessages() {
@@ -9938,13 +10113,21 @@
             div.innerHTML = `<div class="chat-bubble">${escapeHtml(text)}</div>`;
             feed.appendChild(div); feed.scrollTop = feed.scrollHeight;
             setChatSubtitle('надсилаємо...');
-            const res = await api('/api/v3/trip/message', { method: 'POST', body: JSON.stringify({ request_id: S.chatRequestId, user_id: S.userId, text }) });
-            if (!res) {
+            // P-7 (2026-07-05): судимо про доставку за HTTP-СТАТУСОМ, не за тілом.
+            // Раніше через api() (→ resp.ok ? data : null) успіх з порожнім тілом
+            // (200/204) читався як null → «не вдалося» → дубль-відправка; а 200 на
+            // невідомий роут читався як «надіслано», хоча нічого не збережено
+            // («фальшива комунікація»). silent — щоб не було подвійного тоста.
+            const res = await apiWithStatus('/api/v3/trip/message', { method: 'POST', silent: true, body: JSON.stringify({ request_id: S.chatRequestId, user_id: S.userId, text }) });
+            if (!res.ok) {
                 if (div.parentNode) div.remove();
                 input.value = text;
                 showToast('Не вдалося надіслати — текст відновлено', 'error');
             } else {
                 setChatSubtitle('надіслано щойно');
+                // Звірка з сервером: оптимістична бульбашка заміняється канонічним
+                // списком — якщо сервер не зберіг, вона зникне (правда, не фальш).
+                loadChatMessages();
             }
         }
 
