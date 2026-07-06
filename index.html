@@ -4313,6 +4313,112 @@
             return { label: '📌 Оберіть напрямок, щоб почати', action: "switchScreen('board')" };
         }
 
+        async function openMapActiveTripFromSubBar() {
+            if (S.currentScreen !== 'explore') switchScreen('explore');
+            closeMapResultPanel();
+            await refreshMap();
+            focusActiveMapContext();
+            verifyMapTripDockState();
+            openMapTripCrewSheet();
+        }
+
+        async function openMapMyCrewFromSubBar() {
+            if (!S.myCrew) return;
+            const dirId = parseInt(S.myCrew.direction_id || S.myCrew.id || 0, 10) || 0;
+            if (S.currentScreen !== 'explore') switchScreen('explore');
+            await refreshMap();
+            focusActiveMapContext();
+            if (dirId) openMapSubscribedSheet(dirId, { sheetMaxHeight: '65vh' });
+        }
+
+        async function respondHandshakeFromMapQueue(partnerId, dirId, accept, mode = '') {
+            const ok = await respondHandshake(partnerId, dirId, accept, mode);
+            if (ok) {
+                closeSheet();
+                verifyHandshakePanelState();
+                verifyMapTripDockState();
+            }
+        }
+
+        async function inviteProposedFromMapQueue(partnerId, dirId) {
+            await inviteProposedMatch(partnerId, dirId);
+            closeSheet();
+        }
+
+        async function declineProposedFromMapQueue(partnerId, dirId) {
+            await declineProposedMatch(partnerId, dirId);
+            closeSheet();
+        }
+
+        function openMapPendingMatchesSheet(scope = 'all') {
+            if (S.currentScreen !== 'explore') switchScreen('explore');
+            closeMapResultPanel();
+            closeHandshakeActionPanel();
+            const normalizedScope = String(scope || 'all');
+            const matches = (S.pendingMatches || []).filter(m => {
+                if (!m) return false;
+                if (normalizedScope === 'incoming') return m.scope === 'incoming';
+                if (normalizedScope === 'outgoing') return m.scope === 'outgoing';
+                return true;
+            });
+            const rows = matches.map(m => {
+                const isIncoming = m.scope === 'incoming';
+                const partnerId = parseInt(m.partner_id || m.sender_id || m.target_id || 0, 10) || 0;
+                const dirId = parseInt(m.direction_id || 0, 10) || 0;
+                const partnerName = isIncoming
+                    ? (m.partner_name || m.sender_name || m.target_name || `#${partnerId}`)
+                    : (m.target_name || m.partner_name || m.sender_name || `#${partnerId}`);
+                const dirTitle = m.direction || m.direction_title || 'Подія';
+                const tag = isIncoming ? 'потрібна відповідь' : 'чекаємо відповідь';
+                const actions = isIncoming
+                    ? `<button class="btn btn-primary" onclick="respondHandshakeFromMapQueue(${partnerId}, ${dirId}, true)">✅ Прийняти</button>
+                       <button class="btn btn-secondary" onclick="respondHandshakeFromMapQueue(${partnerId}, ${dirId}, false)">❌ Відмовити</button>`
+                    : `<button class="btn btn-secondary" onclick="respondHandshakeFromMapQueue(${partnerId}, ${dirId}, false, 'cancel')">🛑 Скасувати</button>`;
+                return `<div style="padding:12px 0;border-bottom:1px solid var(--border);">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                        ${renderAvatarInline(partnerName, m.partner_photo_url || m.sender_photo_url || m.target_photo_url || '', 34)}
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(partnerName)}</div>
+                            <div style="font-size:11px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(dirTitle)} · ${escapeHtml(tag)}</div>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:8px;">${actions}</div>
+                </div>`;
+            }).join('');
+            const pm = (normalizedScope === 'all' || normalizedScope === 'proposed') ? S.proposedMatch : null;
+            const proposedHtml = pm ? (() => {
+                const partnerId = parseInt(pm.partner_id || 0, 10) || 0;
+                const dirId = parseInt(pm.direction_id || 0, 10) || 0;
+                const partnerName = pm.partner_name || `#${partnerId}`;
+                const dirTitle = pm.direction_title || 'Подія';
+                return `<div style="padding:12px 0;border-bottom:1px solid var(--border);">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                        ${renderAvatarInline(partnerName, pm.partner_photo_url || '', 34)}
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(partnerName)}</div>
+                            <div style="font-size:11px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(dirTitle)} · пропозиція</div>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:8px;">
+                        <button class="btn btn-primary" onclick="inviteProposedFromMapQueue(${partnerId}, ${dirId})">✓ Запросити</button>
+                        <button class="btn btn-secondary" onclick="declineProposedFromMapQueue(${partnerId}, ${dirId})">✕ Пропустити</button>
+                    </div>
+                </div>`;
+            })() : '';
+            if (!rows && !proposedHtml) {
+                showToast('Активних запитів немає', '');
+                return;
+            }
+            openSheet(`
+                <div class="sheet-title">Запити на карті</div>
+                <div class="sheet-sub">Поточні рішення можна закрити тут, не переходячи у «Поїздки».</div>
+                <div style="margin:10px 0 4px;">${rows}${proposedHtml}</div>
+                <div class="sheet-actions" data-map-command-count="1">
+                    <button class="btn btn-ghost" onclick="closeSheet()">Карта</button>
+                </div>
+            `, { maxHeight: '65vh' });
+        }
+
         // ─── SUBSCRIPTION BAR ───
         function renderSubBar() {
             const bar = document.getElementById('sub-bar');
@@ -4334,25 +4440,25 @@
                     title = `${t?.direction_title || 'Поїздка'} · партнер уже підтвердив фініш`;
                     cls = 'sub-bar-pending';
                 }
-                parts.push(`<div class="${cls}" title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}" onclick="switchScreen('trips')">${label}</div>`);
+                parts.push(`<div class="${cls}" title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}" onclick="openMapActiveTripFromSubBar()">${label}</div>`);
             }
             if (!S.activeTrip && waitingForPartner) {
-                parts.push(`<div class="sub-bar-pending" onclick="switchScreen('trips')">⏳ Очікуємо підтвердження партнера</div>`);
+                parts.push(`<div class="sub-bar-pending" onclick="openMapActiveTripFromSubBar()">⏳ Очікуємо підтвердження партнера</div>`);
             }
             if (!S.activeTrip && !waitingForPartner && lastKnownTripForRating) {
-                parts.push(`<div class="sub-bar-pending" onclick="maybeOpenCompletedTripRatingSheet('subbar') || switchScreen('trips')">⭐ Оцініть поїздку</div>`);
+                parts.push(`<div class="sub-bar-pending" onclick="maybeOpenCompletedTripRatingSheet('subbar') || openMapActiveTripFromSubBar()">⭐ Оцініть поїздку</div>`);
             }
             const incoming = S.pendingMatches.filter(m => m.scope === 'incoming');
-            if (incoming.length > 0) parts.push(`<div class="sub-bar-pending" onclick="switchScreen('trips')">${escapeHtml(pendingMatchSubBarLabel(incoming, 'incoming'))}</div>`);
+            if (incoming.length > 0) parts.push(`<div class="sub-bar-pending" onclick="openMapPendingMatchesSheet('incoming')">${escapeHtml(pendingMatchSubBarLabel(incoming, 'incoming'))}</div>`);
             const outgoing = S.pendingMatches.filter(m => m.scope === 'outgoing');
-            if (outgoing.length > 0) parts.push(`<div class="sub-bar-pending" onclick="switchScreen('trips')">${escapeHtml(pendingMatchSubBarLabel(outgoing, 'outgoing'))}</div>`);
+            if (outgoing.length > 0) parts.push(`<div class="sub-bar-pending" onclick="openMapPendingMatchesSheet('outgoing')">${escapeHtml(pendingMatchSubBarLabel(outgoing, 'outgoing'))}</div>`);
             // Active trip/reservation owns the lifecycle context. Do not show the
             // open-crew recruitment pill beside it; capacity remains visible in
             // the trip dock and map pin.
             if (S.myCrew && !S.activeTrip) {
                 const label = myCrewSubBarLabel(S.myCrew);
                 const title = myCrewSubBarTitle(S.myCrew);
-                parts.push(`<div class="sub-bar-crew" title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}" onclick="switchScreen('trips')">${escapeHtml(label)}</div>`);
+                parts.push(`<div class="sub-bar-crew" title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}" onclick="openMapMyCrewFromSubBar()">${escapeHtml(label)}</div>`);
             }
             if (!S.activeTrip && !S.myCrew && S._driverOnboardingActive) {
                 const label = driverOnboardingSubBarLabel();
@@ -4942,7 +5048,10 @@
         function guardPassengerRequestWhileInTrip(opts = {}) {
             if (!S.activeTrip) return false;
             showToast(ERROR_MESSAGES.already_in_trip, 'error');
-            if (opts?.openTrips !== false) switchScreen('trips');
+            if (opts?.openTrips !== false) {
+                if (S.currentScreen === 'explore') openMapActiveTripFromSubBar();
+                else switchScreen('trips');
+            }
             return true;
         }
 
@@ -5126,8 +5235,8 @@
             const partnerPhoto = m.target_photo_url || m.partner_photo_url || '';
             const directionLabel = m.direction || m.direction_title || opts.directionLabel || 'Напрямок';
             const queueHint = total > 1
-                ? `<div style="font-size:11px;color:var(--text-muted);margin:0 0 10px;line-height:1.35;">На карті показано один запит. Ще ${total - 1} ${pluralUk(total - 1, 'запит', 'запити', 'запитів')} — у «Поїздки».</div>`
-                : `<div style="font-size:11px;color:var(--text-muted);margin:0 0 10px;line-height:1.35;">На карті показано поточний запит. Усі запити — у «Поїздки».</div>`;
+                ? `<div style="font-size:11px;color:var(--text-muted);margin:0 0 10px;line-height:1.35;">На карті показано один запит. Ще ${total - 1} ${pluralUk(total - 1, 'запит', 'запити', 'запитів')} — у списку поверх карти.</div>`
+                : `<div style="font-size:11px;color:var(--text-muted);margin:0 0 10px;line-height:1.35;">На карті показано поточний запит. Усі запити можна відкрити тут, не покидаючи карту.</div>`;
             return `
                 <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
                     ${renderAvatarInline(partnerName, partnerPhoto, 40)}
@@ -5137,7 +5246,7 @@
                 ${queueHint}
                 <div style="display:flex;gap:10px;">
                     <button class="btn btn-secondary" style="flex:1;" onclick="closeMapResultPanel(); respondHandshake(${partnerId}, ${safeDirId}, false, 'cancel')">🛑 Скасувати цей</button>
-                    <button class="btn btn-primary" style="flex:1;" onclick="closeMapResultPanel(); switchScreen('trips')">Усі запити</button>
+                    <button class="btn btn-primary" style="flex:1;" onclick="openMapPendingMatchesSheet('outgoing')">Усі запити</button>
                 </div>
             `;
         }
@@ -5163,9 +5272,9 @@
             openMapResultPanel(`
                 ${ctx.safeDirId ? renderMapInviteContextHeader(ctx) : ''}
                 <div class="sheet-title">🎉 Екіпаж готовий!</div>
-                <div class="sheet-sub">${escapeHtml('Водій уже відкрив місця — резервацію створено одразу. Деталі в екрані екіпажу.')}</div>
+                <div class="sheet-sub">${escapeHtml('Водій уже відкрив місця — резервацію створено. Екіпаж можна відкрити прямо на карті.')}</div>
                 <div class="sheet-actions" data-map-command-count="3">
-                    <button class="btn btn-primary" onclick="closeMapResultPanel(); switchScreen('trips')">Екіпаж</button>
+                    <button class="btn btn-primary" onclick="closeMapResultPanel(); openMapTripCrewSheet()">Екіпаж</button>
                     <button class="btn btn-secondary" onclick="closeMapResultPanel()">Зрозуміло</button>
                     <button class="btn btn-ghost" onclick="closeMapResultPanel(); openSubscribedDirectionDetails(${safeDirId})">Деталі</button>
                 </div>
@@ -5189,9 +5298,9 @@
             openMapResultPanel(`
                 ${ctx.safeDirId ? renderMapInviteContextHeader(ctx) : ''}
                 <div class="sheet-title">Екіпаж готовий</div>
-                <div class="sheet-sub">${escapeHtml('Попутник підтвердився. Перейдіть до екрана екіпажу, щоб узгодити деталі.')}</div>
+                <div class="sheet-sub">${escapeHtml('Попутник підтвердився. Відкрийте екіпаж поверх карти, щоб узгодити посадку.')}</div>
                 <div class="sheet-actions" data-map-command-count="3">
-                    <button class="btn btn-primary" onclick="closeMapResultPanel(); switchScreen('trips')">Екіпаж</button>
+                    <button class="btn btn-primary" onclick="closeMapResultPanel(); openMapTripCrewSheet()">Екіпаж</button>
                     <button class="btn btn-secondary" onclick="closeMapResultPanel()">Зрозуміло</button>
                     <button class="btn btn-ghost" onclick="closeMapResultPanel(); openSubscribedDirectionDetails(${safeDirId})">Деталі</button>
                 </div>
@@ -5210,7 +5319,7 @@
             } else {
                 await persistPickupPointForCoordination();
             }
-            const fromMap = opts?.source === 'map' || !!opts?.keepMapContext;
+            const fromMap = opts?.source === 'map' || !!opts?.keepMapContext || (!!opts?.closeSheetOnSuccess && S.currentScreen === 'explore');
             if (!beginOp('request_join')) return;
             try {
                 const res = await api('/api/v3/match/invite', {
@@ -6106,10 +6215,19 @@
                     seats_free: freeSeats
                 });
             };
-            (S.mapCrews || []).forEach(addCrew);
-            (Array.isArray(ctx?.orgs) ? ctx.orgs : [])
-                .filter(o => normalizeRole(o?.role || 'driver') === 'driver')
-                .forEach(addCrew);
+            const liveCrews = (S.mapCrews || []).filter(raw => {
+                const rowDirId = parseInt(raw?.direction_id ?? safeDirId, 10) || safeDirId;
+                return rowDirId === safeDirId;
+            });
+            liveCrews.forEach(addCrew);
+            // Live /api/v3/map/crews is the seat truth. Direction organizers are
+            // only a cold-start fallback; mixing them after live crews resurrects
+            // stale free-seat/name data in multi-driver events.
+            if (byDriver.size === 0) {
+                (Array.isArray(ctx?.orgs) ? ctx.orgs : [])
+                    .filter(o => normalizeRole(o?.role || 'driver') === 'driver')
+                    .forEach(addCrew);
+            }
             return Array.from(byDriver.values())
                 .sort((a, b) => b.seats_free - a.seats_free || String(a.name).localeCompare(String(b.name)))
                 .slice(0, 3);
@@ -6683,6 +6801,10 @@
             if (context) {
                 const dirId = String(context.dirId || '');
                 const ef = S.mapEventFilter || 'all';
+                if (S.activeTrip && String(S.activeTrip.direction_id || '') === dirId) {
+                    renderCrewMembersOnMap();
+                    return;
+                }
                 if (ef === 'event' || ef === 'all') {
                     const pt = eventPointForMapContext(context);
                     if (pt && pt.lat != null && pt.lng != null) _pushMapCoord(coords, pt.lat, pt.lng);
@@ -7261,6 +7383,30 @@
             const dirId = String(context?.dirId || '');
             if (!dirId) return [];
             const coords = [];
+            if (S.activeTrip && String(S.activeTrip.direction_id || '') === dirId) {
+                const eventFilter = S.mapEventFilter || 'all';
+                const car = crewCarPinCoordForTrip(S.activeTrip);
+                if (car && eventFilter !== 'passengers') _pushMapCoord(coords, car.lat, car.lng);
+                orderedCrewMembersForMap(S.activeTrip).forEach(m => {
+                    const role = String(m?.role || '').toLowerCase();
+                    if (role === 'driver' && car) return;
+                    if (eventFilter === 'drivers' && role !== 'driver') return;
+                    if (eventFilter === 'passengers' && role === 'driver') return;
+                    const c = crewMemberVisibleMapCoord(m, S.activeTrip);
+                    if (c) coords.push([c.lat, c.lng]);
+                });
+                if (eventFilter === 'event' || S.activeTrip.is_started) {
+                    const destination = tripEventDestination(S.activeTrip);
+                    if (destination?.lat != null && destination?.lng != null) _pushMapCoord(coords, destination.lat, destination.lng);
+                }
+                const seenTrip = new Set();
+                return coords.filter(([lat, lng]) => {
+                    const key = `${lat.toFixed(5)},${lng.toFixed(5)}`;
+                    if (seenTrip.has(key)) return false;
+                    seenTrip.add(key);
+                    return true;
+                });
+            }
             (S.mapCrews || []).forEach(c => {
                 if (String(c?.direction_id || '') === dirId) _pushMapCoord(coords, c.lat, c.lng);
             });
@@ -7745,7 +7891,7 @@
                             </div>
                             ${String(o.user_id) !== String(S.userId)
                             ? (isSub && S.userRole !== 'driver' && normalizeRole(o.role || 'driver') === 'driver'
-                            ? `<button class="btn btn-primary" style="padding:8px 12px;font-size:12px;min-height:36px;border-radius:10px;" onclick="requestJoin(${o.user_id}, ${dirId}, { closeSheetOnSuccess: true })">Запроситись</button>`
+                            ? `<button class="btn btn-primary" style="padding:8px 12px;font-size:12px;min-height:36px;border-radius:10px;" onclick="requestJoin(${o.user_id}, ${dirId}, { source: 'map', closeSheetOnSuccess: true, keepMapContext: true })">Запроситись</button>`
                             : '')
                             : '<span class="tag tag-green" style="border-radius:6px;padding:3px 6px;">Ви</span>'}
                         </div>`;
@@ -7822,7 +7968,8 @@
                         return true;
                     }
                     if (resp.ok && (status === 'ok' || status === 'already_subscribed')) {
-                        showToast('🔔 Є збіг інтересів! Перевірте Поїздки', 'success');
+                        showToast('🔔 Є збіг інтересів! Відповідь на карті', 'success');
+                        openMapPendingMatchesSheet('all');
                     }
                 } else {
                     switchScreen('trips');
@@ -8813,9 +8960,9 @@
             if (nav) nav.style.display = 'flex';
         }
 
-        function openTripsFromHandshakePanel() {
+        function openMapRequestsFromHandshakePanel() {
             closeHandshakeActionPanel();
-            switchScreen('trips');
+            openMapPendingMatchesSheet('all');
         }
 
         function verifyHandshakePanelState() {
@@ -8868,7 +9015,7 @@
                         <button class="btn btn-primary" style="flex:1;height:40px;font-size:13px;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, true)">${escapeHtml(acceptText)}</button>
                         <button class="btn btn-danger" style="flex:1;height:40px;font-size:13px;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false)">${escapeHtml(declineText)}</button>
                     </div>
-                    <button class="btn btn-secondary" style="width:100%;height:36px;font-size:12px;background:transparent;border:1px solid rgba(255,255,255,0.15);" onclick="openTripsFromHandshakePanel()">Усі запити в Поїздки</button>
+                    <button class="btn btn-secondary" style="width:100%;height:36px;font-size:12px;background:transparent;border:1px solid rgba(255,255,255,0.15);" onclick="openMapRequestsFromHandshakePanel()">Інші запити</button>
                 `;
                 panel.classList.add('open');
                 const nav = document.querySelector('.nav');
@@ -8904,7 +9051,7 @@
                         <button class="btn btn-primary" style="flex:1;height:40px;font-size:13px;" onclick="inviteProposedMatch(${partnerId}, ${pm.direction_id})">✓ Запросити</button>
                         <button class="btn btn-danger" style="flex:1;height:40px;font-size:13px;" onclick="declineProposedMatch(${partnerId}, ${pm.direction_id})">✕ Пропустити</button>
                     </div>
-                    <button class="btn btn-secondary" style="width:100%;height:36px;font-size:12px;background:transparent;border:1px solid rgba(255,255,255,0.15);" onclick="openTripsFromHandshakePanel()">Усі запити в Поїздки</button>
+                    <button class="btn btn-secondary" style="width:100%;height:36px;font-size:12px;background:transparent;border:1px solid rgba(255,255,255,0.15);" onclick="openMapRequestsFromHandshakePanel()">Інші запити</button>
                 `;
                 panel.classList.add('open');
                 const nav = document.querySelector('.nav');
@@ -8993,7 +9140,7 @@
             const tripMatched = !!(S.activeTrip && String(S.activeTrip.direction_id || '') === String(dirId));
             if (tripMatched) {
                 closeMapResultPanel();
-                showToast('🎉 Екіпаж готовий! Деталі — у "Поїздки"', 'success');
+                showToast('🎉 Екіпаж готовий! Відкрийте екіпаж на карті', 'success');
                 return;
             }
 
@@ -11153,20 +11300,26 @@
 
         function renderCrewMembersOnMap() {
             if (!S.map) return;
-            // Remove old crew member markers and route
+            const removeAgreementRoute = () => {
+                if (S._routePolyline) { S.map.removeLayer(S._routePolyline); S._routePolyline = null; }
+            };
+            // Markers are lens-specific. The agreement line below is relation-specific
+            // and must survive filter/rerender changes while the active crew relation exists.
             (S._crewMemberMarkers || []).forEach(m => S.map.removeLayer(m));
             S._crewMemberMarkers = [];
-            if (S._routePolyline) { S.map.removeLayer(S._routePolyline); S._routePolyline = null; }
             // Show crew members if trip is active (reservation pickup or Phase 2)
             const t = S.activeTrip;
-            if (!shouldRenderCrewMembersOnMap(t)) return;
-            const coords = [];
+            if (!shouldRenderCrewMembersOnMap(t)) { removeAgreementRoute(); return; }
             const context = activeMapContextForMap();
             const eventFilter = S.mapEventFilter || 'all';
-            if (context && String(t.direction_id || '') !== String(context.dirId || '')) return;
-            if (context && eventFilter === 'event') return;
-            const members = orderedCrewMembersForMap(t).filter(m => {
+            if (context && String(t.direction_id || '') !== String(context.dirId || '')) { removeAgreementRoute(); return; }
+            const routeCoords = [];
+            const passengerFocusCoords = [];
+            const driverFocusCoords = [];
+            const fullMembers = orderedCrewMembersForMap(t);
+            const members = fullMembers.filter(m => {
                 if (!context || eventFilter === 'all') return true;
+                if (eventFilter === 'event') return true;
                 const isMe = !!S.userId && String(m?.user_id || '') === String(S.userId);
                 if (isMe) return true;
                 const role = String(m?.role || '').toLowerCase();
@@ -11176,11 +11329,12 @@
             });
             const carPinCoord = crewCarPinCoordForTrip(t);
             if (carPinCoord) {
-                coords.push([carPinCoord.lat, carPinCoord.lng]);
+                routeCoords.push([carPinCoord.lat, carPinCoord.lng]);
+                driverFocusCoords.push([carPinCoord.lat, carPinCoord.lng]);
                 const driver = members.find(m => String(m?.role || '').toLowerCase() === 'driver');
                 const driverName = driver?.name || t.driver_name || t.partner_name || 'Водій';
                 const carLabel = escapeAttr(`Авто водія: ${driverName}`);
-                const closePassengerCoord = members
+                const closePassengerCoord = fullMembers
                     .filter(m => String(m?.role || '').toLowerCase() !== 'driver')
                     .map(m => crewMemberVisibleMapCoord(m, t))
                     .find(Boolean);
@@ -11204,7 +11358,6 @@
                 if (role === 'driver' && carPinCoord) return;
                 let c = crewMemberVisibleMapCoord(m, t);
                 if (!c) return;
-                coords.push([c.lat, c.lng]);
                 const emoji = role === 'driver' ? '🚗' : '👤';
                 const pickedUp = role !== 'driver' && isPassengerPickedUp(m);
                 const color = pickedUp ? '#10b981' : (isMe ? '#34d399' : '#38bdf8');
@@ -11220,23 +11373,41 @@
                 }).addTo(S.map).bindPopup(`<b>${name}</b><br>${statusLabel}` + crewMemberContactButtonsHtml(m, c), MAP_POPUP_PAN_OPTS);
                 S._crewMemberMarkers.push(marker);
             });
+            fullMembers.forEach(m => {
+                const role = String(m?.role || '').toLowerCase();
+                if (role === 'driver' && carPinCoord) return;
+                const c = crewMemberVisibleMapCoord(m, t);
+                if (!c) return;
+                routeCoords.push([c.lat, c.lng]);
+                if (role === 'driver') driverFocusCoords.push([c.lat, c.lng]);
+                else passengerFocusCoords.push([c.lat, c.lng]);
+            });
             const destination = tripEventDestination(t);
             if (destination?.lat != null && destination?.lng != null) {
-                coords.push([Number(destination.lat), Number(destination.lng)]);
+                routeCoords.push([Number(destination.lat), Number(destination.lng)]);
             }
             // Draw explicit route connection: one car pin -> visible passenger stops -> event.
-            if (coords.length >= 2) {
-                S._routePolyline = L.polyline(coords, {
+            // WD-42: blue line is the DB agreement relation, not a viewport artifact.
+            const newRoute = routeCoords.length >= 2 ? L.polyline(routeCoords, {
                     color: '#38bdf8',
                     weight: 4,
                     opacity: 0.78,
                     dashArray: '8 5',
                     className: 'crew-route-line',
                     interactive: false
-                }).addTo(S.map);
+                }).addTo(S.map) : null;
+            if (S._routePolyline) S.map.removeLayer(S._routePolyline);
+            S._routePolyline = newRoute;
+
+            let focusCoords = routeCoords;
+            if (eventFilter === 'drivers' && driverFocusCoords.length) focusCoords = driverFocusCoords;
+            else if (eventFilter === 'passengers' && passengerFocusCoords.length) focusCoords = passengerFocusCoords;
+            else if (eventFilter === 'all' && !t.is_started) {
+                const socialCoords = [...driverFocusCoords, ...passengerFocusCoords];
+                if (socialCoords.length) focusCoords = socialCoords;
             }
-            // Fit bounds
-            if (coords.length >= 1) S.map.fitBounds(coords, { padding: [40, 40], maxZoom: 14 });
+            if (focusCoords.length === 1) S.map.flyTo(focusCoords[0], 15, { duration: 0.45 });
+            else if (focusCoords.length > 1) S.map.fitBounds(focusCoords, { padding: [40, 40], maxZoom: 14 });
         }
 
     </script>
