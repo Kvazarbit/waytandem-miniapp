@@ -3212,6 +3212,7 @@
             didInitialHydrate: false,
             mapTripDockCollapsed: false,
             mapResultCollapsed: false,
+            mapResultCollapseTouched: false,
             mapTripDockPhaseSeen: null,
             myDirections: [],
             roleGateOpen: false,
@@ -3251,6 +3252,8 @@
                 // Вибір «мікро» для СТАТУС-банера переживає F5 (I-FRONT-8: парний removeItem).
                 if (S.mapResultCollapsed) localStorage.setItem(_stateKey('mrc'), '1');
                 else localStorage.removeItem(_stateKey('mrc'));
+                if (S.mapResultCollapseTouched) localStorage.setItem(_stateKey('mrc_touched'), '1');
+                else localStorage.removeItem(_stateKey('mrc_touched'));
             } catch (_) { }
         }
 
@@ -3258,9 +3261,10 @@
             try {
                 waitingForPartner = localStorage.getItem(_stateKey('wfp')) === '1';
                 S.mapResultCollapsed = localStorage.getItem(_stateKey('mrc')) === '1';
+                S.mapResultCollapseTouched = localStorage.getItem(_stateKey('mrc_touched')) === '1' || S.mapResultCollapsed;
                 const ltr = localStorage.getItem(_stateKey('ltr'));
                 if (ltr) lastKnownTripForRating = JSON.parse(ltr);
-            } catch (_) { waitingForPartner = false; lastKnownTripForRating = null; }
+            } catch (_) { waitingForPartner = false; lastKnownTripForRating = null; S.mapResultCollapseTouched = false; }
         }
 
         function clearCriticalState() {
@@ -4329,9 +4333,89 @@
             if (!S.myCrew) return;
             const dirId = parseInt(S.myCrew.direction_id || S.myCrew.id || 0, 10) || 0;
             if (S.currentScreen !== 'explore') switchScreen('explore');
+            await hydrate();
             await refreshMap();
             focusActiveMapContext();
-            if (dirId) openMapSubscribedSheet(dirId, { sheetMaxHeight: '65vh' });
+            if (S.activeTrip) {
+                verifyMapTripDockState();
+                openMapTripCrewSheet();
+                return;
+            }
+            if (dirId) openMapMyCrewStatusSheet(dirId);
+        }
+
+        function pendingMatchesForDirection(dirId) {
+            const safeDirId = String(dirId || '');
+            if (!safeDirId) return [];
+            return (S.pendingMatches || []).filter(m => m && String(m.direction_id || '') === safeDirId);
+        }
+
+        function renderMapPendingMatchRow(m) {
+            const isIncoming = m.scope === 'incoming';
+            const partnerId = parseInt(m.partner_id || m.sender_id || m.target_id || 0, 10) || 0;
+            const dirId = parseInt(m.direction_id || 0, 10) || 0;
+            const partnerName = isIncoming
+                ? (m.partner_name || m.sender_name || m.target_name || `#${partnerId}`)
+                : (m.target_name || m.partner_name || m.sender_name || `#${partnerId}`);
+            const dirTitle = m.direction || m.direction_title || 'Подія';
+            const tag = isIncoming ? 'потрібна відповідь' : 'чекаємо відповідь';
+            const actions = isIncoming
+                ? `<button class="btn btn-primary" onclick="respondHandshakeFromMapQueue(${partnerId}, ${dirId}, true)">✅ Прийняти</button>
+                   <button class="btn btn-secondary" onclick="respondHandshakeFromMapQueue(${partnerId}, ${dirId}, false)">❌ Відмовити</button>`
+                : `<button class="btn btn-secondary" onclick="respondHandshakeFromMapQueue(${partnerId}, ${dirId}, false, 'cancel')">🛑 Скасувати</button>`;
+            return `<div style="padding:12px 0;border-bottom:1px solid var(--border);">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                    ${renderAvatarInline(partnerName, m.partner_photo_url || m.sender_photo_url || m.target_photo_url || '', 34)}
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(partnerName)}</div>
+                        <div style="font-size:11px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(dirTitle)} · ${escapeHtml(tag)}</div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px;">${actions}</div>
+            </div>`;
+        }
+
+        function openMapMyCrewStatusSheet(dirId) {
+            const crew = S.myCrew;
+            if (!crew) return false;
+            const safeDirId = parseInt(dirId || crew.direction_id || 0, 10) || 0;
+            if (!safeDirId) return false;
+            const pending = pendingMatchesForDirection(safeDirId);
+            const seatsTotal = safeCount(crew.seats_total);
+            const seatsFree = safeCount(crew.seats_free);
+            const seatsBusy = Math.max(0, seatsTotal - seatsFree);
+            const crewNo = activeTripCrewNumber(crew);
+            const crewLabel = crewNo && crewNo !== '—' ? `Екіпаж #${crewNo}` : 'Екіпаж';
+            const title = directionTitleById(safeDirId, 'подія');
+            const pendingRows = pending.map(renderMapPendingMatchRow).join('');
+            const pendingLine = pending.length
+                ? `${pending.length} ${pluralUk(pending.length, 'запит очікує', 'запити очікують', 'запитів очікують')} відповіді`
+                : 'активних запитів немає';
+            const seatLine = seatsTotal
+                ? `${seatsBusy}/${seatsTotal} місць зайнято або зарезервовано${seatsFree > 0 ? ` · ${seatsFree} ${pluralUk(seatsFree, 'місце вільне', 'місця вільні', 'місць вільно')}` : ''}`
+                : (seatsFree > 0 ? `${seatsFree} ${pluralUk(seatsFree, 'місце вільне', 'місця вільні', 'місць вільно')}` : 'місця відкриті');
+            const status = pending.length
+                ? (seatsFree > 0 ? 'Чекаємо відповіді й можна добирати попутників.' : 'Набір повний: чекаємо відповідей попутників.')
+                : (seatsFree > 0 ? 'Авто відкрите: оберіть попутників на карті.' : 'Вільних місць зараз немає.');
+            const passengersAction = seatsFree > 0
+                ? `<button class="btn btn-primary" onclick="closeSheet(); S.mapEventFilter='passengers'; renderNewsStrip(); refreshMap().then(() => focusMapByFilter())">👤 Попутники</button>`
+                : '';
+            openSheet(`
+                <div data-map-my-crew-sheet="true">
+                    <div style="font-size:11px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:var(--blue);margin-bottom:6px;">Ваше авто на карті</div>
+                    <div class="sheet-title">${escapeHtml(crewLabel)}</div>
+                    <div class="sheet-sub">${escapeHtml(title)} · ${escapeHtml(seatLine)}</div>
+                    <div style="padding:10px;border-radius:8px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.22);font-size:12px;color:var(--text-secondary);line-height:1.45;margin:10px 0;">
+                        <strong style="color:var(--text-primary);">${escapeHtml(pendingLine)}.</strong><br>${escapeHtml(status)}
+                    </div>
+                    ${pendingRows ? `<div style="margin:6px 0 4px;">${pendingRows}</div>` : '<div style="font-size:12px;color:var(--text-muted);padding:10px 0;">Немає запитів на взаємну згоду. Вільних попутників шукайте через фільтр «Попутники».</div>'}
+                </div>
+                <div class="sheet-actions" data-map-command-count="${passengersAction ? '2' : '1'}">
+                    ${passengersAction}
+                    <button class="btn btn-ghost" onclick="closeSheet()">Карта</button>
+                </div>
+            `, { maxHeight: '65vh' });
+            return true;
         }
 
         async function respondHandshakeFromMapQueue(partnerId, dirId, accept, mode = '') {
@@ -4364,30 +4448,7 @@
                 if (normalizedScope === 'outgoing') return m.scope === 'outgoing';
                 return true;
             });
-            const rows = matches.map(m => {
-                const isIncoming = m.scope === 'incoming';
-                const partnerId = parseInt(m.partner_id || m.sender_id || m.target_id || 0, 10) || 0;
-                const dirId = parseInt(m.direction_id || 0, 10) || 0;
-                const partnerName = isIncoming
-                    ? (m.partner_name || m.sender_name || m.target_name || `#${partnerId}`)
-                    : (m.target_name || m.partner_name || m.sender_name || `#${partnerId}`);
-                const dirTitle = m.direction || m.direction_title || 'Подія';
-                const tag = isIncoming ? 'потрібна відповідь' : 'чекаємо відповідь';
-                const actions = isIncoming
-                    ? `<button class="btn btn-primary" onclick="respondHandshakeFromMapQueue(${partnerId}, ${dirId}, true)">✅ Прийняти</button>
-                       <button class="btn btn-secondary" onclick="respondHandshakeFromMapQueue(${partnerId}, ${dirId}, false)">❌ Відмовити</button>`
-                    : `<button class="btn btn-secondary" onclick="respondHandshakeFromMapQueue(${partnerId}, ${dirId}, false, 'cancel')">🛑 Скасувати</button>`;
-                return `<div style="padding:12px 0;border-bottom:1px solid var(--border);">
-                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-                        ${renderAvatarInline(partnerName, m.partner_photo_url || m.sender_photo_url || m.target_photo_url || '', 34)}
-                        <div style="flex:1;min-width:0;">
-                            <div style="font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(partnerName)}</div>
-                            <div style="font-size:11px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(dirTitle)} · ${escapeHtml(tag)}</div>
-                        </div>
-                    </div>
-                    <div style="display:flex;gap:8px;">${actions}</div>
-                </div>`;
-            }).join('');
+            const rows = matches.map(renderMapPendingMatchRow).join('');
             const pm = (normalizedScope === 'all' || normalizedScope === 'proposed') ? S.proposedMatch : null;
             const proposedHtml = pm ? (() => {
                 const partnerId = parseInt(pm.partner_id || 0, 10) || 0;
@@ -4632,6 +4693,21 @@
             autoPanPaddingTopLeft: [12, 170],
             autoPanPaddingBottomRight: [12, 96]
         };
+
+        function bindMarkerPopupTap(marker) {
+            if (!marker || typeof marker.getElement !== 'function') return;
+            const el = marker.getElement();
+            if (!el || el.dataset.mapPopupTapBound === '1') return;
+            const open = (event) => {
+                event?.preventDefault?.();
+                event?.stopPropagation?.();
+                try { marker.openPopup(); } catch (_) { }
+            };
+            el.dataset.mapPopupTapBound = '1';
+            el.addEventListener('click', open);
+            el.addEventListener('touchend', open, { passive: false });
+        }
+
         function initMap() {
             S.map = L.map('map', { zoomControl: false, attributionControl: false }).setView([S.homeCity.lat, S.homeCity.lng], 11);
             L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(S.map);
@@ -6356,6 +6432,11 @@
             const safeDirId = ctx.safeDirId || (parseInt(dirId) || 0);
             if (!safeDirId) return;
             const isDriver = _isDriverRole(S.userRole);
+            if (isDriver && !S.mapResultCollapseTouched) {
+                S.mapResultCollapsed = true;
+                S.mapResultCollapseTouched = true;
+                persistCriticalState();
+            }
             const seats = isDriver ? searchSeatsLabel(safeDirId) : '';
             const chip = `📍 Ручний${seats ? ' · ' + seats : ''}`;
             const sub = isDriver
@@ -6411,6 +6492,7 @@
 
         function toggleMapResultCollapse() {
             S.mapResultCollapsed = !S.mapResultCollapsed;
+            S.mapResultCollapseTouched = true;
             persistCriticalState();
             const panel = document.getElementById('map-result-panel');
             const meta = (panel && panel._mapResultMeta) || inferMapResultMetaFromState();
@@ -6847,6 +6929,36 @@
             }).join('');
         }
 
+        function mapFocusFitOptions() {
+            const topStack = document.querySelector('.map-top-stack');
+            const topHeight = topStack && topStack.offsetParent !== null
+                ? Math.ceil(topStack.getBoundingClientRect().height + 40)
+                : 56;
+            const resultPanel = document.getElementById('map-result-panel');
+            const nav = document.querySelector('.nav');
+            const navHeight = nav && nav.offsetParent !== null
+                ? Math.ceil(nav.getBoundingClientRect().height)
+                : 72;
+            let bottomHeight = navHeight + 32;
+            if (resultPanel && resultPanel.classList.contains('open')) {
+                const panelHeight = Math.ceil(resultPanel.getBoundingClientRect().height || 0);
+                bottomHeight = Math.max(bottomHeight, Math.min(240, panelHeight + 28));
+            }
+            return {
+                paddingTopLeft: [24, Math.max(170, topHeight)],
+                paddingBottomRight: [24, Math.max(104, bottomHeight)],
+                maxZoom: 15
+            };
+        }
+
+        function singlePointFitBounds(point) {
+            const lat = Number(point?.[0]);
+            const lng = Number(point?.[1]);
+            if (!Number.isFinite(lat) || !Number.isFinite(lng)) return [];
+            const d = 0.0012;
+            return [[lat - d, lng - d], [lat + d, lng + d]];
+        }
+
         // Пункт 2: фокус карти на піни ВІДПОВІДНО до активного фільтра
         function focusMapByFilter() {
             if (!S.map) return;
@@ -6894,8 +7006,9 @@
             });
 
             if (!uniq.length) { showToast('Немає пінів цього типу на карті', ''); return; }
-            if (uniq.length === 1) S.map.flyTo(uniq[0], 15, { duration: 0.6 });
-            else S.map.fitBounds(uniq, { padding: [56, 56], maxZoom: 15 });
+            const fitOptions = mapFocusFitOptions();
+            if (uniq.length === 1) S.map.fitBounds(singlePointFitBounds(uniq[0]), fitOptions);
+            else S.map.fitBounds(uniq, fitOptions);
         }
 
         async function setMapEventFilter(filter) {
@@ -7424,6 +7537,8 @@
                         : '');
                 const openBtn = `<button onclick="openDirectionFromMap(${safeDirectionId})" style="flex:1;padding:8px;border-radius:10px;background:rgba(56,189,248,0.14);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-weight:700;font-size:12px;cursor:pointer;">→ Подія</button>`;
                 marker.bindPopup('<div style="text-align:center;min-width:180px;"><div style="font-weight:800;font-size:14px;margin-bottom:4px;">' + escapeHtml(name) + '</div><div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">Чекає на водія' + (directionTitle ? ' · ' + directionTitle : '') + '</div><div style="display:flex;gap:8px;">' + primaryBtn + openBtn + '</div></div>', MAP_POPUP_PAN_OPTS);
+                marker.on('add', () => bindMarkerPopupTap(marker));
+                bindMarkerPopupTap(marker);
                 S.mapMarkers.push(marker);
             });
         }
