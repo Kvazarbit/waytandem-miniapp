@@ -3830,7 +3830,12 @@
             try {
                 const p = await api(`/api/v3/user/profile?user_id=${S.userId}`);
                 if (!S.userPhoto && p?.photo_url) { S.userPhoto = sanitizeAvatarUrl(p.photo_url); syncIdentityUI(); }
-                const role = normalizeRole(p?.role || S.userRole || 'client');
+                // §0.60/I-176 (live-аудит 2026-07-12): пасивний boot НЕ вигадує роль.
+                // Дефолт 'client' тут мовчки писав роль у БД самим відкриттям сторінки
+                // (register → change_user_role) і назавжди ховав gate «Як ти їдеш?».
+                // Порожня роль їде порожньою: юзер у БД існує (фікс дедлоку 2026-07-04
+                // збережено), а роль пише лише явний setRole() → POST /user/role.
+                const role = normalizeRole(p?.role || S.userRole || '');
                 if (!S.userUsername && p?.telegram_username) S.userUsername = sanitizeBotUsername(p.telegram_username);
                 const serverName = String(p?.name || '').trim();
                 const name = String(S.userName || '').trim() || serverName || `Гість ${String(S.userId).slice(-4)}`;
@@ -7980,18 +7985,27 @@
                 daysText = '🗓 1 день';
             }
 
-            const drivers = Number(dir.drivers || 0);
-            const passengers = Number(dir.passengers || 0);
-            const totalParticipants = drivers + passengers;
-            const participantsText = `👥 ${totalParticipants} ${pluralUk(totalParticipants, 'Учасник', 'Учасники', 'Учасників')}`;
-            const crewsText = `🚗 ${drivers} ${pluralUk(drivers, 'Екіпаж', 'Екіпажі', 'Екіпажів')}`;
-            const customStatsLine = [daysText, participantsText, crewsText].filter(Boolean).join(' • ');
             const eventSummary = (data?.event_summary && typeof data.event_summary === 'object') ? data.event_summary : {};
+            const hasEventSummary = eventSummary.drivers_total != null;
             const summaryDrivers = safeCount(eventSummary.drivers_total);
             const summaryOpenSeats = safeCount(eventSummary.open_seats);
             const summaryWaiting = safeCount(eventSummary.passengers_without_seat ?? eventSummary.passengers_waiting);
             const summaryMatched = safeCount(eventSummary.passengers_matched);
             const summaryPending = safeCount(eventSummary.passengers_pending);
+            // Live-аудит 2026-07-12 (блокер #2): картка події і карта мусять казати
+            // одну правду. dir.drivers/passengers = лише unpaused interests — BUG-8
+            // паузить водія із заповненим авто і посадженого попутника, тож картка
+            // показувала «1 водій» при 4 екіпажах на карті. Коли є event_summary,
+            // рахуємо з нього: drivers_total = interests ∪ web_open_crews ∪ активні
+            // requests (ті самі критерії, що піни /map/crews).
+            const drivers = hasEventSummary ? summaryDrivers : Number(dir.drivers || 0);
+            const passengers = hasEventSummary
+                ? (summaryMatched + summaryWaiting + summaryPending)
+                : Number(dir.passengers || 0);
+            const totalParticipants = drivers + passengers;
+            const participantsText = `👥 ${totalParticipants} ${pluralUk(totalParticipants, 'Учасник', 'Учасники', 'Учасників')}`;
+            const crewsText = `🚗 ${drivers} ${pluralUk(drivers, 'Екіпаж', 'Екіпажі', 'Екіпажів')}`;
+            const customStatsLine = [daysText, participantsText, crewsText].filter(Boolean).join(' • ');
             const summaryRisk = String(eventSummary.risk || 'ok');
             const summaryRiskText = summaryRisk === 'needs_drivers'
                 ? 'Потрібні ще місця'
@@ -9698,15 +9712,22 @@
                                 ${leaveBtn}`;
                         }
                     } else {
+                        // Live-аудит 2026-07-12 (блокер #3): між взаємною згодою і явним
+                        // стартом водія (arriveAtPickup → POST /trip/start) руху НЕМАЄ —
+                        // це фаза резервації й очікування дня виїзду. Старий копірайт
+                        // («Вирушив за…» / «вирушає по вас») стверджував рух одразу після
+                        // згоди, навіть коли подія за кілька днів. Перехід у збір — явна
+                        // ДІЯ водія, не таймер; ім'я поточної цілі лишається
+                        // (DM-2026-06-16-002 §8.2, ротація через nextPickupPassenger).
                         if (isDriver) {
                             hint = nextName
-                                ? `🧭 Вирушив за: ${escapeHtml(nextName)}. Рушайте до точки збору й позначте, коли будете на місці.`
-                                : 'Рушайте до точки збору й позначте, коли будете на місці.'; // B (DM-2026-06-16-002, §8.2): поточна ціль, ротація через nextPickupPassenger
+                                ? `✅ Резервацію підтверджено. Перша точка збору: ${escapeHtml(nextName)}. У день виїзду рушайте й позначте, коли будете на місці.`
+                                : '✅ Резервацію підтверджено. У день виїзду рушайте до точки збору й позначте, коли будете на місці.';
                             actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
                                 <button class="btn btn-primary" onclick="arriveAtPickup()">🚗 Я біля точки збору</button>
                                 ${leaveBtn}`;
                         } else {
-                            hint = `${escapeHtml(driverName)} вирушає по вас. Стежте за карткою або напишіть у чат.`;
+                            hint = `✅ Місце зарезервовано у ${escapeHtml(driverName)}. Водій позначить, коли буде біля точки збору — стежте за карткою і чатом.`;
                             actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
                                 <button class="btn btn-secondary" onclick="openMapTripCrewSheet()">👥 Екіпаж</button>
                                 ${leaveBtn}`;
