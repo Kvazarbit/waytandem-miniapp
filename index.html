@@ -1556,7 +1556,7 @@
         .map-picker {
             position: fixed;
             inset: 0;
-            z-index: 9500;
+            z-index: 11000;
             background: var(--bg-card);
         }
         .map-picker-map {
@@ -3934,6 +3934,7 @@
                 S._recentlyUnsubbed = null;
             }
             S.boardSubSet = new Set(S.subscriptions.map(s => String(s.direction_id)));
+            suppressManualSearchProposedMatch();
             syncTerminalIdleState('hydrate');
             // Тримаємо "Моя подія" свіжою, щоб миттєва перевірка ліміту (одна подія
             // на користувача) спрацьовувала ще до відкриття форми створення.
@@ -3980,6 +3981,7 @@
                     }
                     S.pendingMatches = resolvePendingMatchesPayload(data);
                     S.proposedMatch = (S.activeTrip || S.pendingMatches.length) ? null : (data.proposed_match || null);
+                    suppressManualSearchProposedMatch();
                     if (!S.proposedMatch) closeMapResultPanelIfNoProposedMatch();
                     // Completed trip is a terminal event for this social outing.
                     // Polling can be the first client to observe partner finish, so
@@ -3989,6 +3991,7 @@
                         const subs = await api(`/api/v3/user/subscriptions?user_id=${S.userId}`, { silent: true });
                         S.subscriptions = subs?.subscriptions || [];
                         S.boardSubSet = new Set(S.subscriptions.map(s => String(s.direction_id)));
+                        suppressManualSearchProposedMatch();
                         syncTerminalIdleState('poll');
                         await renderBoard();
                     }
@@ -5062,6 +5065,24 @@
             });
         }
 
+        function isManualSearchSubscriptionDirection(dirId) {
+            const safeDirId = String(dirId || '');
+            if (!safeDirId) return false;
+            return (S.subscriptions || []).some(s =>
+                String(s.direction_id || s.id || '') === safeDirId &&
+                s.auto_match === false
+            );
+        }
+
+        function suppressManualSearchProposedMatch() {
+            if (!S.proposedMatch) return;
+            if (!isManualSearchSubscriptionDirection(S.proposedMatch.direction_id)) return;
+            // Manual map search means the user owns candidate choice through role-filtered pins.
+            // Auto proposals must not cover the passenger/driver pin lane.
+            S.proposedMatch = null;
+            closeHandshakeActionPanel();
+        }
+
         function outgoingQueueForDirection(dirId) {
             return (S.pendingMatches || [])
                 .filter(m => m && m.scope === 'outgoing' && String(m.direction_id) === String(dirId));
@@ -5368,19 +5389,16 @@
                 openMapSubscribedSheet(safeDirId, { sheetMaxHeight: '65vh' });
                 return false;
             }
-            const confirmed = await confirmOutgoingSwitchIfNeeded(safePassengerId, safeDirId);
-            if (!confirmed) return false;
             const fromMap = opts?.source === 'map' || !!opts?.keepMapContext;
             if (!beginOp('signal_passenger')) return false;
             try {
                 const res = await api('/api/v3/match/invite', {
                     method: 'POST',
-                    body: JSON.stringify({ user_id: S.userId, target_id: safePassengerId, direction_id: safeDirId, replace_existing: true })
+                    body: JSON.stringify({ user_id: S.userId, target_id: safePassengerId, direction_id: safeDirId, replace_existing: false })
                 });
                 if (res?.status === 'ok') {
                     if (!fromMap) {
                         if (res.mutual) { showToast('✓ Екіпаж готовий!', 'success'); }
-                        else if (Array.isArray(res.switched_from) && res.switched_from.length) { showToast('↪ Запрошення перемкнено', 'success'); }
                         else { showToast('⏳ Запрошення надіслано', 'success'); }
                     }
                     persistCriticalState();
@@ -5968,6 +5986,10 @@
             // suppressSubscribedSheet: map-manual шлях лишає людину НА КАРТІ зі своїм
             // піном (канон 06-04); «підписка активна» шторка тут була б тією ж
             // пасткою, що блокує тапи по екіпажах.
+            if (!autoMatch) {
+                S.mapResultCollapsed = true;
+                persistCriticalState();
+            }
             const subOk = await subscribeDir(safeDirId, { afterSuccessScreen: 'explore', keepSheetOpen: true, mapInline: true, manualOnly: !autoMatch, suppressSubscribedSheet: true });
             // UX-fix #4: «Виберу водія сам» більше не кидає людину на порожню карту —
             // одразу показуємо ранжований список екіпажів (відстань від точки очікування),
@@ -6131,6 +6153,10 @@
                 ? { lat: S.pickupCoords.lat, lng: S.pickupCoords.lng } : null;
             const savedPickupLabel = S.pickupLabel;
             const savedPickupKind = S.pickupKind;
+            if (!autoMatch) {
+                S.mapResultCollapsed = true;
+                persistCriticalState();
+            }
             const ok = await subscribeDir(safeDirId, { afterSuccessScreen: 'explore', keepSheetOpen: false, mapInline: true, manualOnly: !autoMatch, suppressSubscribedSheet: true });
             if (!ok) {
                 S._driverOnboardingActive = false;
@@ -6370,11 +6396,25 @@
         // Згортання map-result банера (міні <-> мікро), як у #map-trip-dock.
         // Диспетчеризація по meta.kind — будь-який СТАТУС-банер згортається.
         // persistCriticalState() одразу: вибір «мікро» переживає F5.
+        function inferMapResultMetaFromState() {
+            const outgoing = (S.pendingMatches || []).find(m => m && m.scope === 'outgoing' && m.direction_id != null);
+            if (outgoing) return { kind: 'outgoing', dirId: outgoing.direction_id };
+            const sub = (S.subscriptions || [])[0];
+            if (sub && sub.direction_id != null) {
+                return {
+                    kind: sub.auto_match === false ? 'manual_search' : 'auto_search',
+                    dirId: sub.direction_id
+                };
+            }
+            return null;
+        }
+
         function toggleMapResultCollapse() {
             S.mapResultCollapsed = !S.mapResultCollapsed;
             persistCriticalState();
             const panel = document.getElementById('map-result-panel');
-            const meta = panel && panel._mapResultMeta;
+            const meta = (panel && panel._mapResultMeta) || inferMapResultMetaFromState();
+            if (panel && !panel._mapResultMeta && meta) panel._mapResultMeta = meta;
             if (meta && meta.dirId) {
                 if (meta.kind === 'manual_search') openMapManualSearchPanel(meta.dirId);
                 else if (meta.kind === 'auto_search') openMapAutoSearchPanel(meta.dirId);
@@ -6582,8 +6622,23 @@
             if (!dirId || S.startDirectionHandled) return;
             S.startDirectionHandled = true;
             S.pendingStartDirectionId = null;
-            switchScreen('board');
-            await openStartDirectionInvite(dirId);
+            switchScreen('explore');
+            const activeSub = (S.subscriptions || []).find(s => String(s.direction_id || s.id || '') === String(dirId));
+            if (activeSub) {
+                S.mapScope = 'sub';
+                S._mapScopeDirId = null; // force renderMapModeStrip() to re-apply the role lens for this subscription.
+                S.mapEventFilter = _isDriverRole(activeSub.role || S.userRole)
+                    ? 'passengers'
+                    : (_isPassengerRole(activeSub.role || S.userRole) ? 'drivers' : 'all');
+                renderSubBar();
+                renderNews();
+                await refreshMap();
+                renderNewsStrip();
+                focusMapByFilter();
+                maybeOpenMapResultPanelOnHydrate();
+                return;
+            }
+            await openStartDirectionInvite(dirId, { source: 'map', fullInvite: true, sheetMaxHeight: '65vh' });
         }
 
         function defaultNewsEventFilterForRole() {
@@ -7358,7 +7413,7 @@
                         iconAnchor: [17, 17]
                     }),
                     riseOnHover: true,
-                    zIndexOffset: 80
+                    zIndexOffset: 220
                 }).addTo(S.map);
                 const directionTitle = escapeHtml(p.direction_title || '');
                 const canSignal = _isDriverRole(S.userRole) && driverHasOpenCrewForDirection(safeDirectionId);
@@ -8971,6 +9026,7 @@
 
             const incoming = S.pendingMatches.filter(m => m.scope === 'incoming');
             closePassiveDirectionInviteSheetForActionSurface('handshake-panel');
+            suppressManualSearchProposedMatch();
 
             // If there's an active trip, or we are waiting for partner, hide the panel
             if ((S.activeTrip && S.activeTrip.is_started) || waitingForPartner) {
@@ -10666,6 +10722,10 @@
         function openLocationPicker(opts = {}) {
             const overlay = document.getElementById('map-picker');
             if (!overlay) return;
+            const resultPanel = document.getElementById('map-result-panel');
+            const tripDock = document.getElementById('map-trip-dock');
+            if (resultPanel && resultPanel.classList.contains('open')) resultPanel.classList.add('hidden-by-sheet');
+            if (tripDock && tripDock.classList.contains('open')) tripDock.classList.add('hidden-by-sheet');
             _mapPicker.onConfirm = typeof opts.onConfirm === 'function' ? opts.onConfirm : null;
             _mapPicker.onCancel = typeof opts.onCancel === 'function' ? opts.onCancel : null;
             overlay.style.display = 'block';
@@ -10705,6 +10765,12 @@
         function closeLocationPicker(reason = 'cancel') {
             const overlay = document.getElementById('map-picker');
             if (overlay) overlay.style.display = 'none';
+            if (!isSheetOpen()) {
+                const resultPanel = document.getElementById('map-result-panel');
+                const tripDock = document.getElementById('map-trip-dock');
+                if (resultPanel) resultPanel.classList.remove('hidden-by-sheet');
+                if (tripDock) tripDock.classList.remove('hidden-by-sheet');
+            }
             const results = document.getElementById('map-picker-results');
             if (results) results.innerHTML = '';
             const onCancel = _mapPicker.onCancel;
