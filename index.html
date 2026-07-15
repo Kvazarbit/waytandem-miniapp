@@ -1008,6 +1008,13 @@
             transform: scale(0.97);
         }
 
+        .btn:disabled {
+            opacity: 0.42;
+            cursor: default;
+            box-shadow: none;
+            transform: none;
+        }
+
         .btn-primary {
             background: var(--accent);
             color: #000;
@@ -1290,6 +1297,74 @@
             flex-direction: column;
             gap: 10px;
             margin-top: 8px;
+        }
+
+        .map-role-options {
+            display: grid;
+            gap: 10px;
+            margin: 4px 0 14px;
+        }
+
+        .map-role-option {
+            position: relative;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            background: rgba(255, 255, 255, 0.04);
+            cursor: pointer;
+            transition: border-color 0.15s, background 0.15s;
+        }
+
+        .map-role-option input {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+        }
+
+        .map-role-option:focus-within {
+            outline: 2px solid var(--blue);
+            outline-offset: 2px;
+        }
+
+        .map-role-option.is-selected {
+            border-color: var(--accent);
+            background: var(--accent-dim);
+        }
+
+        .map-role-radio {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--text-muted);
+            border-radius: 50%;
+            flex: 0 0 20px;
+            margin-top: 1px;
+            transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+        }
+
+        .map-role-option.is-selected .map-role-radio {
+            border-color: var(--accent);
+            background: var(--accent);
+            box-shadow: inset 0 0 0 4px var(--bg-elevated);
+        }
+
+        .map-role-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.25;
+        }
+
+        .map-role-hint {
+            display: block;
+            margin-top: 4px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.35;
         }
 
         /* ═══════ SCREEN: EXPLORE ═══════ */
@@ -1658,7 +1733,7 @@
             background: linear-gradient(to top, var(--bg-card) 70%, transparent);
         }
 
-        .map-focus-btn[hidden] {
+        .map-fab[hidden] {
             display: none;
         }
 
@@ -3217,6 +3292,7 @@
             myDirections: [],
             roleGateOpen: false,
             pendingRoleAction: null,
+            mapInviteRoleDraft: null,
             homeCity: { lat: 52.2297, lng: 21.0122, name: 'Warsaw' },
             pickupCoords: null,
             pickupLabel: '',
@@ -3225,7 +3301,7 @@
             _driverOnboardingActive: false,
             _driverOnboardingDirId: null,
             _driverOnboardingPhase: '',
-            _ratingScore: null,
+            _ratingStars: null,
             _ratingContext: null,
             lastHydrateAt: 0,
             lastMapSyncAt: 0,
@@ -3932,6 +4008,7 @@
             const previousTrip = S.activeTrip ? { ...S.activeTrip } : null;
             S.lastHydrateAt = Date.now();
             S.activeTrip = resolveActiveTripPayload(data);
+            renderMapNavigationButton();
             notifyLifecycleTransitions(previousTrip, S.activeTrip, { allowNewTrip: S.didInitialHydrate });
             S.didInitialHydrate = true;
             if (S.activeTrip) lastKnownTripForRating = { ...S.activeTrip };
@@ -3989,6 +4066,7 @@
 
                     S.lastHydrateAt = Date.now();
                     S.activeTrip = resolveActiveTripPayload(data);
+                    renderMapNavigationButton();
                     notifyLifecycleTransitions(previousTrip, S.activeTrip, { allowNewTrip: S.didInitialHydrate });
                     S.didInitialHydrate = true;
                     if (S.activeTrip) lastKnownTripForRating = { ...S.activeTrip };
@@ -5239,7 +5317,7 @@
 
         function isRatingSheetOpen() {
             const body = document.getElementById('sheet-body');
-            return !!(body && body.querySelector('#thumb-up, #thumb-down'));
+            return !!(body && body.querySelector('[data-rating-row] .star-btn'));
         }
 
         function closeBlockingSheetForScreen(name) {
@@ -5983,11 +6061,8 @@
             const creatorName = dirMeta.creator_name || (isMyDir ? S.userName : '') || '';
             const creatorUsername = sanitizeBotUsername(dirMeta.creator_username || (isMyDir ? S.userUsername : '') || '');
             const creatorDisplay = creatorName || (creatorUsername ? '@' + creatorUsername : ctx.creatorDisplay);
-            const isDriverRoleNow = _isDriverRole(S.userRole);
-            const primaryAction = isDriverRoleNow
-                ? `chooseMapInviteRole(${ctx.safeDirId}, 'driver')`
-                : `joinInvitedDirection(${ctx.safeDirId}, 'map')`;
-            const primaryLabel = isDriverRoleNow ? '🚗 Стати водієм для цієї події' : 'Хочу поїхати';
+            const primaryAction = `joinInvitedDirection(${ctx.safeDirId}, 'map')`;
+            const primaryLabel = 'Хочу поїхати';
             const meetingPoint = String(dirMeta.meeting_point || '').trim();
             const desc = String(dirMeta.description || '').trim();
             const startAt = String(dirMeta.start_date || '').trim();
@@ -6022,19 +6097,61 @@
         function openMapInviteRoleSheet(dirId) {
             const ctx = mapInviteContext(dirId);
             if (!ctx.safeDirId) return false;
-            const isDriver = _isDriverRole(S.userRole);
-            const isClient = _isPassengerRole(S.userRole);
+            if (String(S.mapInviteRoleDraft?.directionId || '') !== String(ctx.safeDirId)) {
+                S.mapInviteRoleDraft = null;
+            }
+            const selectedRole = normalizeRole(S.mapInviteRoleDraft?.role || '');
+            const roleOption = (role, label, hint) => {
+                const selected = selectedRole === role;
+                return `<label class="map-role-option${selected ? ' is-selected' : ''}" data-map-role-option="${role}">
+                    <input type="radio" name="map-role-${ctx.safeDirId}" value="${role}" ${selected ? 'checked' : ''} onchange="selectMapInviteRoleDraft(${ctx.safeDirId}, '${role}')">
+                    <span class="map-role-radio" aria-hidden="true"></span>
+                    <span>
+                        <span class="map-role-label">${label}</span>
+                        <span class="map-role-hint">${hint}</span>
+                    </span>
+                </label>`;
+            };
             openSheet(`
                 ${renderMapInviteContextHeader(ctx)}
                 <div class="sheet-title">Як ти поїдеш?</div>
-                <div class="sheet-sub">Обери один варіант для цієї події. Карта лишається відкритою.</div>
-                <div class="sheet-actions" data-map-command-count="3">
-                    <button class="btn ${isDriver ? 'btn-primary' : 'btn-secondary'}" onclick="chooseMapInviteRole(${ctx.safeDirId}, 'driver')">🚗 Можу взяти людей</button>
-                    <button class="btn ${isClient ? 'btn-primary' : 'btn-secondary'}" onclick="chooseMapInviteRole(${ctx.safeDirId}, 'client')">👤 Шукаю місце</button>
+                <div class="sheet-sub">Обери один варіант для цієї події, потім підтвердь вибір.</div>
+                <div class="map-role-options" role="radiogroup" aria-label="Як ти поїдеш?">
+                    ${roleOption('driver', '🚗 Можу взяти людей', 'Я за кермом і маю вільні місця.')}
+                    ${roleOption('client', '👤 Шукаю місце', 'Хочу приєднатися до водія.')}
+                </div>
+                <div class="sheet-actions" data-map-command-count="2">
+                    <button class="btn btn-primary" data-map-role-continue onclick="confirmMapInviteRole(${ctx.safeDirId})" ${selectedRole ? '' : 'disabled'}>Далі</button>
                     <button class="btn btn-ghost" onclick="openStartDirectionInvite(${ctx.safeDirId}, { source: 'map', sheetMaxHeight: '65vh', fullInvite: true })">Назад</button>
                 </div>
             `, { maxHeight: '65vh' });
             return true;
+        }
+
+        function selectMapInviteRoleDraft(dirId, role) {
+            const safeDirId = parseInt(dirId) || 0;
+            const normalizedRole = normalizeRole(role);
+            if (!safeDirId || !normalizedRole) return false;
+            S.mapInviteRoleDraft = { directionId: safeDirId, role: normalizedRole };
+            const body = document.getElementById('sheet-body');
+            body?.querySelectorAll('[data-map-role-option]').forEach(option => {
+                const selected = option.dataset.mapRoleOption === normalizedRole;
+                option.classList.toggle('is-selected', selected);
+                const input = option.querySelector('input[type="radio"]');
+                if (input) input.checked = selected;
+            });
+            const nextButton = body?.querySelector('[data-map-role-continue]');
+            if (nextButton) nextButton.disabled = false;
+            return true;
+        }
+
+        async function confirmMapInviteRole(dirId) {
+            const safeDirId = parseInt(dirId) || 0;
+            const draftRole = String(S.mapInviteRoleDraft?.directionId || '') === String(safeDirId)
+                ? normalizeRole(S.mapInviteRoleDraft?.role || '')
+                : '';
+            if (!safeDirId || !draftRole) return false;
+            return chooseMapInviteRole(safeDirId, draftRole);
         }
 
         async function chooseMapInviteRole(dirId, role) {
@@ -6680,7 +6797,6 @@
                 ? `<button class="btn btn-secondary" style="width:100%;font-size:12px;margin-top:8px;" data-tg-username="${escapeAttr(creatorUsername)}" data-tg-user-id="${parseInt(creatorId, 10) || 0}" onclick="openTelegramContactFromButton(this)">💬 Написати організатору</button>`
                 : '';
             const joinArgs = options?.source === 'map' ? `${safeDirId}, 'map'` : `${safeDirId}`;
-            const isDriverRoleNow = _isDriverRole(S.userRole);
             const subscribedDetails = !!options?.subscribedDetails;
             const activeSub = (S.subscriptions || []).find(s => String(s.direction_id || s.id || '') === String(safeDirId));
             const roleLabel = _isDriverRole(activeSub?.role || S.userRole) ? 'водій' : 'попутник';
@@ -6691,17 +6807,13 @@
                 : (creatorDisplay ? `${escapeHtml(creatorDisplay)}${creatorUsername ? ` (@${escapeHtml(creatorUsername)})` : ''} збирає людей їхати разом.` : 'Вас запросили до спільної поїздки.');
             const nextStepHtml = subscribedDetails
                 ? `<strong style="color:var(--text-primary);">Ваш стан:</strong> ви вже шукаєте ${_isDriverRole(activeSub?.role || S.userRole) ? 'попутників' : 'місце'} в цій події. Перегляд деталей не запускає вибір ролі або повторну підписку.`
-                : (isDriverRoleNow
-                    ? `<strong style="color:var(--text-primary);">Що буде далі:</strong> ви вкажете кількість місць і старт авто, а WayTandem покаже попутників цієї події.`
-                    : `<strong style="color:var(--text-primary);">Що буде далі:</strong> ви оберете, чи можете взяти людей, чи шукаєте місце. Потім WayTandem покаже відповідний екіпаж або повідомить, щойно знайдеться водій.`);
+                : `<strong style="color:var(--text-primary);">Що буде далі:</strong> ви оберете, чи можете взяти людей, чи шукаєте місце. Потім WayTandem покаже відповідний екіпаж або повідомить, щойно знайдеться водій.`;
             const actionHtml = subscribedDetails
                 ? `<div style="display:flex;gap:8px;">
                     <button class="btn btn-secondary" style="flex:1;font-size:12px;" onclick="openDirection(${safeDirId})">👥 Учасники</button>
                     <button class="btn btn-ghost" style="flex:1;font-size:12px;" onclick="closeSheet(); switchScreen('explore'); maybeOpenMapResultPanelOnHydrate();">Назад до пошуку</button>
                 </div>`
-                : `${isDriverRoleNow
-                    ? `<button class="btn btn-primary" style="width:100%;margin-bottom:8px;" onclick="chooseMapInviteRole(${safeDirId}, 'driver')">🚗 Стати водієм для цієї події</button>`
-                    : `<button class="btn btn-primary" style="width:100%;margin-bottom:8px;" onclick="joinInvitedDirection(${joinArgs})">Хочу поїхати</button>`}
+                : `<button class="btn btn-primary" style="width:100%;margin-bottom:8px;" onclick="joinInvitedDirection(${joinArgs})">Хочу поїхати</button>
                 <div style="display:flex;gap:8px;">
                     <button class="btn btn-secondary" style="flex:1;font-size:12px;" onclick="openDirection(${safeDirId})">👥 Учасники</button>
                     <button class="btn btn-ghost" style="flex:1;font-size:12px;" onclick="closeSheet()">Пізніше</button>
@@ -7717,8 +7829,8 @@
                 [trip.destination_lat, trip.destination_lng]
             );
             if (point) return { ...point, label: trip.direction_title || trip.destination || 'Подія' };
-            const label = String(trip.destination || trip.direction_title || trip.route_label || '').trim();
-            return label ? { query: label, label: 'Подія' } : null;
+            const address = String(trip.direction_meeting_point || trip.destination || '').trim();
+            return address ? { query: address, label: 'Подія' } : null;
         }
 
         function currentPassengerMemberForTrip(trip = S.activeTrip) {
@@ -7747,8 +7859,8 @@
 
             const pickup = firstFiniteLatLng([trip.pickup_lat, trip.pickup_lng]);
             if (pickup) return { ...pickup, label: 'Точка зустрічі' };
-            const label = String(trip.pickup || trip.destination || trip.direction_title || '').trim();
-            return label ? { query: label, label: 'Маршрут' } : null;
+            const pickupAddress = String(trip.pickup || '').trim();
+            return pickupAddress ? { query: pickupAddress, label: 'Точка зустрічі' } : null;
         }
 
         function googleNavigationUrl(target) {
@@ -7767,7 +7879,8 @@
             const btn = document.getElementById('map-nav-btn');
             if (!btn) return;
             const target = mapGoogleNavigationTarget();
-            if (!target) {
+            const url = googleNavigationUrl(target);
+            if (!url) {
                 btn.hidden = true;
                 return;
             }
@@ -7781,7 +7894,7 @@
             const target = mapGoogleNavigationTarget();
             const url = googleNavigationUrl(target);
             if (!url) {
-                showToast('Немає точки для навігації', '');
+                renderMapNavigationButton();
                 return;
             }
             const tg = window.Telegram?.WebApp;
@@ -8012,12 +8125,8 @@
                     ${!isMyDir ? `<button class="btn btn-secondary" style="border:1px solid rgba(56,189,248,0.4);background:rgba(56,189,248,0.08);color:var(--blue);padding:6px 12px;border-radius:12px;font-size:12px;font-weight:600;min-height:36px;white-space:nowrap;line-height:1.3;text-align:center;cursor:pointer;" data-tg-username="${escapeAttr(creatorUsername)}" data-tg-user-id="${parseInt(creatorId, 10) || 0}" onclick="openTelegramContactFromButton(this)">💬 Написати<br>організатору</button>` : `<span class="tag tag-green">Ваша ідея</span>`}
                 </div>` : '';
             const hasPickup = !!S.pickupCoords;
-            const driverPrimaryCta = _isDriverRole(S.userRole)
-                ? `<button class="btn btn-primary" style="width:100%;font-size:16px;font-weight:700;padding:14px 0;border-radius:12px;background:#00c9a7;color:#000000;border:none;cursor:pointer;" onclick="chooseMapInviteRole(${dirId}, 'driver')">🚗 Стати водієм для цієї події</button>`
-                : `<button class="btn btn-primary" style="width:100%;font-size:16px;font-weight:700;padding:14px 0;border-radius:12px;background:#00c9a7;color:#000000;border:none;cursor:pointer;" onclick="joinInvitedDirection(${dirId})">Хочу поїхати</button>`;
-            const emptyCrewLine = _isDriverRole(S.userRole)
-                ? 'Поки немає відкритих екіпажів. Ви можете відкрити місця як водій.'
-                : 'Поки немає відкритих екіпажів. Можете стати в чергу.';
+            const joinPrimaryCta = `<button class="btn btn-primary" style="width:100%;font-size:16px;font-weight:700;padding:14px 0;border-radius:12px;background:#00c9a7;color:#000000;border:none;cursor:pointer;" onclick="joinInvitedDirection(${dirId})">Хочу поїхати</button>`;
+            const emptyCrewLine = 'Поки немає відкритих екіпажів. Можна їхати як водій або шукати місце.';
 
             const dirMeta = data?.direction || dir || {};
             const meetingPoint = dirMeta.meeting_point || dir.meeting_point || '';
@@ -8141,7 +8250,7 @@
                 <div style="display:flex;flex-direction:column;gap:8px;margin:14px 0 10px;">
                     ${isSub
                     ? `<button class="btn btn-danger" style="width:100%;font-size:15px;padding:13px 0;border-radius:12px;" onclick="unsubscribeDir(${dirId})">🚫 Відписатись</button>`
-                    : driverPrimaryCta}
+                    : joinPrimaryCta}
                     ${chatLink.startsWith('https://t.me/') ? `<button id="btn-idea-chat" class="btn btn-secondary" style="width:100%;font-size:15px;font-weight:700;padding:13px 0;border-radius:12px;border:1px solid rgba(56,189,248,0.35);background:rgba(56,189,248,0.10);color:var(--blue);cursor:pointer;" data-chat-link="${escapeAttr(chatLink)}" onclick="openIdeaChat(this)">💬 Чат події</button>` : ''}
                     <button class="btn btn-secondary" style="width:100%;font-size:16px;font-weight:700;padding:14px 0;border-radius:12px;background:#334155;color:#ffffff;border:none;cursor:pointer;" onclick="closeSheet()">Закрити</button>
                 </div>
@@ -9766,9 +9875,15 @@
             } else {
                 if (phase === 'driving') {
                     hint = isDriver ? 'Усі в авто. Завершіть, коли доїдете до події.' : `Ви в дорозі з ${escapeHtml(driverName)}. Завершіть після прибуття.`;
+                    // Codex аудит #3 (2026-07-14): хінт кликав завершувати, але дія
+                    // була захована в шторці екіпажу — L-5 «ДІЯ-банер мусить нести
+                    // ДІЮ» + spine driving.allowed_actions дає фініш ОБОМ ролям
+                    // (max 3 команди). «Екіпаж» лишається — ростер потрібен для
+                    // pending-виходів і огляду під час руху.
                     actions = isDriver
                         ? `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
-                           <button class="btn btn-secondary" onclick="openMapTripCrewSheet()">👥 Екіпаж</button>`
+                           <button class="btn btn-secondary" onclick="openMapTripCrewSheet()">👥 Екіпаж</button>
+                           <button class="btn btn-success" onclick="finishDriverTripFromDock()">🏁 Завершити</button>`
                         : `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
                            <button class="btn btn-success" onclick="finishTrip()">✅ Завершити</button>`;
                 } else {
@@ -9898,7 +10013,7 @@
             const confirmBtn = document.getElementById('partner-finish-confirm');
             if (confirmBtn) confirmBtn.onclick = () => { closeSheet(); finishTrip(); };
             document.getElementById('partner-finish-open').onclick = () => { closeSheet(); switchScreen('trips'); };
-            document.getElementById('partner-finish-later').onclick = () => { closeSheet(); showToast('Фініш лишився у Поїздках', ''); };
+            document.getElementById('partner-finish-later').onclick = () => { closeSheet(); showToast('Підтвердіть у нижній панелі карти, коли доїдете', ''); };
             return true;
         }
 
@@ -9923,7 +10038,7 @@
             if (sameTrip && !tripPartnerFinished(prevTrip) && tripPartnerFinished(nextTrip) && !tripViewerFinished(nextTrip) && !S.partnerFinishNotifiedIds.has(reqId)) {
                 S.partnerFinishNotifiedIds.add(reqId);
                 notifyCriticalEvent('finish_confirmation_needed', reqId);
-                showToast('🏁 Партнер відмітив фініш. Підтвердіть у Поїздках', '');
+                showToast('🏁 Партнер відмітив фініш. Підтвердіть у нижній панелі карти', '');
             }
             maybeOpenPartnerFinishSheet(nextTrip);
         }
@@ -9993,7 +10108,8 @@
             return {
                 request_id: requestId,
                 partner_id: partnerId,
-                partner_name: ratingPartnerName(trip, partnerId, requestId)
+                partner_name: ratingPartnerName(trip, partnerId, requestId),
+                direction_title: String(trip.direction_title || '').trim()
             };
         }
 
@@ -10203,7 +10319,8 @@
                 return {
                     request_id: requestId,
                     partner_id: partner,
-                    partner_name: ratingPartnerName(trip, partner, requestId)
+                    partner_name: ratingPartnerName(trip, partner, requestId),
+                    direction_title: String(trip?.direction_title || '').trim()
                 };
             }
             if (currentRequestIdFromTrip(trip) === requestId) return buildRatingContext(trip);
@@ -10213,7 +10330,8 @@
                 return {
                     request_id: requestId,
                     partner_id: passengerId,
-                    partner_name: ratingPartnerName(trip, passengerId, requestId)
+                    partner_name: ratingPartnerName(trip, passengerId, requestId),
+                    direction_title: String(trip?.direction_title || '').trim()
                 };
             }
             return null;
@@ -10322,6 +10440,16 @@
             return finishTripForRequest(currentRequestId(), { tripSnapshot });
         }
 
+        // Codex #3: фініш водія з driving-дока. Диспетчер реюзить наявні
+        // lifecycle-хендлери: кілька попутників → відмітити фініш УСІМ
+        // (per-request, як у ростері), пара → якірний finishTrip().
+        async function finishDriverTripFromDock() {
+            if (!S.activeTrip || S.activeTrip.viewer_role !== 'driver') return;
+            const passengers = orderedPickupPassengers(S.activeTrip).filter(p => passengerRequestId(p));
+            if (passengers.length > 1) return finishAllDriverPassengers();
+            return finishTrip();
+        }
+
         async function cancelTrip() {
             if (!S.activeTrip) return;
             const t = S.activeTrip;
@@ -10394,54 +10522,89 @@
             } finally { endOp('reject_cancel'); }
         }
 
-        // ─── RATING WITH COMMENT ───
+        // ─── RATING: дві зіркові шкали — подія + партнер (2026-07-14) ───
+        // Закон правдивості (I-FRONT-1/I-FRONT-3, аудит Codex дефект #1):
+        // жодних неявних дефолтів; успіх-toast тільки після підтвердження API;
+        // фейл НЕ закриває шторку і НЕ стирає контекст — вибір лишається, кнопка
+        // стає «Спробувати ще раз» (бекенд ідемпотентний, retry безпечний).
+        function buildStarRow(row, label) {
+            const stars = Array.from({ length: 5 }, (_, i) => {
+                const v = i + 1;
+                return `<button type="button" class="star-btn" data-star-row="${row}" data-star-value="${v}"
+                    role="radio" aria-checked="false" aria-label="${v} з 5"
+                    style="background:none;border:none;cursor:pointer;padding:2px 5px;font-size:30px;line-height:1;opacity:.35;transition:all .15s;color:var(--amber);"
+                    onclick="selectStar('${row}', ${v})">★</button>`;
+            }).join('');
+            return `<div data-rating-row="${row}" style="margin:10px 0 4px;">
+                <div style="font-size:12px;color:var(--text-muted);margin-bottom:2px;">${label}</div>
+                <div role="radiogroup" aria-label="${escapeAttr(label.replace(/<[^>]*>/g, ''))}" style="display:flex;justify-content:center;">${stars}</div>
+            </div>`;
+        }
+
         function openRatingSheet(ratingContext = null) {
             S._ratingContext = ratingContext || getCurrentRatingContext();
             const partnerName = String(S._ratingContext?.partner_name || '').trim();
+            const eventTitle = String(S._ratingContext?.direction_title || '').trim();
             const partnerLine = partnerName
-                ? `Ви оцінюєте: <strong>${escapeHtml(partnerName)}</strong>`
+                ? `Ви оцінюєте: <strong>${escapeHtml(partnerName)}</strong> та подію`
                 : 'Ваш відгук допомагає покращити сервіс';
             openSheet(`
                 <div class="sheet-title">Оцініть поїздку</div>
                 <div class="sheet-sub" data-rating-partner-name="${escapeAttr(partnerName)}">${partnerLine}</div>
-                <div style="display:flex;justify-content:center;gap:32px;margin:20px 0 16px;">
-                    <div style="text-align:center;cursor:pointer;" onclick="selectRating(-1)">
-                        <div id="thumb-down" style="font-size:48px;opacity:0.4;transition:all 0.15s;">👎</div>
-                        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Погано</div>
-                    </div>
-                    <div style="text-align:center;cursor:pointer;" onclick="selectRating(1)">
-                        <div id="thumb-up" style="font-size:48px;opacity:0.4;transition:all 0.15s;">👍</div>
-                        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Добре</div>
-                    </div>
-                </div>
-                <input class="board-search" id="rating-comment" placeholder="Коментар (необов'язково)..." style="margin:0 0 16px;">
-                <button class="btn btn-primary" onclick="submitRating()">Надіслати оцінку</button>
+                ${buildStarRow('event', `🎪 Подія${eventTitle ? ': <strong>' + escapeHtml(eventTitle) + '</strong>' : ''}`)}
+                ${buildStarRow('partner', `${(S.activeTrip?.viewer_role || '') === 'driver' ? '👤' : '🚗'} Партнер${partnerName ? ': <strong>' + escapeHtml(partnerName) + '</strong>' : ''}`)}
+                <input class="board-search" id="rating-comment" placeholder="Коментар (необов'язково)..." style="margin:12px 0 16px;">
+                <button class="btn btn-primary" id="rating-submit" onclick="submitRating()" disabled>Надіслати оцінку</button>
                 <button class="btn btn-ghost" style="width:100%;margin-top:8px;" onclick="dismissRatingSheet()">Пропустити</button>
             `);
-            S._ratingScore = null;
+            S._ratingStars = { event: null, partner: null };
         }
 
-        function selectRating(score) {
-            S._ratingScore = score;
-            const up = document.getElementById('thumb-up');
-            const down = document.getElementById('thumb-down');
-            if (up) up.style.opacity = score === 1 ? '1' : '0.35';
-            if (down) down.style.opacity = score === -1 ? '1' : '0.35';
+        function selectStar(row, value) {
+            if (!S._ratingStars) S._ratingStars = { event: null, partner: null };
+            S._ratingStars[row] = value;
+            document.querySelectorAll(`.star-btn[data-star-row="${row}"]`).forEach(btn => {
+                const v = parseInt(btn.dataset.starValue, 10) || 0;
+                const on = v <= value;
+                btn.style.opacity = on ? '1' : '.35';
+                btn.setAttribute('aria-checked', v === value ? 'true' : 'false');
+            });
+            const submit = document.getElementById('rating-submit');
+            if (submit && (Number.isInteger(S._ratingStars.event) || Number.isInteger(S._ratingStars.partner))) {
+                submit.disabled = false;
+                if (submit.textContent !== '🔁 Спробувати ще раз') submit.textContent = 'Надіслати оцінку';
+            }
         }
 
         async function submitRating() {
-            const score = S._ratingScore != null ? S._ratingScore : 1;
-            const comment = document.getElementById('rating-comment')?.value?.trim() || '';
+            const stars = S._ratingStars || {};
+            const hasEvent = Number.isInteger(stars.event);
+            const hasPartner = Number.isInteger(stars.partner);
+            if (!hasEvent && !hasPartner) { showToast('Оберіть хоча б одну оцінку зірками', 'error'); return; }
             const ctx = getCurrentRatingContext();
-            const pid = ctx?.partner_id || null;
             const reqId = ctx?.request_id || null;
-            if (pid && reqId) {
-                await api('/api/v3/rating', { method: 'POST', body: JSON.stringify({ from_user_id: S.userId, to_user_id: pid, request_id: reqId, score, comment }) });
-                showToast('Дякуємо за відгук!', 'success');
-            } else {
+            const pid = ctx?.partner_id || null;
+            if (!reqId || (hasPartner && !pid)) {
                 showToast('Контекст оцінки втрачено', 'error');
+                finalizeRatingFlow('rating-context-lost');
+                return;
             }
-            finalizeRatingFlow('submit-rating');
+            const comment = document.getElementById('rating-comment')?.value?.trim() || '';
+            const submitBtn = document.getElementById('rating-submit');
+            if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Надсилаємо…'; }
+            const body = { from_user_id: S.userId, request_id: reqId };
+            if (hasPartner) { body.partner_score = stars.partner; body.to_user_id = pid; }
+            if (hasEvent) body.event_score = stars.event;
+            if (comment) body.comment = comment;
+            const res = await api('/api/v3/rating', { method: 'POST', body: JSON.stringify(body) });
+            if (res?.status === 'ok' || res?.status === 'already_rated') {
+                showToast('Дякуємо за відгук!', 'success');
+                finalizeRatingFlow('submit-rating');
+                return;
+            }
+            // Фейл (мережа/сервер): вибір і контекст живі, retry явний.
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '🔁 Спробувати ще раз'; }
+            showToast('Не вдалося надіслати оцінку — вибір збережено, спробуйте ще раз', 'error');
         }
 
         function dismissRatingSheet() {
@@ -10450,7 +10613,7 @@
 
         function finalizeRatingFlow(source = '') {
             closeSheet();
-            S._ratingScore = null;
+            S._ratingStars = null;
             S._ratingContext = null;
             lastKnownTripForRating = null;
             waitingForPartner = false;
@@ -10973,7 +11136,26 @@
         }
 
         // ═══════ LOCATION MAP PICKER (overlay над формою, форма не руйнується) ═══════
-        const _mapPicker = { map: null, onConfirm: null, onCancel: null, searchTimer: null, wired: false };
+        const _mapPicker = { map: null, onConfirm: null, onCancel: null, searchTimer: null, wired: false, dragWired: false, choiceMade: false };
+
+        // Codex аудит №2 (2026-07-14): «✓ Готово» без явного вибору брав центр
+        // карти масштабу МІСТА → правдоподібна, але неправильна адреса збору.
+        // Підтвердження вмикається ТІЛЬКИ явним вибором: drag карти, результат
+        // пошуку, GPS, або відкриття зі збереженою точкою (opts.lat/lng —
+        // restore-флоу DM-2026-06-28-001). Програмний setView НЕ вмикає
+        // (dragend — лише жест користувача), zoom-кнопки центр не змінюють.
+        function _setPickerConfirmEnabled(on) {
+            const confirm = document.getElementById('map-picker-confirm');
+            if (!confirm) return;
+            confirm.disabled = !on;
+            confirm.style.opacity = on ? '' : '.45';
+            confirm.setAttribute('aria-disabled', on ? 'false' : 'true');
+        }
+
+        function _markPickerChoice() {
+            _mapPicker.choiceMade = true;
+            _setPickerConfirmEnabled(true);
+        }
 
         function openLocationPicker(opts = {}) {
             const overlay = document.getElementById('map-picker');
@@ -11005,6 +11187,10 @@
                 _mapPicker.map.setView(center, zoom);
             }
             if (!_mapPicker.wired) { _wireMapPickerControls(); _mapPicker.wired = true; }
+            if (!_mapPicker.dragWired) { _mapPicker.map.on('dragend', _markPickerChoice); _mapPicker.dragWired = true; }
+            // Збережена/цільова точка = вже зроблений вибір; свіжий флоу чекає жесту.
+            _mapPicker.choiceMade = hasCoords;
+            _setPickerConfirmEnabled(hasCoords);
             setTimeout(() => { try { _mapPicker.map.invalidateSize(); } catch (e) {} }, 60);
 
             // 2026-06-20 (owner): БЕЗ авто getCurrentPosition тут. Авто-GPS при відкритті
@@ -11049,6 +11235,7 @@
                     (p) => {
                         S._lastKnownPos = { lat: p.coords.latitude, lng: p.coords.longitude, at: Date.now() };
                         _mapPicker.map.flyTo([p.coords.latitude, p.coords.longitude], 15);
+                        _markPickerChoice();
                     },
                     () => showToast('Не вдалося отримати GPS', 'error'),
                     { enableHighAccuracy: true, timeout: 8000 }
@@ -11056,6 +11243,12 @@
             };
 
             if (confirmBtn) confirmBtn.onclick = async () => {
+                // I-FRONT-11: disabled-атрибут обходиться DevTools — справжній
+                // guard тут: без явного вибору центр карти НЕ є точкою людини.
+                if (!_mapPicker.choiceMade) {
+                    showToast('Спершу оберіть точку: перетягніть карту, знайдіть адресу або натисніть 🎯', 'error');
+                    return;
+                }
                 const c = _mapPicker.map.getCenter();
                 const lat = c.lat, lng = c.lng;
                 let label = '';
@@ -11091,7 +11284,7 @@
                 Array.from(box.querySelectorAll('.map-picker-result[data-lat]')).forEach(el => {
                     el.onclick = () => {
                         const lat = parseFloat(el.dataset.lat), lng = parseFloat(el.dataset.lng);
-                        if (Number.isFinite(lat) && Number.isFinite(lng)) _mapPicker.map.flyTo([lat, lng], 14);
+                        if (Number.isFinite(lat) && Number.isFinite(lng)) { _mapPicker.map.flyTo([lat, lng], 14); _markPickerChoice(); }
                         box.innerHTML = '';
                         const s = document.getElementById('map-picker-search');
                         if (s) s.blur();
@@ -11411,6 +11604,38 @@
         }
 
         // ═══════ TRIP HISTORY ═══════
+        // Codex #6: технічні статуси не для людей. Один chokepoint локалізації;
+        // сирий статус лишається в API-даних. missed_pickup — НЕ завершена і
+        // НЕ скасована (§0.61) — власний підпис.
+        function historyStatusLabel(status) {
+            const map = {
+                completed: { label: 'Завершено', cls: 'tag-green' },
+                cancelled: { label: 'Скасовано', cls: 'tag-red' },
+                canceled: { label: 'Скасовано', cls: 'tag-red' },
+                cancelled_by_system: { label: 'Скасовано системою', cls: 'tag-red' },
+                missed_pickup: { label: 'Посадка не відбулась', cls: 'tag-amber' },
+                active: { label: 'Активна', cls: 'tag-blue' },
+                pickup: { label: 'Збір екіпажу', cls: 'tag-blue' },
+                driving: { label: 'У дорозі', cls: 'tag-blue' },
+                pending: { label: 'Очікує', cls: 'tag-amber' },
+                pending_confirm: { label: 'Очікує підтвердження', cls: 'tag-amber' }
+            };
+            return map[String(status || '').toLowerCase()] || { label: String(status || '—'), cls: 'tag-amber' };
+        }
+
+        function historyOwnRatingLine(t) {
+            const parts = [];
+            const score = Number(t.my_score);
+            if (Number.isFinite(score) && t.my_score != null) {
+                if (t.my_score_scale === 'stars5') parts.push(`Моя оцінка: ★ ${score}`);
+                else if (score === 1) parts.push('Моя оцінка: 👍');
+                else if (score === -1) parts.push('Моя оцінка: 👎');
+            }
+            const ev = Number(t.my_event_score);
+            if (Number.isFinite(ev) && t.my_event_score != null) parts.push(`подія ★ ${ev}`);
+            return parts.join(' · ');
+        }
+
         async function openTripHistory() {
             openSheet(`<div class="sheet-title">Історія поїздок</div><div style="text-align:center;padding:24px;"><div class="pulse-dot" style="margin:0 auto 12px;"></div></div>`);
             const data = await api(`/api/v3/history?user_id=${S.userId}`);
@@ -11424,17 +11649,28 @@
             document.getElementById('sheet-body').innerHTML = `
                 <div class="sheet-title">Історія поїздок (${trips.length})</div>
                 <div style="margin:8px 0;">
-                    ${trips.map(t => `
+                    ${trips.map(t => {
+                        const st = historyStatusLabel(t.status);
+                        const isDriver = (t.viewer_role || t.role) === 'driver';
+                        const partner = String(t.partner_name || '').trim();
+                        const partnerLine = partner
+                            ? `${isDriver ? 'попутник' : 'водій'}: ${escapeHtml(partner)}`
+                            : '';
+                        const ratingLine = historyOwnRatingLine(t);
+                        const subLine = [t.date || formatNewsTime(t.finished_at || t.created_at), partnerLine].filter(Boolean).join(' · ');
+                        return `
                         <div style="padding:12px 0;border-bottom:1px solid var(--border);">
                             <div style="display:flex;align-items:center;gap:8px;">
-                                <div style="font-size:20px;flex-shrink:0;">${(t.viewer_role || t.role) === 'driver' ? '🚗' : '👤'}</div>
+                                <div style="font-size:20px;flex-shrink:0;">${isDriver ? '🚗' : '👤'}</div>
                                 <div style="flex:1;min-width:0;">
                                     <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(t.direction_title || t.dir || 'Поїздка')}</div>
-                                    <div style="font-size:11px;color:var(--text-muted);">${t.date || formatNewsTime(t.finished_at || t.created_at)}</div>
+                                    <div style="font-size:11px;color:var(--text-muted);">${subLine}</div>
+                                    ${ratingLine ? `<div style="font-size:11px;color:var(--amber);margin-top:2px;">${ratingLine}</div>` : ''}
                                 </div>
-                                <div class="tag tag-amber">${escapeHtml(t.status || '—')}</div>
+                                <div class="tag ${st.cls}">${escapeHtml(st.label)}</div>
                             </div>
-                        </div>`).join('')}
+                        </div>`;
+                    }).join('')}
                 </div>`;
         }
 
