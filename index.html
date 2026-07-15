@@ -3302,6 +3302,7 @@
             _driverOnboardingDirId: null,
             _driverOnboardingPhase: '',
             _ratingStars: null,
+            _ratingQueue: null,
             _ratingContext: null,
             lastHydrateAt: 0,
             lastMapSyncAt: 0,
@@ -3325,6 +3326,9 @@
                 else localStorage.removeItem(_stateKey('wfp'));
                 if (lastKnownTripForRating) localStorage.setItem(_stateKey('ltr'), JSON.stringify(lastKnownTripForRating));
                 else localStorage.removeItem(_stateKey('ltr'));
+                // Черга оцінок мульти-екіпажу (E2E-знахідка 2026-07-15) переживає F5.
+                if (Array.isArray(S._ratingQueue) && S._ratingQueue.length) localStorage.setItem(_stateKey('rq'), JSON.stringify(S._ratingQueue));
+                else localStorage.removeItem(_stateKey('rq'));
                 // Вибір «мікро» для СТАТУС-банера переживає F5 (I-FRONT-8: парний removeItem).
                 if (S.mapResultCollapsed) localStorage.setItem(_stateKey('mrc'), '1');
                 else localStorage.removeItem(_stateKey('mrc'));
@@ -3340,6 +3344,8 @@
                 S.mapResultCollapseTouched = localStorage.getItem(_stateKey('mrc_touched')) === '1' || S.mapResultCollapsed;
                 const ltr = localStorage.getItem(_stateKey('ltr'));
                 if (ltr) lastKnownTripForRating = JSON.parse(ltr);
+                const rq = localStorage.getItem(_stateKey('rq'));
+                if (rq) S._ratingQueue = JSON.parse(rq);
             } catch (_) { waitingForPartner = false; lastKnownTripForRating = null; S.mapResultCollapseTouched = false; }
         }
 
@@ -10132,7 +10138,8 @@
                 request_id: requestId,
                 partner_id: partnerId,
                 partner_name: ratingPartnerName(trip, partnerId, requestId),
-                direction_title: String(trip.direction_title || '').trim()
+                direction_title: String(trip.direction_title || '').trim(),
+                viewer_role: viewerRole
             };
         }
 
@@ -10148,6 +10155,22 @@
             return S._ratingContext || buildRatingContext(S.activeTrip);
         }
 
+        // E2E-знахідка 2026-07-15: водій з N попутників має оцінити КОЖНОГО.
+        // Черга контекстів зі знімка поїздки: водій — по одному на попутника
+        // (per-request, індивідуальний фініш = індивідуальна оцінка),
+        // попутник — один якірний контекст пари.
+        function buildRatingQueueFromTrip(trip) {
+            if (!trip) return [];
+            if (String(trip.viewer_role || '').toLowerCase() === 'driver') {
+                const q = orderedPickupPassengers(trip)
+                    .map(p => ratingContextForRequest(trip, passengerRequestId(p), p?.user_id))
+                    .filter(Boolean);
+                if (q.length) return q;
+            }
+            const anchor = buildRatingContext(trip);
+            return anchor ? [anchor] : [];
+        }
+
         function maybeOpenCompletedTripRatingSheet(source = '') {
             if (S.activeTrip || !lastKnownTripForRating) return false;
             // ФІКС L-6 (live-прохід 2026-07-04): явний тап пілюлі «⭐ Оцініть» —
@@ -10156,14 +10179,19 @@
             // «вже показували». Інакше пілюля веде в порожні «Поїздки» — тупик.
             const explicit = source === 'subbar';
             const reqId = currentRequestIdFromTrip(lastKnownTripForRating);
-            const ratingContext = buildRatingContext(lastKnownTripForRating);
+            if (!Array.isArray(S._ratingQueue) || !S._ratingQueue.length) {
+                S._ratingQueue = buildRatingQueueFromTrip(lastKnownTripForRating);
+            }
+            const ratingContext = (S._ratingQueue && S._ratingQueue[0]) || buildRatingContext(lastKnownTripForRating);
             if (!reqId || !ratingContext) return false;
             if (!isRatingEligibleTripSnapshot(lastKnownTripForRating)) {
                 lastKnownTripForRating = null;
                 waitingForPartner = false;
+                S._ratingQueue = null;
                 try {
                     localStorage.removeItem(_stateKey('ltr'));
                     localStorage.removeItem(_stateKey('wfp'));
+                    localStorage.removeItem(_stateKey('rq'));
                 } catch (_) { }
                 renderSubBar();
                 persistCriticalState();
@@ -10190,11 +10218,16 @@
             notifyCriticalEvent('trip_completed', reqId);
             showToast('🎉 Подорож завершена! Оцініть партнера.', 'success');
             openRatingSheet(ratingContext);
-            lastKnownTripForRating = null;
-            try {
-                localStorage.removeItem(_stateKey('ltr'));
-                localStorage.removeItem(_stateKey('wfp'));
-            } catch (_) { }
+            persistCriticalState();
+            // Снапшот живе, доки в черзі лишаються неоцінені партнери —
+            // пілюля «⭐ Оцініть» веде до наступного, а не зникає.
+            if ((S._ratingQueue || []).length <= 1) {
+                lastKnownTripForRating = null;
+                try {
+                    localStorage.removeItem(_stateKey('ltr'));
+                    localStorage.removeItem(_stateKey('wfp'));
+                } catch (_) { }
+            }
             renderSubBar();
             return true;
         }
@@ -10343,7 +10376,8 @@
                     request_id: requestId,
                     partner_id: partner,
                     partner_name: ratingPartnerName(trip, partner, requestId),
-                    direction_title: String(trip?.direction_title || '').trim()
+                    direction_title: String(trip?.direction_title || '').trim(),
+                    viewer_role: String(trip?.viewer_role || '').toLowerCase()
                 };
             }
             if (currentRequestIdFromTrip(trip) === requestId) return buildRatingContext(trip);
@@ -10354,7 +10388,8 @@
                     request_id: requestId,
                     partner_id: passengerId,
                     partner_name: ratingPartnerName(trip, passengerId, requestId),
-                    direction_title: String(trip?.direction_title || '').trim()
+                    direction_title: String(trip?.direction_title || '').trim(),
+                    viewer_role: 'driver'
                 };
             }
             return null;
@@ -10575,7 +10610,7 @@
                 <div class="sheet-title">Оцініть поїздку</div>
                 <div class="sheet-sub" data-rating-partner-name="${escapeAttr(partnerName)}">${partnerLine}</div>
                 ${buildStarRow('event', `🎪 Подія${eventTitle ? ': <strong>' + escapeHtml(eventTitle) + '</strong>' : ''}`)}
-                ${buildStarRow('partner', `${(S.activeTrip?.viewer_role || '') === 'driver' ? '👤' : '🚗'} Партнер${partnerName ? ': <strong>' + escapeHtml(partnerName) + '</strong>' : ''}`)}
+                ${buildStarRow('partner', `${((S._ratingContext?.viewer_role || S.activeTrip?.viewer_role || '') === 'driver') ? '👤' : '🚗'} Партнер${partnerName ? ': <strong>' + escapeHtml(partnerName) + '</strong>' : ''}`)}
                 <input class="board-search" id="rating-comment" placeholder="Коментар (необов'язково)..." style="margin:12px 0 16px;">
                 <button class="btn btn-primary" id="rating-submit" onclick="submitRating()" disabled>Надіслати оцінку</button>
                 <button class="btn btn-ghost" style="width:100%;margin-top:8px;" onclick="dismissRatingSheet()">Пропустити</button>
@@ -10636,13 +10671,26 @@
 
         function finalizeRatingFlow(source = '') {
             closeSheet();
+            const finishedReq = S._ratingContext?.request_id;
             S._ratingStars = null;
             S._ratingContext = null;
+            // Мульти-екіпаж водія: оцінив/пропустив одного → наступний з черги.
+            if (Array.isArray(S._ratingQueue) && S._ratingQueue.length) {
+                S._ratingQueue = S._ratingQueue.filter(c => c && c.request_id !== finishedReq);
+            }
+            if (Array.isArray(S._ratingQueue) && S._ratingQueue.length) {
+                persistCriticalState();
+                renderSubBar();
+                setTimeout(() => openRatingSheet(S._ratingQueue[0]), 400);
+                return;
+            }
+            S._ratingQueue = null;
             lastKnownTripForRating = null;
             waitingForPartner = false;
             try {
                 localStorage.removeItem(_stateKey('ltr'));
                 localStorage.removeItem(_stateKey('wfp'));
+                localStorage.removeItem(_stateKey('rq'));
             } catch (_) { }
             syncTerminalIdleState(source);
             updateBadges();
