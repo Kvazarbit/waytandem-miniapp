@@ -3140,7 +3140,7 @@
 
         <!-- BOTTOM NAV -->
         <nav class="nav">
-            <div class="nav-item active" data-tab="explore" onclick="switchScreen('explore')">
+            <div class="nav-item active" data-tab="explore" role="button" tabindex="0" aria-current="page" onclick="switchScreen('explore')">
                 <svg viewBox="0 0 24 24">
                     <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
                     <line x1="8" y1="2" x2="8" y2="18" />
@@ -3148,7 +3148,7 @@
                 </svg>
                 <span>Мапа</span>
             </div>
-            <div class="nav-item" data-tab="board" onclick="switchScreen('board')">
+            <div class="nav-item" data-tab="board" role="button" tabindex="0" onclick="switchScreen('board')">
                 <svg viewBox="0 0 24 24">
                     <rect x="3" y="3" width="7" height="7" rx="1" />
                     <rect x="14" y="3" width="7" height="7" rx="1" />
@@ -3157,14 +3157,14 @@
                 </svg>
                 <span>Каталог</span>
             </div>
-            <div class="nav-item" data-tab="board-add" id="nav-board-add" onclick="openCreateDirection()" style="display:none;">
+            <div class="nav-item" data-tab="board-add" id="nav-board-add" role="button" tabindex="0" onclick="openCreateDirection()" style="display:none;">
                 <svg viewBox="0 0 24 24">
                     <line x1="12" y1="5" x2="12" y2="19" />
                     <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
                 <span>Додати подію</span>
             </div>
-            <div class="nav-item" data-tab="trips" onclick="switchScreen('trips')" id="nav-trips">
+            <div class="nav-item" data-tab="trips" id="nav-trips" role="button" tabindex="0" onclick="switchScreen('trips')">
                 <svg viewBox="0 0 24 24">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                     <polyline points="14 2 14 8 20 8" />
@@ -3174,7 +3174,7 @@
                 <span>Поїздки</span>
                 <div class="nav-badge" id="nav-trips-badge" style="display:none;">0</div>
             </div>
-            <div class="nav-item" data-tab="news" onclick="switchScreen('news')" id="nav-news">
+            <div class="nav-item" data-tab="news" id="nav-news" role="button" tabindex="0" onclick="switchScreen('news')">
                 <svg viewBox="0 0 24 24">
                     <path d="M18 8a6 6 0 0 0-12 0v5l-2 2v1h16v-1l-2-2z" />
                     <path d="M10 19a2 2 0 0 0 4 0" />
@@ -4604,6 +4604,19 @@
             `, { maxHeight: '65vh' });
         }
 
+        // A11y (Codex #8): будь-який [role="button"] активується з клавіатури
+        // як справжня кнопка — ОДНА делегація на документ, без по-елементних
+        // слухачів. Enter/Space → click; Space не скролить сторінку.
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            const t = e.target;
+            if (t instanceof Element && t.tagName !== 'BUTTON' && t.tagName !== 'A'
+                && t.matches('[role="button"][tabindex]')) {
+                e.preventDefault();
+                t.click();
+            }
+        });
+
         // ─── SUBSCRIPTION BAR ───
         function renderSubBar() {
             const bar = document.getElementById('sub-bar');
@@ -4625,25 +4638,25 @@
                     title = `${t?.direction_title || 'Поїздка'} · партнер уже підтвердив фініш`;
                     cls = 'sub-bar-pending';
                 }
-                parts.push(`<div class="${cls}" title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}" onclick="openMapActiveTripFromSubBar()">${label}</div>`);
+                parts.push(`<div class="${cls}" role="button" tabindex="0" title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}" onclick="openMapActiveTripFromSubBar()">${label}</div>`);
             }
             if (!S.activeTrip && waitingForPartner) {
-                parts.push(`<div class="sub-bar-pending" onclick="openMapActiveTripFromSubBar()">⏳ Очікуємо підтвердження партнера</div>`);
+                parts.push(`<div class="sub-bar-pending" role="button" tabindex="0" onclick="openMapActiveTripFromSubBar()">⏳ Очікуємо підтвердження партнера</div>`);
             }
             if (!S.activeTrip && !waitingForPartner && lastKnownTripForRating) {
-                parts.push(`<div class="sub-bar-pending" onclick="maybeOpenCompletedTripRatingSheet('subbar') || openMapActiveTripFromSubBar()">⭐ Оцініть поїздку</div>`);
+                parts.push(`<div class="sub-bar-pending" role="button" tabindex="0" onclick="maybeOpenCompletedTripRatingSheet('subbar') || openMapActiveTripFromSubBar()">⭐ Оцініть поїздку</div>`);
             }
             const incoming = S.pendingMatches.filter(m => m.scope === 'incoming');
-            if (incoming.length > 0) parts.push(`<div class="sub-bar-pending" onclick="openMapPendingMatchesSheet('incoming')">${escapeHtml(pendingMatchSubBarLabel(incoming, 'incoming'))}</div>`);
+            if (incoming.length > 0) parts.push(`<div class="sub-bar-pending" role="button" tabindex="0" onclick="openMapPendingMatchesSheet('incoming')">${escapeHtml(pendingMatchSubBarLabel(incoming, 'incoming'))}</div>`);
             const outgoing = S.pendingMatches.filter(m => m.scope === 'outgoing');
-            if (outgoing.length > 0) parts.push(`<div class="sub-bar-pending" onclick="openMapPendingMatchesSheet('outgoing')">${escapeHtml(pendingMatchSubBarLabel(outgoing, 'outgoing'))}</div>`);
+            if (outgoing.length > 0) parts.push(`<div class="sub-bar-pending" role="button" tabindex="0" onclick="openMapPendingMatchesSheet('outgoing')">${escapeHtml(pendingMatchSubBarLabel(outgoing, 'outgoing'))}</div>`);
             // Active trip/reservation owns the lifecycle context. Do not show the
             // open-crew recruitment pill beside it; capacity remains visible in
             // the trip dock and map pin.
             if (S.myCrew && !S.activeTrip) {
                 const label = myCrewSubBarLabel(S.myCrew);
                 const title = myCrewSubBarTitle(S.myCrew);
-                parts.push(`<div class="sub-bar-crew" title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}" onclick="openMapMyCrewFromSubBar()">${escapeHtml(label)}</div>`);
+                parts.push(`<div class="sub-bar-crew" role="button" tabindex="0" title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}" onclick="openMapMyCrewFromSubBar()">${escapeHtml(label)}</div>`);
             }
             if (!S.activeTrip && !S.myCrew && S._driverOnboardingActive) {
                 const label = driverOnboardingSubBarLabel();
@@ -4658,13 +4671,13 @@
                     if (S.myCrew && String(dirId) === String(S.myCrew.direction_id || '')) return;
                     const label = subscriptionSubBarLabel(s);
                     const title = subscriptionSubBarTitle(s);
-                    parts.push(`<div class="sub-bar-chip" title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}" onclick="openSubBarSubscription(${dirId})">${escapeHtml(label)}</div>`);
+                    parts.push(`<div class="sub-bar-chip" role="button" tabindex="0" title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}" onclick="openSubBarSubscription(${dirId})">${escapeHtml(label)}</div>`);
                 });
                 if (subs.length > 3) parts.push(`<div class="sub-bar-text">+${subs.length - 3} ще</div>`);
             }
             if (parts.length === 0) {
                 const fallback = subBarIdleFallback();
-                parts.push(`<div class="sub-bar-text" onclick="${fallback.action}">${escapeHtml(fallback.label)}</div>`);
+                parts.push(`<div class="sub-bar-text" role="button" tabindex="0" onclick="${fallback.action}">${escapeHtml(fallback.label)}</div>`);
             }
             bar.innerHTML = parts.join('');
         }
@@ -4764,7 +4777,10 @@
             closeBlockingSheetForScreen(name);
             document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
             document.getElementById('screen-' + name).classList.add('active');
-            document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.tab === name));
+            document.querySelectorAll('.nav-item').forEach(el => {
+                el.classList.toggle('active', el.dataset.tab === name);
+                if (el.dataset.tab === name) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current');
+            });
             // Clear handshake panel padding when leaving trips screen
             if (name !== 'trips') { document.body.style.paddingBottom = ''; }
             if (name === 'profile') updateRolePill();
@@ -4802,7 +4818,10 @@
             boardItem.onclick = () => switchScreen('board');
             navItems.forEach(item => { if (item === addItem) return; item.style.display = ''; });
             if (addItem) addItem.style.display = 'none';
-            navItems.forEach(item => item.classList.toggle('active', item.dataset.tab === S.currentScreen));
+            navItems.forEach(item => {
+                item.classList.toggle('active', item.dataset.tab === S.currentScreen);
+                if (item.dataset.tab === S.currentScreen) item.setAttribute('aria-current', 'page'); else item.removeAttribute('aria-current');
+            });
         }
 
         // ─── MAP ───
