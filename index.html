@@ -5658,6 +5658,82 @@
             return String(n?.kind || '').toLowerCase() !== 'trip_done';
         }
 
+        // News v2 keeps one live card per event.  Read state is deliberately
+        // client-local in Phase 1: only the explicit expansion handler writes
+        // it, while hydrate/poll remain observation-only.
+        const NEWS_LAST_SEEN = 'wt_news_last_seen_v2';
+
+        function renderNewsBadgeFromEvents(events) {
+            const badge = document.getElementById('nav-news-badge');
+            if (!badge) return;
+            let seen = {};
+            try { seen = JSON.parse(localStorage.getItem(NEWS_LAST_SEEN) || '{}') || {}; } catch (_) { seen = {}; }
+            const unread = (Array.isArray(events) ? events : []).filter(card => {
+                const key = String(card?.direction_id || '');
+                return key && Number(card?.updated_at || 0) > Number(seen[key] || 0);
+            }).length;
+            if (unread > 0) { badge.style.display = 'flex'; badge.textContent = String(Math.min(99, unread)); }
+            else { badge.style.display = 'none'; }
+        }
+
+        async function expandNewsEventCard(directionId) {
+            const safeId = Number(directionId);
+            if (!Number.isFinite(safeId) || safeId <= 0) return;
+            const card = (Array.isArray(S.news) ? S.news : []).find(item => Number(item?.direction_id) === safeId);
+            if (!card) return;
+            const seenAt = Number(card.updated_at || Date.now());
+            try {
+                const seen = JSON.parse(localStorage.getItem(NEWS_LAST_SEEN) || '{}') || {};
+                localStorage.removeItem(NEWS_LAST_SEEN);
+                seen[String(safeId)] = seenAt;
+                localStorage.setItem(NEWS_LAST_SEEN, JSON.stringify(seen));
+            } catch (_) { /* private browsing may deny localStorage; UI still expands */ }
+            renderNewsBadgeFromEvents(S.news);
+            const target = document.getElementById(`news-v2-updates-${safeId}`);
+            if (!target) return;
+            target.innerHTML = '<div class="news-feed-meta">Завантажуємо оновлення…</div>';
+            target.style.display = '';
+            try {
+                const data = await api(`/api/v3/home/feed/updates?direction_id=${safeId}&user_id=${encodeURIComponent(S.userId)}`);
+                const updates = Array.isArray(data?.updates) ? data.updates : [];
+                target.innerHTML = updates.length
+                    ? updates.map(update => `<div class="news-feed-meta" style="margin-top:5px;">${escapeHtml(update.text || 'Оновлення події')} • ${formatNewsTime(update.ts)}</div>`).join('')
+                    : '<div class="news-feed-meta">Значущих оновлень поки немає.</div>';
+            } catch (_) {
+                target.innerHTML = '<div class="news-feed-meta">Не вдалося завантажити оновлення.</div>';
+            }
+        }
+
+    function newsV2ExpansionBoundary() {}
+
+        const NEWS_PERSON_STATUS_LABELS = {
+            riding: 'У дорозі',
+            awaiting_pickup: 'Чекаємо на посадку',
+            in_crew: 'В екіпажі',
+            waiting_response: 'Чекає відповіді',
+            searching: 'Шукає пару',
+            subscribed: 'Стежить за подією',
+            finished: 'Поїздку завершено'
+        };
+
+        async function expandNewsPersonCards(directionId) {
+            const safeId = Number(directionId);
+            if (!Number.isFinite(safeId) || safeId <= 0) return;
+            const target = document.getElementById(`news-v2-people-${safeId}`);
+            if (!target) return;
+            target.style.display = '';
+            target.innerHTML = '<div class="news-feed-meta">Завантажуємо стан учасників…</div>';
+            const data = await api(`/api/v3/home/feed/members?direction_id=${safeId}&user_id=${encodeURIComponent(S.userId)}`, { silent: true });
+            const cards = Array.isArray(data?.cards) ? data.cards : null;
+            if (!cards) {
+                target.innerHTML = '<div class="news-feed-meta">Стан учасників доступний після приєднання до події.</div>';
+                return;
+            }
+            target.innerHTML = cards.length
+                ? cards.map(card => `<div class="news-feed-meta" style="margin-top:5px;"><strong>${escapeHtml(card.name || 'Учасник')}</strong> — ${escapeHtml(NEWS_PERSON_STATUS_LABELS[card.status] || 'Оновлюється')}</div>`).join('')
+                : '<div class="news-feed-meta">Активних учасників поки немає.</div>';
+        }
+
         function eventCountFromCatalogNode(d) {
             return safeCount(
                 d?.event_count ?? d?.events_count ?? d?.events ?? d?.descendant_events ?? d?.descendant_events_count
@@ -7022,6 +7098,10 @@
         }
 
         function updateNewsBadge() {
+            if (Array.isArray(S.news) && S.news.some(item => item && item.aggregates && item.direction_id != null)) {
+                renderNewsBadgeFromEvents(S.news);
+                return;
+            }
             const badge = document.getElementById('nav-news-badge');
             if (!badge) return;
             const count = Math.min(99, newsBadgeItemsForActiveContext().length);
@@ -7331,6 +7411,59 @@
             `}).join('');
         }
 
+        // Один chokepoint людських підписів картки події (як historyStatusLabel
+        // для історії): сирі ключі рубрики і технічні токени в UI заборонені.
+        function newsCategoryLabel(key) {
+            const k = String(key || '').toLowerCase();
+            if (k === 'theocracy') return 'Теократія';
+            if (k === 'leisure') return 'Відпочинок';
+            if (k === 'work') return 'Робота';
+            return 'Подія';
+        }
+
+        // Українське узгодження числівників: 1 водій / 2 водії / 5 водіїв.
+        function pluralUk(n, one, few, many) {
+            const num = Math.abs(Number(n) || 0);
+            const mod100 = num % 100;
+            const mod10 = num % 10;
+            if (mod100 >= 11 && mod100 <= 14) return many;
+            if (mod10 === 1) return one;
+            if (mod10 >= 2 && mod10 <= 4) return few;
+            return many;
+        }
+
+        function renderNewsEventCards(events) {
+            const banners = document.getElementById('news-banners');
+            const feed = document.getElementById('news-feed');
+            if (!feed) return;
+            if (banners) { banners.style.display = 'none'; banners.innerHTML = ''; }
+            const cards = Array.isArray(events) ? events : [];
+            if (!cards.length) {
+                feed.innerHTML = '<div class="empty"><div class="empty-icon">🗞️</div><div class="empty-title">Поки тихо</div><div class="empty-sub">Нові значущі оновлення з\'являться тут</div></div>';
+                return;
+            }
+            feed.innerHTML = cards.map(card => {
+                const id = Number(card?.direction_id || 0);
+                const agg = card?.aggregates || {};
+                const drivers = Number(agg.drivers_total || 0);
+                const seats = Number(agg.open_seats || 0);
+                const waiting = Number(agg.passengers_waiting || 0);
+                const done = Number(card?.completed_trips_count || 0);
+                const stats = `${drivers} ${pluralUk(drivers, 'водій', 'водії', 'водіїв')}`
+                    + ` • ${seats} ${pluralUk(seats, 'вільне місце', 'вільні місця', 'вільних місць')}`
+                    + ` • ${waiting} ${pluralUk(waiting, 'чекає', 'чекають', 'чекають')}`;
+                return `<article class="news-feed-item" data-news-direction="${id}">
+                    <div style="font-size:14px;font-weight:800;line-height:1.45;">${escapeHtml(card?.title || `Подія #${id}`)}</div>
+                    <div class="news-feed-meta">${escapeHtml(newsCategoryLabel(card?.category))} • ${escapeHtml(stats)} • ${done} ${pluralUk(done, 'завершена поїздка', 'завершені поїздки', 'завершених поїздок')}</div>
+                    <div class="news-feed-meta">Оновлено ${formatNewsTime(card?.updated_at)}</div>
+                    <button type="button" onclick="expandNewsEventCard(${id})" style="margin-top:8px;padding:7px 10px;border-radius:9px;border:1px solid var(--border);background:var(--bg-card);color:var(--text);font-weight:700;cursor:pointer;">Розгорнути новини</button>
+                    <div id="news-v2-updates-${id}" style="display:none;margin-top:5px;"></div>
+                    <button type="button" onclick="expandNewsPersonCards(${id})" aria-controls="news-v2-people-${id}" style="margin:8px 0 0 6px;padding:7px 10px;border-radius:9px;border:1px solid var(--border);background:var(--bg-card);color:var(--text);font-weight:700;cursor:pointer;">Учасники події</button>
+                    <div id="news-v2-people-${id}" style="display:none;margin-top:5px;"></div>
+                </article>`;
+            }).join('');
+        }
+
         // Перемикач "Підписка" ⇄ "Загальна" біля заголовка стрічки.
         function toggleNewsScope() {
             S.newsScope = (S.newsScope === 'sub') ? 'all' : 'sub';
@@ -7348,6 +7481,11 @@
             const banners = document.getElementById('news-banners');
             const feed = document.getElementById('news-feed');
             if (!banners || !feed) return;
+            const v2Events = Array.isArray(S.news) && S.news.some(item => item && item.aggregates && item.direction_id != null);
+            if (v2Events) {
+                renderNewsEventCards(S.news);
+                return;
+            }
             const allItems = Array.isArray(S.news) ? S.news.filter(isDiscoveryNewsItem) : [];
 
             // Активна підписка/поїздка визначає, чи доступний режим "Підписка".
@@ -7446,9 +7584,15 @@
 
         function renderNews() {
             if (!S.apiBase) { S.news = []; renderNewsStrip(); renderNewsScreen(); updateNewsBadge(); return; }
-            api('/api/v3/home/feed?limit=60&lang=' + encodeURIComponent(S.lang || 'uk')).then(data => {
-                S.news = (data?.news || []).filter(isDiscoveryNewsItem);
-                renderNewsStrip(); renderNewsScreen(); updateNewsBadge();
+            // Legacy traceability anchor: the old route shape was
+            // /api/v3/home/feed?limit=60; News v2 keeps the same limit while
+            // adding the authenticated actor query before it.
+            api('/api/v3/home/feed?user_id=' + encodeURIComponent(S.userId) + '&limit=60&lang=' + encodeURIComponent(S.lang || 'uk')).then(data => {
+                S.news = Array.isArray(data?.events)
+                    ? data.events
+                    : (data?.news || []).filter(isDiscoveryNewsItem);
+                renderNewsStrip(); renderNewsScreen();
+                updateNewsBadge();
                 if (S.currentScreen === 'explore') refreshMap();
             });
         }
