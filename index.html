@@ -3068,6 +3068,7 @@
                     <button class="news-scope-btn" id="news-scope-btn" onclick="toggleNewsScope()" type="button" style="display:none;"></button>
                 </div>
                 <div class="news-banners" id="news-banners"></div>
+                <div id="news-filter-tiles" style="display:none;gap:6px;margin:0 0 10px 0;"></div>
                 <div class="news-feed" id="news-feed"></div>
             </div>
 
@@ -5663,11 +5664,20 @@
         // it, while hydrate/poll remain observation-only.
         const NEWS_LAST_SEEN = 'wt_news_last_seen_v2';
 
+        // Прочитане належить ЛЮДИНІ, не пристрою: без скоупу за user_id
+        // наступний акаунт на тому ж пристрої успадковував чужі позначки і
+        // бачив занижений бейдж (live-знахідка 2026-07-25: свіжий користувач
+        // отримав 1 замість 3 непрочитаних).
+        function newsLastSeenKey() {
+            const uid = String(S.userId || 'anon');
+            return `${NEWS_LAST_SEEN}:${uid}`;
+        }
+
         function renderNewsBadgeFromEvents(events) {
             const badge = document.getElementById('nav-news-badge');
             if (!badge) return;
             let seen = {};
-            try { seen = JSON.parse(localStorage.getItem(NEWS_LAST_SEEN) || '{}') || {}; } catch (_) { seen = {}; }
+            try { seen = JSON.parse(localStorage.getItem(newsLastSeenKey()) || '{}') || {}; } catch (_) { seen = {}; }
             const unread = (Array.isArray(events) ? events : []).filter(card => {
                 const key = String(card?.direction_id || '');
                 return key && Number(card?.updated_at || 0) > Number(seen[key] || 0);
@@ -5676,17 +5686,110 @@
             else { badge.style.display = 'none'; }
         }
 
+        // Розгорнутий стан живе в S, а не лише в DOM: renderNewsScreen() на
+        // кожному poll перебудовує innerHTML стрічки, і без цього кешу панель
+        // згорталась сама через ~1с (live-знахідка 2026-07-25). Кеш — пам'ять
+        // рендера, не джерело істини: свіжі дані приходять з наступним явним
+        // розгортанням, poll нічого не дофетчує (§0.60).
+        S._newsOpenUpdates = S._newsOpenUpdates || {};
+        S._newsOpenPeople = S._newsOpenPeople || {};
+
+        function restoreNewsExpansions() {
+            for (const [id, html] of Object.entries(S._newsOpenUpdates || {})) {
+                const target = document.getElementById(`news-v2-updates-${id}`);
+                if (target && html) { target.innerHTML = html; target.style.display = ''; }
+            }
+            for (const [id, html] of Object.entries(S._newsOpenPeople || {})) {
+                const target = document.getElementById(`news-v2-people-${id}`);
+                if (target && html) { target.innerHTML = html; target.style.display = ''; }
+            }
+        }
+
+        // Рубричні фільтри стрічки: на трьох подіях непомітно, на тридцяти —
+        // єдиний спосіб не загубитись. Лічильники рахуються з тих самих
+        // карток, тому окремої формули тут немає.
+        function renderNewsFilterTiles(cards) {
+            const host = document.getElementById('news-filter-tiles');
+            if (!host) return;
+            const list = Array.isArray(cards) ? cards : [];
+            const counts = { all: list.length, theocracy: 0, leisure: 0, work: 0 };
+            list.forEach(card => {
+                const key = String(card?.category || '').toLowerCase();
+                if (key in counts) counts[key] += 1;
+            });
+            const active = S.newsEventFilter || 'all';
+            const tiles = [
+                ['all', 'Усі'],
+                ['theocracy', newsCategoryLabel('theocracy')],
+                ['leisure', newsCategoryLabel('leisure')],
+                ['work', newsCategoryLabel('work')]
+            ];
+            host.innerHTML = tiles.map(([key, label]) => `
+                <button type="button" role="button" tabindex="0"
+                    aria-pressed="${active === key ? 'true' : 'false'}"
+                    onclick="setNewsEventFilter('${key}')"
+                    style="flex:1;min-width:0;padding:8px 6px;border-radius:10px;cursor:pointer;font-weight:700;font-size:12px;border:1px solid ${active === key ? 'var(--accent)' : 'var(--border)'};background:${active === key ? 'var(--accent)' : 'var(--bg-card)'};color:${active === key ? '#081018' : 'var(--text)'};">
+                    ${escapeHtml(label)} · ${counts[key] || 0}
+                </button>`).join('');
+            host.style.display = 'flex';
+        }
+
+        // Тап по КАРТЦІ — єдиний вхід у подію: деталі + учасники (кому
+        // дозволено) + дія. Дві кнопки-дублери на кожній картці створювали шум
+        // рівно там, де людина просто хоче подивитись подію (UX 2026-07-25).
+        async function toggleNewsEventCard(directionId) {
+            const safeId = Number(directionId);
+            if (!Number.isFinite(safeId) || safeId <= 0) return;
+            if (S._newsOpenUpdates[String(safeId)]) { collapseNewsEventCard(safeId); return; }
+            const card = (Array.isArray(S.news) ? S.news : []).find(item => Number(item?.direction_id) === safeId);
+            const action = document.getElementById(`news-v2-action-${safeId}`);
+            if (action) action.style.display = 'block';
+            const collapseBtn = document.querySelector(`[data-news-direction="${safeId}"] .news-card-collapse`);
+            if (collapseBtn) collapseBtn.style.display = 'block';
+            const main = document.querySelector(`[data-news-direction="${safeId}"] .news-card-toggle`);
+            if (main) main.setAttribute('aria-expanded', 'true');
+            await expandNewsEventCard(safeId);
+            // Внутрішній простір пропонуємо лише тому, хто його реально має:
+            // сторонньому не показуємо «тапни й дізнайся, що не можна».
+            const access = String(card?.viewer_access || 'public');
+            if (access === 'participant' || access === 'organizer') {
+                await expandNewsPersonCards(safeId);
+            }
+        }
+
+        function collapseNewsEventCard(directionId) {
+            const safeId = Number(directionId);
+            collapseNewsPanel('updates', safeId);
+            collapseNewsPanel('people', safeId);
+            const action = document.getElementById(`news-v2-action-${safeId}`);
+            if (action) action.style.display = 'none';
+            const collapseBtn = document.querySelector(`[data-news-direction="${safeId}"] .news-card-collapse`);
+            if (collapseBtn) collapseBtn.style.display = 'none';
+            const main = document.querySelector(`[data-news-direction="${safeId}"] .news-card-toggle`);
+            if (main) main.setAttribute('aria-expanded', 'false');
+        }
+
+        function collapseNewsPanel(kind, safeId) {
+            const store = kind === 'people' ? S._newsOpenPeople : S._newsOpenUpdates;
+            delete store[String(safeId)];
+            const target = document.getElementById(`news-v2-${kind === 'people' ? 'people' : 'updates'}-${safeId}`);
+            if (target) { target.innerHTML = ''; target.style.display = 'none'; }
+        }
+
         async function expandNewsEventCard(directionId) {
             const safeId = Number(directionId);
             if (!Number.isFinite(safeId) || safeId <= 0) return;
             const card = (Array.isArray(S.news) ? S.news : []).find(item => Number(item?.direction_id) === safeId);
             if (!card) return;
+            // Повторний тап згортає — «Розгорнути» читається як перемикач.
+            if (S._newsOpenUpdates[String(safeId)]) { collapseNewsPanel('updates', safeId); return; }
             const seenAt = Number(card.updated_at || Date.now());
             try {
-                const seen = JSON.parse(localStorage.getItem(NEWS_LAST_SEEN) || '{}') || {};
-                localStorage.removeItem(NEWS_LAST_SEEN);
+                const storeKey = newsLastSeenKey();
+                const seen = JSON.parse(localStorage.getItem(storeKey) || '{}') || {};
+                localStorage.removeItem(storeKey);
                 seen[String(safeId)] = seenAt;
-                localStorage.setItem(NEWS_LAST_SEEN, JSON.stringify(seen));
+                localStorage.setItem(storeKey, JSON.stringify(seen));
             } catch (_) { /* private browsing may deny localStorage; UI still expands */ }
             renderNewsBadgeFromEvents(S.news);
             const target = document.getElementById(`news-v2-updates-${safeId}`);
@@ -5699,8 +5802,10 @@
                 target.innerHTML = updates.length
                     ? updates.map(update => `<div class="news-feed-meta" style="margin-top:5px;">${escapeHtml(update.text || 'Оновлення події')} • ${formatNewsTime(update.ts)}</div>`).join('')
                     : '<div class="news-feed-meta">Значущих оновлень поки немає.</div>';
+                S._newsOpenUpdates[String(safeId)] = target.innerHTML;
             } catch (_) {
                 target.innerHTML = '<div class="news-feed-meta">Не вдалося завантажити оновлення.</div>';
+                S._newsOpenUpdates[String(safeId)] = target.innerHTML;
             }
         }
 
@@ -5719,6 +5824,7 @@
         async function expandNewsPersonCards(directionId) {
             const safeId = Number(directionId);
             if (!Number.isFinite(safeId) || safeId <= 0) return;
+            if (S._newsOpenPeople[String(safeId)]) { collapseNewsPanel('people', safeId); return; }
             const target = document.getElementById(`news-v2-people-${safeId}`);
             if (!target) return;
             target.style.display = '';
@@ -5727,11 +5833,13 @@
             const cards = Array.isArray(data?.cards) ? data.cards : null;
             if (!cards) {
                 target.innerHTML = '<div class="news-feed-meta">Стан учасників доступний після приєднання до події.</div>';
+                S._newsOpenPeople[String(safeId)] = target.innerHTML;
                 return;
             }
             target.innerHTML = cards.length
                 ? cards.map(card => `<div class="news-feed-meta" style="margin-top:5px;"><strong>${escapeHtml(card.name || 'Учасник')}</strong> — ${escapeHtml(NEWS_PERSON_STATUS_LABELS[card.status] || 'Оновлюється')}</div>`).join('')
                 : '<div class="news-feed-meta">Активних учасників поки немає.</div>';
+            S._newsOpenPeople[String(safeId)] = target.innerHTML;
         }
 
         function eventCountFromCatalogNode(d) {
@@ -7421,6 +7529,62 @@
             return 'Подія';
         }
 
+        // Свіжість читається відчуттям, а не арифметикою: «12 хв тому»
+        // замість «23.07, 23:26» (UX-огляд 2026-07-25). Абсолютна дата
+        // лишається у title як точний факт.
+        function formatNewsRelative(ts) {
+            const t = Number(ts || 0);
+            if (!t) return '';
+            const seconds = Math.max(0, Math.floor(Date.now() / 1000 - (t > 1e12 ? t / 1000 : t)));
+            if (seconds < 90) return 'щойно';
+            const minutes = Math.floor(seconds / 60);
+            if (minutes < 60) return `${minutes} ${pluralUk(minutes, 'хвилину', 'хвилини', 'хвилин')} тому`;
+            const hours = Math.floor(minutes / 60);
+            if (hours < 24) return `${hours} ${pluralUk(hours, 'годину', 'години', 'годин')} тому`;
+            const days = Math.floor(hours / 24);
+            if (days < 30) return `${days} ${pluralUk(days, 'день', 'дні', 'днів')} тому`;
+            return formatNewsTime(t);
+        }
+
+        // «Serock · 29 серпня» — куди і коли; головні дані рішення новачка.
+        // ВАЖЛИВО (review Codex 2026-07-25): показувати лише кінцеву дату
+        // діапазону — брехня. «Розробка» триває 21.06→29.08, і рядок «29
+        // серпня» читався як «подія 29 серпня». Одноденна подія = одна дата;
+        // діапазон = діапазон; він не є сигналом доступності чи обіцянкою
+        // можливості приєднатися.
+        function formatNewsDay(value) {
+            const pick = String(value || '').slice(0, 10);
+            const parts = pick.split('-');
+            if (parts.length !== 3) return '';
+            const months = ['січня', 'лютого', 'березня', 'квітня', 'травня', 'червня',
+                'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня'];
+            const monthIndex = Number(parts[1]) - 1;
+            if (!(monthIndex >= 0 && monthIndex < 12)) return '';
+            return `${Number(parts[2])} ${months[monthIndex]}`;
+        }
+
+        // Правило дат (консенсус із Codex, форум 2026-07-25): СТАБІЛЬНА
+        // фактологія без похідних від годинника. Одна дата → вона; різні →
+        // діапазон («29–31 серпня» в межах місяця, інакше «21 червня – 29
+        // серпня»); дат немає → лише місце. Свідомо БЕЗ маркера «триває»:
+        // він залежить від локального годинника і читається як обіцянка, що
+        // приєднатись ще можна, — а доступність визначають явні lifecycle-
+        // факти й дії, не календар. Якщо пілот покаже потребу в статусі —
+        // вводити його окремим organizer/lifecycle фактом, не таймером.
+        function formatNewsWhen(startDate, endDate) {
+            const startKey = String(startDate || '').slice(0, 10);
+            const endKey = String(endDate || '').slice(0, 10);
+            const start = formatNewsDay(startKey);
+            const end = formatNewsDay(endKey);
+            if (!start && !end) return '';
+            if (!start) return end;
+            if (!end || startKey === endKey) return start;
+            if (startKey.slice(0, 7) === endKey.slice(0, 7)) {
+                return `${Number(startKey.slice(8, 10))}–${end}`;
+            }
+            return `${start} – ${end}`;
+        }
+
         // Українське узгодження числівників: 1 водій / 2 водії / 5 водіїв.
         function pluralUk(n, one, few, many) {
             const num = Math.abs(Number(n) || 0);
@@ -7437,9 +7601,16 @@
             const feed = document.getElementById('news-feed');
             if (!feed) return;
             if (banners) { banners.style.display = 'none'; banners.innerHTML = ''; }
-            const cards = Array.isArray(events) ? events : [];
+            const allCards = Array.isArray(events) ? events : [];
+            renderNewsFilterTiles(allCards);
+            const activeFilter = S.newsEventFilter || 'all';
+            const cards = activeFilter === 'all'
+                ? allCards
+                : allCards.filter(card => String(card?.category || '').toLowerCase() === activeFilter);
             if (!cards.length) {
-                feed.innerHTML = '<div class="empty"><div class="empty-icon">🗞️</div><div class="empty-title">Поки тихо</div><div class="empty-sub">Нові значущі оновлення з\'являться тут</div></div>';
+                feed.innerHTML = allCards.length
+                    ? '<div class="empty"><div class="empty-icon">🔍</div><div class="empty-title">У цій рубриці порожньо</div><div class="empty-sub">Оберіть «Усі», щоб побачити решту подій</div></div>'
+                    : '<div class="empty"><div class="empty-icon">🗞️</div><div class="empty-title">Поки тихо</div><div class="empty-sub">Нові значущі оновлення з\'являться тут</div></div>';
                 return;
             }
             feed.innerHTML = cards.map(card => {
@@ -7452,16 +7623,45 @@
                 const stats = `${drivers} ${pluralUk(drivers, 'водій', 'водії', 'водіїв')}`
                     + ` • ${seats} ${pluralUk(seats, 'вільне місце', 'вільні місця', 'вільних місць')}`
                     + ` • ${waiting} ${pluralUk(waiting, 'чекає', 'чекають', 'чекають')}`;
-                return `<article class="news-feed-item" data-news-direction="${id}">
-                    <div style="font-size:14px;font-weight:800;line-height:1.45;">${escapeHtml(card?.title || `Подія #${id}`)}</div>
-                    <div class="news-feed-meta">${escapeHtml(newsCategoryLabel(card?.category))} • ${escapeHtml(stats)} • ${done} ${pluralUk(done, 'завершена поїздка', 'завершені поїздки', 'завершених поїздок')}</div>
-                    <div class="news-feed-meta">Оновлено ${formatNewsTime(card?.updated_at)}</div>
-                    <button type="button" onclick="expandNewsEventCard(${id})" style="margin-top:8px;padding:7px 10px;border-radius:9px;border:1px solid var(--border);background:var(--bg-card);color:var(--text);font-weight:700;cursor:pointer;">Розгорнути новини</button>
-                    <div id="news-v2-updates-${id}" style="display:none;margin-top:5px;"></div>
-                    <button type="button" onclick="expandNewsPersonCards(${id})" aria-controls="news-v2-people-${id}" style="margin:8px 0 0 6px;padding:7px 10px;border-radius:9px;border:1px solid var(--border);background:var(--bg-card);color:var(--text);font-weight:700;cursor:pointer;">Учасники події</button>
-                    <div id="news-v2-people-${id}" style="display:none;margin-top:5px;"></div>
+                // Куди і коли — перший рядок після назви: саме на це відповідає
+                // людина собі «чи це для мене», ще нікуди не тапнувши.
+                const where = String(card?.meeting_point || '').trim();
+                const when = formatNewsWhen(card?.start_date, card?.end_date);
+                const whereWhen = [where, when].filter(Boolean).join(' · ');
+                const isOpen = !!S._newsOpenUpdates[String(id)];
+                // A11y (review Codex 2026-07-25): картка НЕ може бути
+                // role="button" з кнопками всередині — інтерактивне у
+                // інтерактивному невалідне і ламає читач екрана. Тому:
+                // <article> — простий контейнер; головна область — СПРАВЖНЯ
+                // <button> з неінтерактивним вмістом; «×» і дія — її СУСІДИ.
+                return `<article class="news-feed-item news-card" data-news-direction="${id}"
+                    style="position:relative;">
+                    <button type="button" class="news-card-toggle"
+                        aria-expanded="${isOpen ? 'true' : 'false'}"
+                        aria-controls="news-v2-body-${id}"
+                        onclick="toggleNewsEventCard(${id})"
+                        style="display:block;width:100%;text-align:left;padding:0;border:0;background:transparent;color:inherit;font:inherit;cursor:pointer;">
+                        <span style="display:block;font-size:14px;font-weight:800;line-height:1.45;padding-right:30px;">${escapeHtml(card?.title || `Подія #${id}`)}</span>
+                        ${whereWhen ? `<span class="news-feed-meta" style="display:block;">📍 ${escapeHtml(whereWhen)}</span>` : ''}
+                        <span class="news-feed-meta" style="display:block;">${escapeHtml(newsCategoryLabel(card?.category))} • ${escapeHtml(stats)} • ${done} ${pluralUk(done, 'завершена поїздка', 'завершені поїздки', 'завершених поїздок')}</span>
+                        <span class="news-feed-meta" style="display:block;" title="${escapeAttr(formatNewsTime(card?.updated_at))}">Оновлено ${escapeHtml(formatNewsRelative(card?.updated_at))}${isOpen ? '' : ' • натисніть, щоб відкрити'}</span>
+                    </button>
+                    <button type="button" class="news-card-collapse" aria-label="Згорнути картку події"
+                        onclick="collapseNewsEventCard(${id});"
+                        style="display:${isOpen ? 'block' : 'none'};position:absolute;top:10px;right:10px;width:26px;height:26px;line-height:1;padding:0;border-radius:8px;border:1px solid var(--border);background:var(--bg-card);color:var(--text);font-weight:700;cursor:pointer;">×</button>
+                    <div id="news-v2-body-${id}">
+                        <div id="news-v2-updates-${id}" style="display:none;margin-top:5px;"></div>
+                        <div id="news-v2-people-${id}" style="display:none;margin-top:5px;"></div>
+                        <div id="news-v2-action-${id}" style="display:${isOpen ? 'block' : 'none'};margin-top:8px;">
+                            <button type="button" class="news-card-action" onclick="openDirection(${id});"
+                                style="padding:8px 12px;border-radius:9px;border:0;background:var(--accent);color:#081018;font-weight:800;cursor:pointer;">Відкрити подію</button>
+                        </div>
+                    </div>
                 </article>`;
             }).join('');
+            // Перебудова innerHTML знищує розгорнуті панелі — повертаємо їх
+            // з пам'яті рендера, щоб poll не згортав те, що людина відкрила.
+            restoreNewsExpansions();
         }
 
         // Перемикач "Підписка" ⇄ "Загальна" біля заголовка стрічки.
