@@ -5124,7 +5124,21 @@
             renderMapFocusButton();
             renderNewsStrip();
             refreshOpenNearbyCrewsSheet();
+            // Fresh map capacity must replace an already-visible auto-search
+            // choice, but a late refresh may never overwrite a newer manual,
+            // outgoing or handshake surface created by another async flow.
+            refreshOpenMapAutoSearchPanelFromFreshMap();
             if (S.currentScreen === 'trips' && !S.activeTrip && !S.pendingMatches.length && (S.subscriptions || []).length) renderTrips();
+        }
+
+        function refreshOpenMapAutoSearchPanelFromFreshMap() {
+            const panel = document.getElementById('map-result-panel');
+            const meta = panel && panel._mapResultMeta;
+            if (!panel?.classList.contains('open') || meta?.kind !== 'auto_search') return false;
+            const dirId = parseInt(meta?.dirId, 10) || 0;
+            if (!dirId) return false;
+            openMapAutoSearchPanel(dirId);
+            return true;
         }
 
         function _eventMarkerEmoji(kind) {
