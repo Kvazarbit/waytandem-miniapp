@@ -223,7 +223,12 @@
             margin: 0 16px 16px;
             overflow: hidden;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            cursor: pointer;
+            cursor: default;
+        }
+
+        .event-summary-row {
+            display: flex;
+            align-items: center;
         }
 
         .event-header {
@@ -232,6 +237,15 @@
             align-items: center;
             justify-content: space-between;
             gap: 12px;
+            flex: 1;
+            width: 100%;
+            min-width: 0;
+            border: 0;
+            background: transparent;
+            color: inherit;
+            font: inherit;
+            text-align: left;
+            cursor: pointer;
         }
 
         .event-title-block {
@@ -256,9 +270,11 @@
 
         .event-meta-info {
             min-width: 0;
+            display: block;
         }
 
         .event-goal-name {
+            display: block;
             font-weight: 700;
             font-size: 13.5px;
             color: var(--text);
@@ -268,6 +284,7 @@
         }
 
         .event-stats {
+            display: block;
             font-size: 11px;
             color: var(--text-secondary);
             margin-top: 1px;
@@ -283,7 +300,7 @@
         .avatar-group {
             display: flex;
             align-items: center;
-            margin-left: 8px;
+            margin: 0 12px 0 8px;
         }
 
         .avatar-mini {
@@ -1984,6 +2001,7 @@
 
         .dir-card {
             display: flex;
+            width: calc(100% - 32px);
             align-items: center;
             gap: 14px;
             padding: 14px 16px;
@@ -1991,6 +2009,11 @@
             background: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: var(--radius-lg);
+            appearance: none;
+            -webkit-appearance: none;
+            color: var(--text-primary);
+            font: inherit;
+            text-align: left;
             cursor: pointer;
             transition: all 0.15s;
         }
@@ -2028,6 +2051,7 @@
         }
 
         .dir-card-name {
+            display: block;
             font-weight: 800;
             font-size: 15px;
         }
@@ -4670,7 +4694,7 @@
             if (!S.activeTrip && waitingForPartner) {
                 parts.push(`<div class="sub-bar-pending" role="button" tabindex="0" onclick="openMapActiveTripFromSubBar()">⏳ Очікуємо підтвердження партнера</div>`);
             }
-            if (!S.activeTrip && !waitingForPartner && lastKnownTripForRating) {
+            if (!S.activeTrip && !waitingForPartner && hasPendingRating()) {
                 parts.push(`<div class="sub-bar-pending" role="button" tabindex="0" onclick="maybeOpenCompletedTripRatingSheet('subbar') || openMapActiveTripFromSubBar()">⭐ Оцініть поїздку</div>`);
             }
             const incoming = S.pendingMatches.filter(m => m.scope === 'incoming');
@@ -4736,7 +4760,7 @@
         }
 
         async function doOpenCrew(dirId, options = {}) {
-            if (!requireRoleForAction('відкрити місця', () => doOpenCrew(dirId))) return;
+            if (!requireRoleForAction('відкрити місця', () => doOpenCrew(dirId, options))) return;
             if (!_isDriverRole(S.userRole)) { showToast('Відкрити місця може тільки водій', 'error'); openRoleSelector(); return; }
             if (!S.pickupCoords?.lat || !S.pickupCoords?.lng) {
                 const picked = await pickPickupLocation(dirId, { kind: 'driver_start' });
@@ -4747,15 +4771,38 @@
                 const pickupText = String(S.pickupLabel || '').trim() || `${S.pickupCoords.lat.toFixed(5)}, ${S.pickupCoords.lng.toFixed(5)}`;
                 const openSeats = Math.max(1, Math.min(4, seatCount(S.seats, 4) || 1));
                 S.seats = openSeats;
-                const payload = { user_id: S.userId, direction_id: dirId, pickup: pickupText, seats: openSeats };
+                const payload = {
+                    user_id: S.userId,
+                    direction_id: dirId,
+                    pickup: pickupText,
+                    seats: openSeats,
+                    auto_match: options?.autoMatch !== false
+                };
+                // Re-opening seats from an existing subscription preserves its
+                // chosen mode unless this invocation explicitly changes it.
+                const activeSub = (S.subscriptions || []).find(s => String(s?.direction_id ?? s?.id ?? '') === String(dirId));
+                if (options?.autoMatch == null && activeSub) payload.auto_match = activeSub.auto_match !== false;
                 if (S.pickupCoords?.lat && S.pickupCoords?.lng) {
                     payload.pickup_lat = S.pickupCoords.lat;
                     payload.pickup_lng = S.pickupCoords.lng;
                 }
-                const res = await api('/api/v3/crews/open', { method: 'POST', body: JSON.stringify(payload) });
-                if (res?.status === 'ok' || res?.crew_id) {
-                    S.myCrew = { crew_id: res.crew_id, crew_real_id: res.crew_id, crew_event_number: res.crew_event_number, direction_id: dirId };
-                    showToast('🚗 Екіпаж відкрито! Очікуйте попутників', 'success');
+                const response = await apiWithStatus('/api/v3/crews/open', {
+                    method: 'POST',
+                    silent: true,
+                    body: JSON.stringify(payload)
+                });
+                const res = response?.data;
+                if (response?.ok && (res?.status === 'ok' || res?.crew_id)) {
+                    S.myCrew = {
+                        crew_id: res.crew_id,
+                        crew_real_id: res.crew_id,
+                        crew_event_number: res.crew_event_number,
+                        direction_id: dirId,
+                        auto_match: res?.auto_match ?? payload.auto_match
+                    };
+                    showToast(payload.auto_match
+                        ? '🚗 Екіпаж відкрито · автопошук активний'
+                        : '🚗 Екіпаж відкрито · шукайте попутників на карті', 'success');
                     clearPickupMarkerOnly();
                     await hydrate();
                     if (options?.keepMapSheet) {
@@ -4777,7 +4824,11 @@
                     }
                     closeSheet();
                     switchScreen('trips');
-                } else { showToast('Помилка: ' + (res?.reason || 'невідома'), 'error'); }
+                } else if (res?.reason === 'active_trip_other_direction') {
+                    openActiveTripOtherDirectionConflict(res);
+                } else {
+                    showToast(getErrorMessage(res, 'Не вдалося відкрити екіпаж'), 'error');
+                }
             } catch (e) { showToast('Помилка створення екіпажу', 'error'); }
             finally {
                 endOp('open_crew_submit');
@@ -4788,11 +4839,13 @@
         }
 
         window.toggleEventAccordion = function(event) {
-            if (event.target.closest('button') || event.target.closest('textarea') || event.target.closest('a') || event.target.closest('.p-role-tag')) return;
+            const toggle = event?.currentTarget;
+            if (!toggle?.classList?.contains('event-header')) return;
             S.eventAccordionExpanded = !S.eventAccordionExpanded;
             const el = document.getElementById('event-banner');
             if (el) {
                 el.classList.toggle('expanded', S.eventAccordionExpanded);
+                toggle.setAttribute('aria-expanded', S.eventAccordionExpanded ? 'true' : 'false');
                 const arrow = document.getElementById('event-arrow-icon');
                 if (arrow) arrow.textContent = S.eventAccordionExpanded ? '▲' : '▼';
             }
@@ -5266,6 +5319,7 @@
             'not_subscribed': 'Спочатку підпишіться на цей напрямок',
             'already_subscribed': 'Ви вже в черзі на цей напрямок',
             'direction_expired': 'Подія вже завершилась — оберіть актуальну в каталозі',
+            'active_trip_other_direction': 'У вас уже є активна домовленість в іншій події',
         };
 
         function getErrorMessage(res, fallback = 'Помилка') {
@@ -5273,6 +5327,22 @@
             const detail = res.detail;
             const reason = res.reason || (detail && typeof detail === 'object' ? detail.reason : detail) || '';
             return ERROR_MESSAGES[reason] || (reason ? `${fallback}: ${reason}` : fallback);
+        }
+
+        function openActiveTripOtherDirectionConflict(res = {}) {
+            const message = ERROR_MESSAGES.active_trip_other_direction;
+            openSheet(`
+                <div class="sheet-title">Спочатку завершіть поточну поїздку</div>
+                <div class="sheet-sub">${escapeHtml(message)}</div>
+                <div style="font-size:13px;line-height:1.5;color:var(--text-secondary);margin:12px 0;">
+                    Новий екіпаж не створено і вашу участь не змінено. Відкрийте «Поїздки»,
+                    щоб завершити або скасувати поточну домовленість явною дією.
+                </div>
+                <div class="sheet-actions">
+                    <button type="button" class="btn btn-ghost" onclick="closeSheet()">Залишитись тут</button>
+                    <button type="button" class="btn btn-primary" onclick="closeSheet(); switchScreen('trips')">Відкрити Поїздки</button>
+                </div>
+            `);
         }
 
         function guardPassengerRequestWhileInTrip(opts = {}) {
@@ -5454,7 +5524,7 @@
                 <div class="sheet-actions">
                     <button class="btn btn-primary" onclick="respondFromMatchSheet(${partnerId}, ${dirId}, true)">${acceptText}</button>
                     <button class="btn btn-danger" onclick="respondFromMatchSheet(${partnerId}, ${dirId}, false)">${declineText}</button>
-                    <button class="btn btn-secondary" onclick="stopSearchFromMatchSheet(${partnerId}, ${dirId})">🚪 Вийти з події</button>
+                    <button class="btn btn-secondary" onclick="confirmStopSearchFromHandshake(${partnerId}, ${dirId})">🚪 Вийти з події</button>
                 </div>
             `);
         }
@@ -5464,9 +5534,52 @@
             if (ok) closeSheet();
         }
 
-        async function stopSearchFromMatchSheet(partnerId, dirId) {
+        function confirmStopSearchFromHandshake(partnerId, dirId) {
+            const safePartnerId = parseInt(partnerId, 10) || 0;
+            const safeDirId = parseInt(dirId, 10) || 0;
+            if (!safePartnerId || !safeDirId) {
+                showToast('Запит не знайдено', 'error');
+                return false;
+            }
+            const pending = (S.pendingMatches || []).find(m => {
+                const candidateId = m?.scope === 'incoming'
+                    ? (m?.partner_id || m?.sender_id)
+                    : (m?.target_id || m?.partner_id);
+                return String(candidateId || '') === String(safePartnerId)
+                    && String(m?.direction_id || '') === String(safeDirId);
+            }) || {};
+            const direction = pending.direction || pending.direction_title || 'цю подію';
+            const partnerName = pending.scope === 'incoming'
+                ? (pending.partner_name || pending.sender_name || 'партнером')
+                : (pending.target_name || pending.partner_name || 'партнером');
+            openSheet(`
+                <div class="sheet-title">Вийти з події?</div>
+                <div class="sheet-sub">${escapeHtml(direction)}</div>
+                <div style="font-size:13px;line-height:1.5;color:var(--text-secondary);margin:12px 0;">
+                    Буде скасовано цей запит із ${escapeHtml(partnerName)}, видалено вашу підписку на подію
+                    і прибрано вашу точку очікування або старт авто з карти.
+                </div>
+                <div style="font-size:12px;line-height:1.45;color:var(--amber);margin-bottom:14px;">
+                    Якщо хочете лише відхилити або скасувати поточний запит, поверніться й оберіть цю окрему дію.
+                </div>
+                <div class="sheet-actions">
+                    <button type="button" class="btn btn-ghost" onclick="closeSheet()">Ні, залишитись</button>
+                    <button type="button" class="btn btn-danger" id="confirm-stop-search-yes" onclick="executeConfirmedEventExitFromHandshake(${safePartnerId}, ${safeDirId})">Так, вийти з події</button>
+                </div>
+            `);
+            return true;
+        }
+
+        async function executeConfirmedEventExitFromHandshake(partnerId, dirId) {
+            const confirmButton = document.getElementById('confirm-stop-search-yes');
+            if (confirmButton) confirmButton.disabled = true;
             const ok = await stopSearchFromHandshake(partnerId, dirId);
-            if (ok) closeSheet();
+            if (ok) {
+                closeSheet();
+                return true;
+            }
+            if (confirmButton) confirmButton.disabled = false;
+            return false;
         }
 
         // Компактна "процес"-картка (DM-2026-06-13-005): той самий вигляд, що й
@@ -6626,7 +6739,7 @@
         function openMapDriverSeatsSheet(dirId) {
             const ctx = mapInviteContext(dirId);
             if (!ctx.safeDirId) return false;
-            const chip = (n) => `<div class="btn btn-secondary" role="button" data-seat="${n}" style="flex:1;text-align:center;" onclick="chooseDriverSeats(${ctx.safeDirId}, ${n})">${n}</div>`;
+            const chip = (n) => `<button type="button" class="btn btn-secondary" data-seat="${n}" style="flex:1;text-align:center;" onclick="chooseDriverSeats(${ctx.safeDirId}, ${n})">${n}</button>`;
             openSheet(`
                 ${renderMapInviteContextHeader(ctx)}
                 <div class="sheet-title">Скільки місць для попутників?</div>
@@ -6689,39 +6802,14 @@
             S._driverOnboardingDirId = safeDirId;
             S._driverOnboardingPhase = 'opening';
             renderSubBar();
-            // DM-2026-06-15-002 addendum: keepSheetOpen:false — wizard «Як знайти попутників?»
-            // закривається subscribeDir самостійно (рядок if(!keepSheetOpen)closeSheet()),
-            // щоб #handshake-panel з'являвся на чистому екрані без фонової wizard-шторки.
-            // DM-2026-06-28-001 (§8.11): зберегти щойно поставлену точку старту авто ДО
-            // subscribeDir. Всередині нього hydrate()→syncTerminalIdleState('hydrate') бачить
-            // ще-порожній S.subscriptions (водійська підписка матеріалізується лише на
-            // /crews/open) і кличе clearPickupPoint(), обнуляючи S.pickupCoords. Без відновлення
-            // doOpenCrew спрацьовує guard if(!S.pickupCoords) і ВДРУГЕ відкриває розміщення авто.
-            const savedPickup = (S.pickupCoords && S.pickupCoords.lat != null && S.pickupCoords.lng != null)
-                ? { lat: S.pickupCoords.lat, lng: S.pickupCoords.lng } : null;
-            const savedPickupLabel = S.pickupLabel;
-            const savedPickupKind = S.pickupKind;
             if (!autoMatch) {
                 S.mapResultCollapsed = true;
                 persistCriticalState();
             }
-            const ok = await subscribeDir(safeDirId, { afterSuccessScreen: 'explore', keepSheetOpen: false, mapInline: true, manualOnly: !autoMatch, suppressSubscribedSheet: true });
-            if (!ok) {
-                S._driverOnboardingActive = false;
-                S._driverOnboardingDirId = null;
-                S._driverOnboardingPhase = '';
-                renderSubBar();
-                return false;
-            }
-            S.seats = selectedSeats;
-            // Відновлюємо точку, якщо subscribeDir→hydrate її стер (термінально-порожній знімок).
-            if (savedPickup && !(S.pickupCoords && S.pickupCoords.lat != null && S.pickupCoords.lng != null)) {
-                S.pickupCoords = savedPickup;
-                S.pickupLabel = savedPickupLabel;
-                S.pickupKind = savedPickupKind;
-            }
-            // Місця й старт уже відомі → одразу відкриваємо екіпаж («Екіпаж відкрито»).
-            return doOpenCrew(safeDirId, { keepMapSheet: true });
+            // Crew-open is the single atomic publication boundary for a driver:
+            // it persists the driver interest, open seats and selected search mode.
+            // A pre-flight subscribe would expose a phantom participant if open fails.
+            return doOpenCrew(safeDirId, { keepMapSheet: true, autoMatch });
         }
 
         // Мікро-смужка СТАТУС-банера (спливає над навігацією). label — короткий
@@ -6797,7 +6885,7 @@
             // Live /api/v3/map/crews is the seat truth. Direction organizers are
             // only a cold-start fallback; mixing them after live crews resurrects
             // stale free-seat/name data in multi-driver events.
-            if (byDriver.size === 0) {
+            if (liveCrews.length === 0 && byDriver.size === 0) {
                 (Array.isArray(ctx?.orgs) ? ctx.orgs : [])
                     .filter(o => normalizeRole(o?.role || 'driver') === 'driver')
                     .forEach(addCrew);
@@ -6844,8 +6932,7 @@
                 meta?.kind === 'auto_search' &&
                 String(meta?.dirId || '') === String(safeDirId);
             const collapseStateMatches = !!S.mapResultCollapsed === !!panel?.classList.contains('collapsed');
-            const hasRenderedCrewChoices = !!panel?.querySelector('[data-auto-search-open-crews="true"]');
-            if (sameAutoPanel && collapseStateMatches && (isDriver || S.mapResultCollapsed || hasRenderedCrewChoices)) {
+            if (sameAutoPanel && collapseStateMatches && (isDriver || S.mapResultCollapsed)) {
                 return;
             }
             const crewChoices = isDriver ? [] : passengerOpenCrewChoices(safeDirId, ctx);
@@ -6882,7 +6969,7 @@
                 ${crewChoicesHtml}
                 <div style="display:flex;gap:10px;">
                     <button class="btn ${crewChoices.length ? 'btn-primary' : 'btn-secondary'}" style="flex:1;" onclick="closeMapResultPanel(); ${crewChoices.length ? `openNearbyCrewsSheet(${safeDirId})` : `openSubscribedDirectionDetails(${safeDirId})`}">${crewChoices.length ? 'Показати місця' : 'Деталі'}</button>
-                    <button class="btn btn-danger" style="flex:1;" onclick="closeMapResultPanel(); unsubscribeDir(${safeDirId})">🚪 Зупинити</button>
+                    <button class="btn btn-secondary" style="flex:1;" onclick="disableAutoSearch(${safeDirId})">⏸ Зупинити автопошук</button>
                 </div>
             `, { kind: 'auto_search', dirId: safeDirId, renderSignature }, mapResultStrip(escapeHtml(`${title}${seats ? ' · ' + seats : ''}`)));
         }
@@ -6924,7 +7011,7 @@
                 <div class="sheet-sub" style="font-size:12px;margin:0 0 10px;">${escapeHtml(sub)}</div>
                 <div style="display:flex;gap:10px;">
                     <button class="btn btn-primary" style="flex:1;" onclick="enableAutoSearch(${safeDirId})">✨ Включити автопошук</button>
-                    <button class="btn btn-danger" style="flex:1;" onclick="closeMapResultPanel(); unsubscribeDir(${safeDirId})">🚪 Вийти</button>
+                    <button class="btn btn-danger" style="flex:1;" onclick="closeMapResultPanel(); confirmLeaveDirection(${safeDirId})">🚪 Вийти з події</button>
                 </div>
             `, { kind: 'manual_search', dirId: safeDirId }, mapResultStrip(escapeHtml(`📍 ${ctx.title || 'Підписка'} · ручний${seats ? ' · ' + seats : ''}`)));
         }
@@ -6990,6 +7077,29 @@
             }
         }
 
+        // Non-destructive counterpart to enableAutoSearch: only the matching
+        // mode changes. Event participation and explicit requests remain live.
+        async function disableAutoSearch(dirId) {
+            const safeDirId = parseInt(dirId) || 0;
+            if (!safeDirId) return false;
+            S.mapResultCollapsed = false;
+            const ok = await subscribeDir(safeDirId, {
+                afterSuccessScreen: 'explore',
+                keepSheetOpen: true,
+                mapInline: true,
+                manualOnly: true,
+                suppressSubscribedSheet: true,
+                successToast: 'Автопошук зупинено. Ви лишаєтесь у події.'
+            });
+            if (!ok) return false;
+            S.subscriptions = (S.subscriptions || []).map(s =>
+                String(s.direction_id) === String(safeDirId) ? { ...s, auto_match: false } : s
+            );
+            openMapManualSearchPanel(safeDirId);
+            renderTrips();
+            return true;
+        }
+
         function openMapSubscribedSheet(dirId, options = {}) {
             const ctx = mapInviteContext(dirId);
             if (!ctx.safeDirId) return;
@@ -7006,6 +7116,12 @@
                 ? 'WayTandem сам підбере попутника й покаже пропозицію. Можеш вказати старт авто, щоб з’явитись на карті.'
                 : 'WayTandem сам знайде водія й покаже пропозицію. Можеш вказати, де чекати, щоб з’явитись на карті.';
             const statusLine = auto ? autoStatus : manualStatus;
+            const secondaryAction = isDriver
+                ? 'closeSheet()'
+                : (auto ? `closeSheet(); disableAutoSearch(${ctx.safeDirId})` : `confirmLeaveDirection(${ctx.safeDirId})`);
+            const secondaryLabel = isDriver
+                ? 'Закрити'
+                : (auto ? '⏸ Зупинити автопошук' : '🚪 Вийти з події');
             const primary = isDriver
                 ? `<button class="btn btn-primary" onclick="doOpenCrew(${ctx.safeDirId}, { keepMapSheet: true })">${S.pickupCoords ? 'Відкрити місця' : 'Постав авто на карту'}</button>`
                 : `<button class="btn btn-primary" onclick="pickPickupLocation(${ctx.safeDirId}, { kind: 'passenger_wait', persistUserLocation: true, closeSheetAfterConfirm: true })">${S.pickupCoords ? 'Точка очікування ✓' : 'Вказати де чекати'}</button>`;
@@ -7016,7 +7132,7 @@
                 <div class="sheet-actions" data-map-command-count="3">
                     ${primary}
                     <button class="btn btn-secondary" onclick="openSubscribedDirectionDetails(${ctx.safeDirId})">Деталі події</button>
-                    <button class="btn btn-ghost" onclick="${isDriver ? 'closeSheet()' : `unsubscribeDir(${ctx.safeDirId})`}">${isDriver ? 'Закрити' : 'Зупинити'}</button>
+                    <button class="btn btn-ghost" onclick="${secondaryAction}">${secondaryLabel}</button>
                 </div>
             `, { maxHeight: options?.sheetMaxHeight || '65vh' });
         }
@@ -8000,14 +8116,15 @@
                     ? `<svg viewBox="0 0 24 24"><path d="M12 3l7 4.5v9L12 21l-7-4.5v-9L12 3z"></path><path d="M12 7v10"></path><path d="M8 12h8"></path></svg>`
                     : `<svg viewBox="0 0 24 24"><path d="M12 3l8 9-8 9-8-9 8-9z"></path><circle cx="12" cy="12" r="2.5"></circle></svg>`;
                 const click = isFolder ? `boardOpenFolder(${d.id})` : `openDirection(${d.id})`;
-                return `<div class="dir-card ${isSub ? 'subscribed' : ''}" onclick="${click}">
-                    <div class="dir-card-icon" style="background:${isSub ? 'var(--green-dim)' : 'rgba(255,255,255,0.04)'};color:${isSub ? 'var(--green)' : (isFolder ? 'var(--text-secondary)' : 'var(--accent)')};">${sigil}</div>
-                    <div class="dir-card-info">
-                        <div class="dir-card-name">${escapeHtml(d.title || 'Напрямок')}</div>
-                        <div class="dir-card-stats"><span class="dir-card-total">${escapeHtml(stats.primary)}</span>${stats.secondary ? `<span class="dir-card-context">${escapeHtml(stats.secondary)}</span>` : ''}</div>
-                    </div>
-                    <div class="dir-card-arrow">›</div>
-                </div>`;
+                const cardLabel = `${isFolder ? 'Відкрити розділ' : 'Відкрити подію'}: ${d.title || 'Напрямок'}`;
+                return `<button type="button" class="dir-card ${isSub ? 'subscribed' : ''}" onclick="${click}" aria-label="${escapeAttr(cardLabel)}">
+                    <span class="dir-card-icon" style="background:${isSub ? 'var(--green-dim)' : 'rgba(255,255,255,0.04)'};color:${isSub ? 'var(--green)' : (isFolder ? 'var(--text-secondary)' : 'var(--accent)')};">${sigil}</span>
+                    <span class="dir-card-info">
+                        <span class="dir-card-name">${escapeHtml(d.title || 'Напрямок')}</span>
+                        <span class="dir-card-stats"><span class="dir-card-total">${escapeHtml(stats.primary)}</span>${stats.secondary ? `<span class="dir-card-context">${escapeHtml(stats.secondary)}</span>` : ''}</span>
+                    </span>
+                    <span class="dir-card-arrow" aria-hidden="true">›</span>
+                </button>`;
             }).join('');
         }
 
@@ -8403,7 +8520,7 @@
                     closeSheet();
                     openDirectionFromMap(dirId);
                 });
-                document.getElementById('map-filter-stop')?.addEventListener('click', () => unsubscribeDir(dirId));
+                document.getElementById('map-filter-stop')?.addEventListener('click', () => confirmLeaveDirection(dirId));
             });
             return true;
         }
@@ -8428,7 +8545,7 @@
                 : (openCrews > 0 ? 'Є відкриті екіпажі на цьому напрямку.' : 'Поки немає відкритих водіїв, але ваша підписка активна.');
             const pollSec = Math.round(POLL_INTERVAL_MS / 1000);
             const stopButton = dirId
-                ? `<button class="btn btn-ghost" style="margin-top:8px;width:100%;" onclick="unsubscribeDir(${dirId})">🚪 Вийти з події (відписатись)</button>`
+                ? `<button class="btn btn-ghost" style="margin-top:8px;width:100%;" onclick="confirmLeaveDirection(${dirId})">🚪 Вийти з події</button>`
                 : '';
             return `
                 <div style="margin:16px auto 0;max-width:360px;text-align:left;padding:14px;border:1px solid rgba(56,189,248,0.22);border-radius:12px;background:rgba(56,189,248,0.07);">
@@ -8653,7 +8770,7 @@
                 ${creatorContactBlock}
                 <div style="display:flex;flex-direction:column;gap:8px;margin:14px 0 10px;">
                     ${isSub
-                    ? `<button class="btn btn-danger" style="width:100%;font-size:15px;padding:13px 0;border-radius:12px;" onclick="unsubscribeDir(${dirId})">🚫 Відписатись</button>`
+                    ? `<button class="btn btn-danger" style="width:100%;font-size:15px;padding:13px 0;border-radius:12px;" onclick="confirmLeaveDirection(${dirId})">🚪 Вийти з події</button>`
                     : joinPrimaryCta}
                     ${chatLink.startsWith('https://t.me/') ? `<button id="btn-idea-chat" class="btn btn-secondary" style="width:100%;font-size:15px;font-weight:700;padding:13px 0;border-radius:12px;border:1px solid rgba(56,189,248,0.35);background:rgba(56,189,248,0.10);color:var(--blue);cursor:pointer;" data-chat-link="${escapeAttr(chatLink)}" onclick="openIdeaChat(this)">💬 Чат події</button>` : ''}
                     <button class="btn btn-secondary" style="width:100%;font-size:16px;font-weight:700;padding:14px 0;border-radius:12px;background:#334155;color:#ffffff;border:none;cursor:pointer;" onclick="closeSheet()">Закрити</button>
@@ -8764,6 +8881,35 @@
                 }, 1500);
             }
             return true;
+        }
+
+        function confirmLeaveDirection(dirId) {
+            const safeDirId = parseInt(dirId, 10) || 0;
+            if (!safeDirId) return Promise.resolve(false);
+            const dir = allDirections.find(d => String(d.id) === String(safeDirId));
+            const sub = (S.subscriptions || []).find(s => String(s?.direction_id ?? s?.id ?? '') === String(safeDirId));
+            const title = dir?.title || sub?.title || sub?.direction_title || `події #${safeDirId}`;
+            return new Promise(resolve => {
+                openSheet(`
+                    <div class="sheet-title">🚪 Вийти з події?</div>
+                    <div class="sheet-sub">Ви залишите «${escapeHtml(title)}». Підписка, точка на карті та активні запити будуть скасовані. Це не те саме, що зупинити автопошук.</div>
+                    <div class="sheet-actions">
+                        <button class="btn btn-danger" id="confirm-leave-direction-yes">Так, вийти з події</button>
+                        <button class="btn btn-secondary" id="confirm-leave-direction-no">Залишитись у події</button>
+                    </div>
+                `);
+                requestAnimationFrame(() => {
+                    const yes = document.getElementById('confirm-leave-direction-yes');
+                    const no = document.getElementById('confirm-leave-direction-no');
+                    if (yes) yes.onclick = async () => {
+                        yes.disabled = true;
+                        yes.textContent = 'Виходимо…';
+                        const ok = await unsubscribeDir(safeDirId);
+                        resolve(ok === true);
+                    };
+                    if (no) no.onclick = () => { closeSheet(); resolve(false); };
+                });
+            });
         }
 
         async function unsubscribeDir(dirId) {
@@ -9289,8 +9435,8 @@
             if (hasTerminalIdleTruth()) syncTerminalIdleState('renderTrips');
 
             // Rating gate: if partner already finished and we have a cached trip
-            if (!S.activeTrip && !S.pendingMatches.length && lastKnownTripForRating && !waitingForPartner) {
-                if (maybeOpenCompletedTripRatingSheet('trips') || !lastKnownTripForRating) {
+            if (!S.activeTrip && !S.pendingMatches.length && hasPendingRating() && !waitingForPartner) {
+                if (maybeOpenCompletedTripRatingSheet('trips') || !hasPendingRating()) {
                     container.innerHTML = '<div class="empty" style="padding-top:80px;"><div class="empty-icon">🏁</div><div class="empty-title">Подорож завершена</div><div class="empty-sub">Оцініть вашого партнера у вікні зверху</div></div>';
                     return;
                 }
@@ -9383,16 +9529,18 @@
                                 <div class="tag ${isIncoming ? 'tag-amber' : 'tag-blue'}">${isIncoming ? '📩 Вхідний' : '📤 Очікування'}</div>
                             </div>
                             ${isIncoming
-                            ? `<div style="display:flex;gap:10px;"><button class="btn btn-primary" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, true)">✓ Прийняти</button><button class="btn btn-danger" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false)">✕ Відхилити</button></div><button class="btn btn-secondary" style="width:100%;margin-top:10px;" onclick="stopSearchFromHandshake(${partnerId}, ${m.direction_id})">🚪 Вийти з події</button><div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.45;">«Відхилити» — лише цей запит, ви лишаєтесь у події. «Вийти з події» — скасує запити та підписку.</div>`
-                            : `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false, 'cancel')">🛑 Скасувати запит</button><button class="btn btn-danger" style="flex:1;" onclick="stopSearchFromHandshake(${partnerId}, ${m.direction_id})">🚪 Вийти з події</button></div><div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.45;">«Скасувати запит» — лише цей екіпаж, ви лишаєтесь у події. «Вийти з події» — скасує запит і підписку.</div>`}
+                            ? `<div style="display:flex;gap:10px;"><button class="btn btn-primary" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, true)">✓ Прийняти</button><button class="btn btn-danger" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false)">✕ Відхилити</button></div><button class="btn btn-secondary" style="width:100%;margin-top:10px;" onclick="confirmStopSearchFromHandshake(${partnerId}, ${m.direction_id})">🚪 Вийти з події</button><div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.45;">«Відхилити» — лише цей запит, ви лишаєтесь у події. «Вийти з події» — окрема підтверджувана дія, що скасує запит і підписку.</div>`
+                            : `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false, 'cancel')">🛑 Скасувати запит</button><button class="btn btn-danger" style="flex:1;" onclick="confirmStopSearchFromHandshake(${partnerId}, ${m.direction_id})">🚪 Вийти з події</button></div><div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.45;">«Скасувати запит» — лише цей екіпаж, ви лишаєтесь у події. «Вийти з події» — окрема підтверджувана дія, що скасує запит і підписку.</div>`}
                         </div>`;
                 }).join('')}`;
                 return;
             }
 
             const isDriver = _isDriverRole(S.userRole);
-            const activeSubTitle = escapeHtml(S.subscriptions?.[0]?.title || S.subscriptions?.[0]?.direction_title || '');
-            const dirId = S.subscriptions?.[0]?.direction_id ?? S.subscriptions?.[0]?.id ?? 0;
+            const activeSub = S.subscriptions?.[0] || null;
+            const dirId = activeSub?.direction_id ?? activeSub?.id ?? 0;
+            const manualSearchMode = activeSub?.auto_match === false;
+            const searchModeLabel = manualSearchMode ? '📍 Ручний пошук' : '✨ Автопошук';
             stopLocationTracking();
 
             if (S.subscriptions && S.subscriptions.length > 0) {
@@ -9411,7 +9559,18 @@
                         const whenText = formatEventDateRange(startAt, endAt);
                         const meetingPoint = dir.meeting_point || '';
                         const desc = dir.description || '';
-                        const count = organizers.length;
+                        const eventSummary = (cacheData.event_summary && typeof cacheData.event_summary === 'object')
+                            ? cacheData.event_summary
+                            : {};
+                        const hasEventSummary = eventSummary.drivers_total != null;
+                        const fallbackDrivers = organizers.filter(o => normalizeRole(o?.role || 'driver') === 'driver').length;
+                        const summaryDrivers = hasEventSummary ? safeCount(eventSummary.drivers_total) : fallbackDrivers;
+                        const summaryPassengers = hasEventSummary
+                            ? safeCount(eventSummary.passengers_matched)
+                                + safeCount(eventSummary.passengers_without_seat ?? eventSummary.passengers_waiting)
+                                + safeCount(eventSummary.passengers_pending)
+                            : Math.max(0, organizers.length - fallbackDrivers);
+                        const peopleLabel = eventPeopleLabel(summaryDrivers, summaryPassengers);
 
                         const avatarGroupHtml = organizers.slice(0, 4).map(o => {
                             return renderAvatarInline(o.name || '?', o.photo_url || '', 20, 'avatar-mini');
@@ -9426,21 +9585,23 @@
                         const isExpanded = S.eventAccordionExpanded ? 'expanded' : '';
 
                         eventAccordionHtml = `
-                            <div class="event-accordion ${isExpanded}" id="event-banner" onclick="toggleEventAccordion(event)">
-                                <div class="event-header">
-                                    <div class="event-title-block">
+                            <div class="event-accordion ${isExpanded}" id="event-banner">
+                                <div class="event-summary-row">
+                                    <button type="button" class="event-header" aria-expanded="${S.eventAccordionExpanded ? 'true' : 'false'}" aria-controls="event-details-${parseInt(dirId) || 0}" onclick="toggleEventAccordion(event)">
+                                    <span class="event-title-block">
                                         <span class="event-icon-badge">✅</span>
-                                        <div class="event-meta-info">
-                                            <div class="event-goal-name">${escapeHtml(title)}</div>
-                                            <div class="event-stats">Ви підписані · ${escapeHtml(creatorDisplay)} · ${count} ${pluralUk(count, 'учасник', 'учасники', 'учасників')}</div>
-                                        </div>
-                                    </div>
+                                        <span class="event-meta-info">
+                                            <span class="event-goal-name">${escapeHtml(title)}</span>
+                                            <span class="event-stats">Ви підписані на подію · ${escapeHtml(creatorDisplay)} · ${escapeHtml(peopleLabel)}</span>
+                                        </span>
+                                    </span>
+                                    <span class="event-arrow" id="event-arrow-icon">${S.eventAccordionExpanded ? '▲' : '▼'}</span>
+                                    </button>
                                     <div class="avatar-group">
                                         ${avatarGroupHtml}
                                     </div>
-                                    <span class="event-arrow" id="event-arrow-icon">${S.eventAccordionExpanded ? '▲' : '▼'}</span>
                                 </div>
-                                <div class="event-details">
+                                <div class="event-details" id="event-details-${parseInt(dirId) || 0}">
                                     <div class="event-divider"></div>
                                     ${detailRows ? `<div class="event-desc">${detailRows}</div>` : ''}
                                     ${dir.creator_id && String(dir.creator_id) !== String(S.userId) ? `
@@ -9522,8 +9683,10 @@
                     if (S.myCrew) {
                         contextHintHtml = `
                             <div style="display:flex;align-items:center;gap:8px;padding:10px;border-radius:10px;background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.15);margin-top:12px;text-align:left;">
-                                <span style="font-size:16px;flex-shrink:0;">📡</span>
-                                <span style="font-size:12px;color:var(--text-secondary);line-height:1.4;">Автопошук показує перших попутників за кількістю вільних місць. Запит або запрошення створиться тільки після вашого кліку.</span>
+                                <span style="font-size:16px;flex-shrink:0;">${manualSearchMode ? '📍' : '📡'}</span>
+                                <span style="font-size:12px;color:var(--text-secondary);line-height:1.4;">${manualSearchMode
+                                    ? 'Ручний режим: відкрийте карту й самі оберіть попутника. Запрошення зʼявиться лише після вашого кліку.'
+                                    : 'Автопошук показує перших попутників за кількістю вільних місць. Запит або запрошення створиться тільки після вашого кліку.'}</span>
                             </div>`;
                     } else {
                         contextHintHtml = `
@@ -9535,10 +9698,12 @@
                 } else {
                     contextHintHtml = `
                         <div style="display:flex;align-items:center;gap:8px;padding:10px;border-radius:10px;background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.15);margin-top:12px;text-align:left;">
-                            <span style="font-size:16px;flex-shrink:0;">📡</span>
-                            <span style="font-size:12px;color:var(--text-secondary);line-height:1.4;">Ви підписані на подію. Відкрийте карту й оберіть екіпаж самостійно — або чекайте, поки водій надішле вам запит.</span>
+                            <span style="font-size:16px;flex-shrink:0;">${manualSearchMode ? '📍' : '📡'}</span>
+                            <span style="font-size:12px;color:var(--text-secondary);line-height:1.4;">${manualSearchMode
+                                ? 'Ручний режим: відкрийте карту й самі оберіть екіпаж.'
+                                : 'Автопошук активний: WayTandem покаже пропозицію, але запит зʼявиться лише після вашого кліку.'}</span>
                         </div>
-                        <button class="btn btn-secondary" style="width:100%;margin-top:10px;" onclick="switchScreen('explore'); focusActiveMapContext();">🗺 Обрати екіпаж на карті</button>`;
+                        ${manualSearchMode ? `<button class="btn btn-secondary" style="width:100%;margin-top:10px;" onclick="switchScreen('explore'); focusActiveMapContext();">🗺 Обрати екіпаж на карті</button>` : ''}`;
                 }
 
                 const freshnessText = formatRadarSyncAge(S.lastHydrateAt || S.lastMapSyncAt);
@@ -9547,7 +9712,7 @@
                     ${eventAccordionHtml}
                     <div class="card animate-in" style="margin-top:10px;text-align:center;">
                         <div class="status-header">
-                            🟢 Підписка активна
+                            🟢 Підписка активна · ${searchModeLabel}
                         </div>
                         ${capacityPanelHtml}
                         ${contextHintHtml}
@@ -9557,7 +9722,7 @@
                         </div>
                     </div>
                     <div style="padding:0 16px;margin-top:16px;margin-bottom:20px;max-width:360px;margin-left:auto;margin-right:auto;">
-                        <button class="btn btn-danger" style="width:100%;background:transparent;color:var(--red);border:1px solid rgba(248,113,113,0.2);" onclick="unsubscribeDir(${dirId})">🚪 Вийти з події (відписатись)</button>
+                        <button class="btn btn-danger" style="width:100%;background:transparent;color:var(--red);border:1px solid rgba(248,113,113,0.2);" onclick="confirmLeaveDirection(${dirId})">🚪 Вийти з події</button>
                     </div>
                 `;
             } else {
@@ -10546,20 +10711,50 @@
             return anchor ? [anchor] : [];
         }
 
+        function hasPendingRating() {
+            return !!lastKnownTripForRating || (Array.isArray(S._ratingQueue) && S._ratingQueue.length > 0);
+        }
+
+        function queueRatingContext(ratingContext, tripSnapshot = null) {
+            if (!ratingContext?.request_id) return false;
+            if (tripSnapshot) {
+                lastKnownTripForRating = { ...tripSnapshot };
+            } else if (!lastKnownTripForRating) {
+                // Recovery anchor for a persisted queue from an older client.
+                // It carries only terminal identity; the queue remains the
+                // authoritative list of partners still awaiting a decision.
+                lastKnownTripForRating = {
+                    request_id: ratingContext.request_id,
+                    direction_title: ratingContext.direction_title || '',
+                    viewer_role: ratingContext.viewer_role || '',
+                    status: 'completed'
+                };
+            }
+            const queue = Array.isArray(S._ratingQueue) ? S._ratingQueue.filter(Boolean) : [];
+            if (!queue.some(item => String(item?.request_id || '') === String(ratingContext.request_id))) {
+                queue.push(ratingContext);
+            }
+            S._ratingQueue = queue;
+            persistCriticalState();
+            renderSubBar();
+            return true;
+        }
+
         function maybeOpenCompletedTripRatingSheet(source = '') {
-            if (S.activeTrip || !lastKnownTripForRating) return false;
+            const existingQueue = Array.isArray(S._ratingQueue) ? S._ratingQueue.filter(Boolean) : [];
+            if (S.activeTrip || (!lastKnownTripForRating && !existingQueue.length)) return false;
             // ФІКС L-6 (live-прохід 2026-07-04): явний тап пілюлі «⭐ Оцініть» —
             // це воля користувача, вона НЕ фільтрується евристиками авто-попапів:
             // ні застряглим isAppInBackground (фонова вкладка), ні one-shot
             // «вже показували». Інакше пілюля веде в порожні «Поїздки» — тупик.
             const explicit = source === 'subbar';
-            const reqId = currentRequestIdFromTrip(lastKnownTripForRating);
             if (!Array.isArray(S._ratingQueue) || !S._ratingQueue.length) {
                 S._ratingQueue = buildRatingQueueFromTrip(lastKnownTripForRating);
             }
             const ratingContext = (S._ratingQueue && S._ratingQueue[0]) || buildRatingContext(lastKnownTripForRating);
+            const reqId = Number(ratingContext?.request_id || currentRequestIdFromTrip(lastKnownTripForRating)) || 0;
             if (!reqId || !ratingContext) return false;
-            if (!isRatingEligibleTripSnapshot(lastKnownTripForRating)) {
+            if (lastKnownTripForRating && !isRatingEligibleTripSnapshot(lastKnownTripForRating)) {
                 lastKnownTripForRating = null;
                 waitingForPartner = false;
                 S._ratingQueue = null;
@@ -10594,15 +10789,6 @@
             showToast('🎉 Подорож завершена! Оцініть партнера.', 'success');
             openRatingSheet(ratingContext);
             persistCriticalState();
-            // Снапшот живе, доки в черзі лишаються неоцінені партнери —
-            // пілюля «⭐ Оцініть» веде до наступного, а не зникає.
-            if ((S._ratingQueue || []).length <= 1) {
-                lastKnownTripForRating = null;
-                try {
-                    localStorage.removeItem(_stateKey('ltr'));
-                    localStorage.removeItem(_stateKey('wfp'));
-                } catch (_) { }
-            }
             renderSubBar();
             return true;
         }
@@ -10787,8 +10973,10 @@
                     if (res?.completed) {
                         showToast('🎉 Подорож завершена! Дякуємо.', 'success');
                         waitingForPartner = false;
-                        if (ratingContext) openRatingSheet(ratingContext);
-                        lastKnownTripForRating = null;
+                        if (ratingContext) {
+                            queueRatingContext(ratingContext, tripSnapshot);
+                            openRatingSheet(ratingContext);
+                        }
                         await hydrate();
                     } else if (options.stayOnCrew) {
                         showToast('⏳ Фініш відмічено. Чекаємо підтвердження попутника.', '');
@@ -10820,6 +11008,8 @@
             if (!beginOp('finish_all_driver_passengers')) return;
             try {
                 let ok = 0;
+                const tripSnapshot = { ...S.activeTrip };
+                const completedContexts = [];
                 for (const passenger of passengers) {
                     const reqId = passengerRequestId(passenger);
                     const passengerId = parseInt(passenger?.user_id || 0, 10) || 0;
@@ -10829,10 +11019,14 @@
                     });
                     if (res?.status === 'ok') ok += 1;
                     if (res?.completed) {
-                        const ctx = ratingContextForRequest(S.activeTrip, reqId, passengerId);
-                        if (ctx) openRatingSheet(ctx);
+                        const ctx = ratingContextForRequest(tripSnapshot, reqId, passengerId);
+                        if (ctx) {
+                            queueRatingContext(ctx, tripSnapshot);
+                            completedContexts.push(ctx);
+                        }
                     }
                 }
+                if (completedContexts.length && !isSheetOpen()) openRatingSheet(completedContexts[0]);
                 showToast(`⏳ Фініш відмічено для ${ok}/${passengers.length}. Чекаємо підтверджень попутників.`, ok === passengers.length ? '' : 'error');
                 waitingForPartner = false;
                 await hydrate();
@@ -10850,17 +11044,23 @@
             if (!beginOp('confirm_all_finishers')) return;
             try {
                 let ok = 0;
+                const tripSnapshot = { ...S.activeTrip };
+                const completedContexts = [];
                 for (const passenger of finishers) {
                     const reqId = passengerRequestId(passenger);
                     const passengerId = parseInt(passenger?.user_id || 0, 10) || 0;
-                    const ctx = ratingContextForRequest(S.activeTrip, reqId, passengerId);
+                    const ctx = ratingContextForRequest(tripSnapshot, reqId, passengerId);
                     const res = await api('/api/v3/trip/done', {
                         method: 'POST',
                         body: JSON.stringify({ request_id: reqId, user_id: S.userId, role: 'driver' })
                     });
                     if (res?.status === 'ok') ok += 1;
-                    if (res?.completed && ctx) openRatingSheet(ctx);
+                    if (res?.completed && ctx) {
+                        queueRatingContext(ctx, tripSnapshot);
+                        completedContexts.push(ctx);
+                    }
                 }
+                if (completedContexts.length && !isSheetOpen()) openRatingSheet(completedContexts[0]);
                 showToast(`✅ Підтверджено фініш ${ok}/${finishers.length}`, ok === finishers.length ? 'success' : 'error');
                 waitingForPartner = false;
                 await hydrate();
@@ -10976,6 +11176,10 @@
 
         function openRatingSheet(ratingContext = null) {
             S._ratingContext = ratingContext || getCurrentRatingContext();
+            if (S._ratingContext) {
+                queueRatingContext(S._ratingContext, S.activeTrip ? { ...S.activeTrip } : null);
+                S.completedRatingSheetShownIds.add(Number(S._ratingContext.request_id) || S._ratingContext.request_id);
+            }
             const partnerName = String(S._ratingContext?.partner_name || '').trim();
             const eventTitle = String(S._ratingContext?.direction_title || '').trim();
             const partnerLine = partnerName
@@ -10988,7 +11192,7 @@
                 ${buildStarRow('partner', `${((S._ratingContext?.viewer_role || S.activeTrip?.viewer_role || '') === 'driver') ? '👤' : '🚗'} Партнер${partnerName ? ': <strong>' + escapeHtml(partnerName) + '</strong>' : ''}`)}
                 <input class="board-search" id="rating-comment" placeholder="Коментар (необов'язково)..." style="margin:12px 0 16px;">
                 <button class="btn btn-primary" id="rating-submit" onclick="submitRating()" disabled>Надіслати оцінку</button>
-                <button class="btn btn-ghost" style="width:100%;margin-top:8px;" onclick="dismissRatingSheet()">Пропустити</button>
+                <button class="btn btn-ghost" style="width:100%;margin-top:8px;" onclick="postponeRatingSheet()">Пізніше</button>
             `);
             S._ratingStars = { event: null, partner: null };
         }
@@ -11018,8 +11222,8 @@
             const reqId = ctx?.request_id || null;
             const pid = ctx?.partner_id || null;
             if (!reqId || (hasPartner && !pid)) {
-                showToast('Контекст оцінки втрачено', 'error');
-                finalizeRatingFlow('rating-context-lost');
+                showToast('Контекст оцінки треба відновити — оцінку збережено на пізніше', 'error');
+                postponeRatingSheet('context-lost');
                 return;
             }
             const comment = document.getElementById('rating-comment')?.value?.trim() || '';
@@ -11040,13 +11244,23 @@
             showToast('Не вдалося надіслати оцінку — вибір збережено, спробуйте ще раз', 'error');
         }
 
-        function dismissRatingSheet() {
-            finalizeRatingFlow('skip-rating');
+        function postponeRatingSheet(source = 'later') {
+            const context = S._ratingContext;
+            if (context) queueRatingContext(context, lastKnownTripForRating);
+            S._ratingStars = null;
+            S._ratingContext = null;
+            persistCriticalState();
+            closeSheet({ preserveRating: true, suppressRatingReopen: true });
+            renderSubBar();
+            showToast(source === 'later'
+                ? 'Оцінку збережено на пізніше'
+                : 'Оцінка чекає у смужці стану');
+            return true;
         }
 
         function finalizeRatingFlow(source = '') {
-            closeSheet();
             const finishedReq = S._ratingContext?.request_id;
+            closeSheet({ preserveRating: true, suppressRatingReopen: true });
             S._ratingStars = null;
             S._ratingContext = null;
             // Мульти-екіпаж водія: оцінив/пропустив одного → наступний з черги.
@@ -11335,7 +11549,11 @@
             };
         }
 
-        function closeSheet() {
+        function closeSheet(options = {}) {
+            const openSheetEl = document.getElementById('sheet');
+            if (!options?.preserveRating && S._ratingContext && openSheetEl?.classList.contains('open')) {
+                return postponeRatingSheet('dismiss');
+            }
             if (S.roleGateOpen && !hasChosenRole()) return;
             if (S.matchSheetOpen) {
                 S.matchSheetOpen = false;
@@ -11369,7 +11587,12 @@
             // DM-2026-06-15: після закриття шторки (зокрема rating-sheet) показати
             // банер іншої активної підписки, якщо такий є — він був стриманий
             // guard'ом у maybeOpenMapResultPanelOnHydrate() на час відкритої шторки.
-            setTimeout(() => { maybeOpenPartnerFinishSheet(S.activeTrip); maybeOpenCompletedTripRatingSheet('sheet-close'); maybeOpenMatchSheet(); maybeOpenMapResultPanelOnHydrate(); }, 0);
+            setTimeout(() => {
+                maybeOpenPartnerFinishSheet(S.activeTrip);
+                if (!options?.suppressRatingReopen) maybeOpenCompletedTripRatingSheet('sheet-close');
+                maybeOpenMatchSheet();
+                maybeOpenMapResultPanelOnHydrate();
+            }, 0);
         }
 
         // Backdrop click closes sheet (click only, not drag)
@@ -12114,7 +12337,13 @@
                             ? `${isDriver ? 'попутник' : 'водій'}: ${escapeHtml(partner)}`
                             : '';
                         const ratingLine = historyOwnRatingLine(t);
-                        const subLine = [t.date || formatNewsTime(t.finished_at || t.created_at), partnerLine].filter(Boolean).join(' · ');
+                        const eventDate = formatEventDateRange(t.event_start_date, t.event_end_date);
+                        const occurredAt = formatNewsTime(t.occurred_at || t.finished_at || t.created_at);
+                        const chronology = [
+                            eventDate ? `Подія: ${eventDate}` : '',
+                            occurredAt && occurredAt !== '—' ? `${st.label}: ${occurredAt}` : (t.date || '')
+                        ].filter(Boolean).join(' · ');
+                        const subLine = [chronology, partnerLine].filter(Boolean).join(' · ');
                         return `
                         <div style="padding:12px 0;border-bottom:1px solid var(--border);">
                             <div style="display:flex;align-items:center;gap:8px;">
