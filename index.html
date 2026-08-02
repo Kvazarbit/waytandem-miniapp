@@ -3274,6 +3274,8 @@
             myCrew: null,
             matchSheetOpen: false,
             directionInviteSheetOpen: false,
+            viewedDirectionId: null,
+            viewedDirectionTitle: '',
             activeMatchKey: null,
             seenMatchIds: new Set(),
             notifiedMatchIds: new Set(),
@@ -4436,7 +4438,31 @@
             openDirection(safeDirId);
         }
 
+        // Presentation-only context: which event sheet is currently being
+        // viewed. This never writes lifecycle state, survives no reload, and
+        // is cleared together with the sheet.
+        function rememberViewedDirection(dirId, title = '') {
+            const safeDirId = parseInt(dirId, 10) || 0;
+            if (!safeDirId) return false;
+            S.viewedDirectionId = safeDirId;
+            S.viewedDirectionTitle = String(title || cachedDirectionTitle(safeDirId) || `Подія #${safeDirId}`).trim();
+            renderSubBar();
+            return true;
+        }
+
+        function clearViewedDirection() {
+            const changed = !!(S.viewedDirectionId || S.viewedDirectionTitle);
+            S.viewedDirectionId = null;
+            S.viewedDirectionTitle = '';
+            if (changed) renderSubBar();
+        }
+
         function subBarIdleFallback() {
+            const viewedId = parseInt(S.viewedDirectionId, 10) || 0;
+            if (viewedId) {
+                const title = String(S.viewedDirectionTitle || cachedDirectionTitle(viewedId) || `Подія #${viewedId}`).trim();
+                return { label: `🧭 ${title} · переглядаєте подію`, action: `openDirection(${viewedId})` };
+            }
             if (_isDriverRole(S.userRole)) return { label: '🚗 Водій · оберіть подію', action: "switchScreen('board')" };
             if (_isPassengerRole(S.userRole)) return { label: '👤 Попутник · оберіть подію', action: "switchScreen('board')" };
             return { label: '📌 Оберіть напрямок, щоб почати', action: "switchScreen('board')" };
@@ -5160,25 +5186,7 @@
             const startRaw = startAt || explicit;
             const endRaw = endAt;
             if (!startRaw && !endRaw) return '';
-
-            const months = [
-                'січня', 'лютого', 'березня', 'квітня', 'травня', 'червня',
-                'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня'
-            ];
-            const parsedStart = startRaw ? new Date(startRaw) : null;
-            const parsedEnd = endRaw ? new Date(endRaw) : null;
-            const startOk = parsedStart && !Number.isNaN(parsedStart.getTime());
-            const endOk = parsedEnd && !Number.isNaN(parsedEnd.getTime());
-
-            if (startOk && endOk) {
-                if (parsedStart.getFullYear() === parsedEnd.getFullYear() && parsedStart.getMonth() === parsedEnd.getMonth()) {
-                    return `${parsedStart.getDate()} - ${parsedEnd.getDate()} ${months[parsedStart.getMonth()]}`;
-                }
-                return `${parsedStart.getDate()} ${months[parsedStart.getMonth()]} - ${parsedEnd.getDate()} ${months[parsedEnd.getMonth()]}`;
-            }
-            if (startOk) return `${parsedStart.getDate()} ${months[parsedStart.getMonth()]}`;
-            if (endOk) return `${parsedEnd.getDate()} ${months[parsedEnd.getMonth()]}`;
-            return startRaw || endRaw;
+            return formatEventDateRange(startRaw, endRaw);
         }
 
         function buildMapEventPreviewHtml(point, dId) {
@@ -5984,12 +5992,70 @@
             catch (_) { return '—'; }
         }
 
-        function formatIdeaDate(value) {
-            if (!value) return '';
-            const raw = String(value);
-            const dt = new Date(raw);
-            if (Number.isNaN(dt.getTime())) return raw.replace('T', ' ');
-            return dt.toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        function formatEventDay(value) {
+            const parts = eventDateParts(value);
+            if (!parts) return '';
+            const months = [
+                'січня', 'лютого', 'березня', 'квітня', 'травня', 'червня',
+                'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня'
+            ];
+            return `${parts.day} ${months[parts.month - 1]}`;
+        }
+
+        function formatEventDateRange(startDate, endDate) {
+            const start = eventDateParts(startDate);
+            const end = eventDateParts(endDate);
+            if (!start && !end) return '';
+            if (!start) return formatEventDay(endDate);
+            if (!end) return formatEventDay(startDate);
+            if (end.key < start.key) return '';
+            if (start.key === end.key) return formatEventDay(startDate);
+            if (start.year === end.year && start.month === end.month) {
+                return `${start.day}–${formatEventDay(endDate)}`;
+            }
+            if (start.year === end.year) {
+                return `${formatEventDay(startDate)} – ${formatEventDay(endDate)}`;
+            }
+            return `${formatEventDay(startDate)} ${start.year} – ${formatEventDay(endDate)} ${end.year}`;
+        }
+
+        function formatEventDuration(startDate, endDate) {
+            const startRaw = String(startDate || '').trim();
+            const endRaw = String(endDate || '').trim();
+            if (!startRaw && !endRaw) return '';
+            const start = startRaw ? eventDateParts(startRaw) : eventDateParts(endRaw);
+            const end = endRaw ? eventDateParts(endRaw) : eventDateParts(startRaw);
+            if (!start || !end || end.key < start.key) return '';
+            const startUtc = Date.UTC(start.year, start.month - 1, start.day);
+            const endUtc = Date.UTC(end.year, end.month - 1, end.day);
+            const spanDays = Math.floor((endUtc - startUtc) / 86400000);
+            const days = Math.max(1, spanDays);
+            return `Тривалість: ${days} ${pluralUk(days, 'день', 'дні', 'днів')}`;
+        }
+
+        function eventDateParts(value) {
+            const key = String(value || '').trim().slice(0, 10);
+            const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key);
+            if (!match) return null;
+            const year = Number(match[1]);
+            const month = Number(match[2]);
+            const day = Number(match[3]);
+            if (month < 1 || month > 12) return null;
+            const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+            const monthDays = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+            if (day < 1 || day > monthDays[month - 1]) return null;
+            return { key, year, month, day };
+        }
+
+        function eventPeopleTotal(drivers, passengers) {
+            const driverCount = Math.max(0, Number(drivers) || 0);
+            const passengerCount = Math.max(0, Number(passengers) || 0);
+            return driverCount + passengerCount;
+        }
+
+        function eventPeopleLabel(drivers, passengers) {
+            const total = eventPeopleTotal(drivers, passengers);
+            return `${total} ${pluralUk(total, 'людина у події', 'людини у події', 'людей у події')}`;
         }
 
         function dateTimeLocalValue(value) {
@@ -6011,7 +6077,7 @@
             const organizerLine = organizerLabel
                 ? `👤 Організатор: ${organizerLabel}${creatorUsername ? ` (@${creatorUsername})` : ''}`
                 : '';
-            const whenText = startAt && endAt ? `${formatIdeaDate(startAt)} — ${formatIdeaDate(endAt)}` : (formatIdeaDate(startAt) || formatIdeaDate(endAt));
+            const whenText = formatEventDateRange(startAt, endAt);
             const lines = [
                 '🌿 Запрошення до ідеї WayTandem',
                 '',
@@ -6185,9 +6251,9 @@
                 ? safeCount(summary.open_seats)
                 : orgs.reduce((sum, o) => sum + safeCount(o?.seats_free), 0);
             const driverCount = drivers;
-            const total = drivers + passengers || orgs.length;
+            const total = eventPeopleTotal(drivers, passengers) || orgs.length;
             const participantLine = total > 0
-                ? `${total} ${pluralUk(total, 'людина вже цікавиться', 'людини вже цікавляться', 'людей вже цікавляться')}`
+                ? eventPeopleLabel(drivers, passengers)
                 : 'Будьте серед перших учасників';
             const driverLine = driverCount > 0
                 ? `${driverCount} ${pluralUk(driverCount, 'водій', 'водії', 'водіїв')}${openSeats > 0 ? ` • ${openSeats} ${pluralUk(openSeats, 'вільне місце', 'вільні місця', 'вільних місць')}` : ''}`
@@ -6299,7 +6365,8 @@
             const desc = String(dirMeta.description || '').trim();
             const startAt = String(dirMeta.start_date || '').trim();
             const endAt = String(dirMeta.end_date || '').trim();
-            const whenText = startAt && endAt ? `${formatIdeaDate(startAt)} — ${formatIdeaDate(endAt)}` : (formatIdeaDate(startAt) || formatIdeaDate(endAt));
+            const whenText = formatEventDateRange(startAt, endAt);
+            rememberViewedDirection(ctx.safeDirId, ctx.title);
             const detailLine = [whenText ? `🗓 ${whenText}` : '', meetingPoint ? `📍 ${meetingPoint}` : ''].filter(Boolean).join(' · ');
             const subtitle = creatorDisplay
                 ? `${escapeHtml(creatorDisplay)}${creatorUsername && creatorName ? ` (@${escapeHtml(creatorUsername)})` : ''} збирає людей їхати разом.`
@@ -7022,7 +7089,8 @@
             const desc = String(dirMeta.description || '').trim();
             const startAt = String(dirMeta.start_date || '').trim();
             const endAt = String(dirMeta.end_date || '').trim();
-            const whenText = startAt && endAt ? `${formatIdeaDate(startAt)} — ${formatIdeaDate(endAt)}` : (formatIdeaDate(startAt) || formatIdeaDate(endAt));
+            const whenText = formatEventDateRange(startAt, endAt);
+            rememberViewedDirection(safeDirId, title);
             const proof = directionInviteSocialProof(dirMeta, orgs, data?.event_summary);
             const topDrivers = eventDriverRosterHtml(orgs, safeDirId, { compact: true });
             const contactButton = creatorId && !isMyDir
@@ -7042,12 +7110,12 @@
                 : `<strong style="color:var(--text-primary);">Що буде далі:</strong> ви оберете, чи можете взяти людей, чи шукаєте місце. Потім WayTandem покаже відповідний екіпаж або повідомить, щойно знайдеться водій.`;
             const actionHtml = subscribedDetails
                 ? `<div style="display:flex;gap:8px;">
-                    <button class="btn btn-secondary" style="flex:1;font-size:12px;" onclick="openDirection(${safeDirId})">👥 Учасники</button>
+                    <button class="btn btn-secondary" style="flex:1;font-size:12px;" onclick="openDirection(${safeDirId})">Деталі події</button>
                     <button class="btn btn-ghost" style="flex:1;font-size:12px;" onclick="closeSheet(); switchScreen('explore'); maybeOpenMapResultPanelOnHydrate();">Назад до пошуку</button>
                 </div>`
                 : `<button class="btn btn-primary" style="width:100%;margin-bottom:8px;" onclick="joinInvitedDirection(${joinArgs})">Хочу поїхати</button>
                 <div style="display:flex;gap:8px;">
-                    <button class="btn btn-secondary" style="flex:1;font-size:12px;" onclick="openDirection(${safeDirId})">👥 Учасники</button>
+                    <button class="btn btn-secondary" style="flex:1;font-size:12px;" onclick="openDirection(${safeDirId})">Деталі події</button>
                     <button class="btn btn-ghost" style="flex:1;font-size:12px;" onclick="closeSheet()">Пізніше</button>
                 </div>`;
             S.directionInviteSheetOpen = true;
@@ -7553,14 +7621,7 @@
         // діапазон = діапазон; він не є сигналом доступності чи обіцянкою
         // можливості приєднатися.
         function formatNewsDay(value) {
-            const pick = String(value || '').slice(0, 10);
-            const parts = pick.split('-');
-            if (parts.length !== 3) return '';
-            const months = ['січня', 'лютого', 'березня', 'квітня', 'травня', 'червня',
-                'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня'];
-            const monthIndex = Number(parts[1]) - 1;
-            if (!(monthIndex >= 0 && monthIndex < 12)) return '';
-            return `${Number(parts[2])} ${months[monthIndex]}`;
+            return formatEventDay(value);
         }
 
         // Правило дат (консенсус із Codex, форум 2026-07-25): СТАБІЛЬНА
@@ -7572,17 +7633,7 @@
         // факти й дії, не календар. Якщо пілот покаже потребу в статусі —
         // вводити його окремим organizer/lifecycle фактом, не таймером.
         function formatNewsWhen(startDate, endDate) {
-            const startKey = String(startDate || '').slice(0, 10);
-            const endKey = String(endDate || '').slice(0, 10);
-            const start = formatNewsDay(startKey);
-            const end = formatNewsDay(endKey);
-            if (!start && !end) return '';
-            if (!start) return end;
-            if (!end || startKey === endKey) return start;
-            if (startKey.slice(0, 7) === endKey.slice(0, 7)) {
-                return `${Number(startKey.slice(8, 10))}–${end}`;
-            }
-            return `${start} – ${end}`;
+            return formatEventDateRange(startDate, endDate);
         }
 
         // Українське узгодження числівників: 1 водій / 2 водії / 5 водіїв.
@@ -7622,11 +7673,11 @@
                 const done = Number(card?.completed_trips_count || 0);
                 const stats = `${drivers} ${pluralUk(drivers, 'водій', 'водії', 'водіїв')}`
                     + ` • ${seats} ${pluralUk(seats, 'вільне місце', 'вільні місця', 'вільних місць')}`
-                    + ` • ${waiting} ${pluralUk(waiting, 'чекає', 'чекають', 'чекають')}`;
+                    + ` • ${waiting} ${pluralUk(waiting, 'шукає місце', 'шукають місце', 'шукають місце')}`;
                 // Куди і коли — перший рядок після назви: саме на це відповідає
                 // людина собі «чи це для мене», ще нікуди не тапнувши.
                 const where = String(card?.meeting_point || '').trim();
-                const when = formatNewsWhen(card?.start_date, card?.end_date);
+                const when = formatEventDateRange(card?.start_date, card?.end_date);
                 const whereWhen = [where, when].filter(Boolean).join(' · ');
                 const isOpen = !!S._newsOpenUpdates[String(id)];
                 // A11y (review Codex 2026-07-25): картка НЕ може бути
@@ -8476,10 +8527,13 @@
 
         // ─── OPEN DIRECTION — full version ───
         async function openDirection(dirId) {
+            const safeDirId = parseInt(dirId, 10) || 0;
+            if (!safeDirId) return;
+            rememberViewedDirection(safeDirId, cachedDirectionTitle(safeDirId));
             S._openDirectionSeq = (S._openDirectionSeq || 0) + 1;
             const seq = S._openDirectionSeq;
-            openDirectionLoadingSheet(dirId);
-            const data = await api(`/api/v3/fractal/organizers?direction_id=${dirId}&lang=${S.lang}&user_id=${S.userId || ''}`);
+            openDirectionLoadingSheet(safeDirId);
+            const data = await api(`/api/v3/fractal/organizers?direction_id=${safeDirId}&lang=${S.lang}&user_id=${S.userId || ''}`);
             if (seq !== S._openDirectionSeq) return;
             let dir = allDirections.find(d => String(d.id) === String(dirId));
             if (!dir && data?.direction && typeof data.direction === 'object') {
@@ -8495,6 +8549,7 @@
             }
             if (!dir) { closeSheet(); showToast('Напрямок недоступний', 'error'); return; }
             if (isFolderNode(dir)) { closeSheet(); await boardOpenFolder(dirId); return; }
+            rememberViewedDirection(safeDirId, dir.title || dir.name || cachedDirectionTitle(safeDirId));
             const orgs = data?.organizers || [];
             const isSub = data?.user_status?.subscribed;
             const creatorId = data?.direction?.creator_id || data?.direction?.user_id || dir?.creator_id || dir?.user_id;
@@ -8527,51 +8582,9 @@
             const startAt = dirMeta.start_date || dir.start_date || '';
             const endAt = dirMeta.end_date || dir.end_date || '';
 
-            // Short date duration formatting (e.g. 15 - 20 June / 15 - 20 Червня)
-            let whenText = '';
-            if (startAt) {
-                const startD = new Date(startAt);
-                if (!Number.isNaN(startD.getTime())) {
-                    const ukMonths = [
-                        'січня', 'лютого', 'березня', 'квітня', 'травня', 'червня',
-                        'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня'
-                    ];
-                    const startDay = startD.getDate();
-                    const startMonth = ukMonths[startD.getMonth()];
-                    const capitalizedMonth = startMonth.charAt(0).toUpperCase() + startMonth.slice(1);
-                    
-                    if (endAt) {
-                        const endD = new Date(endAt);
-                        if (!Number.isNaN(endD.getTime())) {
-                            const endDay = endD.getDate();
-                            const endMonth = ukMonths[endD.getMonth()];
-                            if (startD.getMonth() === endD.getMonth()) {
-                                whenText = `${startDay} - ${endDay} ${capitalizedMonth}`;
-                            } else {
-                                const capitalizedEndMonth = endMonth.charAt(0).toUpperCase() + endMonth.slice(1);
-                                whenText = `${startDay} ${capitalizedMonth} - ${endDay} ${capitalizedEndMonth}`;
-                            }
-                        }
-                    }
-                    if (!whenText) {
-                        whenText = `${startDay} ${capitalizedMonth}`;
-                    }
-                }
-            }
-
-            // Dynamic days calculation
-            let daysText = '';
-            if (startAt && endAt) {
-                const startD = new Date(startAt);
-                const endD = new Date(endAt);
-                const diffTime = Math.abs(endD - startD);
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                if (diffDays > 0) {
-                    daysText = `🗓 ${diffDays} ${pluralUk(diffDays, 'день', 'дні', 'днів')}`;
-                }
-            } else if (startAt) {
-                daysText = '🗓 1 день';
-            }
+            const whenText = formatEventDateRange(startAt, endAt);
+            const durationText = formatEventDuration(startAt, endAt);
+            const daysText = durationText ? `🗓 ${durationText}` : '';
 
             const eventSummary = (data?.event_summary && typeof data.event_summary === 'object') ? data.event_summary : {};
             const hasEventSummary = eventSummary.drivers_total != null;
@@ -8590,8 +8603,7 @@
             const passengers = hasEventSummary
                 ? (summaryMatched + summaryWaiting + summaryPending)
                 : Number(dir.passengers || 0);
-            const totalParticipants = drivers + passengers;
-            const participantsText = `👥 ${totalParticipants} ${pluralUk(totalParticipants, 'Учасник', 'Учасники', 'Учасників')}`;
+            const participantsText = `👥 ${eventPeopleLabel(drivers, passengers)}`;
             const crewsText = `🚗 ${drivers} ${pluralUk(drivers, 'Екіпаж', 'Екіпажі', 'Екіпажів')}`;
             const customStatsLine = [daysText, participantsText, crewsText].filter(Boolean).join(' • ');
             const summaryRisk = String(eventSummary.risk || 'ok');
@@ -9396,7 +9408,7 @@
                         const creatorUsername = dir.creator_username || '';
                         const startAt = dir.start_date || '';
                         const endAt = dir.end_date || '';
-                        const whenText = startAt && endAt ? `${formatIdeaDate(startAt)} — ${formatIdeaDate(endAt)}` : (formatIdeaDate(startAt) || formatIdeaDate(endAt));
+                        const whenText = formatEventDateRange(startAt, endAt);
                         const meetingPoint = dir.meeting_point || '';
                         const desc = dir.description || '';
                         const count = organizers.length;
@@ -9438,7 +9450,7 @@
                                             ${creatorUsername ? `<span style="font-size:12px;color:var(--blue);">@${escapeHtml(creatorUsername)}</span>` : ''}
                                             <button class="btn btn-secondary" style="padding:5px 10px;font-size:11px;min-height:28px;width:auto;margin-left:auto;" data-tg-username="${escapeAttr(creatorUsername)}" data-tg-user-id="${parseInt(dir.creator_id, 10) || 0}" onclick="event.stopPropagation(); openTelegramContactFromButton(this)">💬 Написати</button>
                                         </div>` : ''}
-                                    <button class="btn btn-secondary" style="width:100%;font-size:12px;" onclick="event.stopPropagation(); closeSheet(); openDirection(${parseInt(dirId) || 0})">👥 Переглянути учасників</button>
+                                    <button class="btn btn-secondary" style="width:100%;font-size:12px;" onclick="event.stopPropagation(); closeSheet(); openDirection(${parseInt(dirId) || 0})">Деталі події</button>
                                 </div>
                             </div>
                         `;
@@ -11331,6 +11343,7 @@
             }
             S.roleGateOpen = false;
             S.directionInviteSheetOpen = false;
+            clearViewedDirection();
             const sheet = document.getElementById('sheet');
             if (sheet && sheet._cleanup) sheet._cleanup();
             document.getElementById('sheet-backdrop').classList.remove('open');
