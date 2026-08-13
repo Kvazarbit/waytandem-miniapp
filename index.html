@@ -5334,6 +5334,12 @@
             'already_subscribed': 'Ви вже в черзі на цей напрямок',
             'direction_expired': 'Подія вже завершилась — оберіть актуальну в каталозі',
             'active_trip_other_direction': 'У вас уже є активна домовленість в іншій події',
+            // Живий прохід 2026-08-11: сервер віддає ці три причини (server_v3
+            // _invite_match_core, skip_cycles_remaining), а словника не було — користувач
+            // бачив у тості сирий машинний код «recently_declined_by_you».
+            'recently_declined_by_you': 'Ви нещодавно відхилили цю людину — пропозиція повернеться згодом. Поки оберіть іншого',
+            'recently_declined_by_passenger': 'Попутник нещодавно відхилив цю пропозицію — спробуйте іншого або зачекайте',
+            'recently_declined_by_driver': 'Водій нещодавно відхилив цю пропозицію — спробуйте іншого або зачекайте',
         };
 
         function getErrorMessage(res, fallback = 'Помилка') {
@@ -11356,9 +11362,19 @@
             backdrop.classList.add('open');
             sheet.classList.add('open');
             const who = chatHeaderParticipants();
-            document.getElementById('chat-title').textContent = who.length
-                ? `💬 ${who.slice(0, 3).join(', ')}${who.length > 3 ? ` +${who.length - 3}` : ''}`
-                : 'Чат екіпажу';
+            // Живий прохід 2026-08-11: кімната вже спільна на сервері (get_trip_messages
+            // читає по crew_id і авторизує за членством в екіпажі), але заголовок називав
+            // лише співрозмовника — і водій не розумів, що пише одразу всьому екіпажу.
+            // Номер беремо ЛЮДСЬКИЙ (crewEventDisplayNumber); технічний crew_id показувати
+            // заборонено — spine crew_reserved.forbidden «huge technical crew_id as identity».
+            const crewNo = crewEventDisplayNumber(S.activeTrip);
+            const crewLabel = crewNo ? `Екіпаж #${crewNo}` : 'Чат екіпажу';
+            const names = who.length
+                ? `${who.slice(0, 3).join(', ')}${who.length > 3 ? ` +${who.length - 3}` : ''}`
+                : '';
+            document.getElementById('chat-title').textContent = names
+                ? `💬 ${crewLabel} · ${names}`
+                : `💬 ${crewLabel}`;
             setChatSubtitle('відкриваємо...');
             await loadChatMessages();
         }
@@ -11385,7 +11401,7 @@
             const data = await api(`/api/v3/trip/messages?request_id=${S.chatRequestId}&user_id=${S.userId}&limit=50`);
             const msgs = data?.messages || [];
             if (!msgs.length) {
-                feed.innerHTML = '<div data-chat-empty="true" style="text-align:center;padding:40px;color:var(--text-muted);font-size:13px;">Повідомлень поки немає 👋</div>';
+                feed.innerHTML = '<div data-chat-empty="true" style="text-align:center;padding:40px;color:var(--text-muted);font-size:13px;">Повідомлень поки немає 👋<br><span style="opacity:.75;">Повідомлення бачить увесь екіпаж</span></div>';
                 setChatSubtitle();
                 return;
             }
@@ -11834,6 +11850,14 @@
             confirm.disabled = !on;
             confirm.style.opacity = on ? '' : '.45';
             confirm.setAttribute('aria-disabled', on ? 'false' : 'true');
+            // Живий прохід 2026-08-11: блокувальну логіку вище НЕ чіпаємо (Codex аудит №2 —
+            // без неї «Готово» бере центр карти й дає правдоподібну, але хибну адресу збору).
+            // Ламався лише зворотний зв'язок: 45% непрозорості на лаймі читались як активна
+            // кнопка, тож тестувальник тиснув двічі й не розумів, чому нічого не стається.
+            // Пояснення переносимо на саму кнопку — без нового UI і без зміни поведінки.
+            confirm.textContent = on
+                ? (_mapPicker.confirmLabel || '✓ Готово')
+                : 'Перетягніть карту, щоб обрати';
         }
 
         function _markPickerChoice() {
@@ -11856,7 +11880,8 @@
             const search = document.getElementById('map-picker-search');
             if (search) search.placeholder = opts.searchPlaceholder || '🔍 Місто або місце (напр. Люблін)';
             const confirm = document.getElementById('map-picker-confirm');
-            if (confirm) confirm.textContent = opts.confirmLabel || '✓ Готово';
+            _mapPicker.confirmLabel = opts.confirmLabel || '✓ Готово';
+            if (confirm) confirm.textContent = _mapPicker.confirmLabel;
 
             const hasCoords = Number.isFinite(opts.lat) && Number.isFinite(opts.lng);
             let center, zoom;
