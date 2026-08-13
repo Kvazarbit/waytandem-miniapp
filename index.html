@@ -3064,7 +3064,7 @@
         <!-- MAIN SCREENS -->
         <div class="main">
             <!-- EXPLORE -->
-            <div class="screen active" id="screen-explore">
+            <div class="screen active" id="screen-explore" aria-hidden="false">
                 <div class="map-top-stack">
                     <div class="map-mode-strip" id="map-mode-strip" style="display:none;"></div>
                     <div class="news-strip" id="news-strip" style="display:none;"></div>
@@ -3076,7 +3076,7 @@
             </div>
 
             <!-- BOARD -->
-            <div class="screen" id="screen-board">
+            <div class="screen" id="screen-board" aria-hidden="true" inert>
                 <div style="display:flex;padding:12px 16px 0;">
                     <input class="board-search" id="board-search" placeholder="🔍 Пошук напрямку..."
                         oninput="filterBoard(this.value)" style="flex:1;margin:0;width:100%;">
@@ -3086,7 +3086,7 @@
             </div>
 
             <!-- NEWS -->
-            <div class="screen" id="screen-news">
+            <div class="screen" id="screen-news" aria-hidden="true" inert>
                 <div class="news-head">
                     <div class="section-label">Стрічка Новин</div>
                     <button class="news-scope-btn" id="news-scope-btn" onclick="toggleNewsScope()" type="button" style="display:none;"></button>
@@ -3097,12 +3097,12 @@
             </div>
 
             <!-- TRIPS -->
-            <div class="screen" id="screen-trips">
+            <div class="screen" id="screen-trips" aria-hidden="true" inert>
                 <div id="trips-content"></div>
             </div>
 
             <!-- PROFILE -->
-            <div class="screen" id="screen-profile">
+            <div class="screen" id="screen-profile" aria-hidden="true" inert>
                 <div class="profile-header">
                     <div class="profile-avatar" id="profile-avatar">?</div>
                     <div class="profile-name" id="profile-name">Користувач</div>
@@ -4855,8 +4855,12 @@
         function switchScreen(name) {
             S.currentScreen = name;
             closeBlockingSheetForScreen(name);
-            document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
-            document.getElementById('screen-' + name).classList.add('active');
+            document.querySelectorAll('.screen').forEach(el => {
+                const active = el.id === `screen-${name}`;
+                el.classList.toggle('active', active);
+                el.toggleAttribute('inert', !active);
+                el.setAttribute('aria-hidden', active ? 'false' : 'true');
+            });
             document.querySelectorAll('.nav-item').forEach(el => {
                 el.classList.toggle('active', el.dataset.tab === name);
                 if (el.dataset.tab === name) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current');
@@ -5326,7 +5330,7 @@
             'direction_closed': 'Напрямок зараз недоступний',
             'reserved_by_in': 'Місце вже зарезервоване для іншого',
             'self_action_forbidden': 'Неможливо запросити самого себе',
-            'rate_limited': 'Занадто багато запитів — спробуйте через хвилину',
+            'rate_limited': 'Забагато спроб — зачекайте кілька секунд і повторіть',
             'expired': 'Термін запиту минув — надішліть новий',
             'handshake_not_found': 'Запит не знайдено',
             'user_blocked': 'Користувач заблокував взаємодію',
@@ -5334,6 +5338,13 @@
             'already_subscribed': 'Ви вже в черзі на цей напрямок',
             'direction_expired': 'Подія вже завершилась — оберіть актуальну в каталозі',
             'active_trip_other_direction': 'У вас уже є активна домовленість в іншій події',
+            'driver_cannot_invite_driver': 'Водій може запросити лише попутника',
+            'passenger_cannot_invite_passenger': 'Попутник може запроситися лише до водія',
+            'driver_full': 'У цьому екіпажі вже немає вільних місць',
+            'driver_busy': 'У цьому екіпажі вже немає вільних місць',
+            'passenger_busy': 'Ця людина вже очікує на іншу домовленість',
+            'not_found': 'Цей учасник уже недоступний у цій події — оновіть список',
+            'already_invited': 'Запрошення цій людині вже надіслано',
             // Живий прохід 2026-08-11: сервер віддає ці три причини (server_v3
             // _invite_match_core, skip_cycles_remaining), а словника не було — користувач
             // бачив у тості сирий машинний код «recently_declined_by_you».
@@ -5345,7 +5356,14 @@
         function getErrorMessage(res, fallback = 'Помилка') {
             if (!res) return 'Немає відповіді від серверу — перевірте з\'єднання';
             const detail = res.detail;
-            const reason = res.reason || (detail && typeof detail === 'object' ? detail.reason : detail) || '';
+            const statusReason = typeof res.status === 'string'
+                && !['ok', 'error', 'unavailable'].includes(res.status)
+                ? res.status
+                : '';
+            const reason = res.reason
+                || (detail && typeof detail === 'object' ? detail.reason : detail)
+                || statusReason
+                || '';
             return ERROR_MESSAGES[reason] || (reason ? `${fallback}: ${reason}` : fallback);
         }
 
@@ -5703,10 +5721,12 @@
             const fromMap = opts?.source === 'map' || !!opts?.keepMapContext || (!!opts?.closeSheetOnSuccess && S.currentScreen === 'explore');
             if (!beginOp('request_join')) return;
             try {
-                const res = await api('/api/v3/match/invite', {
+                const response = await apiWithStatus('/api/v3/match/invite', {
                     method: 'POST',
+                    silent: true,
                     body: JSON.stringify({ user_id: S.userId, target_id: orgId, direction_id: dirId, replace_existing: true })
                 });
+                const res = response.data;
                 if (res?.status === 'ok') {
                     if (!fromMap) {
                         if (res.mutual) { showToast('✓ Ваш екіпаж готовий!', 'success'); }
@@ -5752,10 +5772,12 @@
             const fromMap = opts?.source === 'map' || !!opts?.keepMapContext;
             if (!beginOp('signal_passenger')) return false;
             try {
-                const res = await api('/api/v3/match/invite', {
+                const response = await apiWithStatus('/api/v3/match/invite', {
                     method: 'POST',
+                    silent: true,
                     body: JSON.stringify({ user_id: S.userId, target_id: safePassengerId, direction_id: safeDirId, replace_existing: false })
                 });
+                const res = response.data;
                 if (res?.status === 'ok') {
                     if (!fromMap) {
                         if (res.mutual) { showToast('✓ Екіпаж готовий!', 'success'); }
@@ -9859,10 +9881,12 @@
 
             if (!beginOp('invite_proposed')) return;
             try {
-                const res = await api('/api/v3/match/invite', {
+                const response = await apiWithStatus('/api/v3/match/invite', {
                     method: 'POST',
+                    silent: true,
                     body: JSON.stringify({ user_id: S.userId, target_id: safePartnerId, direction_id: safeDirId })
                 });
+                const res = response.data;
                 if (res?.status === 'ok') {
                     showToast('📤 Запит надіслано! Очікуємо підтвердження.', 'success');
                     S.proposedMatch = null;
