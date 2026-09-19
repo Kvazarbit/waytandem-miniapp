@@ -111,6 +111,7 @@
         }
 
         .role-pill {
+            position: relative;
             font-size: 11px;
             font-weight: 700;
             padding: 4px 10px;
@@ -119,6 +120,20 @@
             letter-spacing: 0.5px;
             cursor: pointer;
             transition: all 0.2s;
+        }
+
+        /* Організатор — окремий факт від ролі (водій/попутник можуть бути
+           одночасно організаторами), тому не замінює текст пілюлі, а додає
+           значок-корону поверх кута, тим самим амбером, що "Подія" на карті
+           і секція організатора у вітальному вікні. */
+        .role-pill.is-organizer::after {
+            content: '👑';
+            position: absolute;
+            top: -7px;
+            right: -6px;
+            font-size: 12px;
+            line-height: 1;
+            filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5));
         }
 
         .role-pill.driver {
@@ -4266,6 +4281,10 @@
             if (_isDriverRole(S.userRole)) { pill.className = 'role-pill driver'; pill.textContent = '🚗 Водій'; sr.textContent = 'Водій'; }
             else if (_isPassengerRole(S.userRole)) { pill.className = 'role-pill passenger'; pill.textContent = '👤 Попутник'; sr.textContent = 'Попутник'; }
             else { pill.className = 'role-pill none'; pill.textContent = 'Обрати роль'; sr.textContent = 'Не обрано'; }
+            // Організатор — факт про подію, не про роль: водій чи попутник можуть
+            // одночасно бути організаторами власної події, тому значок додається
+            // поверх пілюлі, а не замінює її текст.
+            pill.classList.toggle('is-organizer', Array.isArray(S.myDirections) && S.myDirections.length > 0);
             document.getElementById('settings-car').textContent = S.car || '—';
             document.getElementById('settings-seats').textContent = S.seats;
             syncProfileSettingsByRole();
@@ -4934,8 +4953,25 @@
                 if (boardIcon) boardIcon.innerHTML = '<polyline points="15 18 9 12 15 6"></polyline><line x1="9" y1="12" x2="21" y2="12"></line>';
                 boardItem.onclick = (e) => { e?.preventDefault?.(); boardGoUp(); };
                 boardItem.classList.add('active');
-                // Кнопка "Додати подію" праворуч від "Назад" — лише де додавання доречне
-                if (addItem) addItem.style.display = S.canCreateEvent ? 'flex' : 'none';
+                // Кнопка "Додати подію" праворуч від "Назад" — лише де додавання доречне.
+                // Один організатор — одна власна подія (openCreateDirection блокує другу
+                // з toast'ом і без дії), тому коли вона вже є, ця сама кнопка веде
+                // одразу в редагування замість гарантованої відмови.
+                if (addItem) {
+                    const hasOwnEvent = Array.isArray(S.myDirections) && S.myDirections.length > 0;
+                    addItem.style.display = S.canCreateEvent ? 'flex' : 'none';
+                    if (S.canCreateEvent) {
+                        const addLabel = addItem.querySelector('span');
+                        const addIcon = addItem.querySelector('svg');
+                        if (addLabel) addLabel.textContent = hasOwnEvent ? 'Редагувати подію' : 'Додати подію';
+                        if (addIcon) addIcon.innerHTML = hasOwnEvent
+                            ? '<path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>'
+                            : '<line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>';
+                        addItem.onclick = hasOwnEvent
+                            ? () => openEditDirection(parseInt(S.myDirections[0]?.id, 10) || 0)
+                            : () => openCreateDirection();
+                    }
+                }
                 return;
             }
             if (boardLabel) boardLabel.textContent = boardNavDefaults.label || 'Каталог';
