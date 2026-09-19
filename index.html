@@ -4279,7 +4279,7 @@
                 <div class="sheet-title">${required ? 'Як ти їдеш?' : 'Оберіть роль'}</div>
                 <div class="sheet-sub">${required ? `Щоб ${escapeHtml(actionLabel || 'продовжити')}, оберіть свій варіант для цієї події. Роль можна змінити пізніше, якщо немає активних домовленостей.` : 'Створювати напрямки можуть обидві ролі. Далі дії залежать від ролі.'}</div>
                 <div class="sheet-actions">
-                    <button class="btn ${isDriver ? 'btn-primary' : 'btn-secondary'}" onclick="setRole('driver')">🚗 Я везу людей</button>
+                    <button class="btn ${isDriver ? 'btn-primary' : 'btn-secondary'}" onclick="setRole('driver')">🚗 Я повезу людей</button>
                     <button class="btn ${isClient ? 'btn-primary' : 'btn-secondary'}" onclick="setRole('client')">👤 Мені потрібно місце</button>
                     ${required ? '' : '<button class="btn btn-ghost" onclick="closeSheet()">Скасувати</button>'}
                 </div>
@@ -5922,18 +5922,20 @@
                 if (key in counts) counts[key] += 1;
             });
             const active = S.newsEventFilter || 'all';
+            // Ті самі кольори категорій, що й на карті (renderNewsStrip: theocracy/
+            // leisure/work), щоб фільтр виглядав однаково в обох місцях.
             const tiles = [
-                ['theocracy', newsCategoryLabel('theocracy')],
-                ['leisure', newsCategoryLabel('leisure')],
-                ['work', newsCategoryLabel('work')]
+                ['theocracy', newsCategoryLabel('theocracy'), '#a78bfa'],
+                ['leisure', newsCategoryLabel('leisure'), '#34d399'],
+                ['work', newsCategoryLabel('work'), '#38bdf8']
             ];
-            host.innerHTML = tiles.map(([key, label]) => {
+            host.innerHTML = tiles.map(([key, label, color]) => {
                 const isActive = active === key;
                 return `
                 <button type="button" role="button" tabindex="0"
                     aria-pressed="${isActive ? 'true' : 'false'}"
                     onclick="setNewsEventFilter('${isActive ? 'all' : key}')"
-                    style="flex:1;min-width:0;padding:8px 6px;border-radius:10px;cursor:pointer;font-weight:700;font-size:12px;border:1px solid ${isActive ? 'var(--accent)' : 'var(--border)'};background:${isActive ? 'var(--accent)' : 'var(--bg-card)'};color:${isActive ? '#081018' : 'var(--text)'};">
+                    style="flex:1;min-width:0;padding:8px 6px;border-radius:10px;cursor:pointer;font-weight:700;font-size:12px;border:1px solid ${isActive ? color : 'var(--border)'};background:${isActive ? color : 'var(--bg-card)'};color:${isActive ? '#081018' : 'var(--text)'};">
                     ${escapeHtml(label)} · ${counts[key] || 0}
                 </button>`;
             }).join('');
@@ -11728,20 +11730,29 @@
                 <div class="sheet-sub" style="text-align:left; margin: 12px 0;">
                     <p>Сервіс спільних подорожей: одна подія - один організатор - спільний виїзд.</p>
                     <p>Оберіть подію на мапі чи в каталозі, натисніть «Хочу поїхати» і вкажіть, як ви їдете:</p>
-                    <p><strong>🚗 Можу взяти людей (я водій):</strong></p>
+                    <p><strong style="color:#38bdf8;">🚗 Можу взяти людей (я водій):</strong></p>
                     <ol style="padding-left: 20px; margin: 8px 0;">
                         <li>Вкажіть, скільки у вас вільних місць.</li>
                         <li>Відкрийте місця - попутники самі постукають до вас.</li>
                     </ol>
-                    <p><strong>🎒 Шукаю місце (я попутник):</strong></p>
+                    <p><strong style="color:#34d399;">👤 Шукаю місце (я попутник):</strong></p>
                     <ol style="padding-left: 20px; margin: 8px 0;">
                         <li>Оберіть водія на карті самостійно, або</li>
                         <li>зачекайте, поки водій надішле вам запит.</li>
                     </ol>
-                    <p>💬 Якщо організатор додав чат, поруч зʼявиться кнопка «Чат події».</p>
-                    <p>Натисніть «?» у верхньому правому куті (або на логотип WayTandem), щоб переглянути цю інструкцію знову.</p>
+                    <p>Хочете самі зібрати компанію? У «Каталог» натисніть «Запропонувати ідею поїздки»:</p>
+                    <p><strong style="color:#fbbf24;">👑 Ви організатор:</strong></p>
+                    <ol style="padding-left: 20px; margin: 8px 0;">
+                        <li>У «Моя ідея» редагуйте деталі та точку збору.</li>
+                        <li>Додайте посилання на чат (за бажання) — учасники побачать кнопку «Чат події».</li>
+                    </ol>
                 </div>
-                <button class="btn btn-primary" onclick="closeSheet(); localStorage.setItem('wt_welcome_seen', '1');">Зрозуміло</button>
+                <div class="sheet-actions">
+                    <button class="btn btn-primary" onclick="localStorage.setItem('wt_welcome_seen', '1'); setRole('driver');">🚗 Я повезу людей</button>
+                    <button class="btn btn-secondary" onclick="localStorage.setItem('wt_welcome_seen', '1'); setRole('client');">👤 Мені потрібно місце</button>
+                    <button class="btn btn-secondary" onclick="closeSheet(); localStorage.setItem('wt_welcome_seen', '1'); switchScreen('board');">Перейти до каталогу</button>
+                    <button class="btn btn-ghost" onclick="closeSheet(); localStorage.setItem('wt_welcome_seen', '1');">Закрити</button>
+                </div>
             `;
             openSheet(welcomeText);
         }
