@@ -5916,25 +5916,27 @@
             const host = document.getElementById('news-filter-tiles');
             if (!host) return;
             const list = Array.isArray(cards) ? cards : [];
-            const counts = { all: list.length, theocracy: 0, leisure: 0, work: 0 };
+            const counts = { theocracy: 0, leisure: 0, work: 0 };
             list.forEach(card => {
                 const key = String(card?.category || '').toLowerCase();
                 if (key in counts) counts[key] += 1;
             });
             const active = S.newsEventFilter || 'all';
             const tiles = [
-                ['all', 'Усі'],
                 ['theocracy', newsCategoryLabel('theocracy')],
                 ['leisure', newsCategoryLabel('leisure')],
                 ['work', newsCategoryLabel('work')]
             ];
-            host.innerHTML = tiles.map(([key, label]) => `
+            host.innerHTML = tiles.map(([key, label]) => {
+                const isActive = active === key;
+                return `
                 <button type="button" role="button" tabindex="0"
-                    aria-pressed="${active === key ? 'true' : 'false'}"
-                    onclick="setNewsEventFilter('${key}')"
-                    style="flex:1;min-width:0;padding:8px 6px;border-radius:10px;cursor:pointer;font-weight:700;font-size:12px;border:1px solid ${active === key ? 'var(--accent)' : 'var(--border)'};background:${active === key ? 'var(--accent)' : 'var(--bg-card)'};color:${active === key ? '#081018' : 'var(--text)'};">
+                    aria-pressed="${isActive ? 'true' : 'false'}"
+                    onclick="setNewsEventFilter('${isActive ? 'all' : key}')"
+                    style="flex:1;min-width:0;padding:8px 6px;border-radius:10px;cursor:pointer;font-weight:700;font-size:12px;border:1px solid ${isActive ? 'var(--accent)' : 'var(--border)'};background:${isActive ? 'var(--accent)' : 'var(--bg-card)'};color:${isActive ? '#081018' : 'var(--text)'};">
                     ${escapeHtml(label)} · ${counts[key] || 0}
-                </button>`).join('');
+                </button>`;
+            }).join('');
             host.style.display = 'flex';
         }
 
@@ -7867,7 +7869,7 @@
                 : allCards.filter(card => String(card?.category || '').toLowerCase() === activeFilter);
             if (!cards.length) {
                 feed.innerHTML = allCards.length
-                    ? '<div class="empty"><div class="empty-icon">🔍</div><div class="empty-title">У цій рубриці порожньо</div><div class="empty-sub">Оберіть «Усі», щоб побачити решту подій</div></div>'
+                    ? '<div class="empty"><div class="empty-icon">🔍</div><div class="empty-title">У цій рубриці порожньо</div><div class="empty-sub">Натисніть на вибраний фільтр ще раз, щоб побачити решту подій</div></div>'
                     : '<div class="empty"><div class="empty-icon">🗞️</div><div class="empty-title">Поки тихо</div><div class="empty-sub">Нові значущі оновлення з\'являться тут</div></div>';
                 return;
             }
