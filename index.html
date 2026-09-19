@@ -1309,6 +1309,47 @@
             margin-bottom: 16px;
         }
 
+        .sheet-steps {
+            font-size: 11px;
+            font-weight: 900;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 6px;
+        }
+
+        .sheet-context {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin: -4px 0 12px;
+        }
+
+        .dock-steps {
+            display: flex;
+            gap: 6px;
+            margin: 8px 0 2px;
+        }
+
+        .dock-step {
+            flex: 1;
+            text-align: center;
+            font-size: 10px;
+            color: var(--text-muted);
+            border-top: 2px solid var(--border);
+            padding-top: 4px;
+        }
+
+        .dock-step.done {
+            color: var(--green);
+            border-top-color: var(--green);
+        }
+
+        .dock-step.active {
+            color: var(--text-primary);
+            font-weight: 800;
+            border-top-color: var(--accent);
+        }
+
         .sheet-actions {
             display: flex;
             flex-direction: column;
@@ -5552,11 +5593,11 @@
             openSheet(`
                 <div class="sheet-title">${title}</div>
                 <div class="sheet-sub">${subtitle}</div>
+                <div class="sheet-context">🎯 ${escapeHtml(direction)}</div>
                 <div style="display:flex;align-items:center;gap:12px;margin:16px 0;padding:12px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,0.04);">
                     ${renderAvatarInline(partnerName, match.partner_photo_url || match.sender_photo_url || match.target_photo_url || '', 44)}
                     <div style="flex:1;min-width:0;">
                         <div style="font-weight:800;font-size:15px;">${escapeHtml(partnerName)}</div>
-                        <div style="font-size:12px;color:var(--text-secondary);margin-top:3px;">🎯 ${escapeHtml(direction)}</div>
                     </div>
                 </div>
                 <div class="sheet-actions">
@@ -6568,6 +6609,7 @@
             };
             openSheet(`
                 ${renderMapInviteContextHeader(ctx)}
+                <div class="sheet-steps">Крок 2 · Роль</div>
                 <div class="sheet-title">Як ти поїдеш?</div>
                 <div class="sheet-sub">Обери один варіант для цієї події, потім підтвердь вибір.</div>
                 <div class="map-role-options" role="radiogroup" aria-label="Як ти поїдеш?">
@@ -6633,6 +6675,7 @@
             const autoLabel = isDriver ? '✨ Автоматичний пошук попутників' : '✨ Знайти місце автоматично';
             openSheet(`
                 ${renderMapInviteContextHeader(ctx)}
+                <div class="sheet-steps">${isDriver ? 'Крок 4 із 4' : 'Крок 3 із 3'} · Спосіб</div>
                 <div class="sheet-title">${escapeHtml(title)}</div>
                 <div class="sheet-sub">${escapeHtml(sub)}</div>
                 <div class="sheet-actions" data-map-command-count="3">
@@ -6784,6 +6827,7 @@
             const chip = (n) => `<button type="button" class="btn btn-secondary" data-seat="${n}" style="flex:1;text-align:center;" onclick="chooseDriverSeats(${ctx.safeDirId}, ${n})">${n}</button>`;
             openSheet(`
                 ${renderMapInviteContextHeader(ctx)}
+                <div class="sheet-steps">Крок 3 із 4 · Місця</div>
                 <div class="sheet-title">Скільки місць для попутників?</div>
                 <div class="sheet-sub">Стільки людей зможе сісти до тебе в авто. Можна змінити пізніше.</div>
                 <div style="display:flex;gap:8px;margin:12px 0 4px;">${chip(1)}${chip(2)}${chip(3)}${chip(4)}</div>
@@ -6824,6 +6868,7 @@
             if (!ctx.safeDirId) return false;
             openSheet(`
                 ${renderMapInviteContextHeader(ctx)}
+                <div class="sheet-steps">Крок 4 із 4 · Спосіб</div>
                 <div class="sheet-title">Як знайти попутників?</div>
                 <div class="sheet-sub">Місць: ${S.seats}. Старт авто вказано на карті. Обери, як шукати людей.</div>
                 <div class="sheet-actions" data-map-command-count="3">
@@ -7112,6 +7157,7 @@
             const safeDirId = parseInt(dirId) || 0;
             if (!safeDirId) return;
             S.mapResultCollapsed = false;
+            showToast('🔍 Вмикаємо автопошук…', '');
             const ok = await subscribeDir(safeDirId, { afterSuccessScreen: 'explore', keepSheetOpen: true, mapInline: true, manualOnly: false, suppressSubscribedSheet: true });
             if (ok) {
                 S.subscriptions = (S.subscriptions || []).map(s => String(s.direction_id) === String(safeDirId) ? { ...s, auto_match: true } : s);
@@ -7171,6 +7217,7 @@
                 ${renderMapInviteContextHeader(ctx)}
                 <div class="sheet-title">${escapeHtml(title)}</div>
                 <div class="sheet-sub">${escapeHtml(statusLine)}</div>
+                ${isDriver ? `<div class="sheet-context">📍 Старт авто: ${S.pickupCoords ? 'вказано на карті' : 'ще не вказано'}</div>` : ''}
                 <div class="sheet-actions" data-map-command-count="3">
                     ${primary}
                     <button class="btn btn-secondary" onclick="openSubscribedDirectionDetails(${ctx.safeDirId})">Деталі події</button>
@@ -7259,7 +7306,7 @@
             const activeSub = (S.subscriptions || []).find(s => String(s.direction_id || s.id || '') === String(safeDirId));
             const roleLabel = _isDriverRole(activeSub?.role || S.userRole) ? 'водій' : 'попутник';
             const searchMode = activeSub?.auto_match === false ? 'ручний пошук' : 'автопошук';
-            const heading = subscribedDetails ? 'Деталі події' : 'Запрошення до події';
+            const heading = subscribedDetails ? 'Деталі події' : 'Запрошення до події · Крок 1';
             const introLine = subscribedDetails
                 ? `Ви вже в цій події як ${roleLabel}. ${searchMode === 'автопошук' ? 'Автоматичний пошук триває.' : 'Ручний пошук активний.'}`
                 : (creatorDisplay ? `${escapeHtml(creatorDisplay)}${creatorUsername ? ` (@${escapeHtml(creatorUsername)})` : ''} збирає людей їхати разом.` : 'Вас запросили до спільної поїздки.');
@@ -7278,7 +7325,7 @@
                 </div>`;
             S.directionInviteSheetOpen = true;
             openSheet(`
-                <div style="font-size:11px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:var(--blue);margin-bottom:6px;">${heading}</div>
+                <div class="sheet-steps">${heading}</div>
                 <div class="sheet-title" style="font-size:22px;line-height:1.15;margin-bottom:8px;">${escapeHtml(title)}</div>
                 <div class="sheet-sub" style="margin-bottom:12px;">${introLine}</div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0 12px;">
@@ -7542,6 +7589,8 @@
             renderMapModeStrip();
             const strip = document.getElementById('news-strip');
             if (!strip) return;
+            const dock = document.getElementById('map-trip-dock');
+            if (dock && dock.classList.contains('open')) { strip.style.display = 'none'; return; }
             const context = mapContextScoped();
             if (context) {
                 const drivers = (S.mapCrews || []).filter(c =>
@@ -8146,7 +8195,7 @@
         function renderBoardList(dirs, subSet) {
             const list = document.getElementById('board-list');
             if (!dirs.length) {
-                list.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">Немає напрямків</div></div>`;
+                list.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">Немає напрямків</div><div class="empty-sub">Перегляньте події на мапі або створіть власну</div><button class="btn btn-primary" style="margin-top:20px;max-width:320px;margin-left:auto;margin-right:auto;" onclick="switchScreen('explore')">Перейти до мапи</button></div>`;
                 return;
             }
             list.innerHTML = dirs.map(d => {
@@ -8731,7 +8780,7 @@
                     ${!isMyDir ? `<button class="btn btn-secondary" style="border:1px solid rgba(56,189,248,0.4);background:rgba(56,189,248,0.08);color:var(--blue);padding:6px 12px;border-radius:12px;font-size:12px;font-weight:600;min-height:36px;white-space:nowrap;line-height:1.3;text-align:center;cursor:pointer;" data-tg-username="${escapeAttr(creatorUsername)}" data-tg-user-id="${parseInt(creatorId, 10) || 0}" onclick="openTelegramContactFromButton(this)">💬 Написати<br>організатору</button>` : `<span class="tag tag-green">Ваша ідея</span>`}
                 </div>` : '';
             const hasPickup = !!S.pickupCoords;
-            const joinPrimaryCta = `<button class="btn btn-primary" style="width:100%;font-size:16px;font-weight:700;padding:14px 0;border-radius:12px;background:#00c9a7;color:#000000;border:none;cursor:pointer;" onclick="joinInvitedDirection(${dirId})">Хочу поїхати</button>`;
+            const joinPrimaryCta = `<button class="btn btn-primary" style="width:100%;" onclick="joinInvitedDirection(${dirId})">Хочу поїхати</button>`;
             const emptyCrewLine = 'Поки немає відкритих екіпажів. Можна їхати як водій або шукати місце.';
 
             const dirMeta = data?.direction || dir || {};
@@ -10393,6 +10442,18 @@
             return true;
         }
 
+        function mapTripPhaseStepper(phase, finishDone) {
+            const steps = [
+                { key: 'reservation', label: 'Домовились' },
+                { key: 'pickup', label: 'Збір' },
+                { key: 'driving', label: 'В дорозі' },
+                { key: 'finish', label: 'Фініш' },
+            ];
+            const order = ['reservation', 'pickup', 'driving', 'finish'];
+            const activeIdx = finishDone ? 3 : Math.max(0, order.indexOf(phase));
+            return `<div class="dock-steps" aria-hidden="true">${steps.map((s, i) => `<span class="dock-step${i < activeIdx ? ' done' : ''}${i === activeIdx ? ' active' : ''}">${i < activeIdx ? '●' : (i === activeIdx ? '◉' : '○')} ${s.label}</span>`).join('')}</div>`;
+        }
+
         function buildMapTripDockBody(t, phase) {
             const head = mapTripDockTitle(phase);
             const isDriver = t.viewer_role === 'driver';
@@ -10563,6 +10624,7 @@
                     </div>
                     <button class="dock-collapse" onclick="toggleMapTripDock()" title="Згорнути" aria-label="Згорнути">▾</button>
                 </div>
+                ${mapTripPhaseStepper(phase, partnerFinished || viewerFinished)}
                 <div class="dock-actions">${actions}</div>`;
         }
 
