@@ -4285,6 +4285,13 @@
             // одночасно бути організаторами власної події, тому значок додається
             // поверх пілюлі, а не замінює її текст.
             pill.classList.toggle('is-organizer', Array.isArray(S.myDirections) && S.myDirections.length > 0);
+            // Роль — рішення для конкретної події (WD-49). На стартовому екрані новачка
+            // пілюля «Обрати роль» лише відволікає від «Хочу поїхати», тому показуємо її,
+            // коли людина вже в події: підписка, поїздка або власна подія. Поза подією
+            // роль змінюється в профілі.
+            const inEvent = (S.subscriptions || []).length > 0 || !!S.activeTrip
+                || (Array.isArray(S.myDirections) && S.myDirections.length > 0);
+            pill.style.display = inEvent ? '' : 'none';
             document.getElementById('settings-car').textContent = S.car || '—';
             document.getElementById('settings-seats').textContent = S.seats;
             syncProfileSettingsByRole();
@@ -7346,7 +7353,10 @@
             const activeSub = (S.subscriptions || []).find(s => String(s.direction_id || s.id || '') === String(safeDirId));
             const roleLabel = _isDriverRole(activeSub?.role || S.userRole) ? 'водій' : 'попутник';
             const searchMode = activeSub?.auto_match === false ? 'ручний пошук' : 'автопошук';
-            const heading = subscribedDetails ? 'Деталі події' : 'Запрошення до події · Крок 1';
+            // Підписаний учасник бачить «Деталі події», а не нове приєднання; номер кроку
+            // показуємо окремо, щоб не змішувати його з цим вибором заголовка.
+            const heading = subscribedDetails ? 'Деталі події' : 'Запрошення до події';
+            const headingStep = subscribedDetails ? '' : ' · Крок 1';
             const introLine = subscribedDetails
                 ? `Ви вже в цій події як ${roleLabel}. ${searchMode === 'автопошук' ? 'Автоматичний пошук триває.' : 'Ручний пошук активний.'}`
                 : (creatorDisplay ? `${escapeHtml(creatorDisplay)}${creatorUsername ? ` (@${escapeHtml(creatorUsername)})` : ''} збирає людей їхати разом.` : 'Вас запросили до спільної поїздки.');
@@ -7365,7 +7375,7 @@
                 </div>`;
             S.directionInviteSheetOpen = true;
             openSheet(`
-                <div class="sheet-steps">${heading}</div>
+                <div class="sheet-steps">${heading}${headingStep}</div>
                 <div class="sheet-title" style="font-size:22px;line-height:1.15;margin-bottom:8px;">${escapeHtml(title)}</div>
                 <div class="sheet-sub" style="margin-bottom:12px;">${introLine}</div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0 12px;">
@@ -11764,28 +11774,18 @@
             const welcomeText = `
                 <div class="sheet-title">Вітаємо у WayTandem!</div>
                 <div class="sheet-sub" style="text-align:left; margin: 12px 0;">
-                    <p>Сервіс спільних подорожей: одна подія - один організатор - спільний виїзд.</p>
-                    <p>Оберіть подію на мапі чи в каталозі, натисніть «Хочу поїхати» і вкажіть, як ви їдете:</p>
-                    <p><strong style="color:#38bdf8;">🚗 Можу взяти людей (я водій):</strong></p>
+                    <p>Спільні поїздки на події: знаходьте водія чи попутників і їдьте разом.</p>
                     <ol style="padding-left: 20px; margin: 8px 0;">
-                        <li>Вкажіть, скільки у вас вільних місць.</li>
-                        <li>Відкрийте місця - попутники самі постукають до вас.</li>
+                        <li>Знайдіть подію на мапі або в каталозі.</li>
+                        <li>Натисніть «Хочу поїхати».</li>
+                        <li>Оберіть, як ви їдете:</li>
                     </ol>
-                    <p><strong style="color:#34d399;">👤 Шукаю місце (я попутник):</strong></p>
-                    <ol style="padding-left: 20px; margin: 8px 0;">
-                        <li>Оберіть водія на карті самостійно, або</li>
-                        <li>зачекайте, поки водій надішле вам запит.</li>
-                    </ol>
-                    <p>Хочете самі зібрати компанію? У «Каталог» натисніть «Запропонувати ідею поїздки»:</p>
-                    <p><strong style="color:#fbbf24;">👑 Ви організатор:</strong></p>
-                    <ol style="padding-left: 20px; margin: 8px 0;">
-                        <li>У «Моя ідея» редагуйте деталі та точку збору.</li>
-                        <li>Додайте посилання на чат (за бажання) — учасники побачать кнопку «Чат події».</li>
-                    </ol>
+                    <p><strong style="color:#38bdf8;">🚗 Можу взяти людей:</strong> вкажіть, скільки у вас вільних місць, і відкрийте місця — попутники самі постукають до вас.</p>
+                    <p><strong style="color:#34d399;">👤 Шукаю місце:</strong> оберіть водія на мапі або зачекайте, поки водій надішле вам запит.</p>
+                    <p><strong style="color:#fbbf24;">👑 Хочете зібрати свою компанію?</strong> У «Каталозі» натисніть «Додати подію». Деталі, точку збору й посилання на чат змінюйте в профілі → «Моя подія»; з посиланням учасники побачать кнопку «Чат події».</p>
                 </div>
                 <div class="sheet-actions">
-                    <button class="btn btn-primary" onclick="localStorage.setItem('wt_welcome_seen', '1'); setRole('driver');">🚗 Я повезу людей</button>
-                    <button class="btn btn-secondary" onclick="localStorage.setItem('wt_welcome_seen', '1'); setRole('client');">👤 Мені потрібно місце</button>
+                    <button class="btn btn-primary" onclick="closeSheet(); localStorage.setItem('wt_welcome_seen', '1'); switchScreen('explore');">🗺️ Знайти подію на мапі</button>
                     <button class="btn btn-secondary" onclick="closeSheet(); localStorage.setItem('wt_welcome_seen', '1'); switchScreen('board');">Перейти до каталогу</button>
                     <button class="btn btn-ghost" onclick="closeSheet(); localStorage.setItem('wt_welcome_seen', '1');">Закрити</button>
                 </div>
