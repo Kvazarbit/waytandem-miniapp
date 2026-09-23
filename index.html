@@ -1596,6 +1596,18 @@
         .map-preview-hd.k-work { background: #38bdf8; }
         /* Тап по піну не має лишати фокус-рамку (раніше шторка одразу накривала її) */
         .leaflet-marker-icon:focus, .leaflet-marker-icon:focus-visible { outline: none; }
+        /* Підпис мапи: найменший дозволений правилами плиток OSM — коротко, читабельно,
+           у куті, без згортання в (i) (tile policy: «not behind toggles»). */
+        .leaflet-control-attribution.leaflet-control {
+            font-size: 8px;
+            line-height: 1.25;
+            padding: 0 3px;
+            margin: 0;
+            color: #333;
+            background: rgba(255, 255, 255, 0.82);
+            border-top-left-radius: 4px;
+        }
+        .leaflet-control-attribution a { color: #0b5cad; text-decoration: none; }
         .map-pin { -webkit-tap-highlight-color: transparent; }
 
         .map-pin-passenger {
@@ -4996,10 +5008,34 @@
         // UX-fix: режим-бар і чипи категорій лежать ПОВЕРХ карти (z-index вище за
         // leaflet-панелі), тому попап, відкритий близько до верху, ховався під ними.
         // autoPan з верхнім відступом ~170px гарантує, що попап завжди видно повністю.
+        // Праворуч на мапі плаває кнопка 📍 (#map-location-btn, ~44 px + 16 px поля),
+        // тому картка не повинна підходити до правого краю ближче ніж на 64 px.
+        // Відступи рахуються з фактичної розкладки, щоб картка разом із піном під нею
+        // вміщалась у видиму мапу: зверху — під верхнім блоком (рубрики / «Режим:»),
+        // знизу — місце для самого піна (~44 px) і відкритих нижніх панелей.
+        function mapPopupTopInset() {
+            const mapEl = document.getElementById('map');
+            const stack = document.querySelector('.map-top-stack');
+            if (!mapEl || !stack || stack.offsetParent === null) return 16;
+            const inset = stack.getBoundingClientRect().bottom - mapEl.getBoundingClientRect().top;
+            return Math.max(16, Math.ceil(inset + 8));
+        }
+
+        function mapPopupBottomInset() {
+            const mapEl = document.getElementById('map');
+            let overlay = 0;
+            ['map-result-panel', 'map-trip-dock'].forEach(id => {
+                const el = document.getElementById(id);
+                if (!mapEl || !el || !el.classList.contains('open') || el.offsetParent === null) return;
+                overlay = Math.max(overlay, mapEl.getBoundingClientRect().bottom - el.getBoundingClientRect().top);
+            });
+            return Math.ceil(Math.max(0, overlay) + 44);
+        }
+
         const MAP_POPUP_PAN_OPTS = {
             autoPan: true,
-            autoPanPaddingTopLeft: [12, 170],
-            autoPanPaddingBottomRight: [12, 96]
+            get autoPanPaddingTopLeft() { return [12, mapPopupTopInset()]; },
+            get autoPanPaddingBottomRight() { return [64, mapPopupBottomInset()]; }
         };
 
         function bindMarkerPopupTap(marker) {
@@ -5016,9 +5052,16 @@
             el.addEventListener('touchend', open, { passive: false });
         }
 
+        // Базова мапа — стандартні плитки OpenStreetMap: без ключа, але з обовʼязковим
+        // видимим підписом (operations.osmfoundation.org/policies/tiles). CARTO з 2026 року
+        // вимагає ключ і без нього малює водяний знак «API KEY REQUIRED».
+        const MAP_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+        const MAP_TILE_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
+
         function initMap() {
-            S.map = L.map('map', { zoomControl: false, attributionControl: false }).setView([S.homeCity.lat, S.homeCity.lng], 11);
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(S.map);
+            S.map = L.map('map', { zoomControl: false, attributionControl: true }).setView([S.homeCity.lat, S.homeCity.lng], 11);
+            S.map.attributionControl.setPrefix(false);
+            L.tileLayer(MAP_TILE_URL, { maxZoom: 19, attribution: MAP_TILE_ATTRIBUTION }).addTo(S.map);
             // No browser GPS prompt on startup: user location is explicit via the map button.
             const controls = document.createElement('div');
             controls.className = 'map-fab-stack';
@@ -5182,7 +5225,8 @@
                         className: '',
                         html: `<div class="map-pin map-pin-crew${focusedClass}${mineClass}${fullClass}" role="button" aria-label="${crewLabel}">🚗${seatBadge}${selfDot}</div>`,
                         iconSize: [34, 34],
-                        iconAnchor: [17, 17]
+                        iconAnchor: [17, 17],
+                        popupAnchor: [0, -25]
                     }),
                     zIndexOffset: isMine ? 180 : 120
                 }).addTo(S.map);
@@ -5206,6 +5250,7 @@
             // Show live crew member markers during reservation pickup + Phase 2
             renderCrewMembersOnMap();
             renderEventPointsOnMap();
+            maybeInitialDiscoveryFit();
             // Crew details live on the icon-only pin popup. Do not duplicate
             // the same drivers as bottom overlay cards; they cover the map.
             renderMapOverlay([]);
@@ -5217,6 +5262,17 @@
             // outgoing or handshake surface created by another async flow.
             refreshOpenMapAutoSearchPanelFromFreshMap();
             if (S.currentScreen === 'trips' && !S.activeTrip && !S.pendingMatches.length && (S.subscriptions || []).length) renderTrips();
+        }
+
+        // Перший огляд мапи без фільтра: новачок одразу бачить усі події, а не лише
+        // околиці домашнього міста. Один раз за сесію і лише поза контекстом події чи
+        // поїздки, щоб не перебивати ні фокус події, ні ручне переміщення мапи.
+        function maybeInitialDiscoveryFit() {
+            if (S._initialDiscoveryFitDone || S.currentScreen !== 'explore') return;
+            if (mapContextScoped() || (S.mapNewsFilter || 'all') !== 'all') return;
+            if (!mapEventPointsForDiscovery().length) return;
+            S._initialDiscoveryFitDone = true;
+            focusMapByFilter();
         }
 
         function refreshOpenMapAutoSearchPanelFromFreshMap() {
@@ -5303,7 +5359,7 @@
                     html: `<div class="map-pin map-pin-event map-pin-${escapeAttr(kind)}" role="button" aria-label="${markerLabel}">${_eventMarkerEmoji(kind)}</div>`,
                     iconSize: [34, 34],
                     iconAnchor: [17, 17],
-                    popupAnchor: [0, -18]
+                    popupAnchor: [0, -25]
                 });
                 const marker = L.marker([Number(point.lat), Number(point.lng)], {
                     icon,
@@ -6272,7 +6328,9 @@
             const startUtc = Date.UTC(start.year, start.month - 1, start.day);
             const endUtc = Date.UTC(end.year, end.month - 1, end.day);
             const spanDays = Math.floor((endUtc - startUtc) / 86400000);
-            const days = Math.max(1, spanDays);
+            // Дати події — день виїзду на подію і день виїзду додому, тож рахуємо
+            // включно: 10–12 жовтня = 3 дні; туди й назад того ж дня = 1 день.
+            const days = spanDays + 1;
             return `Тривалість: ${days} ${pluralUk(days, 'день', 'дні', 'днів')}`;
         }
 
@@ -7622,7 +7680,9 @@
                 const isSub = S.mapScope !== 'all';
                 toggleHtml = `<button class="map-scope-btn ${isSub ? 'scope-sub' : ''}" onclick="toggleMapScope()" type="button">${isSub ? '📍 Підписка' : '🌐 Загальна'}</button>`;
             }
-            strip.style.display = 'flex';
+            // Поза подією рядок лише повторює підказку «Оберіть напрямок» і не має
+            // керування (перемикач є тільки для підписки), тож новачок його не бачить.
+            strip.style.display = raw ? 'flex' : 'none';
             strip.innerHTML = `<span class="map-mode-label">Режим:</span><span class="map-mode-value">${value}</span>${toggleHtml}`;
         }
 
@@ -8428,7 +8488,8 @@
                         className: '',
                         html: `<div class="map-pin map-pin-passenger" data-map-passenger-pin="wait" role="button" aria-label="${markerLabel}">👤</div>`,
                         iconSize: [34, 34],
-                        iconAnchor: [17, 17]
+                        iconAnchor: [17, 17],
+                        popupAnchor: [0, -25]
                     }),
                     riseOnHover: true,
                     zIndexOffset: 220
@@ -11960,9 +12021,13 @@
                     <button class="btn btn-secondary" style="flex:1;font-size:13px;" onclick="pickGpsForDirection()">📍 Точка на карті</button>
                     <span id="create-dir-loc-label" style="flex:2;font-size:12px;color:var(--text-muted);">Не вказано</span>
                 </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-                    <input class="board-search" id="create-dir-start" type="datetime-local" title="Початок" style="margin:0;">
-                    <input class="board-search" id="create-dir-end" type="datetime-local" title="Завершення" style="margin:0;">
+                <div style="display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:8px;">
+                    <label style="display:flex;flex-direction:column;gap:4px;min-width:0;font-size:12px;color:var(--text-muted);">Виїзд на подію
+                        <input class="board-search" id="create-dir-start" type="datetime-local" title="Виїзд на подію" style="margin:0;">
+                    </label>
+                    <label style="display:flex;flex-direction:column;gap:4px;min-width:0;font-size:12px;color:var(--text-muted);">Виїзд додому
+                        <input class="board-search" id="create-dir-end" type="datetime-local" title="Виїзд додому" style="margin:0;">
+                    </label>
                 </div>
                 <textarea class="board-search" id="create-dir-desc" placeholder="Подробиці для учасників..." maxlength="1200" style="min-height:108px;resize:vertical;margin-bottom:12px;"></textarea>
                 <button class="btn btn-primary" onclick="doCreateDirection()">✓ Створити і стати в чергу</button>
@@ -12025,8 +12090,9 @@
             else { center = [S.homeCity.lat, S.homeCity.lng]; zoom = 11; }
 
             if (!_mapPicker.map) {
-                _mapPicker.map = L.map('map-picker-map', { zoomControl: true, attributionControl: false }).setView(center, zoom);
-                L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(_mapPicker.map);
+                _mapPicker.map = L.map('map-picker-map', { zoomControl: true, attributionControl: true }).setView(center, zoom);
+                _mapPicker.map.attributionControl.setPrefix(false);
+                L.tileLayer(MAP_TILE_URL, { maxZoom: 19, attribution: MAP_TILE_ATTRIBUTION }).addTo(_mapPicker.map);
             } else {
                 _mapPicker.map.setView(center, zoom);
             }
@@ -12168,7 +12234,7 @@
             const description = document.getElementById('create-dir-desc')?.value?.trim() || '';
             if (!title || title.length < 3) { showToast('Назва має бути від 3 символів', 'error'); return; }
             if (!meetingPoint && (S._createDirLat == null || S._createDirLng == null)) { showToast('Вкажіть публічну локацію або точку на карті', 'error'); return; }
-            if (startDate && endDate && endDate < startDate) { showToast('Дата завершення не може бути раніше початку', 'error'); return; }
+            if (startDate && endDate && endDate < startDate) { showToast('Виїзд додому не може бути раніше виїзду на подію', 'error'); return; }
             const oldSub = (S.subscriptions || [])[0];
             if (oldSub) {
                 const oldTitle = oldSub.title || oldSub.direction_title || `#${oldSub.direction_id}`;
@@ -12252,9 +12318,13 @@
                     <button class="btn btn-secondary" style="flex:1;font-size:13px;" onclick="pickGpsForEditDirection()">📍 Точка на карті</button>
                     <span id="edit-dir-loc-label" style="flex:2;font-size:12px;color:var(--text-muted);">${escapeHtml(locLabel)}</span>
                 </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-                    <input class="board-search" id="edit-dir-start" type="datetime-local" value="${escapeAttr(startDate)}" title="Початок" style="margin:0;">
-                    <input class="board-search" id="edit-dir-end" type="datetime-local" value="${escapeAttr(endDate)}" title="Завершення" style="margin:0;">
+                <div style="display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:8px;">
+                    <label style="display:flex;flex-direction:column;gap:4px;min-width:0;font-size:12px;color:var(--text-muted);">Виїзд на подію
+                        <input class="board-search" id="edit-dir-start" type="datetime-local" value="${escapeAttr(startDate)}" title="Виїзд на подію" style="margin:0;">
+                    </label>
+                    <label style="display:flex;flex-direction:column;gap:4px;min-width:0;font-size:12px;color:var(--text-muted);">Виїзд додому
+                        <input class="board-search" id="edit-dir-end" type="datetime-local" value="${escapeAttr(endDate)}" title="Виїзд додому" style="margin:0;">
+                    </label>
                 </div>
                 <textarea class="board-search" id="edit-dir-desc" placeholder="Подробиці для учасників..." maxlength="1200" style="min-height:108px;resize:vertical;margin-bottom:8px;">${escapeHtml(description)}</textarea>
                 <input class="board-search" id="edit-dir-chat" value="${escapeAttr(chatLink)}" placeholder="💬 Чат події: https://t.me/... (необовʼязково)" maxlength="120" style="margin-bottom:12px;">
@@ -12294,7 +12364,7 @@
             // I-FRONT-11: HTML maxlength — підказка, СПРАВЖНЯ перевірка тут + на сервері
             if (chatLink && !chatLink.startsWith('https://t.me/')) { showToast('Чат події: лише посилання https://t.me/...', 'error'); return; }
             if (!title || title.length < 3) { showToast('Назва має бути від 3 символів', 'error'); return; }
-            if (startDate && endDate && endDate < startDate) { showToast('Дата завершення не може бути раніше початку', 'error'); return; }
+            if (startDate && endDate && endDate < startDate) { showToast('Виїзд додому не може бути раніше виїзду на подію', 'error'); return; }
             const meetingChanged = meetingPoint !== (S._editDirOriginalMeetingPoint || '');
             if (!meetingPoint && !S._editDirGpsTouched && meetingChanged) { showToast('Вкажіть публічну локацію або точку на карті', 'error'); return; }
             if (!beginOp('edit_direction')) return;
@@ -12558,7 +12628,7 @@
                 icon: L.divIcon({
                     className: '',
                     html: `<div class="pickup-point-pin ${markerClass}" role="img" aria-label="${escapeAttr(markerLabel)}">${markerIcon}</div>`,
-                    iconSize: [34, 34], iconAnchor: [17, 17]
+                    iconSize: [34, 34], iconAnchor: [17, 17], popupAnchor: [0, -25]
                 })
             }).addTo(S.map).bindPopup(markerLabel);
             S.map.flyTo([S.pickupCoords.lat, S.pickupCoords.lng], 15, { duration: 1 });
@@ -12764,7 +12834,8 @@
                         className: '',
                         html: `<div class="pickup-point-pin pickup-point-driver" role="img" aria-label="${carLabel}">🚗</div>`,
                         iconSize: [34, 34],
-                        iconAnchor: [17, 17]
+                        iconAnchor: [17, 17],
+                        popupAnchor: [0, -25]
                     }),
                     zIndexOffset: 160
                 }).addTo(S.map).bindPopup(`<b>${escapeHtml(driverName)}</b><br>авто водія${carDisplayCoord.visualOffset ? '<br><span style="font-size:11px;color:#94a3b8;">пін зміщено, щоб не перекривати попутника</span>' : ''}` + crewMemberContactButtonsHtml(driver || { user_id: t.driver_id, telegram_username: '' }, carDisplayCoord), MAP_POPUP_PAN_OPTS);
