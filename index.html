@@ -672,6 +672,84 @@
             text-overflow: ellipsis;
         }
 
+        /* ═══ SCREEN PANEL (2026-09-25): «?» — що тут робити; стрічка — пошук на місці ═══ */
+        .screen-help {
+            flex-shrink: 0;
+            margin: 8px 12px 0;
+            padding: 10px 12px;
+            border-radius: 12px;
+            background: var(--bg-card);
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            font-size: 13px;
+            line-height: 1.45;
+            color: var(--text-primary);
+            z-index: 98;
+        }
+
+        .screen-help[hidden] {
+            display: none;
+        }
+
+        .screen-help-head {
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+        }
+
+        .screen-help-body {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .screen-help-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 16px;
+            line-height: 1;
+            padding: 2px 4px;
+            cursor: pointer;
+        }
+
+        .screen-help-search {
+            width: 100%;
+            padding: 9px 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .screen-help-results {
+            display: grid;
+            gap: 6px;
+            margin-top: 8px;
+            max-height: 38vh;
+            overflow-y: auto;
+        }
+
+        .screen-help-results:empty {
+            display: none;
+        }
+
+        .screen-help-result {
+            text-align: left;
+            padding: 8px 10px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-primary);
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .screen-help-result small {
+            display: block;
+            color: var(--text-muted);
+            font-size: 11px;
+            margin-top: 2px;
+        }
         /* ═══ OPEN CREW BUTTON ═══ */
         .open-crew-btn {
             margin: 12px 16px;
@@ -1560,6 +1638,16 @@
             box-shadow: 0 0 18px rgba(167,139,250,0.42), 0 6px 18px rgba(0,0,0,0.28);
         }
 
+        /* Будинок зібрань без хреста (власник 2026-09-25) — однаковий на всіх платформах. */
+        .pin-hall {
+            width: 18px;
+            height: 18px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
         .map-pin-leisure {
             background: #34d399;
             box-shadow: 0 0 18px rgba(52,211,153,0.42), 0 6px 18px rgba(0,0,0,0.28);
@@ -1588,7 +1676,16 @@
         .map-preview-bd { padding: 10px 14px 12px; background: #fff; }
         .map-preview-row { display: flex; gap: 8px; align-items: center; margin: 4px 0; font-size: 13px; color: #4b5563; }
         .map-preview-desc { display: block; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(15,23,42,0.08); line-height: 1.35; }
-        .map-preview-desc-label { display: block; margin-bottom: 3px; font-size: 10px; font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase; color: #64748b; }
+        .map-preview-like { flex-shrink: 0; margin-left: auto; display: inline-flex; align-items: center; gap: 5px; min-width: 40px; height: 32px; padding: 0 11px; border: 1px solid rgba(15,23,42,0.14); border-radius: 999px; background: #fff; color: #4b5563; font: inherit; font-size: 13px; font-weight: 800; line-height: 1; cursor: pointer; transition: transform 0.1s ease; }
+        .map-preview-like:active { transform: scale(0.94); }
+        .map-preview-like svg { width: 18px; height: 18px; flex-shrink: 0; transform-origin: 35% 85%; }
+        .map-preview-like svg path { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+        .map-preview-like[aria-pressed="true"] { background: #ecfccb; border-color: #bef264; color: #3f6212; }
+        .map-preview-like[aria-pressed="true"] svg path { fill: currentColor; }
+        .map-preview-like.is-popping svg { animation: like-pop 0.36s ease-out; }
+        @keyframes like-pop { 0% { transform: scale(1) rotate(0); } 35% { transform: scale(1.35) rotate(-14deg); } 65% { transform: scale(0.92) rotate(4deg); } 100% { transform: scale(1) rotate(0); } }
+        @media (prefers-reduced-motion: reduce) { .map-preview-like.is-popping svg { animation: none; } .map-preview-like:active { transform: none; } }
+        .map-preview-like-n:empty { display: none; }
         .map-preview-btn { display: block; width: 100%; margin-top: 8px; padding: 10px; border: 0; border-radius: 10px; background: var(--accent); color: #081018; font-weight: 700; font-size: 14px; cursor: pointer; }
         .map-preview-hd.k-event { background: #fbbf24; }
         .map-preview-hd.k-theocracy { background: #a78bfa; }
@@ -2044,6 +2141,17 @@
             text-overflow: ellipsis;
         }
 
+        /* Шторка події: фільтри «Водії» / «Попутники» і рядки людей (2026-09-24). */
+        .event-people-chips { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 18px 0 10px; }
+        .event-people-chip { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); background: rgba(255, 255, 255, 0.04); color: var(--text-primary); font: inherit; text-align: left; cursor: pointer; }
+        .event-people-chip.active { border-color: rgba(163, 230, 53, 0.45); background: rgba(163, 230, 53, 0.10); }
+        .event-people-chip-title { font-size: 14px; font-weight: 800; }
+        .event-people-chip-sub { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+        .event-people-note { text-align: center; padding: 14px 8px; font-size: 13px; color: var(--text-muted); }
+        .event-person-row { display: flex; align-items: center; gap: 12px; padding: 12px; margin-bottom: 8px; border-radius: 12px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .event-person-name { font-size: 15px; font-weight: 800; color: var(--text-primary); }
+        .event-person-status { margin-top: 2px; font-size: 11px; font-weight: 600; color: var(--text-secondary); }
+
         .board-search {
             margin: 12px 16px;
             padding: 12px 16px;
@@ -2122,6 +2230,36 @@
             display: block;
             font-weight: 800;
             font-size: 15px;
+        }
+
+        .dir-card-where {
+            display: block;
+            margin-top: 2px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .board-search-clear {
+            position: absolute;
+            right: 6px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 32px;
+            height: 32px;
+            border: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-secondary);
+            font-size: 18px;
+            line-height: 32px;
+            cursor: pointer;
+        }
+
+        #board-search:placeholder-shown + .board-search-clear {
+            display: none;
         }
 
         .dir-card-stats {
@@ -2240,6 +2378,118 @@
             padding: 12px;
         }
 
+        /* Без фільтра картки «Новин» мають легкий відтінок кольору категорії —
+           тих самих кольорів, що піни на мапі (рішення власника 2026-09-24). */
+        .news-card.news-card-tint-theocracy {
+            background: rgba(167, 139, 250, 0.12);
+            border-color: rgba(167, 139, 250, 0.35);
+        }
+
+        .news-card.news-card-tint-leisure {
+            background: rgba(52, 211, 153, 0.12);
+            border-color: rgba(52, 211, 153, 0.35);
+        }
+
+        .news-card.news-card-tint-work {
+            background: rgba(56, 189, 248, 0.12);
+            border-color: rgba(56, 189, 248, 0.35);
+        }
+
+        .news-card.news-card-tint-event {
+            background: rgba(251, 191, 36, 0.12);
+            border-color: rgba(251, 191, 36, 0.35);
+        }
+
+        /* Тема події скрізь однакова: значок як на піні + легкий відтінок рубрики (власник 2026-09-25). */
+        .cat-ico {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            color: #081018;
+        }
+
+        .cat-ico-theocracy { background: #a78bfa; }
+        .cat-ico-leisure { background: #34d399; }
+        .cat-ico-work { background: #38bdf8; }
+        .cat-ico-other { background: #fbbf24; }
+        .dir-card-icon.cat-ico { font-size: 20px; }
+        .dir-card-icon.cat-ico .pin-hall { width: 22px; height: 22px; }
+
+        .cat-ico-sm {
+            width: 22px;
+            height: 22px;
+            border-radius: 7px;
+            font-size: 13px;
+            vertical-align: -5px;
+            margin-right: 6px;
+        }
+
+        .cat-ico-sm .pin-hall { width: 14px; height: 14px; }
+
+        .sheet-cat-ico {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            font-size: 22px;
+        }
+
+        .sheet-cat-ico .pin-hall { width: 24px; height: 24px; }
+        .dir-card.dir-card-tint-theocracy { background: rgba(167, 139, 250, 0.12); border-color: rgba(167, 139, 250, 0.35); }
+        .dir-card.dir-card-tint-leisure { background: rgba(52, 211, 153, 0.12); border-color: rgba(52, 211, 153, 0.35); }
+        .dir-card.dir-card-tint-work { background: rgba(56, 189, 248, 0.12); border-color: rgba(56, 189, 248, 0.35); }
+        .dir-card.dir-card-tint-other { background: rgba(251, 191, 36, 0.12); border-color: rgba(251, 191, 36, 0.35); }
+
+        .dir-card-mine {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 6px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--green);
+            background: rgba(52, 211, 153, 0.15);
+            vertical-align: 1px;
+        }
+        /* Намальований значок (папка) — та сама манера, що будинок зібрань (власник 2026-09-26). */
+        .cat-line {
+            width: 18px;
+            height: 18px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .dir-card-icon.cat-ico .cat-line { width: 22px; height: 22px; }
+        .sheet-cat-ico .cat-line { width: 24px; height: 24px; }
+
+        /* News: мінікартинка — окремий стовпчик зліва, увесь текст праворуч від неї (власник 2026-09-26). */
+        .news-card-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .news-cat-ico {
+            width: 36px;
+            height: 36px;
+            border-radius: 11px;
+            font-size: 19px;
+            margin-top: 1px;
+        }
+
+        .news-cat-ico .pin-hall,
+        .news-cat-ico .cat-line { width: 20px; height: 20px; }
+
+        .news-card-text {
+            display: block;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .news-card-body { padding-left: 46px; }
         .news-feed-meta {
             font-size: 11px;
             color: var(--text-muted);
@@ -3118,9 +3368,9 @@
         </div>
         <!-- HEADER -->
         <div class="header">
-            <div class="header-title"><span class="accent">Way</span>Tandem</div>
+            <div class="header-title" role="button" tabindex="0" title="Як це працює" aria-label="WayTandem — як це працює" style="cursor:pointer;" onclick="showWelcomeSheet()" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); showWelcomeSheet(); }"><span class="accent">Way</span>Tandem</div>
             <div class="header-right">
-                <button class="header-help-btn" id="welcome-help-btn" type="button" title="Як це працює?" aria-label="Як це працює?" onclick="showWelcomeSheet()">?</button>
+                <button class="header-help-btn" id="welcome-help-btn" type="button" title="Що тут робити?" aria-label="Що тут робити?" aria-expanded="false" aria-controls="screen-help" onclick="toggleScreenHelp()">?</button>
                 <div class="role-pill none" id="role-pill" onclick="openRoleSelector()"></div>
                 <div class="avatar-btn" id="avatar-btn" onclick="switchScreen('profile')"></div>
             </div>
@@ -3128,6 +3378,7 @@
 
         <!-- SUBSCRIPTION BAR -->
         <div class="sub-bar" id="sub-bar"></div>
+        <div class="screen-help" id="screen-help" role="region" aria-label="Підказка й пошук" hidden></div>
 
         <!-- MAIN SCREENS -->
         <div class="main">
@@ -3146,8 +3397,11 @@
             <!-- BOARD -->
             <div class="screen" id="screen-board" aria-hidden="true" inert>
                 <div style="display:flex;padding:12px 16px 0;">
-                    <input class="board-search" id="board-search" placeholder="🔍 Пошук напрямку..."
-                        oninput="filterBoard(this.value)" style="flex:1;margin:0;width:100%;">
+                    <div style="position:relative;flex:1;min-width:0;">
+                    <input class="board-search" id="board-search" enterkeyhint="search" placeholder="🔍 Пошук події або місця..."
+                        oninput="filterBoard(this.value)" style="flex:1;margin:0;width:100%;padding-right:44px;">
+                    <button type="button" class="board-search-clear" aria-label="Очистити пошук" onclick="clearBoardSearch()">×</button>
+                    </div>
                 </div>
                 <div class="board-breadcrumb" id="board-breadcrumb"></div>
                 <div id="board-list"></div>
@@ -3602,14 +3856,7 @@
 
         // ─── WELCOME INIT ───
         function initWelcome() {
-            // Attach click handler to logo
-            const logo = document.querySelector('.header-title');
-            if (logo) {
-                logo.style.cursor = 'pointer';
-                logo.addEventListener('click', () => {
-                    showWelcomeSheet();
-                });
-            }
+            // Логотип сам є кнопкою вітання (onclick у розмітці); «?» пояснює поточний екран (2026-09-25).
             // Auto-show welcome for new users (if not seen before)
             if (!localStorage.getItem('wt_welcome_seen') && S.apiBase && S.userId && !S.pendingStartDirectionId && !S.startDirectionHandled) {
                 setTimeout(() => {
@@ -4315,7 +4562,7 @@
             S.roleGateOpen = !!required;
             openSheet(`
                 <div class="sheet-title">${required ? 'Як ти їдеш?' : 'Оберіть роль'}</div>
-                <div class="sheet-sub">${required ? `Щоб ${escapeHtml(actionLabel || 'продовжити')}, оберіть свій варіант для цієї події. Роль можна змінити пізніше, якщо немає активних домовленостей.` : 'Створювати напрямки можуть обидві ролі. Далі дії залежать від ролі.'}</div>
+                <div class="sheet-sub">${required ? `Щоб ${escapeHtml(actionLabel || 'продовжити')}, оберіть свій варіант для цієї події. Роль можна змінити пізніше, якщо немає активних домовленостей.` : 'Створювати події можуть обидві ролі. Далі дії залежать від ролі.'}</div>
                 <div class="sheet-actions">
                     <button class="btn ${isDriver ? 'btn-primary' : 'btn-secondary'}" onclick="setRole('driver')">🚗 Я повезу людей</button>
                     <button class="btn ${isClient ? 'btn-primary' : 'btn-secondary'}" onclick="setRole('client')">👤 Мені потрібно місце</button>
@@ -4525,7 +4772,7 @@
 
         function subscriptionSubBarTitle(sub) {
             const role = normalizeRole(sub?.role || S.userRole);
-            const title = sub?.direction_title || sub?.title || `Напрямок #${sub?.direction_id || sub?.id || ''}`;
+            const title = sub?.direction_title || sub?.title || `Подія #${sub?.direction_id || sub?.id || ''}`;
             if (_isDriverRole(role)) return `${title} · Водій: поставте авто на карту або відкрийте місця`;
             if (_isPassengerRole(role)) return `${title} · Попутник: оберіть водія або вкажіть точку очікування`;
             return title;
@@ -4566,9 +4813,10 @@
                 const title = String(S.viewedDirectionTitle || cachedDirectionTitle(viewedId) || `Подія #${viewedId}`).trim();
                 return { label: `🧭 ${title} · переглядаєте подію`, action: `openDirection(${viewedId})` };
             }
-            if (_isDriverRole(S.userRole)) return { label: '🚗 Водій · оберіть подію', action: "switchScreen('board')" };
-            if (_isPassengerRole(S.userRole)) return { label: '👤 Попутник · оберіть подію', action: "switchScreen('board')" };
-            return { label: '📌 Оберіть напрямок, щоб почати', action: "switchScreen('board')" };
+            // Стрічка очікування відкриває пошук там, де людина є, а не викидає з мапи в каталог (власник 2026-09-25).
+            if (_isDriverRole(S.userRole)) return { label: '🚗 Водій · оберіть подію', action: 'openStripSearch()' };
+            if (_isPassengerRole(S.userRole)) return { label: '👤 Попутник · оберіть подію', action: 'openStripSearch()' };
+            return { label: '📌 Оберіть подію, щоб почати', action: 'openStripSearch()' };
         }
 
         async function openMapActiveTripFromSubBar() {
@@ -4819,11 +5067,11 @@
             if (!beginOp('open_crew_sheet')) return;
             try {
                 const dirs = S.subscriptions.length > 0 ? S.subscriptions : (await api(`/api/v3/board?lang=${S.lang}`))?.directions || [];
-                if (!dirs.length) { endOp('open_crew_sheet'); showToast('Спочатку підпишіться на напрямок', 'error'); switchScreen('board'); return; }
+                if (!dirs.length) { endOp('open_crew_sheet'); showToast('Спочатку підпишіться на подію', 'error'); switchScreen('board'); return; }
                 if (dirs.length === 1) { await doOpenCrew(dirs[0].direction_id || dirs[0].id); return; }
                 openSheet(`
                 <div class="sheet-title">Я водій: відкрити місця</div>
-                <div class="sheet-sub">Оберіть напрямок, де готові взяти попутників.</div>
+                <div class="sheet-sub">Оберіть подію, на яку готові взяти попутників.</div>
                 <div class="sheet-actions">
                     ${dirs.map(d => {
                     const did = d.direction_id || d.id;
@@ -4933,6 +5181,7 @@
         // ─── NAVIGATION ───
         function switchScreen(name) {
             S.currentScreen = name;
+            if (S.screenHelpOpen) closeScreenHelp();
             closeBlockingSheetForScreen(name);
             document.querySelectorAll('.screen').forEach(el => {
                 const active = el.id === `screen-${name}`;
@@ -5240,7 +5489,7 @@
                     ? `<button onclick="requestJoin(${safeOrganizerId}, ${safeDirectionId}, { source: 'map', keepMapContext: true })" style="flex:1;padding:8px;border-radius:10px;background:rgba(163,230,53,0.15);color:#a3e635;border:1px solid rgba(163,230,53,0.3);font-weight:700;font-size:12px;cursor:pointer;">✓ Запроситись</button>`
                     : '';
                 const chatBtn = mapDriverPinChatButtonHtml(c);
-                const openBtn = '<button onclick="openDirectionFromMap(' + safeDirectionId + ')" style="flex:1;padding:8px;border-radius:10px;background:rgba(56,189,248,0.14);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-weight:700;font-size:12px;cursor:pointer;">→ Напрямок</button>';
+                const openBtn = '<button onclick="openDirectionFromMap(' + safeDirectionId + ')" style="flex:1;padding:8px;border-radius:10px;background:rgba(56,189,248,0.14);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-weight:700;font-size:12px;cursor:pointer;">→ Подія</button>';
                 marker.bindPopup('<div style="text-align:center;min-width:230px;"><div style="font-weight:800;font-size:14px;margin-bottom:4px;">' + escapeHtml(popupName) + '</div><div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">' + popupDirection + '</div>' + crewRosterHtml + '<div style="display:flex;flex-wrap:wrap;gap:8px;">' + chatBtn + requestBtn + openBtn + '</div></div>', MAP_POPUP_PAN_OPTS);
                 S.mapMarkers.push(marker);
             });
@@ -5286,7 +5535,8 @@
         }
 
         function _eventMarkerEmoji(kind) {
-            if (kind === 'theocracy') return '⛪';
+            // Теократія — будинок зібрань без хреста: хрест суперечить Біблії (власник 2026-09-25).
+            if (kind === 'theocracy') return '<svg class="pin-hall" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/><path d="M7 13h2v2H7zM15 13h2v2h-2z"/></svg>';
             if (kind === 'leisure') return '🏖️';
             if (kind === 'work') return '💼';
             return '🎯';
@@ -5373,10 +5623,12 @@
                     marker.on('click', () => openDirectionInviteFromMap(dId));
                 } else {
                     // Discovery (iter 3): попап-прев'ю; «Детальніше» → та сама шторка.
-                    marker.bindPopup(buildMapEventPreviewHtml(point, dId), { closeButton: true, maxWidth: 240, className: 'map-preview-popup', ...MAP_POPUP_PAN_OPTS });
+                    marker.bindPopup(() => buildMapEventPreviewHtml(point, dId), { closeButton: true, maxWidth: 240, className: 'map-preview-popup', ...MAP_POPUP_PAN_OPTS });
                 }
+                marker.options.wtDirId = dId;
                 S.eventMarkers.push(marker);
             });
+            spreadOverlappingEventPins();
         }
 
         // ─── Discovery preview (iter 3, 2026-06-10) ────────────────────────────
@@ -5403,15 +5655,16 @@
         function buildMapEventPreviewHtml(point, dId) {
             const kind = classifyNewsItem(point);
             const title = point.title || point.direction_title || point.dir_title || `Подія #${dId}`;
-            const drivers = safeCount(point?.drivers ?? point?.drivers_count);
-            const passengers = safeCount(point?.passengers ?? point?.passengers_count);
-            const total = drivers + passengers;
+            // Лайк події (рішення власника 2026-09-24): 👍 як у YouTube, лише позитивний
+            // сигнал. Кнопка є завжди (інакше ніхто не поставить перший лайк), число —
+            // лише коли > 0. Поточний пошук і учасники — у повній картці («Детальніше»).
+            const like = eventLikeState(point, dId);
+            const likeBtn = `<button type="button" class="map-preview-like" aria-pressed="${like.liked ? 'true' : 'false'}" aria-label="${escapeAttr(eventLikeAriaLabel(like.count))}" onclick="toggleEventLike(this, ${Number(dId) || 0})">${eventLikeIconSvg()}<span class="map-preview-like-n">${like.count || ''}</span></button>`;
             const rows = [];
             const when = formatMapPreviewWhen(point);
             const desc = String(point?.description || '').trim();
-            if (when) rows.push(`<div class="map-preview-row">📅 ${escapeHtml(String(when))}</div>`);
-            if (total) rows.push(`<div class="map-preview-row">👥 ${total} ${pluralUk(total, 'учасник', 'учасники', 'учасників')}</div>`);
-            if (desc) rows.push(`<div class="map-preview-row map-preview-desc"><span class="map-preview-desc-label">Опис від організатора</span>${escapeHtml(desc.slice(0, 120))}${desc.length > 120 ? '…' : ''}</div>`);
+            rows.push(`<div class="map-preview-row"><span>${when ? `📅 ${escapeHtml(String(when))}` : ''}</span>${likeBtn}</div>`);
+            if (desc) rows.push(`<div class="map-preview-row map-preview-desc">${escapeHtml(desc.slice(0, 120))}${desc.length > 120 ? '…' : ''}</div>`);
             return `<div class="map-preview-card">
                 <div class="map-preview-hd k-${escapeAttr(kind)}">
                     <div class="map-preview-ico">${_eventMarkerEmoji(kind)}</div>
@@ -5467,15 +5720,15 @@
             'already_in_trip': 'Ви вже в екіпажі — спочатку завершіть поточну поїздку',
             'capacity_full': 'Водій вже заповнив усі місця',
             'user_not_found': 'Користувача не знайдено',
-            'direction_closed': 'Напрямок зараз недоступний',
+            'direction_closed': 'Подія зараз недоступна',
             'reserved_by_in': 'Місце вже зарезервоване для іншого',
             'self_action_forbidden': 'Неможливо запросити самого себе',
             'rate_limited': 'Забагато спроб — зачекайте кілька секунд і повторіть',
             'expired': 'Термін запиту минув — надішліть новий',
             'handshake_not_found': 'Запит не знайдено',
             'user_blocked': 'Користувач заблокував взаємодію',
-            'not_subscribed': 'Спочатку підпишіться на цей напрямок',
-            'already_subscribed': 'Ви вже в черзі на цей напрямок',
+            'not_subscribed': 'Спочатку підпишіться на цю подію',
+            'already_subscribed': 'Ви вже в черзі на цю подію',
             'direction_expired': 'Подія вже завершилась — оберіть актуальну в каталозі',
             'active_trip_other_direction': 'У вас уже є активна домовленість в іншій події',
             'driver_cannot_invite_driver': 'Водій може запросити лише попутника',
@@ -5681,7 +5934,7 @@
 
             const isDriver = _isDriverRole(S.userRole);
             const partnerName = match.partner_name || match.sender_name || match.target_name || `#${partnerId}`;
-            const direction = match.direction || match.direction_title || 'Напрямок';
+            const direction = match.direction || match.direction_title || 'Подія';
             const title = isDriver ? 'Хтось хоче до екіпажу' : 'Водій знайдений';
             const subtitle = isDriver
                 ? `${escapeHtml(partnerName)} хоче приєднатися до вашого екіпажу.`
@@ -5772,7 +6025,7 @@
             const partnerId = m.target_id || m.partner_id || opts.partnerId || 0;
             const partnerName = m.target_name || m.partner_name || opts.partnerName || (partnerId ? `#${partnerId}` : 'Партнер');
             const partnerPhoto = m.target_photo_url || m.partner_photo_url || '';
-            const directionLabel = m.direction || m.direction_title || opts.directionLabel || 'Напрямок';
+            const directionLabel = m.direction || m.direction_title || opts.directionLabel || 'Подія';
             const queueHint = total > 1
                 ? `<div style="font-size:11px;color:var(--text-muted);margin:0 0 10px;line-height:1.35;">На карті показано один запит. Ще ${total - 1} ${pluralUk(total - 1, 'запит', 'запити', 'запитів')} — у списку поверх карти.</div>`
                 : `<div style="font-size:11px;color:var(--text-muted);margin:0 0 10px;line-height:1.35;">На карті показано поточний запит. Усі запити можна відкрити тут, не покидаючи карту.</div>`;
@@ -6123,7 +6376,7 @@
             awaiting_pickup: 'Чекаємо на посадку',
             in_crew: 'В екіпажі',
             waiting_response: 'Чекає відповіді',
-            searching: 'Шукає пару',
+            searching: 'Шукає місце',
             subscribed: 'Стежить за подією',
             finished: 'Поїздку завершено'
         };
@@ -6310,12 +6563,12 @@
             if (end.key < start.key) return '';
             if (start.key === end.key) return formatEventDay(startDate);
             if (start.year === end.year && start.month === end.month) {
-                return `${start.day}–${formatEventDay(endDate)}`;
+                return `з ${start.day} по ${formatEventDay(endDate)}`;
             }
             if (start.year === end.year) {
-                return `${formatEventDay(startDate)} – ${formatEventDay(endDate)}`;
+                return `з ${formatEventDay(startDate)} по ${formatEventDay(endDate)}`;
             }
-            return `${formatEventDay(startDate)} ${start.year} – ${formatEventDay(endDate)} ${end.year}`;
+            return `з ${formatEventDay(startDate)} ${start.year} по ${formatEventDay(endDate)} ${end.year}`;
         }
 
         function formatEventDuration(startDate, endDate) {
@@ -6385,7 +6638,7 @@
                 `📍 ${title}`,
                 organizerLine,
                 meeting ? `📌 Місце: ${meeting}` : '',
-                whenText ? `🗓 Коли: ${whenText}` : '',
+                whenText ? `📅 Виїзд: ${whenText}` : '',
                 `👥 Водії: ${drivers} · Попутники: ${passengers}`,
                 desc ? '' : '',
                 desc ? desc.slice(0, 700) : '',
@@ -6668,7 +6921,7 @@
             const endAt = String(dirMeta.end_date || '').trim();
             const whenText = formatEventDateRange(startAt, endAt);
             rememberViewedDirection(ctx.safeDirId, ctx.title);
-            const detailLine = [whenText ? `🗓 ${whenText}` : '', meetingPoint ? `📍 ${meetingPoint}` : ''].filter(Boolean).join(' · ');
+            const detailLine = [whenText ? `📅 ${whenText}` : '', meetingPoint ? `📍 ${meetingPoint}` : ''].filter(Boolean).join(' · ');
             const subtitle = creatorDisplay
                 ? `${escapeHtml(creatorDisplay)}${creatorUsername && creatorName ? ` (@${escapeHtml(creatorUsername)})` : ''} збирає людей їхати разом.`
                 : 'Організатор збирає людей їхати разом.';
@@ -6679,7 +6932,7 @@
                     <div class="sheet-sub" style="margin-bottom:12px;">${subtitle}</div>
                     ${(detailLine || desc) ? `<div style="padding:10px;border:1px solid rgba(255,255,255,0.10);border-radius:8px;background:rgba(255,255,255,0.04);font-size:12px;color:var(--text-secondary);line-height:1.45;margin-bottom:12px;">
                         ${detailLine ? `<div style="margin-bottom:${desc ? '6px' : '0'};">${escapeHtml(detailLine)}</div>` : ''}
-                        ${desc ? `<div style="white-space:pre-wrap;${detailLine ? 'border-top:1px solid rgba(255,255,255,0.08);padding-top:6px;' : ''}"><div style="font-size:10px;font-weight:900;letter-spacing:0.6px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;">Опис від організатора</div>${escapeHtml(desc.slice(0, 360))}</div>` : ''}
+                        ${desc ? `<div style="white-space:pre-wrap;${detailLine ? 'border-top:1px solid rgba(255,255,255,0.08);padding-top:6px;' : ''}"><div style="font-size:10px;font-weight:900;letter-spacing:0.6px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;">Опис події</div>${escapeHtml(desc.slice(0, 360))}</div>` : ''}
                     </div>` : ''}
                     <div style="padding:10px;border:1px solid rgba(56,189,248,0.22);border-radius:8px;background:rgba(56,189,248,0.07);font-size:12px;color:var(--text-secondary);line-height:1.4;margin-bottom:12px;">
                         ${escapeHtml(ctx.proof.participantLine)} · ${escapeHtml(ctx.proof.driverLine)}
@@ -7447,7 +7700,7 @@
                     </div>
                 </div>
                 <div style="padding:10px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid var(--border);display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
-                    ${whenText ? `<div style="font-size:12px;color:var(--text-secondary);">🗓 ${escapeHtml(whenText)}</div>` : ''}
+                    ${whenText ? `<div style="font-size:12px;color:var(--text-secondary);">📅 ${escapeHtml(whenText)}</div>` : ''}
                     ${meetingPoint ? `<div style="font-size:12px;color:var(--text-secondary);">📍 ${escapeHtml(meetingPoint)}</div>` : ''}
                     ${desc ? `<div style="font-size:12px;color:var(--text-secondary);line-height:1.45;white-space:pre-wrap;">${escapeHtml(desc.slice(0, 360))}</div>` : ''}
                     ${!whenText && !meetingPoint && !desc ? '<div style="font-size:12px;color:var(--text-secondary);">Деталі події можна уточнити в організатора.</div>' : ''}
@@ -7899,7 +8152,7 @@
                 return `
                 <div class="news-feed-item" ${clickHandler} style="${cursorStyle}">
                     <div style="font-size:13px;font-weight:700;line-height:1.45;">${escapeHtml(n.text || 'Новина')}</div>
-                    <div class="news-feed-meta">${escapeHtml(n.dir_title || 'Без напряму')} • ${formatNewsTime(n.created_at)}</div>
+                    <div class="news-feed-meta">${escapeHtml(n.dir_title || 'Без події')} • ${formatNewsTime(n.created_at)}</div>
                 </div>
             `}).join('');
         }
@@ -7988,6 +8241,11 @@
                 const seats = Number(agg.open_seats || 0);
                 const waiting = Number(agg.passengers_waiting || 0);
                 const done = Number(card?.completed_trips_count || 0);
+                // Відтінок і значок рубрики — завжди, і з фільтром теж: тема — орієнтир «де я», як на мапі
+                // й у каталозі (власник 2026-09-25; раніше з фільтром картки були нейтральні).
+                const catKey = String(card?.category || '').toLowerCase();
+                const newsCat = ['theocracy', 'leisure', 'work'].includes(catKey) ? catKey : 'other';
+                const tintClass = ` news-card-tint-${newsCat === 'other' ? 'event' : newsCat}`;
                 const stats = `${drivers} ${pluralUk(drivers, 'водій', 'водії', 'водіїв')}`
                     + ` • ${seats} ${pluralUk(seats, 'вільне місце', 'вільні місця', 'вільних місць')}`
                     + ` • ${waiting} ${pluralUk(waiting, 'шукає місце', 'шукають місце', 'шукають місце')}`;
@@ -8002,22 +8260,24 @@
                 // інтерактивному невалідне і ламає читач екрана. Тому:
                 // <article> — простий контейнер; головна область — СПРАВЖНЯ
                 // <button> з неінтерактивним вмістом; «×» і дія — її СУСІДИ.
-                return `<article class="news-feed-item news-card" data-news-direction="${id}"
+                return `<article class="news-feed-item news-card${tintClass}" data-news-direction="${id}"
                     style="position:relative;">
                     <button type="button" class="news-card-toggle"
                         aria-expanded="${isOpen ? 'true' : 'false'}"
                         aria-controls="news-v2-body-${id}"
                         onclick="toggleNewsEventCard(${id})"
                         style="display:block;width:100%;text-align:left;padding:0;border:0;background:transparent;color:inherit;font:inherit;cursor:pointer;">
+                        <span class="news-card-row"><span class="cat-ico news-cat-ico cat-ico-${newsCat}" aria-hidden="true">${itemIcon(card, newsCat, false)}</span><span class="news-card-text">
                         <span style="display:block;font-size:14px;font-weight:800;line-height:1.45;padding-right:30px;">${escapeHtml(card?.title || `Подія #${id}`)}</span>
                         ${whereWhen ? `<span class="news-feed-meta" style="display:block;">📍 ${escapeHtml(whereWhen)}</span>` : ''}
-                        <span class="news-feed-meta" style="display:block;">${escapeHtml(newsCategoryLabel(card?.category))} • ${escapeHtml(stats)} • ${done} ${pluralUk(done, 'завершена поїздка', 'завершені поїздки', 'завершених поїздок')}</span>
+                        <span class="news-feed-meta" style="display:block;">${escapeHtml(newsCategoryLabel(card?.category))} • ${escapeHtml(stats)}${done > 0 ? ` • ${done} ${pluralUk(done, 'завершена поїздка', 'завершені поїздки', 'завершених поїздок')}` : ''}</span>
                         <span class="news-feed-meta" style="display:block;" title="${escapeAttr(formatNewsTime(card?.updated_at))}">Оновлено ${escapeHtml(formatNewsRelative(card?.updated_at))}${isOpen ? '' : ' • натисніть, щоб відкрити'}</span>
+                        </span></span>
                     </button>
                     <button type="button" class="news-card-collapse" aria-label="Згорнути картку події"
                         onclick="collapseNewsEventCard(${id});"
                         style="display:${isOpen ? 'block' : 'none'};position:absolute;top:10px;right:10px;width:26px;height:26px;line-height:1;padding:0;border-radius:8px;border:1px solid var(--border);background:var(--bg-card);color:var(--text);font-weight:700;cursor:pointer;">×</button>
-                    <div id="news-v2-body-${id}">
+                    <div id="news-v2-body-${id}" class="news-card-body">
                         <div id="news-v2-updates-${id}" style="display:none;margin-top:5px;"></div>
                         <div id="news-v2-people-${id}" style="display:none;margin-top:5px;"></div>
                         <div id="news-v2-action-${id}" style="display:${isOpen ? 'block' : 'none'};margin-top:8px;">
@@ -8205,8 +8465,8 @@
             }
             if (_isDriverRole(role)) {
                 return {
-                    primary: `👤 ${passengers} ${pluralUk(passengers, 'попутник чекає', 'попутники чекають', 'попутників чекають')}`,
-                    secondary: `🚗 ${drivers} ${pluralUk(drivers, 'водій уже відкрив місця', 'водії вже відкрили місця', 'водіїв вже відкрили місця')}`
+                    primary: `👤 ${passengers} ${pluralUk(passengers, 'шукає місце', 'шукають місце', 'шукають місце')}`,
+                    secondary: `🚗 ${drivers} ${pluralUk(drivers, 'водій', 'водії', 'водіїв')}`
                 };
             }
             if (_isPassengerRole(role)) {
@@ -8214,8 +8474,8 @@
                     ? ` • 💺 ${freeSeats} ${pluralUk(freeSeats, 'вільне місце', 'вільні місця', 'вільних місць')}`
                     : '';
                 return {
-                    primary: `🚗 ${drivers} ${pluralUk(drivers, 'водій з місцями', 'водії з місцями', 'водіїв з місцями')}${seatText}`,
-                    secondary: `👤 ${passengers} ${pluralUk(passengers, 'попутник у черзі', 'попутники у черзі', 'попутників у черзі')}`
+                    primary: `🚗 ${drivers} ${pluralUk(drivers, 'водій', 'водії', 'водіїв')}${seatText}`,
+                    secondary: `👤 ${passengers} ${pluralUk(passengers, 'шукає місце', 'шукають місце', 'шукають місце')}`
                 };
             }
             return {
@@ -8261,7 +8521,10 @@
 
         async function renderBoard() {
             const list = document.getElementById('board-list');
-            list.innerHTML = '<div class="skeleton" style="height:60px;margin:12px 16px;"></div>'.repeat(3);
+            // Поки в полі є запит, на екрані — результати пошуку: пізній renderBoard() (hydrate,
+            // перемикання вкладок, опитування) не має затирати їх рівнем каталогу (прохід 2026-09-24).
+            const searchActive = () => !!sanitizeSearchInput(document.getElementById('board-search')?.value || '').trim();
+            if (!searchActive()) list.innerHTML = '<div class="skeleton" style="height:60px;margin:12px 16px;"></div>'.repeat(3);
             if (!S.apiBase) {
                 renderBoardBreadcrumb(false);
                 list.innerHTML = '<div class="empty"><div class="empty-icon">🧭</div><div class="empty-title">Підключіть API</div><div class="empty-sub">Вкажіть адресу сервера в налаштуваннях</div></div>';
@@ -8275,7 +8538,7 @@
                 && !(document.getElementById('board-search')?.value?.trim())
                 && !currentDirs.some(d => isFolderNode(d));
 
-            renderBoardBreadcrumb(S.canCreateEvent);
+            if (!searchActive()) renderBoardBreadcrumb(S.canCreateEvent);
             const qp = new URLSearchParams({ lang: S.lang });
             if (S.userId) qp.set('user_id', String(S.userId));
             if (S.boardParentId !== null && S.boardParentId !== undefined) qp.set('parent_id', String(S.boardParentId));
@@ -8292,6 +8555,13 @@
             S.subscriptions = freshSubscriptions;
             const subSet = new Set(freshSubscriptions.map(s => String(s.direction_id)));
             S.boardSubSet = subSet;
+            const liveQuery = sanitizeSearchInput(document.getElementById('board-search')?.value || '').trim();
+            if (liveQuery) {
+                // Дані рівня й підписки оновлено; результати перераховуємо тим самим запитом.
+                updateBottomNavForBoardDepth();
+                filterBoard(liveQuery);
+                return;
+            }
             renderBoardList(allDirections, S.boardSubSet);
             // Перерахунок зі свіжими даними (чи є підпапки) + оновлення нижнього меню
             S.canCreateEvent = S.boardStack.length > 0
@@ -8302,10 +8572,15 @@
             updateBottomNavForBoardDepth();
         }
 
-        function renderBoardList(dirs, subSet) {
+        function renderBoardList(dirs, subSet, searchQuery = '') {
             const list = document.getElementById('board-list');
+            if (!dirs.length && searchQuery) {
+                // Порожній пошук ≠ «подій немає» (live-прохід новачком 2026-09-24).
+                list.innerHTML = `<div class="empty"><div class="empty-icon">🔍</div><div class="empty-title">Нічого не знайдено</div><div class="empty-sub">За запитом «${escapeHtml(searchQuery)}» подій немає. Спробуйте інше слово або місто, або створіть власну подію.</div><button class="btn btn-primary" style="margin-top:20px;max-width:320px;margin-left:auto;margin-right:auto;" onclick="switchScreen('explore')">Перейти до мапи</button></div>`;
+                return;
+            }
             if (!dirs.length) {
-                list.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">Немає напрямків</div><div class="empty-sub">Перегляньте події на мапі або створіть власну</div><button class="btn btn-primary" style="margin-top:20px;max-width:320px;margin-left:auto;margin-right:auto;" onclick="switchScreen('explore')">Перейти до мапи</button></div>`;
+                list.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">Немає подій</div><div class="empty-sub">Перегляньте події на мапі або створіть власну</div><button class="btn btn-primary" style="margin-top:20px;max-width:320px;margin-left:auto;margin-right:auto;" onclick="switchScreen('explore')">Перейти до мапи</button></div>`;
                 return;
             }
             list.innerHTML = dirs.map(d => {
@@ -8313,15 +8588,19 @@
                 const isFolder = isFolderNode(d);
                 const isSub = !isFolder && subSet?.has(id);
                 const stats = buildDirectionCardStats(d);
-                const sigil = isFolder
-                    ? `<svg viewBox="0 0 24 24"><path d="M12 3l7 4.5v9L12 21l-7-4.5v-9L12 3z"></path><path d="M12 7v10"></path><path d="M8 12h8"></path></svg>`
-                    : `<svg viewBox="0 0 24 24"><path d="M12 3l8 9-8 9-8-9 8-9z"></path><circle cx="12" cy="12" r="2.5"></circle></svg>`;
-                const click = isFolder ? `boardOpenFolder(${d.id})` : `openDirection(${d.id})`;
-                const cardLabel = `${isFolder ? 'Відкрити розділ' : 'Відкрити подію'}: ${d.title || 'Напрямок'}`;
-                return `<button type="button" class="dir-card ${isSub ? 'subscribed' : ''}" onclick="${click}" aria-label="${escapeAttr(cardLabel)}">
-                    <span class="dir-card-icon" style="background:${isSub ? 'var(--green-dim)' : 'rgba(255,255,255,0.04)'};color:${isSub ? 'var(--green)' : (isFolder ? 'var(--text-secondary)' : 'var(--accent)')};">${sigil}</span>
+                // Де і коли — як у «Новинах»: без цього серед результатів не вибрати.
+                const whereWhen = isFolder ? '' : [String(d.meeting_point || '').trim(), formatEventDateRange(d.start_date, d.end_date)].filter(Boolean).join(' · ');
+                // Колір рубрики — на всю глибину (2026-09-25); значок піна — лише на кореневих входах, глибше —
+                // за змістом назви папки (власник 2026-09-26, `itemIcon`).
+                const cat = itemCategory(d);
+                // Розділ із результатів пошуку може лежати на іншому рівні — відкриваємо його за результатами.
+                const click = isFolder ? (searchQuery ? `boardOpenSearchFolder(${d.id})` : `boardOpenFolder(${d.id})`) : `openDirection(${d.id})`;
+                const cardLabel = `${isFolder ? 'Відкрити розділ' : 'Відкрити подію'}: ${d.title || 'Подія'}`;
+                return `<button type="button" class="dir-card dir-card-tint-${cat}${isSub ? ' subscribed' : ''}" onclick="${click}" aria-label="${escapeAttr(cardLabel)}">
+                    <span class="dir-card-icon cat-ico cat-ico-${cat}" aria-hidden="true">${itemIcon(d, cat, isFolder)}</span>
                     <span class="dir-card-info">
-                        <span class="dir-card-name">${escapeHtml(d.title || 'Напрямок')}</span>
+                        <span class="dir-card-name">${escapeHtml(d.title || 'Подія')}${isSub ? '<span class="dir-card-mine">✓ Ви в події</span>' : ''}</span>
+                        ${whereWhen ? `<span class="dir-card-where">📍 ${escapeHtml(whereWhen)}</span>` : ''}
                         <span class="dir-card-stats"><span class="dir-card-total">${escapeHtml(stats.primary)}</span>${stats.secondary ? `<span class="dir-card-context">${escapeHtml(stats.secondary)}</span>` : ''}</span>
                     </span>
                     <span class="dir-card-arrow" aria-hidden="true">›</span>
@@ -8739,12 +9018,12 @@
             const sub = activeSubscriptionForRadar();
             if (!sub) return '';
             const dirId = directionIdForRadar(sub);
-            const title = escapeHtml(sub.title || sub.direction_title || (dirId ? `#${dirId}` : 'Напрямок'));
+            const title = escapeHtml(sub.title || sub.direction_title || (dirId ? `#${dirId}` : 'Подія'));
             const openCrews = openCrewCountForRadar(dirId);
             const mapText = S.lastMapSyncAt ? `${openCrews} ${openCrews === 1 ? 'водій' : 'водіїв'} на карті` : 'карта синхронізується';
             const primaryLine = isDriver
                 ? (S.myCrew ? 'Екіпаж відкрито. Попутники можуть постукати до вас.' : 'Відкрийте місця, щоб попутники побачили ваш екіпаж.')
-                : (openCrews > 0 ? 'Є відкриті екіпажі на цьому напрямку.' : 'Поки немає відкритих водіїв, але ваша підписка активна.');
+                : (openCrews > 0 ? 'Є відкриті екіпажі до цієї події.' : 'Поки немає відкритих водіїв, але ваша підписка активна.');
             const pollSec = Math.round(POLL_INTERVAL_MS / 1000);
             const stopButton = dirId
                 ? `<button class="btn btn-ghost" style="margin-top:8px;width:100%;" onclick="confirmLeaveDirection(${dirId})">🚪 Вийти з події</button>`
@@ -8775,38 +9054,403 @@
 
         function filterBoard(query) {
             clearTimeout(searchTimer);
+            // Кожен новий набір робить старі відповіді застарілими (і очищення теж).
+            const seq = (S._boardSearchSeq = (S._boardSearchSeq || 0) + 1);
             const q = sanitizeSearchInput(query).trim();
             if (!q) {
                 // Clear search, reload current level
                 renderBoard();
                 return;
             }
-            // First, filter locally (current level)
-            const localResults = allDirections.filter(d => (d.title || '').toLowerCase().includes(q.toLowerCase()));
-            if (localResults.length > 0) {
-                renderBoardList(localResults, S.boardSubSet);
-                const el = document.getElementById('board-breadcrumb');
-                if (el) {
-                    el.innerHTML = `<div class="board-crumb-path" style="color:var(--accent);">🔍 ${localResults.length} результат${localResults.length !== 1 ? 'ів' : ''} (поточний рівень)</div>`;
-                }
-                return;
-            }
-            // No local results, perform deep search (debounced)
+            // Завжди шукаємо по всьому каталогу (live-прохід новачком 2026-09-24): збіг
+            // на поточному рівні («ро» -> лише «Робота») вимикав пошук і ховав «Вроцлав»,
+            // а результати перескакували між рівнями під час набору.
             searchTimer = setTimeout(async () => {
-                // Show loading indicator
                 const el = document.getElementById('board-breadcrumb');
                 if (el) {
-                    el.innerHTML = `<div class="board-crumb-path" style="color:var(--accent);">🔍 Шукаю по всій дошці...</div>`;
+                    el.innerHTML = `<div class="board-crumb-path" style="color:var(--accent);">🔍 Шукаю…</div>`;
                 }
                 const qp = new URLSearchParams({ lang: S.lang, q });
                 if (S.userId) qp.set('user_id', String(S.userId));
                 const data = await api(`/api/v3/board?${qp.toString()}`);
+                // Відповідь на старіший запит (людина вже друкує далі або очистила) — не показуємо.
+                if (seq !== S._boardSearchSeq) return;
                 const searchResults = Array.isArray(data) ? data : (data?.directions || []);
-                renderBoardList(searchResults, S.boardSubSet);
+                S._boardSearchResults = searchResults;
+                renderBoardList(searchResults, S.boardSubSet, q);
                 if (el) {
-                    el.innerHTML = `<div class="board-crumb-path" style="color:var(--accent);">🔍 ${searchResults.length} результат${searchResults.length !== 1 ? 'ів' : ''} (вся дошка)</div>`;
+                    el.innerHTML = `<div class="board-crumb-path" style="color:var(--accent);">🔍 ${searchResults.length} ${pluralUk(searchResults.length, 'результат', 'результати', 'результатів')}</div>`;
                 }
             }, 300);
+        }
+
+        function eventLikeIconSvg() {
+            // Контурна рука; при лайку CSS заливає її кольором ([aria-pressed="true"]).
+            return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3.5 10.5h3v9.5h-3z"/>'
+                + '<path d="M6.5 11 10.5 4.2c.5-.9 1.7-1.2 2.5-.6.6.5.9 1.3.7 2L13 10h6c1.1 0 1.9 1 1.7 2.1l-1.2 6.2c-.2 1-1.1 1.7-2.1 1.7H6.5z"/></svg>';
+        }
+
+        function eventLikeAriaLabel(count) {
+            return count ? `Подобається: ${count}` : 'Подобається';
+        }
+
+        function eventLikeState(point, dirId) {
+            // Свіжа правда — картка стрічки (оновлюється опитуванням); далі — власна
+            // відповідь сервера на лайк; далі — дані піна з моменту малювання мапи.
+            const key = String(dirId);
+            const card = (S.news || []).find(n => String(n?.direction_id ?? n?.id) === key);
+            const src = (card && card.likes_count !== undefined) ? card : (S.eventLikes?.[key] || point || {});
+            return { count: safeCount(src.likes_count), liked: !!src.viewer_liked };
+        }
+
+        async function toggleEventLike(btn, dirId) {
+            const safeDirId = parseInt(dirId, 10) || 0;
+            if (!safeDirId || !S.userId || !btn || btn.dataset.busy === '1') return;
+            const next = btn.getAttribute('aria-pressed') !== 'true';
+            btn.dataset.busy = '1';
+            // Мутація «гучна» (I-FRONT-1): стан кнопки змінюємо лише після відповіді
+            // сервера; помилку показує apiWithStatus.
+            const resp = await apiWithStatus('/api/v3/events/like', {
+                method: 'POST',
+                body: JSON.stringify({ user_id: S.userId, direction_id: safeDirId, liked: next }),
+            });
+            delete btn.dataset.busy;
+            if (!resp.ok || !resp.data) return;
+            const count = safeCount(resp.data.likes_count);
+            const liked = !!resp.data.viewer_liked;
+            const key = String(safeDirId);
+            S.eventLikes = { ...(S.eventLikes || {}), [key]: { likes_count: count, viewer_liked: liked } };
+            const card = (S.news || []).find(n => String(n?.direction_id ?? n?.id) === key);
+            if (card) { card.likes_count = count; card.viewer_liked = liked; }
+            btn.setAttribute('aria-pressed', liked ? 'true' : 'false');
+            btn.setAttribute('aria-label', eventLikeAriaLabel(count));
+            if (liked && next) {
+                // Коротке «підскакування» руки + легкий вібровідгук Telegram (лише на лайк).
+                btn.classList.remove('is-popping');
+                void btn.offsetWidth;
+                btn.classList.add('is-popping');
+                // Таймер, а не animationend: у фоновій вкладці анімація не йде і подія не настає.
+                setTimeout(() => btn.classList.remove('is-popping'), 450);
+                try { window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('light'); } catch (_) { }
+            }
+            btn.lastElementChild.textContent = count ? String(count) : '';
+        }
+
+        // Піни подій стоять поруч, навіть з однаковою точкою (рішення власника
+        // 2026-09-24): ближчі за 38 px (поріг offsetMapCoordIfNear) ставимо по колу
+        // навколо спільного центру; при наближенні, коли місця розходяться самі,
+        // зсув зникає. Справжня точка — у marker.options.wtTrueLatLng.
+        function spreadOverlappingEventPins() {
+            if (!S.map || !window.L) return;
+            if (!S.map._wtEventSpreadBound) {
+                S.map.on('zoomend', spreadOverlappingEventPins);
+                S.map._wtEventSpreadBound = true;
+            }
+            const markers = (S.eventMarkers || []).filter(m => S.map.hasLayer(m));
+            markers.forEach(m => { if (!m.options.wtTrueLatLng) m.options.wtTrueLatLng = m.getLatLng(); });
+            const pts = markers.map(m => S.map.latLngToLayerPoint(m.options.wtTrueLatLng));
+            const groupOf = markers.map(() => -1);
+            const groups = [];
+            markers.forEach((_, i) => {
+                if (groupOf[i] !== -1) return;
+                const members = [i];
+                groupOf[i] = groups.length;
+                for (let k = 0; k < members.length; k++) {
+                    markers.forEach((__, j) => {
+                        if (groupOf[j] === -1 && pts[members[k]].distanceTo(pts[j]) < 38) {
+                            groupOf[j] = groups.length;
+                            members.push(j);
+                        }
+                    });
+                }
+                groups.push(members);
+            });
+            groups.forEach(members => {
+                if (members.length === 1) {
+                    const m = markers[members[0]];
+                    m.setLatLng(m.options.wtTrueLatLng);
+                    return;
+                }
+                const cx = members.reduce((s, i) => s + pts[i].x, 0) / members.length;
+                const cy = members.reduce((s, i) => s + pts[i].y, 0) / members.length;
+                // Пін 34 px: сусіди на колі мають бути ≥ 42 px між центрами.
+                const r = Math.max(21, 21 / Math.sin(Math.PI / members.length));
+                members
+                    .slice()
+                    .sort((a, b) => (markers[a].options.wtDirId || 0) - (markers[b].options.wtDirId || 0))
+                    .forEach((i, k) => {
+                        const angle = Math.PI + (2 * Math.PI * k) / members.length;
+                        markers[i].setLatLng(S.map.layerPointToLatLng(L.point(cx + r * Math.cos(angle), cy + r * Math.sin(angle))));
+                    });
+            });
+        }
+
+        function clearBoardSearch() {
+            const input = document.getElementById('board-search');
+            if (!input) return;
+            input.value = '';
+            filterBoard('');
+            input.focus();
+        }
+
+        function eventPeopleChipHtml(key, title, count, sub, active) {
+            return `<button type="button" class="event-people-chip${active ? ' active' : ''}" aria-pressed="${active ? 'true' : 'false'}" onclick="toggleEventPeopleFilter('${key}')"><span class="event-people-chip-title">${escapeHtml(title)} · ${count}</span><span class="event-people-chip-sub">${escapeHtml(sub)}</span></button>`;
+        }
+
+        function toggleEventPeopleFilter(key) {
+            if (!S._eventPeople) return;
+            S._eventPeople.filter = S._eventPeople.filter === key ? '' : key;
+            renderEventPeopleSection();
+        }
+
+        function eventPassengerRowsHtml(ctx) {
+            if (ctx.members === undefined) return '<div class="event-people-note">Завантажуємо учасників…</div>';
+            if (ctx.members === null) {
+                // Сервер не віддав список: людина ще не учасник (DM-2026-07-25-001).
+                return ctx.passengers
+                    ? '<div class="event-people-note">Хто саме їде, побачите, коли натиснете «Хочу поїхати».</div>'
+                    : '<div class="event-people-note">Поки ніхто не шукає місце.</div>';
+            }
+            const driverIds = new Set(ctx.orgs.map(o => String(o?.user_id || '')));
+            const rows = ctx.members.filter(m => !driverIds.has(String(m?.user_id || '')));
+            if (!rows.length) return '<div class="event-people-note">Поки ніхто не шукає місце.</div>';
+            // Спершу ті, хто ще шукає місце.
+            const rank = s => (['searching', 'subscribed', 'waiting_response'].includes(s) ? 0 : 1);
+            return rows.slice().sort((a, b) => rank(a?.status) - rank(b?.status)).map(m => {
+                const isSelf = String(m?.user_id || '') === String(S.userId || '');
+                // У шторці «стежить за подією» = попутник ще без місця — як лічильник «без місця».
+                const label = m?.status === 'subscribed' ? 'Шукає місце' : (NEWS_PERSON_STATUS_LABELS[m?.status] || 'Учасник');
+                return `<div class="event-person-row">${renderAvatarInline(m?.name || 'Учасник', '', 42)}<div style="flex:1;min-width:0;"><div class="event-person-name">${escapeHtml(m?.name || 'Учасник')}${isSelf ? ' <span class="tag tag-green" style="border-radius:6px;padding:2px 6px;font-size:10px;">Ви</span>' : ''}</div><div class="event-person-status">${escapeHtml(label)}</div></div></div>`;
+            }).join('');
+        }
+
+        function renderEventPeopleSection() {
+            const ctx = S._eventPeople;
+            const host = ctx && document.querySelector(`[data-event-people="${ctx.dirId}"]`);
+            if (!host) return;
+            const chips = '<div class="event-people-chips">'
+                + eventPeopleChipHtml('drivers', '🚗 Водії', ctx.drivers, `${ctx.openSeats} ${pluralUk(ctx.openSeats, 'вільне місце', 'вільні місця', 'вільних місць')}`, ctx.filter === 'drivers')
+                + eventPeopleChipHtml('passengers', '👤 Попутники', ctx.passengers, `${ctx.withoutSeat} без місця`, ctx.filter === 'passengers')
+                + '</div>';
+            const driversHtml = ctx.orgs.length
+                ? eventDriverRosterHtml(ctx.orgs, ctx.dirId, { allowJoin: ctx.isSub && !_isDriverRole(S.userRole) })
+                : '<div class="event-people-note">Поки немає водіїв. Можна поїхати водієм.</div>';
+            const passengersHtml = eventPassengerRowsHtml(ctx);
+            let body;
+            if (ctx.filter === 'drivers') body = driversHtml;
+            else if (ctx.filter === 'passengers') body = passengersHtml;
+            else if (!ctx.orgs.length && !ctx.passengers) body = `<div class="event-people-note">${escapeHtml(ctx.emptyCrewLine)}</div>`;
+            // Без фільтра — усі; спершу ті, хто потрібен саме цій людині.
+            else body = _isDriverRole(S.userRole) ? passengersHtml + driversHtml : driversHtml + passengersHtml;
+            host.innerHTML = chips + `<div class="event-people-list">${body}</div>`;
+        }
+        function membershipClock(ts) {
+            const d = new Date(Number(ts || 0) * 1000);
+            const hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+            const today = new Date();
+            return d.toDateString() === today.toDateString()
+                ? hm
+                : `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')} ${hm}`;
+        }
+
+        function membershipStay(seconds) {
+            const min = Math.max(1, Math.round(Number(seconds || 0) / 60));
+            if (min < 60) return `${min} хв`;
+            const hours = Math.round(min / 60);
+            if (hours < 24) return `${hours} год`;
+            const days = Math.round(hours / 24);
+            return `${days} ${pluralUk(days, 'день', 'дні', 'днів')}`;
+        }
+
+        async function loadOrganizerMembership(dirId) {
+            // Облік для організатора (2026-09-24): хто долучився і вийшов, як журнал групи Telegram.
+            const safeDirId = parseInt(dirId, 10) || 0;
+            if (!safeDirId || !S.userId) return;
+            const data = await api(`/api/v3/events/membership?direction_id=${safeDirId}&user_id=${encodeURIComponent(S.userId)}`, { silent: true });
+            const host = document.querySelector(`[data-organizer-membership="${safeDirId}"]`);
+            if (!host) return;
+            const visits = Array.isArray(data?.visits) ? data.visits : null;
+            if (!visits) { host.innerHTML = ''; return; }
+            const rows = visits.length
+                ? visits.map(v => `<div class="event-person-status" style="margin-top:6px;">👤 <strong style="color:var(--text-primary);">${escapeHtml(v.name || 'Учасник')}</strong> · ${membershipClock(v.joined_at)} → ${v.left_at ? `${membershipClock(v.left_at)} (${membershipStay(Number(v.left_at) - Number(v.joined_at))})` : 'вже не в події'}${v.reason === 'switched' ? ' · перехід на іншу подію' : ''}</div>`).join('')
+                : '<div class="event-person-status" style="margin-top:6px;">Поки ніхто не виходив з події.</div>';
+            host.innerHTML = `<div style="margin:0 0 8px;padding:12px;border-radius:12px;background:rgba(15,23,42,0.55);border:1px solid rgba(148,163,184,0.22);"><div style="font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-muted);">Долучались і вийшли</div>${rows}</div>`;
+        }
+        async function boardOpenSearchFolder(dirId) {
+            // allDirections — лише поточний рівень, тож розділ із пошуку шукаємо серед результатів
+            // (прохід новачком 2026-09-24: підрозділ «Природа» у результатах не відкривався).
+            const dir = (S._boardSearchResults || []).find(d => String(d.id) === String(dirId));
+            if (!dir || !isFolderNode(dir)) return;
+            clearTimeout(searchTimer);
+            S._boardSearchSeq = (S._boardSearchSeq || 0) + 1;  // відповідь пошуку, що ще в дорозі, вже не покажеться
+            const parent = (S.catalogRootFolders || []).find(r => String(r.id) === String(dir.parent_id));
+            S.boardStack = parent
+                ? [{ id: parent.id, title: parent.title || `#${parent.id}` }, { id: dir.id, title: dir.title || `#${dir.id}` }]
+                : [{ id: dir.id, title: dir.title || `#${dir.id}` }];
+            S.boardParentId = dir.id;
+            S._boardSearchResults = null;
+            const search = document.getElementById('board-search');
+            if (search) search.value = '';
+            await renderBoard();
+        }
+
+        function screenHelpText(screen) {
+            // Одне-два речення: що робити саме тут (власник 2026-09-25: без технічних подробиць).
+            return ({
+                explore: 'На мапі — події. Торкніться піна, щоб побачити подію. Плитки вгорі — теми й кількість подій.',
+                news: 'Тут новини подій: хто долучився, що змінив організатор. Торкніться картки, щоб відкрити подію.',
+                board: 'Події за темами: відкрийте розділ або знайдіть подію пошуком угорі.',
+                trips: 'Тут з’являться ваші поїздки, коли ви натиснете «Хочу поїхати» в події.',
+                profile: 'Тут ваше ім’я, роль і мова, а також ваша подія, якщо ви її створили.',
+            })[screen] || '';
+        }
+
+        function renderScreenPanel(mode) {
+            // «?» — лише пояснення; стрічка — лише пошук (власник 2026-09-25: лаконічніше).
+            const panel = document.getElementById('screen-help');
+            if (!panel) return;
+            const body = mode === 'search'
+                ? `<input class="screen-help-search" id="screen-help-search" type="search" enterkeyhint="search" autocomplete="off" placeholder="Подія, місто або місце — напр. «пікнік» чи «Варшава»" aria-label="Знайти подію" oninput="stripSearch(this.value)"><div class="screen-help-results" id="screen-help-results"></div>`
+                : escapeHtml(screenHelpText(S.currentScreen || 'explore'));
+            panel.innerHTML = `<div class="screen-help-head"><div class="screen-help-body">${body}</div><button type="button" class="screen-help-close" aria-label="Закрити" onclick="closeScreenHelp()">✕</button></div>`;
+            panel.dataset.mode = mode;
+        }
+
+        function openScreenPanel(mode) {
+            const panel = document.getElementById('screen-help');
+            if (!panel) return;
+            if (!panel.hidden && panel.dataset.mode === mode) { closeScreenHelp(); return; }  // другий дотик — закрити
+            renderScreenPanel(mode);
+            panel.hidden = false;
+            S.screenHelpOpen = true;
+            document.getElementById('welcome-help-btn')?.setAttribute('aria-expanded', mode === 'help' ? 'true' : 'false');
+            if (mode === 'search') setTimeout(() => document.getElementById('screen-help-search')?.focus(), 0);
+        }
+
+        function toggleScreenHelp() {
+            openScreenPanel('help');
+        }
+
+        function openStripSearch() {
+            // Стрічка очікування: пошук там, де людина є, а не перехід у каталог (обрив контексту).
+            if (S.currentScreen === 'board') {
+                closeScreenHelp();
+                document.getElementById('board-search')?.focus();  // у каталозі вже є своє поле
+                return;
+            }
+            openScreenPanel('search');
+        }
+
+        function closeScreenHelp() {
+            const panel = document.getElementById('screen-help');
+            if (panel) { panel.hidden = true; panel.innerHTML = ''; delete panel.dataset.mode; }
+            S.screenHelpOpen = false;
+            S._stripSeq = (S._stripSeq || 0) + 1;
+            document.getElementById('welcome-help-btn')?.setAttribute('aria-expanded', 'false');
+        }
+
+        function stripSearch(query) {
+            // Той самий серверний пошук, що в каталозі (2h/2u).
+            clearTimeout(S._stripTimer);
+            const seq = (S._stripSeq = (S._stripSeq || 0) + 1);
+            const q = sanitizeSearchInput(query).trim();
+            const box = document.getElementById('screen-help-results');
+            if (!box) return;
+            if (!q) { box.innerHTML = ''; return; }
+            S._stripTimer = setTimeout(async () => {
+                const qp = new URLSearchParams({ lang: S.lang, q });
+                if (S.userId) qp.set('user_id', String(S.userId));
+                const data = await api(`/api/v3/board?${qp.toString()}`);
+                if (seq !== S._stripSeq) return;
+                const found = (Array.isArray(data) ? data : (data?.directions || [])).slice(0, 8);
+                S._stripResults = found;
+                box.innerHTML = found.length ? found.map(d => {
+                    const where = isFolderNode(d) ? 'Розділ каталогу' : [String(d.meeting_point || '').trim(), formatEventDateRange(d.start_date, d.end_date)].filter(Boolean).join(' · ');
+                    return `<button type="button" class="screen-help-result" onclick="openFoundEvent(${parseInt(d.id, 10) || 0})">${escapeHtml(d.title || 'Подія')}${where ? `<small>${escapeHtml(where)}</small>` : ''}</button>`;
+                }).join('') : `<div style="color:var(--text-muted);font-size:12px;">За запитом «${escapeHtml(q)}» подій немає.</div>`;
+            }, 300);
+        }
+
+        async function openFoundEvent(dirId) {
+            const dir = (S._stripResults || []).find(d => String(d.id) === String(dirId));
+            if (!dir) return;
+            closeScreenHelp();
+            if (isFolderNode(dir)) {
+                // Розділ живе в каталозі: людина сама обрала перейти туди.
+                S._boardSearchResults = S._stripResults;
+                switchScreen('board');
+                await boardOpenSearchFolder(dir.id);
+                return;
+            }
+            if (S.currentScreen === 'explore') {
+                const marker = (S.eventMarkers || []).find(m => String(m.options.wtDirId) === String(dir.id) && S.map && S.map.hasLayer(m));
+                if (marker) {
+                    S.map.setView(marker.getLatLng(), Math.max(S.map.getZoom(), 11));
+                    if (marker.getPopup()) marker.openPopup(); else marker.fire('click');  // як тап по піну
+                    return;
+                }
+            }
+            openDirection(dir.id);  // поза мапою або без піна — одразу «Детальніше»
+        }
+
+        function itemCategory(item) {
+            // Рубрика з сервера (та сама, що на пінах і в News); запасний шлях — корінь поточного шляху каталогу.
+            const c = String(item?.category || item?.root_category || '').trim().toLowerCase();
+            if (['theocracy', 'leisure', 'work', 'other'].includes(c)) return c;
+            const root = (S.boardStack || [])[0];
+            return root ? catalogRootCategory({ title: root.title }) : 'other';
+        }
+
+        // Значок папки за змістом назви (власник 2026-09-26). У глибині каталогу значок піна нічого не додає —
+        // там усе однієї рубрики: колір лишається від кореня, а значок каже, що в папці. Слова uk/pl/en/ru:
+        // ціле слово або основа з «*». Теократичних значків тут немає — малюнок для них погоджує власник.
+        const CATALOG_FOLDER_ICONS = [
+            ['⛰️', 'гори гора горах гір горы гор góry gory górach mountain mountains бескиди бескидах карпати карпатах татри татрах альпи beskidy tatry karpaty alps гірськ* górsk* mountain*'],
+            ['🌊', 'море моря морі морем морю morze morza morzu morzem sea seaside балтика bałtyk baltyk морськ* morsk*'],
+            ['🌲', 'ліс лісі лісу ліси лісах лес лесу las lasy lesie lasach forest forests woods пуща пущі puszcza лісов* leśn*'],
+            ['🏕️', 'природа природі природу природою natura naturze nature кемпінг camping намет намети biwak*'],
+            ['🏞️', 'озеро озера озері jezioro jeziora jeziorze lake lakes річка річки rzeka rzeki river сплав spływ'],
+            ['🚴', 'велосипед* rower* bike* cycling велопрогулян*'],
+            ['⛷️', 'лижі лиж narty ski skiing лижн*'],
+            ['🏗️', 'будова будови будові budowa budowy budowie construction будівництв* будівельн* budowlan*'],
+            ['🏭', 'завод заводі fabryka fabryce factory виробництв* produkcj*'],
+            ['🌾', 'ферма фермі farm farma урожай zbiory жнива gospodarstw*'],
+            ['📦', 'склад складі magazyn magazynie warehouse logistics логістик* logistyk*'],
+        ];
+        const CATALOG_FOLDER_SVG = '<svg class="cat-line" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6H9l2 2h8.5A1.5 1.5 0 0 1 21 9.5v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"/></svg>';
+
+        function _catalogWords(text) {
+            return String(text || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+                .split(/[^a-z0-9łа-яієґ]+/).filter(Boolean);
+        }
+
+        function catalogTitleIcon(title) {
+            const words = _catalogWords(title);
+            if (!words.length) return '';
+            for (const [icon, list] of CATALOG_FOLDER_ICONS) {
+                for (const raw of list.split(' ')) {
+                    const stem = _catalogWords(raw.replace('*', ''))[0] || '';
+                    const prefix = raw.endsWith('*');
+                    if (stem && words.some(w => (prefix ? w.startsWith(stem) : w === stem))) return icon;
+                }
+            }
+            return '';
+        }
+
+        function itemIcon(item, cat, isFolder) {
+            // Кореневий вхід — значок піна рубрики; папка глибше — значок за назвою або намальована папка;
+            // подія — значок найближчої папки зі словника (без кореня), інакше значок піна (2026-09-26).
+            const chain = Array.isArray(item?.folder_titles) ? item.folder_titles : null;
+            if (isFolder) {
+                const isRoot = chain ? chain.length === 0 : !(S.boardStack || []).length;
+                if (isRoot) return _eventMarkerEmoji(cat);
+                return catalogTitleIcon(item?.title) || CATALOG_FOLDER_SVG;
+            }
+            for (const title of (chain || []).slice(0, -1)) {
+                const icon = catalogTitleIcon(title);
+                if (icon) return icon;
+            }
+            return _eventMarkerEmoji(cat);
         }
 
         function cachedDirectionDetails(dirId) {
@@ -8858,7 +9502,7 @@
             if (!dir && data?.direction && typeof data.direction === 'object') {
                 dir = {
                     id: data.direction.id ?? dirId,
-                    title: data.direction.title || data.direction.name || 'Напрямок',
+                    title: data.direction.title || data.direction.name || 'Подія',
                     drivers: Number(data.direction.drivers || data.direction.drivers_count || 0),
                     passengers: Number(data.direction.passengers || data.direction.passengers_count || 0),
                     is_folder: !!data.direction.is_folder,
@@ -8866,7 +9510,7 @@
                     kind: data.direction.kind || '',
                 };
             }
-            if (!dir) { closeSheet(); showToast('Напрямок недоступний', 'error'); return; }
+            if (!dir) { closeSheet(); showToast('Подія недоступна', 'error'); return; }
             if (isFolderNode(dir)) { closeSheet(); await boardOpenFolder(dirId); return; }
             rememberViewedDirection(safeDirId, dir.title || dir.name || cachedDirectionTitle(safeDirId));
             const orgs = data?.organizers || [];
@@ -8903,7 +9547,7 @@
 
             const whenText = formatEventDateRange(startAt, endAt);
             const durationText = formatEventDuration(startAt, endAt);
-            const daysText = durationText ? `🗓 ${durationText}` : '';
+            const daysText = durationText ? `📅 ${durationText}` : '';
 
             const eventSummary = (data?.event_summary && typeof data.event_summary === 'object') ? data.event_summary : {};
             const hasEventSummary = eventSummary.drivers_total != null;
@@ -8922,9 +9566,9 @@
             const passengers = hasEventSummary
                 ? (summaryMatched + summaryWaiting + summaryPending)
                 : Number(dir.passengers || 0);
-            const participantsText = `👥 ${eventPeopleLabel(drivers, passengers)}`;
-            const crewsText = `🚗 ${drivers} ${pluralUk(drivers, 'Екіпаж', 'Екіпажі', 'Екіпажів')}`;
-            const customStatsLine = [daysText, participantsText, crewsText].filter(Boolean).join(' • ');
+            // Люди й екіпажі — у фільтрах «Водії» / «Попутники» внизу шторки; тут лише
+            // тривалість (рішення власника 2026-09-24: без дублювання).
+            const customStatsLine = daysText;
             const summaryRisk = String(eventSummary.risk || 'ok');
             const summaryRiskText = summaryRisk === 'needs_drivers'
                 ? 'Потрібні ще місця'
@@ -8952,23 +9596,27 @@
             const detailCardHtml = hasDetailCard ? `
                 <div style="margin:10px 0 6px;padding:14px;border-radius:12px;background:rgba(255,255,255,0.05);border:1px solid rgba(56,189,248,0.15);backdrop-filter:blur(6px);">
                     ${hasDetailMeta ? `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:${desc ? '12px' : '0'};">
-                        ${meetingPoint ? `<div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-primary);font-weight:600;"><span style="color:var(--blue);font-size:15px;">📍</span> ${escapeHtml(meetingPoint)}</div>` : '<div></div>'}
-                        ${whenText ? `<div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-primary);font-weight:600;"><span style="color:var(--accent);font-size:15px;">🗓</span> ${escapeHtml(whenText)}</div>` : '<div></div>'}
+                        ${meetingPoint ? `<div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-primary);font-weight:600;"><span style="color:var(--blue);font-size:15px;">📍</span> <span><span style="color:var(--text-muted);font-weight:700;">Куди:</span> ${escapeHtml(meetingPoint)}</span></div>` : '<div></div>'}
+                        ${whenText ? `<div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-primary);font-weight:600;"><span style="color:var(--accent);font-size:15px;">📅</span> <span><span style="color:var(--text-muted);font-weight:700;">Виїзд:</span> ${escapeHtml(whenText)}</span></div>` : '<div></div>'}
                     </div>` : ''}
-                    ${desc ? `<div style="font-size:13px;color:var(--text-secondary);line-height:1.55;white-space:pre-wrap;${hasDetailMeta ? 'border-top:1px solid rgba(255,255,255,0.08);padding-top:12px;' : ''}"><div style="font-size:10px;font-weight:900;letter-spacing:0.6px;text-transform:uppercase;color:var(--text-muted);margin-bottom:5px;">Опис від організатора</div>${escapeHtml(desc)}</div>` : ''}
+                    ${desc ? `<div style="font-size:13px;color:var(--text-secondary);line-height:1.55;white-space:pre-wrap;${hasDetailMeta ? 'border-top:1px solid rgba(255,255,255,0.08);padding-top:12px;' : ''}"><div style="font-size:10px;font-weight:900;letter-spacing:0.6px;text-transform:uppercase;color:var(--text-muted);margin-bottom:5px;">Опис події</div>${escapeHtml(desc)}</div>` : ''}
                 </div>` : '';
 
+            const sheetCat = itemCategory(data?.direction || dir);  // значок рубрики, як на піні (2026-09-25)
+            // Після того як шторка намальована — облік «долучились і вийшли» (лише організатор).
+            if (isMyDir) setTimeout(() => loadOrganizerMembership(dirId), 0);
             openSheet(`
                 <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;">
-                    <div style="font-size:28px;">🧭</div>
+                    <div class="cat-ico sheet-cat-ico cat-ico-${sheetCat}" aria-hidden="true">${itemIcon(data?.direction || dir, sheetCat, false)}</div>
                     <div style="flex:1;">
-                        <div class="sheet-title" style="margin-bottom:2px;">${escapeHtml(dir.title || 'Напрямок')}</div>
+                        <div class="sheet-title" style="margin-bottom:2px;">${escapeHtml(dir.title || 'Подія')}</div>
                         <div style="font-size:12px;color:var(--text-secondary);font-weight:600;">${escapeHtml(customStatsLine)}</div>
                     </div>
                     ${isMyDir ? `<div style="display:flex;gap:6px;flex-shrink:0;"><button onclick="shareDirectionInvite(${parseInt(dirId) || 0})" style="padding:6px 10px;border-radius:8px;background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.28);color:var(--blue);font-size:14px;cursor:pointer;" title="Запросити учасників">📨</button><button data-dir-id="${parseInt(dirId) || 0}" data-dir-title="${escapeAttr(String(dir.title || ''))}" onclick="openEditDirectionFromButton(this)" style="padding:6px 10px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text-secondary);font-size:14px;cursor:pointer;" title="Редагувати">✏️</button></div>` : ''}
                 </div>
                 ${detailCardHtml}
                 ${organizerEventSummaryHtml}
+                ${isMyDir ? `<div data-organizer-membership="${parseInt(dirId, 10) || 0}"></div>` : ''}
                 ${creatorContactBlock}
                 <div style="display:flex;flex-direction:column;gap:8px;margin:14px 0 10px;">
                     ${isSub
@@ -8978,19 +9626,35 @@
                     <button class="btn btn-secondary" style="width:100%;font-size:16px;font-weight:700;padding:14px 0;border-radius:12px;background:#334155;color:#ffffff;border:none;cursor:pointer;" onclick="closeSheet()">Закрити</button>
                 </div>
                 ${isSub ? `<button class="btn btn-secondary" style="width:100%;margin-bottom:8px;font-size:12px;" onclick="pickPickupLocation(${dirId}, { kind: ${_isDriverRole(S.userRole) ? "'driver_start'" : "'passenger_wait'"}, persistUserLocation: ${_isDriverRole(S.userRole) ? 'false' : 'true'} })">${hasPickup ? '📍 Точка вказана ✓' : (_isDriverRole(S.userRole) ? '🚗 Поставити авто на карту' : '📍 Вказати де чекати водія')}</button>` : ''}
-                ${orgs.length ? `
-                    <div style="font-size:16px;font-weight:800;color:var(--text-primary);margin:24px 0 12px;">Водії та екіпажі</div>
-                    ${eventDriverRosterHtml(orgs, dirId, {
-                        allowJoin: !!isSub && !_isDriverRole(S.userRole)
-                    })}`
-                    : `<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">${escapeHtml(emptyCrewLine)}</div>`}
+                <div data-event-people="${parseInt(dirId, 10) || 0}"></div>
             `);
+            // Люди події (рішення власника 2026-09-24): фільтри «Водії» / «Попутники» з
+            // цифрами для всіх; імена попутників — лише тим, кому їх віддає сервер
+            // (/home/feed/members: організатор і учасники, DM-2026-07-25-001).
+            const peopleDirId = parseInt(dirId, 10) || 0;
+            S._eventPeople = {
+                dirId: peopleDirId,
+                orgs,
+                isSub: !!isSub,
+                drivers,
+                openSeats: hasEventSummary ? summaryOpenSeats : orgs.reduce((sum, o) => sum + safeCount(o?.seats_free), 0),
+                passengers,
+                withoutSeat: hasEventSummary ? summaryWaiting + summaryPending : passengers,
+                members: undefined,
+                filter: '',
+                emptyCrewLine
+            };
+            renderEventPeopleSection();
+            const people = await api(`/api/v3/home/feed/members?direction_id=${peopleDirId}&user_id=${encodeURIComponent(S.userId || '')}`, { silent: true });
+            if (seq !== S._openDirectionSeq || S._eventPeople?.dirId !== peopleDirId) return;
+            S._eventPeople.members = Array.isArray(people?.cards) ? people.cards : null;
+            renderEventPeopleSection();
         }
 
         async function subscribeDir(dirId, options = {}) {
             if (!requireRoleForAction('стати в чергу', () => subscribeDir(dirId, options))) return false;
             const dir = allDirections.find(d => String(d.id) === String(dirId));
-            if (isFolderNode(dir)) { showToast('Оберіть конкретний напрямок, не каталог', 'error'); return; }
+            if (isFolderNode(dir)) { showToast('Оберіть конкретну подію, а не розділ', 'error'); return; }
             // Re-subscribing to a recently-removed direction: stop suppressing it.
             if (S._recentlyUnsubbed && S._recentlyUnsubbed.id === String(dirId)) S._recentlyUnsubbed = null;
 
@@ -9031,7 +9695,7 @@
             // Show notification if direction was switched
             const switchedFrom = resp?.data?.switched_from;
             if (switchedFrom) {
-                showToast('↩️ Чергу перемкнено на новий напрямок', 'success');
+                showToast('↩️ Чергу перемкнено на нову подію', 'success');
             }
 
             await hydrate();
@@ -9116,7 +9780,7 @@
 
         async function unsubscribeDir(dirId) {
             const dir = allDirections.find(d => String(d.id) === String(dirId));
-            if (isFolderNode(dir)) { showToast('Це каталог, оберіть напрямок', 'error'); return; }
+            if (isFolderNode(dir)) { showToast('Це розділ каталогу, оберіть подію', 'error'); return; }
             const resp = await apiWithStatus('/api/v3/board/unsubscribe', {
                 method: 'POST',
                 body: JSON.stringify({ user_id: S.userId, direction_id: dirId })
@@ -9727,7 +10391,7 @@
                     return `<div class="card animate-in" style="border-left:3px solid ${isIncoming ? 'var(--amber)' : 'var(--blue)'};">
                             <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
                                 ${renderAvatarInline(partnerName, m.partner_photo_url || m.sender_photo_url || m.target_photo_url || '', 40)}
-                                <div style="flex:1;"><div style="font-weight:800;font-size:14px;">${escapeHtml(partnerName)}</div><div style="font-size:11px;color:var(--text-secondary);">${escapeHtml(m.direction || m.direction_title || 'Напрямок')}</div></div>
+                                <div style="flex:1;"><div style="font-weight:800;font-size:14px;">${escapeHtml(partnerName)}</div><div style="font-size:11px;color:var(--text-secondary);">${escapeHtml(m.direction || m.direction_title || 'Подія')}</div></div>
                                 <div class="tag ${isIncoming ? 'tag-amber' : 'tag-blue'}">${isIncoming ? '📩 Вхідний' : '📤 Очікування'}</div>
                             </div>
                             ${isIncoming
@@ -9753,7 +10417,7 @@
                     if (cacheData) {
                         const dir = cacheData.direction || {};
                         const organizers = cacheData.organizers || [];
-                        const title = dir.title || dir.name || S.subscriptions[0].title || S.subscriptions[0].direction_title || `Напрямок #${dirId}`;
+                        const title = dir.title || dir.name || S.subscriptions[0].title || S.subscriptions[0].direction_title || `Подія #${dirId}`;
                         const creatorDisplay = dir.creator_name || 'Організатор';
                         const creatorUsername = dir.creator_username || '';
                         const startAt = dir.start_date || '';
@@ -9780,7 +10444,7 @@
 
                         const detailRows = [
                             meetingPoint ? `<div style="font-size:12px;color:var(--text-secondary);line-height:1.4;">📍 ${escapeHtml(meetingPoint)}</div>` : '',
-                            whenText ? `<div style="font-size:12px;color:var(--text-secondary);line-height:1.4;">🗓 ${escapeHtml(whenText)}</div>` : '',
+                            whenText ? `<div style="font-size:12px;color:var(--text-secondary);line-height:1.4;">📅 ${escapeHtml(whenText)}</div>` : '',
                             desc ? `<div style="font-size:12px;color:var(--text-secondary);line-height:1.45;margin-top:6px;white-space:pre-wrap;">${escapeHtml(desc)}</div>` : ''
                         ].filter(Boolean).join('');
 
@@ -9833,7 +10497,7 @@
                                     S.directionDetailsFetching.delete(dirId);
                                 });
                         }
-                        const title = escapeHtml(S.subscriptions[0].title || S.subscriptions[0].direction_title || `Напрямок #${dirId}`);
+                        const title = escapeHtml(S.subscriptions[0].title || S.subscriptions[0].direction_title || `Подія #${dirId}`);
                         eventAccordionHtml = `
                             <div class="event-accordion" style="pointer-events: none; opacity: 0.7;">
                                 <div class="event-header">
@@ -9932,7 +10596,7 @@
                     <div class="empty" style="padding-top:80px;">
                         <div class="empty-icon">🧭</div>
                         <div class="empty-title">Немає активних поїздок</div>
-                        <div class="empty-sub">${isDriver ? 'Відкрийте екіпаж або знайдіть напрямок' : 'Знайдіть напрямок в каталозі або на мапі'}</div>
+                        <div class="empty-sub">${isDriver ? 'Відкрийте екіпаж або знайдіть подію' : 'Знайдіть подію в каталозі або на мапі'}</div>
                         <button class="btn btn-primary" style="margin-top:20px;max-width:320px;margin-left:auto;margin-right:auto;" onclick="switchScreen('board')">Перейти до каталогу</button>
                     </div>
                 `;
@@ -10131,7 +10795,7 @@
                 const m = incoming[0];
                 const partnerName = m.partner_name || m.sender_name || `#${m.partner_id}`;
                 const partnerId = m.partner_id || m.sender_id;
-                const dirTitle = m.direction || m.direction_title || 'Напрямок';
+                const dirTitle = m.direction || m.direction_title || 'Подія';
                 const isDriver = _isDriverRole(S.userRole);
                 const title = isDriver ? '📩 Запит в екіпаж' : '📩 Знайдено водія';
                 const acceptText = isDriver ? '✓ Взяти в екіпаж' : '✓ Прийняти';
@@ -10169,7 +10833,7 @@
                 const pm = S.proposedMatch;
                 const partnerName = pm.partner_name || `#${pm.partner_id}`;
                 const partnerId = pm.partner_id;
-                const dirTitle = pm.direction_title || 'Напрямок';
+                const dirTitle = pm.direction_title || 'Подія';
                 const isDriver = _isDriverRole(S.userRole);
                 const title = isDriver ? '✨ Знайдено попутника' : '✨ Знайдено водія';
 
@@ -11843,7 +12507,7 @@
                     </ol>
                     <p><strong style="color:#38bdf8;">🚗 Можу взяти людей:</strong> вкажіть, скільки у вас вільних місць, і відкрийте місця — попутники самі постукають до вас.</p>
                     <p><strong style="color:#34d399;">👤 Шукаю місце:</strong> оберіть водія на мапі або зачекайте, поки водій надішле вам запит.</p>
-                    <p><strong style="color:#fbbf24;">👑 Хочете зібрати свою компанію?</strong> У «Каталозі» натисніть «Додати подію». Деталі, точку збору й посилання на чат змінюйте в профілі → «Моя подія»; з посиланням учасники побачать кнопку «Чат події».</p>
+                    <p><strong style="color:#fbbf24;">👑 Хочете зібрати свою компанію?</strong> У «Каталозі» відкрийте розділ і натисніть «Додати подію»; для учасників можна додати й чат події.</p>
                 </div>
                 <div class="sheet-actions">
                     <button class="btn btn-primary" onclick="closeSheet(); localStorage.setItem('wt_welcome_seen', '1'); switchScreen('explore');">🗺️ Знайти подію на мапі</button>
@@ -12016,7 +12680,7 @@
                 <div class="sheet-title">Запропонувати ідею поїздки</div>
                 <div class="sheet-sub">Каталог: ${escapeHtml(parentTitle)}</div>
                 <input class="board-search" id="create-dir-title" placeholder="Назва ідеї..." maxlength="80" style="margin:12px 0 8px;">
-                <input class="board-search" id="create-dir-place" placeholder="Публічна локація: місто, район або місце збору..." maxlength="255" style="margin-bottom:8px;">
+                <input class="board-search" id="create-dir-place" placeholder="Куди їхати: адреса або місце події..." maxlength="255" style="margin-bottom:8px;">
                 <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
                     <button class="btn btn-secondary" style="flex:1;font-size:13px;" onclick="pickGpsForDirection()">📍 Точка на карті</button>
                     <span id="create-dir-loc-label" style="flex:2;font-size:12px;color:var(--text-muted);">Не вказано</span>
@@ -12270,7 +12934,7 @@
                 }
                 const res = await api('/api/v3/board', { method: 'POST', body: JSON.stringify(body) });
                 if (res?.id || res?.status === 'ok' || res?.direction_id) {
-                    showToast('✓ Напрямок створено. Ви в черзі.', 'success');
+                    showToast('✓ Подію створено. Ви в черзі.', 'success');
                     closeSheet(); S._createDirLat = null; S._createDirLng = null;
                     await hydrate();
                     renderNews();
@@ -12311,9 +12975,9 @@
                 ? `📍 ${S._editDirLat.toFixed(4)}, ${S._editDirLng.toFixed(4)}`
                 : 'Не вказано';
             openSheet(`
-                <div class="sheet-title">Редагувати напрямок</div>
+                <div class="sheet-title">Редагувати подію</div>
                 <input class="board-search" id="edit-dir-title" value="${escapeAttr(currentTitle)}" placeholder="Назва ідеї..." maxlength="80" style="margin:12px 0 8px;">
-                <input class="board-search" id="edit-dir-place" value="${escapeAttr(meetingPoint)}" placeholder="Публічна локація: місто, район або місце збору..." maxlength="255" style="margin-bottom:8px;">
+                <input class="board-search" id="edit-dir-place" value="${escapeAttr(meetingPoint)}" placeholder="Куди їхати: адреса або місце події..." maxlength="255" style="margin-bottom:8px;">
                 <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
                     <button class="btn btn-secondary" style="flex:1;font-size:13px;" onclick="pickGpsForEditDirection()">📍 Точка на карті</button>
                     <span id="edit-dir-loc-label" style="flex:2;font-size:12px;color:var(--text-muted);">${escapeHtml(locLabel)}</span>
@@ -12330,7 +12994,7 @@
                 <input class="board-search" id="edit-dir-chat" value="${escapeAttr(chatLink)}" placeholder="💬 Чат події: https://t.me/... (необовʼязково)" maxlength="120" style="margin-bottom:12px;">
                 <div class="sheet-actions">
                     <button class="btn btn-primary" onclick="doEditDirection(${dirId})">💾 Зберегти</button>
-                    <button class="btn btn-danger" onclick="confirmDeleteDirection(${dirId})">🗑 Видалити напрямок</button>
+                    <button class="btn btn-danger" onclick="confirmDeleteDirection(${dirId})">🗑 Видалити подію</button>
                     <button class="btn btn-ghost" onclick="closeSheet()">Скасувати</button>
                 </div>
             `);
@@ -12412,8 +13076,8 @@
 
         function confirmDeleteDirection(dirId) {
             openSheet(`
-                <div class="sheet-title">Видалити напрямок?</div>
-                <div class="sheet-sub">Усі черги та запити на цей напрямок будуть відмінені. Дію не можна скасувати.</div>
+                <div class="sheet-title">Видалити подію?</div>
+                <div class="sheet-sub">Усі черги та запити на цю подію будуть скасовані. Дію не можна скасувати.</div>
                 <div class="sheet-actions">
                     <button class="btn btn-danger" onclick="doDeleteDirection(${dirId})">🗑 Так, видалити</button>
                     <button class="btn btn-ghost" onclick="closeSheet()">Скасувати</button>
@@ -12426,7 +13090,7 @@
             try {
                 const res = await api('/api/v3/board/direction', { method: 'DELETE', body: JSON.stringify({ user_id: S.userId, direction_id: dirId }) });
                 if (res?.status === 'ok' || res?.deleted) {
-                    showToast('Напрямок видалено', 'success');
+                    showToast('Подію видалено', 'success');
                     allDirections = allDirections.filter(d => String(d.id) !== String(dirId));
                     S.subscriptions = S.subscriptions.filter(s => String(s.direction_id) !== String(dirId));
                     S.boardSubSet.delete(String(dirId));
@@ -12505,7 +13169,7 @@
                         <div style="display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--border);">
                             <div style="font-size:20px;flex-shrink:0;">🧭</div>
                             <div style="flex:1;min-width:0;">
-                                <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(d.title || d.name || 'Напрямок')}</div>
+                                <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(d.title || d.name || 'Подія')}</div>
                                 <div style="font-size:11px;color:var(--text-muted);">${(d.drivers || 0) + (d.passengers || 0)} учасників</div>
                             </div>
                             <div style="display:flex;gap:6px;flex-shrink:0;">
