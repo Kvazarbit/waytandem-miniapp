@@ -1638,6 +1638,11 @@
             box-shadow: 0 0 18px rgba(167,139,250,0.42), 0 6px 18px rgba(0,0,0,0.28);
         }
 
+        /* Пін теократії: будинок зібрань білий — так само, як у каталозі, News і шторці (власник 2026-09-26);
+           лінія трохи товща, щоб білий читався на світло-фіолетовому. */
+        .map-pin.map-pin-theocracy { color: #fff; }
+        .map-pin.map-pin-theocracy .pin-hall { stroke-width: 2.4; }
+
         /* Будинок зібрань без хреста (власник 2026-09-25) — однаковий на всіх платформах. */
         .pin-hall {
             width: 18px;
@@ -2413,6 +2418,14 @@
         .cat-ico-leisure { background: #34d399; }
         .cat-ico-work { background: #38bdf8; }
         .cat-ico-other { background: #fbbf24; }
+        /* Каталог, News і шторка: фон значка приглушений до 35 % — не перетягує увагу з назви, але квадрат ще
+           видно на тлі картки (власник 2026-09-26). Намальовані значки (будинок зібрань, папка) — світлі, щоб не
+           загубились на прозорому фоні; емодзі не змінюються. Піни на мапі — суцільні, без змін. */
+        .dir-card-icon.cat-ico, .news-cat-ico, .sheet-cat-ico { color: var(--text); }
+        .dir-card-icon.cat-ico-theocracy, .news-cat-ico.cat-ico-theocracy, .sheet-cat-ico.cat-ico-theocracy { background: rgba(167, 139, 250, 0.35); }
+        .dir-card-icon.cat-ico-leisure, .news-cat-ico.cat-ico-leisure, .sheet-cat-ico.cat-ico-leisure { background: rgba(52, 211, 153, 0.35); }
+        .dir-card-icon.cat-ico-work, .news-cat-ico.cat-ico-work, .sheet-cat-ico.cat-ico-work { background: rgba(56, 189, 248, 0.35); }
+        .dir-card-icon.cat-ico-other, .news-cat-ico.cat-ico-other, .sheet-cat-ico.cat-ico-other { background: rgba(251, 191, 36, 0.35); }
         .dir-card-icon.cat-ico { font-size: 20px; }
         .dir-card-icon.cat-ico .pin-hall { width: 22px; height: 22px; }
 
@@ -2489,7 +2502,14 @@
             min-width: 0;
         }
 
-        .news-card-body { padding-left: 46px; }
+        /* Сходинки (власник 2026-09-26): значок → заголовок → 📍 на 10 px правіше → увесь текст під заголовком
+           з однієї лінії правіше від 📍; під піном — порожня сходинка, щоб пін виділявся. Ширина 📍 фіксована,
+           тож колонка рівна на будь-якій платформі. */
+        .news-card-text .news-feed-meta { padding-left: calc(10px + 1.5em); }
+        .news-card-text .news-card-where { text-indent: -1.5em; }
+        .news-card-pin { display: inline-block; width: 1.5em; text-indent: 0; }
+
+        .news-card-body { padding-left: calc(56px + 1.5em); }
         .news-feed-meta {
             font-size: 11px;
             color: var(--text-muted);
@@ -7625,7 +7645,7 @@
 
                 return `
                     <div data-event-driver-row="true" data-event-driver-id="${uid}" data-current-driver="${isSelf ? 'true' : 'false'}" data-driver-availability="${availability}" style="display:flex;align-items:center;gap:${compact ? '9px' : '12px'};padding:${compact ? '8px' : '12px'};margin-bottom:${compact ? '6px' : '8px'};border-radius:${compact ? '9px' : '12px'};background:${background};border:1px solid ${border};opacity:${opacity};">
-                        ${renderAvatarInline(o?.name || 'Водій', o?.photo_url || '', compact ? 30 : 42)}
+                        ${renderAvatarInline(o?.name || 'Водій', o?.photo_url || personPhoto(o?.user_id), compact ? 30 : 42)}
                         <div style="flex:1;min-width:0;">
                             <div style="display:flex;align-items:center;gap:6px;min-width:0;">
                                 <div style="font-size:${compact ? '12px' : '15px'};font-weight:800;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(o?.name || 'Водій')}</div>
@@ -8269,7 +8289,7 @@
                         style="display:block;width:100%;text-align:left;padding:0;border:0;background:transparent;color:inherit;font:inherit;cursor:pointer;">
                         <span class="news-card-row"><span class="cat-ico news-cat-ico cat-ico-${newsCat}" aria-hidden="true">${itemIcon(card, newsCat, false)}</span><span class="news-card-text">
                         <span style="display:block;font-size:14px;font-weight:800;line-height:1.45;padding-right:30px;">${escapeHtml(card?.title || `Подія #${id}`)}</span>
-                        ${whereWhen ? `<span class="news-feed-meta" style="display:block;">📍 ${escapeHtml(whereWhen)}</span>` : ''}
+                        ${whereWhen ? `<span class="news-feed-meta news-card-where" style="display:block;"><span class="news-card-pin" aria-hidden="true">📍</span>${escapeHtml(whereWhen)}</span>` : ''}
                         <span class="news-feed-meta" style="display:block;">${escapeHtml(newsCategoryLabel(card?.category))} • ${escapeHtml(stats)}${done > 0 ? ` • ${done} ${pluralUk(done, 'завершена поїздка', 'завершені поїздки', 'завершених поїздок')}` : ''}</span>
                         <span class="news-feed-meta" style="display:block;" title="${escapeAttr(formatNewsTime(card?.updated_at))}">Оновлено ${escapeHtml(formatNewsRelative(card?.updated_at))}${isOpen ? '' : ' • натисніть, щоб відкрити'}</span>
                         </span></span>
@@ -9220,7 +9240,7 @@
                 const isSelf = String(m?.user_id || '') === String(S.userId || '');
                 // У шторці «стежить за подією» = попутник ще без місця — як лічильник «без місця».
                 const label = m?.status === 'subscribed' ? 'Шукає місце' : (NEWS_PERSON_STATUS_LABELS[m?.status] || 'Учасник');
-                return `<div class="event-person-row">${renderAvatarInline(m?.name || 'Учасник', '', 42)}<div style="flex:1;min-width:0;"><div class="event-person-name">${escapeHtml(m?.name || 'Учасник')}${isSelf ? ' <span class="tag tag-green" style="border-radius:6px;padding:2px 6px;font-size:10px;">Ви</span>' : ''}</div><div class="event-person-status">${escapeHtml(label)}</div></div></div>`;
+                return `<div class="event-person-row">${renderAvatarInline(m?.name || 'Учасник', personPhoto(m?.user_id), 42)}<div style="flex:1;min-width:0;"><div class="event-person-name">${escapeHtml(m?.name || 'Учасник')}${isSelf ? ' <span class="tag tag-green" style="border-radius:6px;padding:2px 6px;font-size:10px;">Ви</span>' : ''}</div><div class="event-person-status">${escapeHtml(label)}</div></div></div>`;
             }).join('');
         }
 
@@ -9453,6 +9473,37 @@
             return _eventMarkerEmoji(cat);
         }
 
+        function personPhoto(uid) {
+            // Фото людини з Telegram — лише ті, що сервер віддав для шторки, де видно її ім'я (власник 2026-09-26).
+            const key = String(parseInt(uid, 10) || '');
+            return (key && S.personPhotos && S.personPhotos[key]) || '';
+        }
+
+        function organizerAvatarInner(uid, initial) {
+            const photo = personPhoto(uid);
+            return photo ? `<img class="avatar-photo" src="${escapeAttr(photo)}" alt="">` : escapeHtml(initial || 'О');
+        }
+
+        async function loadEventPhotos(dirId, seq) {
+            // Окремим запитом, щоб не гальмувати шторку; немає фото — лишається літера (2026-09-26).
+            const safeDirId = parseInt(dirId, 10) || 0;
+            if (!safeDirId || !S.userId) return;
+            const resp = await api(`/api/v3/events/photos?direction_id=${safeDirId}&user_id=${encodeURIComponent(S.userId)}`, { silent: true });
+            if (seq !== S._openDirectionSeq || S._eventPeople?.dirId !== safeDirId) return;
+            const photos = resp && resp.photos && typeof resp.photos === 'object' ? resp.photos : {};
+            const fresh = {};
+            Object.entries(photos).forEach(([uid, url]) => {
+                const safe = sanitizeAvatarUrl(url);
+                const key = String(parseInt(uid, 10) || '');
+                if (safe && key) fresh[key] = safe;
+            });
+            if (!Object.keys(fresh).length) return;
+            S.personPhotos = { ...(S.personPhotos || {}), ...fresh };
+            renderEventPeopleSection();
+            const org = document.getElementById('sheet-organizer-avatar');
+            if (org) org.innerHTML = organizerAvatarInner(org.dataset.personId, org.dataset.initial || '');
+        }
+
         function cachedDirectionDetails(dirId) {
             const key = String(dirId);
             const sources = [
@@ -9525,7 +9576,7 @@
             // Написати організатору (коментар для проходження тестів)
             const creatorContactBlock = creatorId ? `
                 <div style="display:flex;align-items:center;gap:12px;margin:16px 0 20px;">
-                    <div style="width:40px;height:40px;border-radius:50%;background:${creatorAvatarBg};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:#fff;flex-shrink:0;">${escapeHtml(creatorInitial)}</div>
+                    <div id="sheet-organizer-avatar" data-person-id="${parseInt(creatorId, 10) || 0}" data-initial="${escapeAttr(creatorInitial)}" style="width:40px;height:40px;border-radius:50%;background:${creatorAvatarBg};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:#fff;flex-shrink:0;overflow:hidden;">${organizerAvatarInner(creatorId, creatorInitial)}</div>
                     <div style="flex:1;min-width:0;">
                         <div style="font-size:12px;color:var(--text-muted);line-height:1.2;">Організатор:</div>
                         <div style="font-size:14px;font-weight:700;color:var(--text-primary);margin-top:2px;">
@@ -9645,6 +9696,7 @@
                 emptyCrewLine
             };
             renderEventPeopleSection();
+            loadEventPhotos(peopleDirId, seq);  // фото людей з Telegram — окремо, не гальмує шторку (2026-09-26)
             const people = await api(`/api/v3/home/feed/members?direction_id=${peopleDirId}&user_id=${encodeURIComponent(S.userId || '')}`, { silent: true });
             if (seq !== S._openDirectionSeq || S._eventPeople?.dirId !== peopleDirId) return;
             S._eventPeople.members = Array.isArray(people?.cards) ? people.cards : null;
