@@ -1402,6 +1402,21 @@
             margin-bottom: 16px;
         }
 
+        /* Кроки приєднання — та сама тонка смужка, що етапи поїздки (власник 2026-09-26). */
+        .lifecycle-progress.join-steps { margin: 0 0 10px; }
+
+        /* Організатор у шапці майстра: міні-аватарка з короною в куті, як на пілюлі ролі (власник 2026-09-26). */
+        .organizer-mini { position: relative; flex-shrink: 0; width: 20px; height: 20px; }
+        .organizer-mini .avatar-inline { width: 20px !important; height: 20px !important; font-size: 10px; }
+        .organizer-mini::after {
+            content: '👑';
+            position: absolute;
+            top: -8px;
+            right: -7px;
+            font-size: 10px;
+            line-height: 1;
+            filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5));
+        }
         .sheet-steps {
             font-size: 11px;
             font-weight: 900;
@@ -5687,7 +5702,7 @@
             if (desc) rows.push(`<div class="map-preview-row map-preview-desc">${escapeHtml(desc.slice(0, 120))}${desc.length > 120 ? '…' : ''}</div>`);
             return `<div class="map-preview-card">
                 <div class="map-preview-hd k-${escapeAttr(kind)}">
-                    <div class="map-preview-ico">${_eventMarkerEmoji(kind)}</div>
+                    <div class="map-preview-ico">${itemIcon(point, kind, false)}</div>
                     <div class="map-preview-ttl">${escapeHtml(title)}</div>
                 </div>
                 <div class="map-preview-bd">
@@ -6878,7 +6893,7 @@
             return `
                 <div data-map-sheet-context="event" data-map-sheet-dir-id="${parseInt(ctx.safeDirId) || 0}" style="padding:10px;border:1px solid rgba(56,189,248,0.22);border-radius:8px;background:rgba(56,189,248,0.07);margin-bottom:12px;">
                     <div style="font-size:13px;font-weight:900;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(ctx.title)}</div>
-                    <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(ctx.creatorDisplay)} · ${escapeHtml(ctx.proof.participantLine)} · ${escapeHtml(ctx.proof.driverLine)}</div>
+                    <div style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-secondary);margin-top:6px;min-width:0;">${organizerMiniHtml(ctx)}<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(ctx.creatorDisplay)} · ${escapeHtml(ctx.proof.participantLine)} · ${escapeHtml(ctx.proof.driverLine)}</span></div>
                 </div>`;
         }
 
@@ -6987,7 +7002,7 @@
             };
             openSheet(`
                 ${renderMapInviteContextHeader(ctx)}
-                <div class="sheet-steps">Крок 2 · Роль</div>
+                ${joinStepsHtml('Роль', _isDriverRole(selectedRole))}
                 <div class="sheet-title">Як ти поїдеш?</div>
                 <div class="sheet-sub">Обери один варіант для цієї події, потім підтвердь вибір.</div>
                 <div class="map-role-options" role="radiogroup" aria-label="Як ти поїдеш?">
@@ -7016,6 +7031,9 @@
             });
             const nextButton = body?.querySelector('[data-map-role-continue]');
             if (nextButton) nextButton.disabled = false;
+            // Смужка кроків: водій має ще крок «Місця» — видно одразу, без стрибка «2 із 3» → «3 із 4» (2026-09-26).
+            const stepsBar = body?.querySelector('.join-steps');
+            if (stepsBar) stepsBar.outerHTML = joinStepsHtml('Роль', _isDriverRole(normalizedRole));
             return true;
         }
 
@@ -7053,7 +7071,7 @@
             const autoLabel = isDriver ? '✨ Автоматичний пошук попутників' : '✨ Знайти місце автоматично';
             openSheet(`
                 ${renderMapInviteContextHeader(ctx)}
-                <div class="sheet-steps">${isDriver ? 'Крок 4 із 4' : 'Крок 3 із 3'} · Спосіб</div>
+                ${joinStepsHtml('Спосіб', isDriver)}
                 <div class="sheet-title">${escapeHtml(title)}</div>
                 <div class="sheet-sub">${escapeHtml(sub)}</div>
                 <div class="sheet-actions" data-map-command-count="3">
@@ -7205,7 +7223,7 @@
             const chip = (n) => `<button type="button" class="btn btn-secondary" data-seat="${n}" style="flex:1;text-align:center;" onclick="chooseDriverSeats(${ctx.safeDirId}, ${n})">${n}</button>`;
             openSheet(`
                 ${renderMapInviteContextHeader(ctx)}
-                <div class="sheet-steps">Крок 3 із 4 · Місця</div>
+                ${joinStepsHtml('Місця', true)}
                 <div class="sheet-title">Скільки місць для попутників?</div>
                 <div class="sheet-sub">Стільки людей зможе сісти до тебе в авто. Можна змінити пізніше.</div>
                 <div style="display:flex;gap:8px;margin:12px 0 4px;">${chip(1)}${chip(2)}${chip(3)}${chip(4)}</div>
@@ -7246,7 +7264,7 @@
             if (!ctx.safeDirId) return false;
             openSheet(`
                 ${renderMapInviteContextHeader(ctx)}
-                <div class="sheet-steps">Крок 4 із 4 · Спосіб</div>
+                ${joinStepsHtml('Спосіб', true)}
                 <div class="sheet-title">Як знайти попутників?</div>
                 <div class="sheet-sub">Місць: ${S.seats}. Старт авто вказано на карті. Обери, як шукати людей.</div>
                 <div class="sheet-actions" data-map-command-count="3">
@@ -7687,7 +7705,7 @@
             // Підписаний учасник бачить «Деталі події», а не нове приєднання; номер кроку
             // показуємо окремо, щоб не змішувати його з цим вибором заголовка.
             const heading = subscribedDetails ? 'Деталі події' : 'Запрошення до події';
-            const headingStep = subscribedDetails ? '' : ' · Крок 1';
+            // Крок 1 («Подія») — тонкою смужкою joinStepsHtml під заголовком (власник 2026-09-26).
             const introLine = subscribedDetails
                 ? `Ви вже в цій події як ${roleLabel}. ${searchMode === 'автопошук' ? 'Автоматичний пошук триває.' : 'Ручний пошук активний.'}`
                 : (creatorDisplay ? `${escapeHtml(creatorDisplay)}${creatorUsername ? ` (@${escapeHtml(creatorUsername)})` : ''} збирає людей їхати разом.` : 'Вас запросили до спільної поїздки.');
@@ -7706,7 +7724,7 @@
                 </div>`;
             S.directionInviteSheetOpen = true;
             openSheet(`
-                <div class="sheet-steps">${heading}${headingStep}</div>
+                <div class="sheet-steps">${heading}</div>${subscribedDetails ? '' : joinStepsHtml('Подія', false)}
                 <div class="sheet-title" style="font-size:22px;line-height:1.15;margin-bottom:8px;">${escapeHtml(title)}</div>
                 <div class="sheet-sub" style="margin-bottom:12px;">${introLine}</div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0 12px;">
@@ -7784,6 +7802,8 @@
         async function joinInvitedDirection(dirId, source = '') {
             const safeDirId = parseInt(dirId) || 0;
             if (!safeDirId) { showToast('Подію не знайдено', 'error'); return false; }
+            // Домовленість в іншій події — попередження одразу, не наприкінці майстра (власник 2026-09-26).
+            if (warnActiveDealElsewhere(safeDirId)) return false;
             // One flow for both entry points (map pin / list): role -> search method -> subscribe.
             // auto_match is decided by the method choice, never implied by where the user tapped.
             return openMapInviteRoleSheet(safeDirId);
@@ -8011,16 +8031,16 @@
             S.mapEventFilter = 'all';
             const buckets = catalogCategoryBucketsForMapStrip();
             const cards = [
-                { key: 'theocracy', title: 'Теократія', color: '#a78bfa', count: buckets.theocracy },
-                { key: 'leisure', title: 'Відпочинок', color: '#34d399', count: buckets.leisure },
-                { key: 'work', title: 'Робота', color: '#38bdf8', count: buckets.work },
+                { key: 'theocracy', title: 'Теократія', color: '#a78bfa', rgb: '167, 139, 250', count: buckets.theocracy },
+                { key: 'leisure', title: 'Відпочинок', color: '#34d399', rgb: '52, 211, 153', count: buckets.leisure },
+                { key: 'work', title: 'Робота', color: '#38bdf8', rgb: '56, 189, 248', count: buckets.work },
             ];
             strip.style.display = 'grid';
             strip.style.gridTemplateColumns = 'repeat(3, minmax(0, 1fr))';
             strip.innerHTML = cards.map(c => {
                 const active = S.mapNewsFilter === c.key;
                 const nextFilter = active ? 'all' : c.key;
-                return `<div class="news-banner ${active ? 'active' : ''}" onclick="setMapNewsFilter('${nextFilter}')" style="background:${active ? c.color : 'var(--bg-card)'};border-color:${active ? c.color : 'var(--border)'};">
+                return `<div class="news-banner ${active ? 'active' : ''}" onclick="setMapNewsFilter('${nextFilter}')" style="background:${active ? c.color : `linear-gradient(rgba(${c.rgb}, 0.16), rgba(${c.rgb}, 0.16)), var(--bg-card)`};border-color:${active ? c.color : `rgba(${c.rgb}, 0.45)`};">
                     <div class="news-banner-title">${c.title}</div>
                     <div class="news-banner-count">${c.count}</div>
                 </div>`;
@@ -9504,6 +9524,51 @@
             if (org) org.innerHTML = organizerAvatarInner(org.dataset.personId, org.dataset.initial || '');
         }
 
+        function joinStepsHtml(active, isDriver) {
+            // Тонка смужка кроків приєднання замість «Крок N» (власник 2026-09-26) — та сама, що етапи поїздки.
+            const steps = ['Подія', 'Роль'].concat(isDriver ? ['Місця'] : [], ['Спосіб']);
+            const at = Math.max(0, steps.indexOf(active));
+            const parts = steps.map((label, i) => `<div class="lifecycle-step ${i < at ? 'done' : (i === at ? 'active' : '')}"><div class="lifecycle-dot"></div>${label}</div>`);
+            return `<div class="lifecycle-progress join-steps" role="img" aria-label="Крок ${at + 1} із ${steps.length}: ${steps[at]}">${parts.join('<div class="lifecycle-arrow"></div>')}</div>`;
+        }
+
+        function organizerMiniHtml(ctx) {
+            // Організатор — міні-аватарка з короною (фото з Telegram, коли відоме з шторки; інакше літера).
+            const uid = parseInt(ctx?.dir?.creator_id || ctx?.dir?.user_id, 10) || 0;
+            return `<span class="organizer-mini" role="img" aria-label="Організатор">${renderAvatarInline(ctx?.creatorDisplay || 'О', personPhoto(uid), 20)}</span>`;
+        }
+
+        function showActiveDealWarning(activeDirId, mode = 'switch') {
+            // Одна людина — одна подія (I-149); укладену домовленість покидають лише запитом на скасування, з яким
+            // погоджується партнер (власник 2026-09-26). Вікно — одразу, до майстра «Хочу поїхати», і на відмову сервера.
+            const tripDirId = parseInt(activeDirId, 10) || parseInt(S.activeTrip?.direction_id, 10) || 0;
+            const known = (allDirections || []).find(d => String(d.id) === String(tripDirId));
+            const title = S.activeTrip?.direction_title || known?.title || (tripDirId ? `Подія #${tripDirId}` : 'цю подію');
+            const why = mode === 'leave'
+                ? 'Щоб вийти з події, спершу скасуйте цю домовленість: партнер отримає запит і має погодитись.'
+                : 'Одна людина бере участь в одній події. Щоб поїхати сюди, спершу скасуйте цю домовленість: партнер отримає запит і має погодитись.';
+            openSheet(`
+                <div class="sheet-title">У вас уже є домовленість</div>
+                <div class="sheet-sub">Ви вже домовились про поїздку на «${escapeHtml(title)}». ${why}</div>
+                <div class="sheet-actions" data-map-command-count="2">
+                    <button class="btn btn-primary" onclick="closeSheet(); openActiveTripSurface()">Відкрити поїздку</button>
+                    <button class="btn btn-ghost" onclick="closeSheet()">Залишитись</button>
+                </div>
+            `);
+            return true;
+        }
+
+        function openActiveTripSurface() {
+            if (S.currentScreen === 'explore') openMapActiveTripFromSubBar();
+            else switchScreen('trips');
+        }
+
+        function warnActiveDealElsewhere(dirId) {
+            const tripDirId = parseInt(S.activeTrip?.direction_id, 10) || 0;
+            if (!S.activeTrip || !tripDirId || tripDirId === (parseInt(dirId, 10) || 0)) return false;
+            return showActiveDealWarning(tripDirId);
+        }
+
         function cachedDirectionDetails(dirId) {
             const key = String(dirId);
             const sources = [
@@ -9740,6 +9805,11 @@
             });
             const status = String(resp?.data?.status || '');
             if (!resp.ok || (status !== 'ok' && status !== 'already_subscribed')) {
+                if (resp?.data?.reason === 'active_trip_other_direction') {
+                    S._recentlyUnsubbed = null;  // стара подія лишається: сервер нічого не змінив
+                    showActiveDealWarning(resp.data.active_direction_id);
+                    return false;
+                }
                 showToast(resp?.data?.detail || 'Не вдалося стати в чергу', 'error');
                 return false;
             }
@@ -9838,6 +9908,10 @@
                 body: JSON.stringify({ user_id: S.userId, direction_id: dirId })
             });
             if (!resp.ok) {
+                if (resp?.data?.reason === 'active_trip_in_direction') {
+                    showActiveDealWarning(dirId, 'leave');  // з домовленості — лише через партнера (2026-09-26)
+                    return false;
+                }
                 showToast(resp?.data?.detail || 'Не вдалося відписатись', 'error');
                 return false;
             }
@@ -10727,11 +10801,15 @@
             }
             if (!beginOp('stop_search')) return false;
             try {
-                const res = await api('/api/v3/match/stop-search', {
+                const stopResp = await apiWithStatus('/api/v3/match/stop-search', {
                     method: 'POST',
-                    silent: true,
                     body: JSON.stringify({ user_id: S.userId, target_id: safePartnerId, direction_id: safeDirId })
                 });
+                if (stopResp?.data?.reason === 'active_trip_in_direction') {
+                    showActiveDealWarning(safeDirId, 'leave');  // з домовленості — лише через партнера (2026-09-26)
+                    return false;
+                }
+                const res = stopResp?.ok ? stopResp.data : null;
                 if (res?.status === 'ok') {
                     showToast('🚪 Ви вийшли з події: запити та підписку скасовано', 'success');
                     clearCriticalState();
