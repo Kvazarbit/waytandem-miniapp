@@ -4512,10 +4512,12 @@
                     // Completed trip is a terminal event for this social outing.
                     // Polling can be the first client to observe partner finish, so
                     // refresh subscriptions before any map-result banner is allowed
-                    // to reopen from stale in-memory search state.
-                    if (previousTrip && !S.activeTrip) {
+                    // to reopen from stale in-memory search state. While held, retry this
+                    // read on the existing poll cycle; failure never fabricates an exit.
+                    if ((previousTrip && !S.activeTrip) || S.subscriptionSearchHeld) {
                         const subs = await api(`/api/v3/user/subscriptions?user_id=${S.userId}`, { silent: true });
-                        S.subscriptions = subs?.subscriptions || [];
+                        const subscriptionsUpdated = applySubscriptionsPayload(subs);
+                        if (!subscriptionsUpdated) S.subscriptionSearchHeld = true;
                         S.boardSubSet = new Set(S.subscriptions.map(s => String(s.direction_id)));
                         suppressManualSearchProposedMatch();
                         syncTerminalIdleState('poll');
@@ -4698,6 +4700,7 @@
                 return String(cancelBy) === String(S.userId) ? 'Скасування' : 'Запит скасування';
             }
             if (trip.is_started) return 'В дорозі до події'; // C (DM-2026-06-16-003, §8.5)
+            if (trip.status === 'pickup') return 'Збір'; // 2zi: смужка вгорі = фаза банера
             return 'Резервація';
         }
 
@@ -4778,8 +4781,8 @@
             if (matches.length === 1) {
                 const partner = pendingMatchPartnerName(matches[0], scope);
                 return scope === 'incoming'
-                    ? `📩 Запит від ${partner}`
-                    : `⏳ Чекаємо підтвердження ${partner}`;
+                    ? `📩 Новий запит: ${partner}`
+                    : `⏳ Чекаємо підтвердження: ${partner}`;
             }
             return scope === 'incoming'
                 ? `📩 ${matches.length} запит${matches.length > 1 ? 'ів' : ''}`
@@ -4825,6 +4828,7 @@
         function subscriptionSubBarLabel(sub) {
             const role = normalizeRole(sub?.role || S.userRole);
             const title = compactSubBarText(sub?.direction_title || sub?.title || `#${sub?.direction_id || sub?.id || ''}`, 'подія');
+            if (S.subscriptionSearchHeld) return subscriptionHeldSubBarLabel(title);
             if (_isDriverRole(role)) return `🚗 ${title} · авто на карту`;
             if (_isPassengerRole(role)) return `👤 ${title} · шукайте водія`;
             return `🧭 ${title}`;
@@ -4833,6 +4837,7 @@
         function subscriptionSubBarTitle(sub) {
             const role = normalizeRole(sub?.role || S.userRole);
             const title = sub?.direction_title || sub?.title || `Подія #${sub?.direction_id || sub?.id || ''}`;
+            if (S.subscriptionSearchHeld) return `${title} · Стан участі після поїздки ще оновлюється`;
             if (_isDriverRole(role)) return `${title} · Водій: поставте авто на карту або відкрийте місця`;
             if (_isPassengerRole(role)) return `${title} · Попутник: оберіть водія або вкажіть точку очікування`;
             return title;
@@ -4928,6 +4933,7 @@
                     <div style="flex:1;min-width:0;">
                         <div style="font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(partnerName)}</div>
                         <div style="font-size:11px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(dirTitle)} · ${escapeHtml(tag)}</div>
+                        ${isIncoming && _isDriverRole(S.userRole) ? `<div data-incoming-pickup-line="true" style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${escapeHtml(incomingPickupLine(m))}</div>` : ''}
                     </div>
                 </div>
                 <div style="display:flex;gap:8px;">${actions}</div>
@@ -5898,7 +5904,7 @@
                         <button class="btn btn-primary" id="confirm-request-switch-yes">✓ Так, перемкнути</button>
                         <button class="btn btn-ghost" id="confirm-request-switch-no">Скасувати</button>
                     </div>
-                `, { pinnedStrip: `<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📤 Очікуємо відповіді від ${escapeHtml(String(currentName))}</span>` });
+                `, { pinnedStrip: `<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📤 Очікуємо відповіді: ${escapeHtml(String(currentName))}</span>` });
                 document.getElementById('confirm-request-switch-yes').onclick = () => { closeSheet(); resolve(true); };
                 document.getElementById('confirm-request-switch-no').onclick = () => { closeSheet(); resolve(false); };
             });
@@ -7616,6 +7622,7 @@
         function openMapSubscribedSheet(dirId, options = {}) {
             const ctx = mapInviteContext(dirId);
             if (!ctx.safeDirId) return;
+            if (S.subscriptionSearchHeld) { openSubscriptionHeldSheet(ctx, options); return; }
             const isDriver = _isDriverRole(S.userRole);
             const openCrews = openCrewCountForRadar(ctx.safeDirId);
             const auto = !!options.auto;
@@ -7743,8 +7750,19 @@
                 : subscribedDetails
                 ? `${S.subscriptionsRefreshFailed ? 'Останній підтверджений стан: ви в цій події' : 'Ви вже в цій події'} як ${roleLabel}. ${searchMode === 'автопошук' ? 'Автоматичний пошук триває.' : 'Ручний пошук активний.'}`
                 : (creatorDisplay ? `${escapeHtml(creatorDisplay)}${creatorUsername ? ` (@${escapeHtml(creatorUsername)})` : ''} збирає людей їхати разом.` : 'Вас запросили до спільної поїздки.');
+            const availabilityKnown = data?.event_summary?.drivers_total != null
+                ? Number.isFinite(data.event_summary.open_seats)
+                : Array.isArray(data?.organizers) && data.organizers.every(o => Number.isFinite(o?.seats_free));
+            const passengerNextStep = !availabilityKnown
+                ? 'перевірте на мапі, чи є водії з вільними місцями.'
+                : proof.openSeats > 0
+                    ? 'оберіть на мапі водія з вільним місцем, щоб попросити місце.'
+                    : 'поки немає водіїв із вільними місцями; коли вони з’являться, ви побачите їх на мапі.';
+            const searchNextStep = _isDriverRole(activeSub?.role || S.userRole)
+                ? 'коли на мапі побачите вільного попутника, запросіть його в екіпаж.'
+                : passengerNextStep;
             const nextStepHtml = subscribedDetails
-                ? `<strong style="color:var(--text-primary);">Наступний крок:</strong> ${S.subscriptionSearchHeld ? 'перевірте свій стан на мапі після оновлення даних.' : eventTrip ? 'поверніться до свого екіпажу на мапі.' : eventPending ? 'перегляньте запит на мапі.' : searchMode === 'автопошук' ? 'чекайте на пропозицію або оберіть учасника на мапі.' : `оберіть на мапі ${_isDriverRole(activeSub?.role || S.userRole) ? 'попутника, щоб запросити його в екіпаж' : 'водія, щоб попросити місце'}.`}`
+                ? `<strong style="color:var(--text-primary);">Наступний крок:</strong> ${S.subscriptionSearchHeld ? 'перевірте свій стан на мапі після оновлення даних.' : eventTrip ? 'поверніться до свого екіпажу на мапі.' : eventPending ? 'перегляньте запит на мапі.' : searchMode === 'автопошук' ? `чекайте на пропозицію; ${searchNextStep}` : searchNextStep}`
                 : `<strong style="color:var(--text-primary);">Що буде далі:</strong> ви оберете, чи можете взяти людей, чи шукаєте місце. Потім WayTandem покаже відповідний екіпаж або повідомить, щойно знайдеться водій.`;
             const actionHtml = subscribedDetails
                 ? `<div style="display:flex;gap:8px;">
@@ -9042,11 +9060,7 @@
                 showToast('У цієї події ще немає точки на карті', '');
                 return;
             }
-            if (coords.length === 1) {
-                S.map.flyTo(coords[0], 15, { duration: 0.8 });
-            } else {
-                S.map.fitBounds(coords, { padding: [64, 64], maxZoom: 15 });
-            }
+            fitMapCoordsAboveOverlays(coords, 15);
         }
 
         function guardMapFilterChange(filter) {
@@ -9663,6 +9677,164 @@
             if (!passengers.length || !passengers.every(p => passengerFinishFlags(p).driverFinished)) return [];
             return passengers.filter(p => !passengerFinishFlags(p).clientFinished);
         }
+        // ─── 2zi: ясність життєвого циклу (власник/Астра 2026-09-27) ───
+        // Ф4: «водій Максим» / «водій» — ім'я без відмінювання й без подвоєння запасного «Водій».
+        function driverRef(name) {
+            const n = String(name || '').trim();
+            return n && n !== 'Водій' ? `водій ${escapeHtml(n)}` : 'водій';
+        }
+
+        // Ф3: попутник у фазі збору бачить свій власний стан посадки.
+        function passengerPickupHint(t, driverName, nextPassenger) {
+            const self = orderedPickupPassengers(t).find(p => String(p?.user_id) === String(S.userId));
+            if (self && isPassengerPickedUp(self)) {
+                return '✅ Ви в авто. Коли всі будуть в авто, водій натисне «Поїхали».';
+            }
+            if (self && nextPassenger && String(nextPassenger.user_id) !== String(self.user_id)) {
+                return `🚗 Збір почався. Зараз водій забирає: ${escapeHtml(passengerDisplayName(nextPassenger))}. Чекайте на своїй точці.`;
+            }
+            const who = driverRef(driverName);
+            return `🚗 ${who.charAt(0).toUpperCase() + who.slice(1)} уже біля точки збору. Чекайте на своїй точці — водій позначить, коли ви сядете в авто.`;
+        }
+
+        // Ф5: хто ще має підтвердити фініш — імена через двокрапку, без відмінювання.
+        function finishAwaitingLine(t) {
+            const isDriver = t?.viewer_role === 'driver';
+            let names = [];
+            if (isDriver) {
+                names = crewPassengersAwaitingFinish(t).map(p => passengerDisplayName(p)).filter(Boolean);
+                if (!names.length && t?.partner_name) names = [String(t.partner_name)];
+            } else {
+                names = [driverRef(tripDriverName(t))];
+            }
+            if (!names.length) return 'Чекаємо підтвердження партнера.';
+            const shown = names.slice(0, 3).join(', ') + (names.length > 3 ? ` та ще ${names.length - 3}` : '');
+            return `Чекаємо підтвердження: ${isDriver ? escapeHtml(shown) : shown}.`;
+        }
+
+        // Ф2: наскільки нижні панелі (банер поїздки, запит, пошук) закривають карту знизу.
+        // Висота — за layout-коробкою (offsetHeight + bottom), тож анімація виїзду не заважає.
+        function mapBottomOverlayObstructionPx() {
+            const mapEl = S.map && typeof S.map.getContainer === 'function' ? S.map.getContainer() : null;
+            const mapRect = mapEl && typeof mapEl.getBoundingClientRect === 'function' ? mapEl.getBoundingClientRect() : null;
+            const viewportH = window.innerHeight || 0;
+            const mapBottom = mapRect && mapRect.height ? mapRect.bottom : viewportH;
+            let top = mapBottom;
+            ['map-trip-dock', 'handshake-panel', 'map-result-panel'].forEach(id => {
+                const el = document.getElementById(id);
+                if (!el || !el.classList.contains('open') || el.classList.contains('hidden-by-sheet')) return;
+                const h = el.offsetHeight || 0;
+                if (!h) return;
+                const cs = typeof window.getComputedStyle === 'function' ? window.getComputedStyle(el) : null;
+                if (cs && (cs.display === 'none' || cs.visibility === 'hidden')) return;
+                const bottom = cs ? (parseFloat(cs.bottom) || 0) : 0;
+                top = Math.min(top, viewportH - bottom - h);
+            });
+            return Math.max(0, Math.ceil(mapBottom - top));
+        }
+
+        function mapFitOptionsAboveOverlays(maxZoom = 15) {
+            const base = mapFocusFitOptions();
+            const bottom = Math.max(base.paddingBottomRight[1], mapBottomOverlayObstructionPx() + 28);
+            let top = base.paddingTopLeft[1];
+            const size = S.map && typeof S.map.getSize === 'function' ? S.map.getSize() : null;
+            const mapH = size && Number.isFinite(size.y) && size.y > 0 ? size.y : (window.innerHeight || 0);
+            if (mapH && mapH - top - bottom < 120) top = Math.max(56, mapH - bottom - 120);
+            return { paddingTopLeft: [base.paddingTopLeft[0], top], paddingBottomRight: [base.paddingBottomRight[0], bottom], maxZoom };
+        }
+
+        function fitMapCoordsAboveOverlays(coords, maxZoom = 15) {
+            if (!S.map || !Array.isArray(coords) || !coords.length) return false;
+            // Нижнє меню ховається/з'являється разом із панеллю запиту — без цього Leaflet
+            // рахує підгонку за застарілою висотою карти (живий прохід 2zi: +72 px).
+            if (typeof S.map.invalidateSize === 'function') S.map.invalidateSize({ pan: false });
+            const opts = mapFitOptionsAboveOverlays(maxZoom);
+            if (coords.length === 1) S.map.fitBounds(singlePointFitBounds(coords[0]), opts);
+            else S.map.fitBounds(coords, opts);
+            return true;
+        }
+
+        // Ф1: точка очікування попутника з вхідного запиту (сервер віддає лише її та старт
+        // вашого авто; відстань — тією ж формулою, що й «≈ … км від вас» у попутника).
+        function incomingPickupInfo(m) {
+            const num = v => (v === null || v === undefined || v === '') ? NaN : Number(v);
+            const pLat = num(m?.pickup_lat), pLng = num(m?.pickup_lng);
+            const cLat = num(m?.car_start_lat), cLng = num(m?.car_start_lng);
+            const hasPickup = Number.isFinite(pLat) && Number.isFinite(pLng);
+            const hasCar = Number.isFinite(cLat) && Number.isFinite(cLng);
+            return {
+                hasPickup,
+                pickup: hasPickup ? [pLat, pLng] : null,
+                car: hasCar ? [cLat, cLng] : null,
+                distance: hasPickup && hasCar ? _fmtDistKm(_geoDistKm(cLat, cLng, pLat, pLng)) : '',
+            };
+        }
+
+        function incomingPickupLine(m) {
+            const info = incomingPickupInfo(m);
+            if (!info.hasPickup) return '📍 Точку очікування не вказано';
+            return info.distance ? `📍 Чекає ${info.distance} від старту вашого авто` : '📍 Точка очікування — на мапі';
+        }
+
+        function clearIncomingPickupMarker() {
+            if (S._incomingPickupMarker && S.map) S.map.removeLayer(S._incomingPickupMarker);
+            S._incomingPickupMarker = null;
+            S._incomingPickupMarkerKey = null;
+        }
+
+        // Без лінії: лінію збору мають лише прийняті учасники (інваріант 11).
+        function showIncomingPickupOnMap(m, options = {}) {
+            if (!S.map || !window.L) return false;
+            const info = incomingPickupInfo(m);
+            if (!info.hasPickup) { clearIncomingPickupMarker(); return false; }
+            const name = m?.partner_name || m?.sender_name || 'Попутник';
+            const key = `${m?.partner_id || m?.sender_id}:${m?.direction_id}:${info.pickup.join(',')}`;
+            const onMap = S._incomingPickupMarker && (typeof S.map.hasLayer !== 'function' || S.map.hasLayer(S._incomingPickupMarker));
+            if (S._incomingPickupMarkerKey !== key || !onMap) {
+                clearIncomingPickupMarker();
+                const label = escapeAttr(`Точка очікування: ${name} (запит)`);
+                S._incomingPickupMarker = L.marker(info.pickup, {
+                    title: label,
+                    alt: label,
+                    icon: L.divIcon({
+                        className: '',
+                        html: `<div class="pickup-point-pin" data-incoming-pickup-pin="true" role="img" aria-label="${label}" style="border:2px dashed #fbbf24;">👤</div>`,
+                        iconSize: [34, 34],
+                        iconAnchor: [17, 17]
+                    }),
+                    zIndexOffset: 170
+                }).addTo(S.map);
+                S._incomingPickupMarkerKey = key;
+            }
+            if (options.focus && S.currentScreen === 'explore') {
+                fitMapCoordsAboveOverlays(info.car ? [info.car, info.pickup] : [info.pickup], 15);
+            }
+            return true;
+        }
+
+        function focusIncomingPickupOnMap() {
+            const m = (S.pendingMatches || []).find(x => x && x.scope === 'incoming');
+            if (m) showIncomingPickupOnMap(m, { focus: true });
+        }
+
+        // Пункт 6: поки після поїздки стан участі утримується, смужка й шторка кажуть
+        // це прямо і не пропонують пошук через приховану панель.
+        function subscriptionHeldSubBarLabel(title) {
+            return `⏳ ${title} · оновлюємо стан участі`;
+        }
+
+        function openSubscriptionHeldSheet(ctx, options = {}) {
+            openSheet(`
+                ${renderMapInviteContextHeader(ctx)}
+                <div class="sheet-title">Стан участі оновлюється</div>
+                <div class="sheet-sub">Поїздки вже немає серед активних, а список ваших подій ще не оновився. Пошук не показуємо, доки дані не підтвердяться, — WayTandem перевіряє їх сам.</div>
+                <div class="sheet-actions" data-map-command-count="2">
+                    <button class="btn btn-secondary" onclick="openSubscribedDirectionDetails(${ctx.safeDirId})">Деталі події</button>
+                    <button class="btn btn-ghost" onclick="closeSheet()">Закрити</button>
+                </div>
+            `, { maxHeight: options?.sheetMaxHeight || '65vh' });
+        }
+
         function cachedDirectionDetails(dirId) {
             const key = String(dirId);
             const sources = [
@@ -10362,7 +10534,11 @@
             const title = isStarted ? 'Екіпаж у дорозі' : 'Порядок збору';
             const hint = isStarted
                 ? 'Усі вже в авто; карта лишається спільним простором поїздки.'
-                : (isPickup ? 'Позначайте попутників по одному, коли вони вже в авто.' : 'Спочатку авто, потім точки попутників.');
+                : (isPickup
+                    ? (trip.viewer_role === 'driver'
+                        ? 'Позначайте попутників по одному, коли вони вже в авто.'
+                        : 'Водій позначає попутників по одному, коли вони сідають в авто.')
+                    : 'Спочатку авто, потім точки попутників.');
             const startLabel = driver && String(driver.user_id) === String(S.userId) ? 'Ваш старт авто' : `Старт авто: ${driverName}`;
             const ownDriverStart = driver && String(driver.user_id) === String(S.userId) ? String(S.pickupLabel || '').trim() : '';
             const startMeta = trip.driver_start || trip.driver_pickup || ownDriverStart || 'старт авто на карті';
@@ -10980,6 +11156,7 @@
         }
 
         function closeHandshakeActionPanel() {
+            clearIncomingPickupMarker();
             const panel = document.getElementById('handshake-panel');
             if (!panel) return;
             panel.classList.remove('open');
@@ -11003,7 +11180,9 @@
             suppressManualSearchProposedMatch();
 
             // If there's an active trip, or we are waiting for partner, hide the panel
+            if (!incoming.length || !_isDriverRole(S.userRole)) clearIncomingPickupMarker();
             if ((S.activeTrip && S.activeTrip.is_started) || waitingForPartner) {
+                clearIncomingPickupMarker();
                 panel.classList.remove('open');
                 panel.innerHTML = '';
                 document.body.style.paddingBottom = '';
@@ -11027,6 +11206,12 @@
                 const title = isDriver ? '📩 Запит в екіпаж' : '📩 Знайдено водія';
                 const acceptText = isDriver ? '✓ Взяти в екіпаж' : '✓ Прийняти';
                 const declineText = isDriver ? '✕ Пропустити' : '✕ Відхилити';
+                // 2zi (Ф1): водій вирішує, знаючи, де чекає попутник і як далеко від старту авто.
+                const pickupInfo = isDriver ? incomingPickupInfo(m) : null;
+                const pickupLine = isDriver
+                    ? `<div data-incoming-pickup-line="true" ${pickupInfo.hasPickup ? 'role="button" tabindex="0" onclick="focusIncomingPickupOnMap()" style="cursor:pointer;' : 'style="'}font-size:12px;color:var(--text);white-space:normal;margin-top:4px;">${escapeHtml(incomingPickupLine(m))}${pickupInfo.hasPickup ? ' <span style="color:var(--accent);font-weight:700;">· показати</span>' : ''}</div>`
+                    : '';
+                const pickupFocusKey = `${partnerId}:${m.direction_id}`;
 
                 document.body.style.paddingBottom = '175px';
 
@@ -11039,6 +11224,7 @@
                         <div style="flex:1;min-width:0;">
                             <div style="font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(partnerName)}</div>
                             <div style="font-size:11px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;">🎯 ${escapeHtml(dirTitle)}</div>
+                            ${pickupLine}
                         </div>
                     </div>
                     <div style="display:flex;gap:10px;margin-bottom:8px;">
@@ -11050,6 +11236,14 @@
                 panel.classList.add('open');
                 const nav = document.querySelector('.nav');
                 if (nav) nav.style.display = 'none';
+                if (isDriver) {
+                    // Пін точки очікування — одразу; карту підганяємо один раз на запит, не на кожен poll.
+                    const firstShow = S._incomingPickupFocusedKey !== pickupFocusKey;
+                    showIncomingPickupOnMap(m, { focus: firstShow });
+                    S._incomingPickupFocusedKey = pickupFocusKey;
+                } else {
+                    clearIncomingPickupMarker();
+                }
                 return;
             }
 
@@ -11284,6 +11478,8 @@
         function toggleMapTripDock() {
             S.mapTripDockCollapsed = !S.mapTripDockCollapsed;
             verifyMapTripDockState();
+            // Розгорнутий банер вищий за смужку — точки екіпажу не мають опинитись під ним.
+            if (shouldRenderCrewMembersOnMap(S.activeTrip)) renderCrewMembersOnMap();
         }
 
         // DM-2026-06-14-011: #map-result-panel.collapsed і #map-trip-dock.collapsed —
@@ -11388,9 +11584,10 @@
                     <div style="min-width:0;">
                         <div class="dock-title">⏳ Очікуємо підтвердження</div>
                         <div class="dock-sub">${metaLine}</div>
-                        <div class="dock-sub" style="color:var(--amber);font-weight:bold;margin-top:5px;white-space:normal;">Ви відмітили фініш. Чекаємо, поки партнер підтвердить завершення.</div>
+                        <div class="dock-sub" style="color:var(--amber);font-weight:bold;margin-top:5px;white-space:normal;">✓ Ви відмітили фініш. ${finishAwaitingLine(t)}</div>
                     </div>
                 </div>
+                ${mapTripPhaseStepper('driving', true)}
                 <div class="dock-actions">
                     <button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
                     <button class="btn btn-secondary" onclick="openMapTripCrewSheet()">👥 Екіпаж</button>
@@ -11519,9 +11716,12 @@
                 alertStyle = 'color: var(--amber); font-weight: bold;';
                 actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>`;
             } else if (partnerFinished && !viewerFinished) {
+                // 2zi (Ф5): заголовок, крокомір і дія — про фініш; ім'я через двокрапку,
+                // без відмінювання й вгадування роду.
+                head = { icon: '🏁', title: 'Фініш' };
                 alertStyle = 'color: var(--green); font-weight: bold;';
                 if (!isDriver) {
-                    hint = '🏁 Партнер відмітив фініш. Підтвердіть завершення.';
+                    hint = `🏁 Фініш відмічено: ${driverRef(driverName)}. Підтвердіть, якщо ви вже доїхали.`;
                     actions = `<button class="btn btn-success" onclick="finishTrip()">✅ Підтвердити завершення</button>`;
                 } else {
                     // Фікс L-5 (live-прохід 2026-07-04): ДІЯ-банер мусить нести ДІЮ.
@@ -11534,7 +11734,7 @@
                         const f = finishers[0];
                         const fReqId = Number(f.request_id);
                         const fPartnerId = Number(f.user_id) || safePartnerId;
-                        hint = `🏁 ${escapeHtml(passengerDisplayName(f))} відмітив(ла) фініш. Підтвердіть завершення.`;
+                        hint = `🏁 Фініш відмічено: ${escapeHtml(passengerDisplayName(f))}. Підтвердіть завершення.`;
                         actions = `<button class="btn btn-success" onclick="finishTripForRequest(${fReqId})">✅ Підтвердити</button>
                                    <button class="btn btn-secondary" onclick="openChat(${fReqId}, ${fPartnerId})">💬 Чат</button>`;
                     } else if (finishers.length > 1) {
@@ -11559,12 +11759,13 @@
                 actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
                            <button class="btn btn-secondary" onclick="openMapTripCrewSheet()">👥 Екіпаж</button>`;
             } else if (viewerFinished && !partnerFinished) {
-                hint = '⏳ Ви відмітили фініш. Очікуємо партнера.';
+                head = { icon: '🏁', title: 'Фініш' };
+                hint = `⏳ Ви відмітили фініш. ${finishAwaitingLine(t)}`;
                 alertStyle = 'color: var(--amber); font-weight: bold;';
                 actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>`;
             } else {
                 if (phase === 'driving') {
-                    hint = isDriver ? 'Усі в авто. Завершіть, коли доїдете до події.' : `Ви в дорозі з ${escapeHtml(driverName)}. Завершіть після прибуття.`;
+                    hint = isDriver ? 'Усі в авто. Завершіть, коли доїдете до події.' : `Ви в дорозі (${driverRef(driverName)}). Завершіть після прибуття.`;
                     // Codex аудит #3 (2026-07-14): хінт кликав завершувати, але дія
                     // була захована в шторці екіпажу — L-5 «ДІЯ-банер мусить нести
                     // ДІЮ» + spine driving.allowed_actions дає фініш ОБОМ ролям
@@ -11602,7 +11803,9 @@
                                 <button class="btn btn-secondary" onclick="openMapTripCrewSheet()">👥 Екіпаж</button>
                                 <button class="btn btn-primary" onclick="startTrip()">🚀 Поїхали</button>`;
                         } else {
-                            hint = `🚗 ${escapeHtml(driverName)} прибув(ла) до точки збору. Чекайте на своїй точці.`;
+                            // 2zi (Ф3): текст — за власним статусом посадки попутника. Вихід
+                            // до «Поїхали» лишається (взаємна згода; сервер блокує лише після старту).
+                            hint = passengerPickupHint(t, driverName, nextPassenger);
                             actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
                                 <button class="btn btn-secondary" onclick="openMapTripCrewSheet()">👥 Екіпаж</button>
                                 ${leaveBtn}`;
@@ -11623,7 +11826,7 @@
                                 <button class="btn btn-primary" onclick="arriveAtPickup()">🚗 Я біля точки збору</button>
                                 ${leaveBtn}`;
                         } else {
-                            hint = `✅ Місце зарезервовано у ${escapeHtml(driverName)}. Водій позначить, коли буде біля точки збору — стежте за карткою і чатом.`;
+                            hint = `✅ Місце зарезервовано (${driverRef(driverName)}). Коли водій буде біля точки збору, картка це покаже — стежте за нею і чатом.`;
                             actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
                                 <button class="btn btn-secondary" onclick="openMapTripCrewSheet()">👥 Екіпаж</button>
                                 ${leaveBtn}`;
@@ -13800,8 +14003,8 @@
                 const socialCoords = [...driverFocusCoords, ...passengerFocusCoords];
                 if (socialCoords.length) focusCoords = socialCoords;
             }
-            if (focusCoords.length === 1) S.map.flyTo(focusCoords[0], 15, { duration: 0.45 });
-            else if (focusCoords.length > 1) S.map.fitBounds(focusCoords, { padding: [40, 40], maxZoom: 14 });
+            // 2zi (Ф2): точки лишаються над видимою нижньою панеллю (розгорнутою чи згорнутою).
+            if (focusCoords.length) fitMapCoordsAboveOverlays(focusCoords, focusCoords.length === 1 ? 15 : 14);
         }
 
     </script>
