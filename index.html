@@ -1417,6 +1417,20 @@
             line-height: 1;
             filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5));
         }
+        /* «Гармошка» «Хочу поїхати»: кроки розгортаються в тій самій шторці (власник 2026-09-26). */
+        .join-inline {
+            border-top: 1px solid var(--border);
+            padding-top: 12px;
+            margin-top: 2px;
+        }
+
+        /* Відкрита «гармошка»: кнопка — тихий заголовок «Хочу поїхати ▴» (згортає), яскрава дія — «Далі». */
+        .btn.join-cta-open {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            box-shadow: none;
+        }
         .sheet-steps {
             font-size: 11px;
             font-weight: 900;
@@ -4373,6 +4387,15 @@
             _skeletonShown = false;
         }
 
+        // Failed reads do not revoke membership. Only a valid server list can.
+        function applySubscriptionsPayload(payload) {
+            S.subscriptionsRefreshFailed = !Array.isArray(payload?.subscriptions);
+            if (S.subscriptionsRefreshFailed) return false;
+            S.subscriptions = payload.subscriptions;
+            S.subscriptionSearchHeld = false;
+            return true;
+        }
+
         // ─── HYDRATE ───
         async function hydrate() {
             if (!S.apiBase || !S.userId) { renderNews(); renderBoard(); renderTrips(); renderSubBar(); return; }
@@ -4423,7 +4446,9 @@
             S.proposedMatch = (S.activeTrip || S.pendingMatches.length) ? null : (data.proposed_match || null);
             if (!S.proposedMatch) closeMapResultPanelIfNoProposedMatch();
             const subs = await api(`/api/v3/user/subscriptions?user_id=${S.userId}`);
-            S.subscriptions = subs?.subscriptions || [];
+            const subscriptionsUpdated = applySubscriptionsPayload(subs);
+            // An ended trip cannot revive its old search while refresh is unavailable.
+            if (previousTrip && !S.activeTrip && !subscriptionsUpdated) S.subscriptionSearchHeld = true;
             // Suppress a just-switched-from/unsubscribed direction while the server
             // catches up (its row can linger for a moment after a switch), so the
             // sub-bar never shows the stale + new subscription at the same time.
@@ -6988,6 +7013,10 @@
             if (String(S.mapInviteRoleDraft?.directionId || '') !== String(ctx.safeDirId)) {
                 S.mapInviteRoleDraft = null;
             }
+            // Роль загальна (власник 2026-09-26): поточна роль уже вибрана — досить «Далі», змінити можна тут же.
+            if (!S.mapInviteRoleDraft && normalizeRole(S.userRole)) {
+                S.mapInviteRoleDraft = { directionId: ctx.safeDirId, role: normalizeRole(S.userRole) };
+            }
             const selectedRole = normalizeRole(S.mapInviteRoleDraft?.role || '');
             const roleOption = (role, label, hint) => {
                 const selected = selectedRole === role;
@@ -7000,18 +7029,18 @@
                     </span>
                 </label>`;
             };
-            openSheet(`
-                ${renderMapInviteContextHeader(ctx)}
+            wizardShow(ctx.safeDirId, `
+                ${joinInlineBox(ctx.safeDirId) ? '' : renderMapInviteContextHeader(ctx)}
                 ${joinStepsHtml('Роль', _isDriverRole(selectedRole))}
-                <div class="sheet-title">Як ти поїдеш?</div>
-                <div class="sheet-sub">Обери один варіант для цієї події, потім підтвердь вибір.</div>
-                <div class="map-role-options" role="radiogroup" aria-label="Як ти поїдеш?">
+                <div class="sheet-title">Як ви поїдете?</div>
+                <div class="sheet-sub">Оберіть роль — її видно вгорі, змінити можна будь-коли.</div>
+                <div class="map-role-options" role="radiogroup" aria-label="Як ви поїдете?">
                     ${roleOption('driver', '🚗 Можу взяти людей', 'Я за кермом і маю вільні місця.')}
                     ${roleOption('client', '👤 Шукаю місце', 'Хочу приєднатися до водія.')}
                 </div>
                 <div class="sheet-actions" data-map-command-count="2">
                     <button class="btn btn-primary" data-map-role-continue onclick="confirmMapInviteRole(${ctx.safeDirId})" ${selectedRole ? '' : 'disabled'}>Далі</button>
-                    <button class="btn btn-ghost" onclick="openStartDirectionInvite(${ctx.safeDirId}, { source: 'map', sheetMaxHeight: '65vh', fullInvite: true })">Назад</button>
+                    ${joinInlineBox(ctx.safeDirId) ? '' : `<button class="btn btn-ghost" onclick="openStartDirectionInvite(${ctx.safeDirId}, { source: 'map', sheetMaxHeight: '65vh', fullInvite: true })">Назад</button>`}
                 </div>
             `, { maxHeight: '65vh' });
             return true;
@@ -7063,14 +7092,14 @@
             const ctx = mapInviteContext(dirId);
             if (!ctx.safeDirId) return false;
             const isDriver = _isDriverRole(S.userRole);
-            const title = isDriver ? 'Постав авто на карту' : 'Як шукати?';
+            const title = isDriver ? 'Поставте авто на карту' : 'Як шукати?';
             const sub = isDriver
-                ? 'Спершу покажи, звідки стартуєш. Далі попутники побачать твою машину, а ти зможеш запрошувати людей на карті.'
-                : 'Обери спосіб. Резервація зʼявиться тільки після згоди обох сторін.';
+                ? 'Спершу покажіть, звідки стартуєте. Далі попутники побачать вашу машину, а ви зможете запрошувати людей на карті.'
+                : 'Оберіть спосіб. Резервація зʼявиться тільки після згоди обох сторін.';
             const manualLabel = isDriver ? '🚗 Поставити авто на карту' : '🗺 Виберу водія сам';
             const autoLabel = isDriver ? '✨ Автоматичний пошук попутників' : '✨ Знайти місце автоматично';
-            openSheet(`
-                ${renderMapInviteContextHeader(ctx)}
+            wizardShow(ctx.safeDirId, `
+                ${joinInlineBox(ctx.safeDirId) ? '' : renderMapInviteContextHeader(ctx)}
                 ${joinStepsHtml('Спосіб', isDriver)}
                 <div class="sheet-title">${escapeHtml(title)}</div>
                 <div class="sheet-sub">${escapeHtml(sub)}</div>
@@ -7221,11 +7250,11 @@
             const ctx = mapInviteContext(dirId);
             if (!ctx.safeDirId) return false;
             const chip = (n) => `<button type="button" class="btn btn-secondary" data-seat="${n}" style="flex:1;text-align:center;" onclick="chooseDriverSeats(${ctx.safeDirId}, ${n})">${n}</button>`;
-            openSheet(`
-                ${renderMapInviteContextHeader(ctx)}
+            wizardShow(ctx.safeDirId, `
+                ${joinInlineBox(ctx.safeDirId) ? '' : renderMapInviteContextHeader(ctx)}
                 ${joinStepsHtml('Місця', true)}
                 <div class="sheet-title">Скільки місць для попутників?</div>
-                <div class="sheet-sub">Стільки людей зможе сісти до тебе в авто. Можна змінити пізніше.</div>
+                <div class="sheet-sub">Стільки людей зможе сісти до вас в авто. Можна змінити пізніше.</div>
                 <div style="display:flex;gap:8px;margin:12px 0 4px;">${chip(1)}${chip(2)}${chip(3)}${chip(4)}</div>
                 <div class="sheet-actions" data-map-command-count="1">
                     <button class="btn btn-ghost" onclick="openMapInviteRoleSheet(${ctx.safeDirId})">Назад</button>
@@ -7262,11 +7291,11 @@
         function openMapDriverMethodSheet(dirId) {
             const ctx = mapInviteContext(dirId);
             if (!ctx.safeDirId) return false;
-            openSheet(`
-                ${renderMapInviteContextHeader(ctx)}
+            wizardShow(ctx.safeDirId, `
+                ${joinInlineBox(ctx.safeDirId) ? '' : renderMapInviteContextHeader(ctx)}
                 ${joinStepsHtml('Спосіб', true)}
                 <div class="sheet-title">Як знайти попутників?</div>
-                <div class="sheet-sub">Місць: ${S.seats}. Старт авто вказано на карті. Обери, як шукати людей.</div>
+                <div class="sheet-sub">Місць: ${S.seats}. Старт авто вказано на карті. Оберіть, як шукати людей.</div>
                 <div class="sheet-actions" data-map-command-count="3">
                     <button class="btn btn-primary" onclick="chooseDriverMethod(${ctx.safeDirId}, true)">✨ Знайти автоматично</button>
                     <button class="btn btn-secondary" onclick="chooseDriverMethod(${ctx.safeDirId}, false)">🗺 Я знайду на карті</button>
@@ -7592,13 +7621,13 @@
             const auto = !!options.auto;
             const title = auto
                 ? (isDriver ? 'Шукаємо попутників' : 'Шукаємо місце')
-                : (isDriver ? 'Ти в події як водій' : 'Ти шукаєш місце');
+                : (isDriver ? 'Ви в події як водій' : 'Ви шукаєте місце');
             const manualStatus = isDriver
-                ? (S.pickupCoords ? 'Твоє авто вже на карті. Відкрий місця, щоб попутники побачили, звідки ти стартуєш.' : 'Постав авто на карту: покажи, звідки стартуєш. Потім відкрий місця для своїх людей.')
-                : (S.pickupCoords ? (openCrews > 0 ? 'Точка очікування вказана. Тапни машину, щоб запроситись.' : 'Точка очікування вказана. Коли водії відкриють місця, вони зʼявляться на цій карті.') : 'Вкажи, де чекати водія. Потім тапни машину й надішли запит.');
+                ? (S.pickupCoords ? 'Ваше авто вже на карті. Відкрийте місця, щоб попутники побачили, звідки ви стартуєте.' : 'Поставте авто на карту: покажіть, звідки стартуєте. Потім відкрийте місця для своїх людей.')
+                : (S.pickupCoords ? (openCrews > 0 ? 'Точка очікування вказана. Торкніться машини, щоб запроситись.' : 'Точка очікування вказана. Коли водії відкриють місця, вони зʼявляться на цій карті.') : 'Вкажіть, де чекати водія. Потім торкніться машини й надішліть запит.');
             const autoStatus = isDriver
-                ? 'WayTandem сам підбере попутника й покаже пропозицію. Можеш вказати старт авто, щоб з’явитись на карті.'
-                : 'WayTandem сам знайде водія й покаже пропозицію. Можеш вказати, де чекати, щоб з’явитись на карті.';
+                ? 'WayTandem сам підбере попутника й покаже пропозицію. Можете вказати старт авто, щоб з’явитись на карті.'
+                : 'WayTandem сам знайде водія й покаже пропозицію. Можете вказати, де чекати, щоб з’явитись на карті.';
             const statusLine = auto ? autoStatus : manualStatus;
             const secondaryAction = isDriver
                 ? 'closeSheet()'
@@ -7607,7 +7636,7 @@
                 ? 'Закрити'
                 : (auto ? '⏸ Зупинити автопошук' : '🚪 Вийти з події');
             const primary = isDriver
-                ? `<button class="btn btn-primary" onclick="doOpenCrew(${ctx.safeDirId}, { keepMapSheet: true })">${S.pickupCoords ? 'Відкрити місця' : 'Постав авто на карту'}</button>`
+                ? `<button class="btn btn-primary" onclick="doOpenCrew(${ctx.safeDirId}, { keepMapSheet: true })">${S.pickupCoords ? 'Відкрити місця' : 'Поставте авто на карту'}</button>`
                 : `<button class="btn btn-primary" onclick="pickPickupLocation(${ctx.safeDirId}, { kind: 'passenger_wait', persistUserLocation: true, closeSheetAfterConfirm: true })">${S.pickupCoords ? 'Точка очікування ✓' : 'Вказати де чекати'}</button>`;
             openSheet(`
                 ${renderMapInviteContextHeader(ctx)}
@@ -7680,7 +7709,7 @@
             const safeDirId = parseInt(dirId) || 0;
             const orgs = Array.isArray(data?.organizers) ? data.organizers : [];
             const dirMeta = { ...(dir || {}), ...(data?.direction || {}) };
-            const title = dirMeta.title || dirMeta.name || `Подія #${safeDirId}`;
+            const title = dirMeta.title || dirMeta.name || dir?.title || dir?.name || `Подія #${safeDirId}`;
             const creatorId = dirMeta.creator_id || dirMeta.user_id || '';
             const isMyDir = creatorId && String(creatorId) === String(S.userId);
             const creatorName = dirMeta.creator_name || (isMyDir ? S.userName : '') || '';
@@ -7698,24 +7727,29 @@
                 ? `<button class="btn btn-secondary" style="width:100%;font-size:12px;margin-top:8px;" data-tg-username="${escapeAttr(creatorUsername)}" data-tg-user-id="${parseInt(creatorId, 10) || 0}" onclick="openTelegramContactFromButton(this)">💬 Написати організатору</button>`
                 : '';
             const joinArgs = options?.source === 'map' ? `${safeDirId}, 'map'` : `${safeDirId}`;
-            const subscribedDetails = !!options?.subscribedDetails;
             const activeSub = (S.subscriptions || []).find(s => String(s.direction_id || s.id || '') === String(safeDirId));
+            const eventTrip = String(S.activeTrip?.direction_id || '') === String(safeDirId) ? S.activeTrip : null;
+            const eventPending = (S.pendingMatches || []).find(m => String(m?.direction_id || '') === String(safeDirId));
+            const subscribedDetails = !!(activeSub || eventTrip || eventPending);
             const roleLabel = _isDriverRole(activeSub?.role || S.userRole) ? 'водій' : 'попутник';
             const searchMode = activeSub?.auto_match === false ? 'ручний пошук' : 'автопошук';
             // Підписаний учасник бачить «Деталі події», а не нове приєднання; номер кроку
             // показуємо окремо, щоб не змішувати його з цим вибором заголовка.
             const heading = subscribedDetails ? 'Деталі події' : 'Запрошення до події';
             // Крок 1 («Подія») — тонкою смужкою joinStepsHtml під заголовком (власник 2026-09-26).
-            const introLine = subscribedDetails
-                ? `Ви вже в цій події як ${roleLabel}. ${searchMode === 'автопошук' ? 'Автоматичний пошук триває.' : 'Ручний пошук активний.'}`
+            const introLine = eventTrip ? 'Ви в екіпажі цієї події. Вашу домовленість показано на мапі.'
+                : eventPending ? 'У цій події є запит на спільну поїздку. Його стан показано на мапі.'
+                : S.subscriptionSearchHeld ? 'Стан участі після поїздки ще уточнюється. Поверніться на мапу, щоб перевірити його.'
+                : subscribedDetails
+                ? `${S.subscriptionsRefreshFailed ? 'Останній підтверджений стан: ви в цій події' : 'Ви вже в цій події'} як ${roleLabel}. ${searchMode === 'автопошук' ? 'Автоматичний пошук триває.' : 'Ручний пошук активний.'}`
                 : (creatorDisplay ? `${escapeHtml(creatorDisplay)}${creatorUsername ? ` (@${escapeHtml(creatorUsername)})` : ''} збирає людей їхати разом.` : 'Вас запросили до спільної поїздки.');
             const nextStepHtml = subscribedDetails
-                ? `<strong style="color:var(--text-primary);">Ваш стан:</strong> ви вже шукаєте ${_isDriverRole(activeSub?.role || S.userRole) ? 'попутників' : 'місце'} в цій події. Перегляд деталей не запускає вибір ролі або повторну підписку.`
+                ? `<strong style="color:var(--text-primary);">Наступний крок:</strong> ${S.subscriptionSearchHeld ? 'перевірте свій стан на мапі після оновлення даних.' : eventTrip ? 'поверніться до свого екіпажу на мапі.' : eventPending ? 'перегляньте запит на мапі.' : searchMode === 'автопошук' ? 'чекайте на пропозицію або оберіть учасника на мапі.' : `оберіть на мапі ${_isDriverRole(activeSub?.role || S.userRole) ? 'попутника, щоб запросити його в екіпаж' : 'водія, щоб попросити місце'}.`}`
                 : `<strong style="color:var(--text-primary);">Що буде далі:</strong> ви оберете, чи можете взяти людей, чи шукаєте місце. Потім WayTandem покаже відповідний екіпаж або повідомить, щойно знайдеться водій.`;
             const actionHtml = subscribedDetails
                 ? `<div style="display:flex;gap:8px;">
                     <button class="btn btn-secondary" style="flex:1;font-size:12px;" onclick="openDirection(${safeDirId})">Деталі події</button>
-                    <button class="btn btn-ghost" style="flex:1;font-size:12px;" onclick="closeSheet(); switchScreen('explore'); maybeOpenMapResultPanelOnHydrate();">Назад до пошуку</button>
+                    <button class="btn btn-ghost" style="flex:1;font-size:12px;" onclick="closeSheet(); switchScreen('explore'); maybeOpenMapResultPanelOnHydrate();">${eventTrip ? 'Назад до екіпажу' : eventPending ? 'Назад до запиту' : S.subscriptionSearchHeld ? 'Назад до мапи' : 'Назад до пошуку'}</button>
                 </div>`
                 : `<button class="btn btn-primary" style="width:100%;margin-bottom:8px;" onclick="joinInvitedDirection(${joinArgs})">Хочу поїхати</button>
                 <div style="display:flex;gap:8px;">
@@ -7727,6 +7761,7 @@
                 <div class="sheet-steps">${heading}</div>${subscribedDetails ? '' : joinStepsHtml('Подія', false)}
                 <div class="sheet-title" style="font-size:22px;line-height:1.15;margin-bottom:8px;">${escapeHtml(title)}</div>
                 <div class="sheet-sub" style="margin-bottom:12px;">${introLine}</div>
+                ${!data?.direction || S.subscriptionsRefreshFailed ? '<div role="status" style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">Не вдалося оновити всі дані. Показуємо останній відомий стан; поверніться на мапу, щоб перевірити його.</div>' : ''}
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0 12px;">
                     <div style="padding:10px;border-radius:8px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.22);">
                         <div style="font-size:11px;color:var(--text-muted);font-weight:800;text-transform:uppercase;">Люди</div>
@@ -7760,9 +7795,10 @@
             openStartDirectionLoadingSheet(safeDirId);
             const data = await api(`/api/v3/fractal/organizers?direction_id=${safeDirId}&lang=${S.lang}&user_id=${S.userId || ''}`);
             if (seq !== S._openDirectionSeq) return;
-            const localDir = allDirections.find(d => String(d.id) === String(safeDirId)) || {};
+            const localDir = cachedDirectionDetails(safeDirId);
             const remoteDir = data?.direction && typeof data.direction === 'object' ? data.direction : {};
-            const dir = { ...localDir, ...remoteDir, id: remoteDir.id ?? localDir.id ?? safeDirId };
+            const dir = { ...localDir, ...remoteDir, id: safeDirId,
+                title: remoteDir.title || remoteDir.name || localDir.title || localDir.direction_title || localDir.dir_title || localDir.name };
             if (!dir || !dir.id) { closeSheet(); showToast('Подія недоступна', 'error'); return; }
             if (isFolderNode(dir)) { closeSheet(); await boardOpenFolder(safeDirId); return; }
             S.directionDetailsCache = S.directionDetailsCache || {};
@@ -7784,9 +7820,10 @@
             openStartDirectionLoadingSheet(safeDirId);
             const data = await api(`/api/v3/fractal/organizers?direction_id=${safeDirId}&lang=${S.lang}&user_id=${S.userId || ''}`);
             if (seq !== S._openDirectionSeq) return;
-            const localDir = allDirections.find(d => String(d.id) === String(safeDirId)) || {};
+            const localDir = cachedDirectionDetails(safeDirId);
             const remoteDir = data?.direction && typeof data.direction === 'object' ? data.direction : {};
-            const dir = { ...localDir, ...remoteDir, id: remoteDir.id ?? localDir.id ?? safeDirId };
+            const dir = { ...localDir, ...remoteDir, id: safeDirId,
+                title: remoteDir.title || remoteDir.name || localDir.title || localDir.direction_title || localDir.dir_title || localDir.name };
             if (!dir || !dir.id) { closeSheet(); showToast('Подія недоступна', 'error'); return; }
             if (isFolderNode(dir)) { closeSheet(); await boardOpenFolder(safeDirId); return; }
             S.directionDetailsCache = S.directionDetailsCache || {};
@@ -8591,9 +8628,8 @@
                 rememberCatalogRootsForMap(allDirections);
                 S.mapCatalogEventsLoaded = false;
             }
-            const freshSubscriptions = subs?.subscriptions || [];
-            S.subscriptions = freshSubscriptions;
-            const subSet = new Set(freshSubscriptions.map(s => String(s.direction_id)));
+            applySubscriptionsPayload(subs);
+            const subSet = new Set((S.subscriptions || []).map(s => String(s.direction_id)));
             S.boardSubSet = subSet;
             const liveQuery = sanitizeSearchInput(document.getElementById('board-search')?.value || '').trim();
             if (liveQuery) {
@@ -9569,9 +9605,68 @@
             return showActiveDealWarning(tripDirId);
         }
 
+        function joinInlineBox(dirId) {
+            // «Гармошка» (власник 2026-09-26): кроки «Хочу поїхати» розгортаються в тій самій шторці події.
+            const safeDirId = parseInt(dirId, 10) || 0;
+            if (!safeDirId || S.joinInlineDirId !== safeDirId) return null;
+            const box = document.querySelector(`[data-join-inline="${safeDirId}"]`);
+            return box && !box.hidden ? box : null;
+        }
+
+        function wizardShow(dirId, html, opts) {
+            const box = joinInlineBox(dirId);
+            if (!box) return openSheet(html, opts);
+            box.innerHTML = html;
+            box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            return true;
+        }
+
+        function setJoinCtaOpen(dirId, open) {
+            // Натиснута «Хочу поїхати» не лишається яскравою: стає тихим заголовком «Хочу поїхати ▴», який згортає
+            // кроки; яскрава — лише наступна дія «Далі» (власник 2026-09-26: без розпорошення уваги).
+            const cta = document.querySelector(`[data-join-cta="${parseInt(dirId, 10) || 0}"]`);
+            if (!cta) return;
+            cta.setAttribute('aria-expanded', open ? 'true' : 'false');
+            cta.classList.toggle('btn-primary', !open);
+            cta.classList.toggle('join-cta-open', open);
+            cta.textContent = open ? 'Хочу поїхати ▴' : 'Хочу поїхати';
+            cta.setAttribute('aria-label', open ? 'Згорнути кроки «Хочу поїхати»' : 'Хочу поїхати');
+        }
+
+        function toggleJoinInline(dirId) {
+            const safeDirId = parseInt(dirId, 10) || 0;
+            const box = document.querySelector(`[data-join-inline="${safeDirId}"]`);
+            if (!box) return joinInvitedDirection(safeDirId);
+            if (!box.hidden) return collapseJoinInline(safeDirId);
+            if (warnActiveDealElsewhere(safeDirId)) return false;
+            S.joinInlineDirId = safeDirId;
+            box.hidden = false;
+            setJoinCtaOpen(safeDirId, true);
+            return openMapInviteRoleSheet(safeDirId);
+        }
+
+        function collapseJoinInline(dirId) {
+            const safeDirId = parseInt(dirId, 10) || 0;
+            const box = document.querySelector(`[data-join-inline="${safeDirId}"]`);
+            if (box) { box.hidden = true; box.innerHTML = ''; }
+            setJoinCtaOpen(safeDirId, false);
+            if (S.joinInlineDirId === safeDirId) S.joinInlineDirId = null;
+            return false;
+        }
+
+        // Фініш екіпажу (власник 2026-09-26): кожна пара завершується окремо (DM-2026-07-14-003). Коли водій уже
+        // відмітив фініш з усіма, хто лишається в екіпажі, а хтось ще не підтвердив, банер називає саме їх.
+        // Підтверджені пари сервер більше не віддає (лише активні запити), тож «лишилися» = «чекаємо».
+        function crewPassengersAwaitingFinish(t) {
+            if (!t || t.viewer_role !== 'driver') return [];
+            const passengers = orderedPickupPassengers(t).filter(p => passengerRequestId(p));
+            if (!passengers.length || !passengers.every(p => passengerFinishFlags(p).driverFinished)) return [];
+            return passengers.filter(p => !passengerFinishFlags(p).clientFinished);
+        }
         function cachedDirectionDetails(dirId) {
             const key = String(dirId);
             const sources = [
+                S.directionDetailsCache?.[key]?.direction,
                 (S.mapCatalogEvents || []).find(d => String(d?.direction_id || d?.id) === key),
                 allDirections.find(d => String(d?.id) === key),
                 (S.subscriptions || []).find(s => String(s?.direction_id || s?.id) === key),
@@ -9651,7 +9746,9 @@
                     ${!isMyDir ? `<button class="btn btn-secondary" style="border:1px solid rgba(56,189,248,0.4);background:rgba(56,189,248,0.08);color:var(--blue);padding:6px 12px;border-radius:12px;font-size:12px;font-weight:600;min-height:36px;white-space:nowrap;line-height:1.3;text-align:center;cursor:pointer;" data-tg-username="${escapeAttr(creatorUsername)}" data-tg-user-id="${parseInt(creatorId, 10) || 0}" onclick="openTelegramContactFromButton(this)">💬 Написати<br>організатору</button>` : `<span class="tag tag-green">Ваша ідея</span>`}
                 </div>` : '';
             const hasPickup = !!S.pickupCoords;
-            const joinPrimaryCta = `<button class="btn btn-primary" style="width:100%;" onclick="joinInvitedDirection(${dirId})">Хочу поїхати</button>`;
+            // «Гармошка» (власник 2026-09-26): кроки розгортаються тут же, під кнопкою, а не в новій шторці.
+            const joinInlineId = parseInt(dirId, 10) || 0;
+            const joinPrimaryCta = `<button class="btn btn-primary" style="width:100%;" data-join-cta="${joinInlineId}" aria-expanded="false" aria-controls="join-inline-${joinInlineId}" onclick="toggleJoinInline(${dirId})">Хочу поїхати</button><div class="join-inline" id="join-inline-${joinInlineId}" data-join-inline="${joinInlineId}" hidden></div>`;
             const emptyCrewLine = 'Поки немає відкритих екіпажів. Можна їхати як водій або шукати місце.';
 
             const dirMeta = data?.direction || dir || {};
@@ -11077,6 +11174,10 @@
                 return;
             }
 
+            if (S.subscriptionSearchHeld && (kind === 'auto_search' || kind === 'manual_search')) {
+                closeMapResultPanel();
+                return;
+            }
             if (kind === 'auto_search') {
                 // Автопошук: якщо з'явився outgoing хендшейк — переключити на процес-картку.
                 if (getOutgoingForDirection(dirId)) { openMapOutgoingPanel(dirId); return; }
@@ -11144,6 +11245,7 @@
             // Банери 1/2 (DM-2026-06-14-004): активна підписка без поїздки/
             // handshake/outgoing. Single Subscription Law -> максимум одна активна;
             // режим вирішує auto_match (персистентний у web_subscriptions).
+            if (S.subscriptionSearchHeld) return;
             const sub = (S.subscriptions || [])[0];
             if (sub && sub.direction_id != null) {
                 if (sub.auto_match === false) openMapManualSearchPanel(sub.direction_id);
@@ -11360,7 +11462,7 @@
         }
 
         function buildMapTripDockBody(t, phase) {
-            const head = mapTripDockTitle(phase);
+            let head = mapTripDockTitle(phase);
             const isDriver = t.viewer_role === 'driver';
             const crewNo = activeTripCrewNumber(t);
             const dir = t.direction_title || 'Поїздка';
@@ -11380,6 +11482,7 @@
 
             const partnerFinished = tripPartnerFinished(t);
             const viewerFinished = tripViewerFinished(t);
+            const crewAwaiting = crewPassengersAwaitingFinish(t);
             const cancelBy = t.cancel_requested_by;
             const cancelPending = cancelBy && !t.is_started && String(cancelBy) !== String(S.userId);
             const cancelRequested = cancelBy && !t.is_started && String(cancelBy) === String(S.userId);
@@ -11447,6 +11550,14 @@
                                    <button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>`;
                     }
                 }
+            } else if (crewAwaiting.length) {
+                head = { icon: '🏁', title: 'Фініш екіпажу' };
+                const names = crewAwaiting.map(p => passengerDisplayName(p)).filter(Boolean);
+                const shown = names.slice(0, 3).join(', ') + (names.length > 3 ? ` та ще ${names.length - 3}` : '');
+                hint = `⏳ Чекаємо підтвердження: ${escapeHtml(shown)}`;
+                alertStyle = 'color: var(--amber); font-weight: bold;';
+                actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
+                           <button class="btn btn-secondary" onclick="openMapTripCrewSheet()">👥 Екіпаж</button>`;
             } else if (viewerFinished && !partnerFinished) {
                 hint = '⏳ Ви відмітили фініш. Очікуємо партнера.';
                 alertStyle = 'color: var(--amber); font-weight: bold;';
@@ -13445,10 +13556,10 @@
                     lat: S.pickupCoords?.lat,
                     lng: S.pickupCoords?.lng,
                     hint: isDriverStart
-                        ? 'Перетягни карту так, щоб пін був там, звідки стартує твоє авто'
-                        : 'Спершу вкажіть, де вас забрати. Перетягни карту так, щоб пін був там, де чекати водія',
+                        ? 'Перетягніть карту так, щоб пін був там, звідки стартує ваше авто'
+                        : 'Спершу вкажіть, де вас забрати. Перетягніть карту так, щоб пін був там, де чекати водія',
                     searchPlaceholder: isDriverStart
-                        ? '🔍 Звідки стартуєш'
+                        ? '🔍 Звідки стартуєте'
                         : '🔍 Де чекати водія',
                     confirmLabel: isDriverStart ? '✓ Авто на карті' : '✓ Точка очікування',
                     onCancel: () => resolve(null),
