@@ -3648,10 +3648,12 @@
                     </div>
                 </div>
                 <div class="chat-feed" id="chat-feed"></div>
+                <div id="chat-length" style="font-size:11px;padding:0 12px;color:var(--text-muted);" aria-live="polite">0 / 500</div>
                 <div class="chat-input-bar">
                     <input class="chat-input" id="chat-input" placeholder="Написати..."
+                        oninput="rememberChatDraft(); updateChatComposer()" aria-describedby="chat-length"
                         onkeydown="if(event.key==='Enter' )sendChat()">
-                    <button class="chat-send" onclick="sendChat()">➤</button>
+                    <button class="chat-send" id="chat-send" onclick="sendChat()" aria-label="Надіслати">➤</button>
                 </div>
             </div>
         </div>
@@ -5124,10 +5126,10 @@
                 const title = myCrewSubBarTitle(S.myCrew);
                 parts.push(`<div class="sub-bar-crew" role="button" tabindex="0" title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}" onclick="openMapMyCrewFromSubBar()">${escapeHtml(label)}</div>`);
             }
-            if (!S.activeTrip && !S.myCrew && S._driverOnboardingActive) {
+            if (!S.activeTrip && !S.myCrew && S._driverOnboardingActive && _isDriverRole(S.userRole)) {
                 const label = driverOnboardingSubBarLabel();
                 const title = driverOnboardingSubBarTitle();
-                parts.push(`<div class="sub-bar-chip" title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}">${escapeHtml(label)}</div>`);
+                parts.push(`<button type="button" class="sub-bar-chip" title="${escapeAttr(title)}" aria-label="Продовжити оформлення: ${escapeAttr(title)}" onclick="resumeDriverOnboarding()" ${S._driverOnboardingPhase === 'opening' ? 'disabled' : ''}>${escapeHtml(label)}${S._driverOnboardingPhase === 'opening' ? '' : ' · Продовжити оформлення'}</button>`);
             }
             const subs = S.subscriptions || [];
             if (subs.length > 0 && !S.activeTrip && incoming.length === 0 && outgoing.length === 0 && !waitingForPartner) {
@@ -7289,6 +7291,7 @@
 
         // ─── Водійський онбординг: місця → старт → метод (замість потрійного «постав авто») ───
         function openMapDriverSeatsSheet(dirId) {
+            if (S._driverOnboardingPhase === 'opening' || S._driverPickupPending) return false;
             const ctx = mapInviteContext(dirId);
             if (!ctx.safeDirId) return false;
             const chip = (n) => `<button type="button" class="btn btn-secondary" data-seat="${n}" style="flex:1;text-align:center;" onclick="chooseDriverSeats(${ctx.safeDirId}, ${n})">${n}</button>`;
@@ -7300,6 +7303,7 @@
                 <div style="display:flex;gap:8px;margin:12px 0 4px;">${chip(1)}${chip(2)}${chip(3)}${chip(4)}</div>
                 <div class="sheet-actions" data-map-command-count="1">
                     <button class="btn btn-ghost" onclick="openMapInviteRoleSheet(${ctx.safeDirId})">Назад</button>
+                    ${S._driverOnboardingActive ? '<button class="btn btn-ghost" onclick="cancelDriverOnboarding()">Скасувати оформлення</button>' : ''}
                 </div>
             `, { maxHeight: '65vh' });
             return true;
@@ -7307,29 +7311,53 @@
 
         async function chooseDriverSeats(dirId, seats) {
             const safeDirId = parseInt(dirId) || 0;
-            if (!safeDirId) return false;
+            if (!safeDirId || S._driverPickupPending || S._driverOnboardingPhase === 'opening') return false;
+            S._driverPickupPending = true;
             // D1: вибір — чернетка цього екіпажу, не профіль (S.seats); hydrate/налаштування її не бачать.
             S._driverOnboardingSeats = Math.max(1, Math.min(4, parseInt(seats) || 1));
             // DM-2026-06-28-001 (§8.11): активний driver-онбординг — щоб фоновий poll/hydrate
             // (syncTerminalIdleState) не обнуляв щойно поставлену точку старту, поки підписки
-            // ще нема. Прапор знімається в doOpenCrew (finally, після успіху) або при скасуванні точки.
+            // ще нема. Закриття пікера залишає чернетку для явного продовження.
             S._driverOnboardingActive = true;
             S._driverOnboardingDirId = safeDirId;
             S._driverOnboardingPhase = 'pickup';
             renderSubBar();
             // Звідки стартуєш? Точку беремо ДО підписки — pickPickupLocation її не вимагає.
-            const picked = await pickPickupLocation(safeDirId, { kind: 'driver_start' });
-            if (!picked) {
-                S._driverOnboardingActive = false;
-                S._driverOnboardingDirId = null;
-                S._driverOnboardingPhase = '';
-                S._driverOnboardingSeats = null;
-                renderSubBar();
-                return false;
-            }
+            let picked;
+            try {
+                picked = await pickPickupLocation(safeDirId, { kind: 'driver_start' });
+            } finally { S._driverPickupPending = false; }
+            if (!S._driverOnboardingActive || S._driverOnboardingDirId !== safeDirId || !_isDriverRole(S.userRole)) return false;
+            if (!picked) { renderSubBar(); return false; }
             S._driverOnboardingPhase = 'method';
             renderSubBar();
             return openMapDriverMethodSheet(safeDirId);
+        }
+
+        function cancelDriverOnboarding() {
+            if (!S._driverOnboardingActive || S.activeTrip || S.myCrew || S._driverOnboardingPhase === 'opening') return false;
+            closeLocationPicker();
+            S._driverOnboardingActive = false;
+            S._driverOnboardingDirId = null;
+            S._driverOnboardingPhase = '';
+            S._driverOnboardingSeats = null;
+            if (S.pickupKind === 'driver_start') clearPickupPoint();
+            S.joinInlineDirId = null;
+            closeSheet();
+            renderSubBar();
+            return true;
+        }
+
+        function resumeDriverOnboarding() {
+            if (!S._driverOnboardingActive || !_isDriverRole(S.userRole) || S.activeTrip || S.myCrew || S._driverPickupPending || S._driverOnboardingPhase === 'opening') return false;
+            const dirId = parseInt(S._driverOnboardingDirId, 10) || 0;
+            if (!dirId) return false;
+            // A closed event sheet may still own an inline box in the hidden DOM.
+            S.joinInlineDirId = null;
+            if (S._driverOnboardingPhase === 'method' && S.pickupKind === 'driver_start' && Number.isFinite(S.pickupCoords?.lat) && Number.isFinite(S.pickupCoords?.lng)) {
+                return openMapDriverMethodSheet(dirId);
+            }
+            return chooseDriverSeats(dirId, driverDraftSeats(dirId));
         }
 
         // D1: місця, які показує і відкриває оформлення цієї події: явна чернетка, інакше профіль.
@@ -7352,6 +7380,7 @@
                     <button class="btn btn-primary" onclick="chooseDriverMethod(${ctx.safeDirId}, true)">✨ Знайти автоматично</button>
                     <button class="btn btn-secondary" onclick="chooseDriverMethod(${ctx.safeDirId}, false)">🗺 Я знайду на карті</button>
                     <button class="btn btn-ghost" onclick="openMapDriverSeatsSheet(${ctx.safeDirId})">Назад</button>
+                    <button class="btn btn-ghost" onclick="cancelDriverOnboarding()">Скасувати оформлення</button>
                 </div>
             `, { maxHeight: '65vh' });
             return true;
@@ -7359,7 +7388,7 @@
 
         async function chooseDriverMethod(dirId, auto) {
             const safeDirId = parseInt(dirId) || 0;
-            if (!safeDirId) return false;
+            if (!safeDirId || S._driverPickupPending || S._driverOnboardingPhase === 'opening') return false;
             const autoMatch = !!auto;
             const selectedSeats = driverDraftSeats(safeDirId);
             S._driverOnboardingDirId = safeDirId;
@@ -13071,7 +13100,26 @@
             return out.filter(Boolean);
         }
 
+        function chatRoomDraftKey(requestId) {
+            const t = S.activeTrip;
+            const ids = [currentRequestIdFromTrip(t), ...crewPassengerMembers(t).map(m => m.request_id || m.id)];
+            const inCrew = t?.crew_id && ids.some(id => id && String(id) === String(requestId));
+            return inCrew ? `crew:${t.crew_id}` : `request:${requestId}`;
+        }
+
+        function rememberChatDraft() {
+            const key = S.chatDraftKey || (S.chatRequestId ? chatRoomDraftKey(S.chatRequestId) : '');
+            if (!key) return null;
+            S.chatDrafts ||= Object.create(null);
+            const text = document.getElementById('chat-input')?.value || '';
+            if (S.chatDrafts[key]?.text !== text) S.chatDrafts[key] = { text };
+            return S.chatDrafts[key];
+        }
+
         async function openChat(requestId, partnerId) {
+            rememberChatDraft();
+            S.chatDraftKey = chatRoomDraftKey(requestId);
+            document.getElementById('chat-input').value = S.chatDrafts?.[S.chatDraftKey]?.text || '';
             S.chatSession = (S.chatSession || 0) + 1; // сеанс: запізніла відповідь старого сеансу нічого не читає
             S.chatRequestId = requestId; S.chatPartnerId = partnerId;
             resetGenericSheetForChat();
@@ -13098,10 +13146,14 @@
                 ? `💬 ${crewLabel} · ${names}`
                 : `💬 ${crewLabel}`;
             setChatSubtitle('відкриваємо...');
+            updateChatComposer();
             await loadChatMessages();
         }
 
         function closeChat() {
+            rememberChatDraft();
+            S.chatDraftKey = null;
+            document.getElementById('chat-input').value = '';
             document.getElementById('chat-backdrop')?.classList.remove('open');
             document.getElementById('chat-sheet')?.classList.remove('open');
             S.chatSession = (S.chatSession || 0) + 1;
@@ -13208,11 +13260,30 @@
             setChatSubtitle();
         }
 
+        function updateChatComposer() {
+            const count = Array.from((document.getElementById('chat-input')?.value || '').trim()).length;
+            const label = document.getElementById('chat-length');
+            if (label) label.textContent = count > 500 ? `${count} / 500 · скоротіть повідомлення` : `${count} / 500`;
+            const send = document.getElementById('chat-send');
+            if (send) send.disabled = !!S.chatSending || count > 500;
+        }
+
         async function sendChat() {
             const input = document.getElementById('chat-input');
-            const text = input.value.trim();
-            if (!text || !S.chatRequestId) return;
-            input.value = '';
+            const draft = input.value;
+            const text = draft.trim();
+            if (!text || !S.chatRequestId || S.chatSending) return;
+            if (Array.from(text).length > 500) {
+                updateChatComposer();
+                showToast('До 500 символів. Скоротіть повідомлення — текст збережено.', 'error');
+                return;
+            }
+            const session = S.chatSession;
+            const requestId = S.chatRequestId;
+            const draftKey = S.chatDraftKey || chatRoomDraftKey(requestId);
+            const draftSnapshot = rememberChatDraft();
+            S.chatSending = true;
+            updateChatComposer();
             const feed = document.getElementById('chat-feed');
             const empty = feed.querySelector('[data-chat-empty]');
             if (empty) empty.remove();
@@ -13225,17 +13296,32 @@
             // (200/204) читався як null → «не вдалося» → дубль-відправка; а 200 на
             // невідомий роут читався як «надіслано», хоча нічого не збережено
             // («фальшива комунікація»). silent — щоб не було подвійного тоста.
-            const res = await apiWithStatus('/api/v3/trip/message', { method: 'POST', silent: true, body: JSON.stringify({ request_id: S.chatRequestId, user_id: S.userId, text }) });
+            let res;
+            try {
+                res = await apiWithStatus('/api/v3/trip/message', { method: 'POST', silent: true, body: JSON.stringify({ request_id: requestId, user_id: S.userId, text }) });
+            } catch (_) { res = { ok: false }; }
+            S.chatSending = false;
+            const sameChat = session === S.chatSession && requestId === S.chatRequestId;
             if (!res.ok) {
                 if (div.parentNode) div.remove();
-                input.value = text;
-                showToast('Не вдалося надіслати — текст відновлено', 'error');
+                if (sameChat) {
+                    setChatSubtitle('не надіслано');
+                    showToast('Не вдалося надіслати — текст збережено', 'error');
+                }
             } else {
-                setChatSubtitle('надіслано щойно');
-                // Звірка з сервером: оптимістична бульбашка заміняється канонічним
-                // списком — якщо сервер не зберіг, вона зникне (правда, не фальш).
-                loadChatMessages();
+                // Retire this exact draft even if its room was closed during delivery.
+                const currentKey = S.chatDraftKey || (S.chatRequestId ? chatRoomDraftKey(S.chatRequestId) : '');
+                if (currentKey === draftKey) rememberChatDraft();
+                if (S.chatDrafts?.[draftKey] === draftSnapshot) {
+                    S.chatDrafts[draftKey] = { text: '' };
+                    if (currentKey === draftKey && input.value === draft) input.value = '';
+                }
+                if (sameChat) {
+                    setChatSubtitle('надіслано щойно');
+                    loadChatMessages();
+                }
             }
+            updateChatComposer();
         }
 
         function escapeHtml(str) {
@@ -13634,7 +13720,7 @@
         }
 
         // ═══════ LOCATION MAP PICKER (overlay над формою, форма не руйнується) ═══════
-        const _mapPicker = { map: null, onConfirm: null, onCancel: null, searchTimer: null, wired: false, dragWired: false, choiceMade: false };
+        const _mapPicker = { map: null, onConfirm: null, onCancel: null, searchTimer: null, wired: false, dragWired: false, choiceMade: false, session: 0, confirming: false };
 
         // Codex аудит №2 (2026-07-14): «✓ Готово» без явного вибору брав центр
         // карти масштабу МІСТА → правдоподібна, але неправильна адреса збору.
@@ -13645,6 +13731,7 @@
         function _setPickerConfirmEnabled(on) {
             const confirm = document.getElementById('map-picker-confirm');
             if (!confirm) return;
+            on = on && !_mapPicker.confirming;
             confirm.disabled = !on;
             confirm.style.opacity = on ? '' : '.45';
             confirm.setAttribute('aria-disabled', on ? 'false' : 'true');
@@ -13666,6 +13753,9 @@
         function openLocationPicker(opts = {}) {
             const overlay = document.getElementById('map-picker');
             if (!overlay) return;
+            if (_mapPicker.onConfirm || _mapPicker.onCancel) closeLocationPicker();
+            _mapPicker.session++;
+            _mapPicker.confirming = false;
             const resultPanel = document.getElementById('map-result-panel');
             const tripDock = document.getElementById('map-trip-dock');
             if (resultPanel && resultPanel.classList.contains('open')) resultPanel.classList.add('hidden-by-sheet');
@@ -13713,6 +13803,9 @@
         }
 
         function closeLocationPicker(reason = 'cancel') {
+            _mapPicker.session++;
+            _mapPicker.confirming = false;
+            clearTimeout(_mapPicker.searchTimer);
             const overlay = document.getElementById('map-picker');
             if (overlay) overlay.style.display = 'none';
             if (!isSheetOpen()) {
@@ -13739,24 +13832,32 @@
 
             if (gpsBtn) gpsBtn.onclick = () => {
                 if (!navigator.geolocation) { showToast('GPS недоступний', 'error'); return; }
+                const session = _mapPicker.session;
                 navigator.geolocation.getCurrentPosition(
                     (p) => {
+                        if (session !== _mapPicker.session || _mapPicker.confirming) return;
                         S._lastKnownPos = { lat: p.coords.latitude, lng: p.coords.longitude, at: Date.now() };
                         _mapPicker.map.flyTo([p.coords.latitude, p.coords.longitude], 15);
                         _markPickerChoice();
                     },
-                    () => showToast('Не вдалося отримати GPS', 'error'),
+                    () => { if (session === _mapPicker.session) showToast('Не вдалося отримати GPS', 'error'); },
                     { enableHighAccuracy: true, timeout: 8000 }
                 );
             };
 
             if (confirmBtn) confirmBtn.onclick = async () => {
+                if (_mapPicker.confirming || !_mapPicker.onConfirm) return;
                 // I-FRONT-11: disabled-атрибут обходиться DevTools — справжній
                 // guard тут: без явного вибору центр карти НЕ є точкою людини.
                 if (!_mapPicker.choiceMade) {
                     showToast('Спершу оберіть точку: перетягніть карту, знайдіть адресу або натисніть 🎯', 'error');
                     return;
                 }
+                const session = _mapPicker.session;
+                const onConfirm = _mapPicker.onConfirm;
+                _mapPicker.confirming = true;
+                _setPickerConfirmEnabled(false);
+                confirmBtn.textContent = 'Підтверджуємо…';
                 const c = _mapPicker.map.getCenter();
                 const lat = c.lat, lng = c.lng;
                 let label = '';
@@ -13764,7 +13865,7 @@
                     const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=uk&zoom=14`, { headers: { 'Accept': 'application/json' } });
                     if (r.ok) label = _shortPlaceName(await r.json());
                 } catch (e) {}
-                const onConfirm = _mapPicker.onConfirm;
+                if (session !== _mapPicker.session || onConfirm !== _mapPicker.onConfirm) return;
                 closeLocationPicker('confirm');
                 if (onConfirm) onConfirm({ lat, lng, label });
             };
@@ -13781,9 +13882,12 @@
         async function _runPickerSearch(q) {
             const box = document.getElementById('map-picker-results');
             if (!box) return;
+            const session = _mapPicker.session;
+            const isCurrent = () => session === _mapPicker.session && !_mapPicker.confirming && document.getElementById('map-picker-search')?.value.trim() === q;
             try {
                 const r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(q)}&accept-language=uk&limit=6`, { headers: { 'Accept': 'application/json' } });
                 const arr = r.ok ? await r.json() : [];
+                if (!isCurrent()) return;
                 if (!Array.isArray(arr) || !arr.length) {
                     box.innerHTML = '<div class="map-picker-result" style="opacity:.6;cursor:default;">Нічого не знайдено</div>';
                     return;
@@ -13791,6 +13895,7 @@
                 box.innerHTML = arr.map(it => `<div class="map-picker-result" data-lat="${it.lat}" data-lng="${it.lon}">${escapeHtml(it.display_name)}</div>`).join('');
                 Array.from(box.querySelectorAll('.map-picker-result[data-lat]')).forEach(el => {
                     el.onclick = () => {
+                        if (!isCurrent()) return;
                         const lat = parseFloat(el.dataset.lat), lng = parseFloat(el.dataset.lng);
                         if (Number.isFinite(lat) && Number.isFinite(lng)) { _mapPicker.map.flyTo([lat, lng], 14); _markPickerChoice(); }
                         box.innerHTML = '';
@@ -13798,7 +13903,7 @@
                         if (s) s.blur();
                     };
                 });
-            } catch (e) { box.innerHTML = ''; }
+            } catch (e) { if (isCurrent()) box.innerHTML = ''; }
         }
 
         function _shortPlaceName(j) {
