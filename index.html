@@ -7786,6 +7786,16 @@
             }).join('');
         }
 
+        function directionInviteEmptyMessage(dir, data = {}, subscribedDetails = false, contactButton = '') {
+            const summary = data?.event_summary || {};
+            const counts = [summary.drivers_total, summary.passengers_matched, summary.passengers_pending, summary.passengers_without_seat ?? summary.passengers_waiting];
+            if (subscribedDetails || data?.user_status?.subscribed === true || !data?.direction || !Array.isArray(data?.organizers) || data.organizers.length || !counts.every(n => Number.isInteger(n) && n === 0)) return '';
+            const creatorRole = String(dir?.creator_id || '') !== String(S.userId || '') ? normalizeRole(dir?.creator_role) : '';
+            const suggestion = creatorRole === 'driver' ? 'Організатор — водій. Можна обрати «Шукаю місце».'
+                : creatorRole === 'client' ? 'Організатор шукає місце. Можна обрати «Можу взяти людей».' : '';
+            return `<div data-invite-first-participant="true" class="sheet-sub" style="display:flex;align-items:center;gap:12px;padding:12px;margin:10px 0 12px;border-radius:12px;background:rgba(163,230,53,0.06);border:1px solid rgba(163,230,53,0.2);"><div style="flex:1;min-width:0;"><div style="font-weight:700;color:var(--text-primary);">Ви можете стати першим учасником.</div>${suggestion ? `<div style="margin-top:6px;">${escapeHtml(suggestion)} Це лише пропозиція — обидві ролі доступні.</div>` : ''}</div>${contactButton}</div>`;
+        }
+
         function openDirectionInviteSheet(dirId, dir, data = {}, options = {}) {
             const safeDirId = parseInt(dirId) || 0;
             const orgs = Array.isArray(data?.organizers) ? data.organizers : [];
@@ -7805,7 +7815,7 @@
             const proof = directionInviteSocialProof(dirMeta, orgs, data?.event_summary);
             const topDrivers = eventDriverRosterHtml(orgs, safeDirId, { compact: true });
             const contactButton = creatorId && !isMyDir
-                ? `<button class="btn btn-secondary" style="width:100%;font-size:12px;margin-top:8px;" data-tg-username="${escapeAttr(creatorUsername)}" data-tg-user-id="${parseInt(creatorId, 10) || 0}" onclick="openTelegramContactFromButton(this)">💬 Написати організатору</button>`
+                ? `<button class="btn btn-secondary" data-invite-organizer-chat="true" aria-label="Чат з організатором" style="flex-shrink:0;width:auto;min-height:44px;padding:8px 12px;border-radius:10px;background:rgba(163,230,53,0.12);border:1px solid rgba(163,230,53,0.3);color:var(--accent);font-size:12px;box-shadow:none;white-space:nowrap;" data-tg-username="${escapeAttr(creatorUsername)}" data-tg-user-id="${parseInt(creatorId, 10) || 0}" onclick="openTelegramContactFromButton(this)">💬 Чат</button>`
                 : '';
             const joinArgs = options?.source === 'map' ? `${safeDirId}, 'map'` : `${safeDirId}`;
             const activeSub = (S.subscriptions || []).find(s => String(s.direction_id || s.id || '') === String(safeDirId));
@@ -7817,7 +7827,7 @@
             // Підписаний учасник бачить «Деталі події», а не нове приєднання; номер кроку
             // показуємо окремо, щоб не змішувати його з цим вибором заголовка.
             const heading = subscribedDetails ? 'Деталі події' : 'Запрошення до події';
-            // Крок 1 («Подія») — тонкою смужкою joinStepsHtml під заголовком (власник 2026-09-26).
+            // Порядок запрошення: опис → учасники → пояснення → кроки → дії (власник 2026-10-01).
             const introLine = eventTrip ? 'Ви в екіпажі цієї події. Вашу домовленість показано на мапі.'
                 : eventPending ? 'У цій події є запит на спільну поїздку. Його стан показано на мапі.'
                 : S.subscriptionSearchHeld ? 'Стан участі після поїздки ще уточнюється. Поверніться на мапу, щоб перевірити його.'
@@ -7848,12 +7858,8 @@
                     <button class="btn btn-secondary" style="flex:1;font-size:12px;" onclick="openDirection(${safeDirId})">Деталі події</button>
                     <button class="btn btn-ghost" style="flex:1;font-size:12px;" onclick="closeSheet()">Пізніше</button>
                 </div>`;
-            S.directionInviteSheetOpen = true;
-            openSheet(`
-                <div class="sheet-steps">${heading}</div>${subscribedDetails ? '' : joinStepsHtml('Подія', false)}
-                <div class="sheet-title" style="font-size:22px;line-height:1.15;margin-bottom:8px;">${escapeHtml(title)}</div>
-                <div class="sheet-sub" style="margin-bottom:12px;">${introLine}</div>
-                ${!data?.direction || S.subscriptionsRefreshFailed ? '<div role="status" style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">Не вдалося оновити всі дані. Показуємо останній відомий стан; поверніться на мапу, щоб перевірити його.</div>' : ''}
+            const emptyParticipantsHtml = directionInviteEmptyMessage(dirMeta, data, subscribedDetails, contactButton);
+            const participantsHtml = emptyParticipantsHtml || `
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0 12px;">
                     <div style="padding:10px;border-radius:8px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.22);">
                         <div style="font-size:11px;color:var(--text-muted);font-weight:800;text-transform:uppercase;">Люди</div>
@@ -7864,18 +7870,27 @@
                         <div style="font-size:13px;font-weight:800;color:var(--text-primary);margin-top:3px;">${escapeHtml(proof.driverLine)}</div>
                     </div>
                 </div>
+            `;
+            S.directionInviteSheetOpen = true;
+            openSheet(`
+                <div class="sheet-steps">${heading}</div>
+                <div class="sheet-title" style="font-size:22px;line-height:1.15;margin-bottom:8px;">${escapeHtml(title)}</div>
+                <div class="sheet-sub" style="margin-bottom:12px;">${introLine}</div>
+                ${!data?.direction || S.subscriptionsRefreshFailed ? '<div role="status" style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">Не вдалося оновити всі дані. Показуємо останній відомий стан; поверніться на мапу, щоб перевірити його.</div>' : ''}
                 <div style="padding:10px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid var(--border);display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
                     ${whenText ? `<div style="font-size:12px;color:var(--text-secondary);">📅 ${escapeHtml(whenText)}</div>` : ''}
                     ${meetingPoint ? `<div style="font-size:12px;color:var(--text-secondary);">📍 ${escapeHtml(meetingPoint)}</div>` : ''}
                     ${desc ? `<div style="font-size:12px;color:var(--text-secondary);line-height:1.45;white-space:pre-wrap;">${escapeHtml(desc.slice(0, 360))}</div>` : ''}
                     ${!whenText && !meetingPoint && !desc ? '<div style="font-size:12px;color:var(--text-secondary);">Деталі події можна уточнити в організатора.</div>' : ''}
                 </div>
+                ${participantsHtml}
+                ${!emptyParticipantsHtml && contactButton ? `<div style="display:flex;justify-content:flex-end;margin:-4px 0 12px;">${contactButton}</div>` : ''}
                 ${topDrivers ? `<div style="font-size:11px;font-weight:900;text-transform:uppercase;color:var(--text-muted);letter-spacing:1px;margin-bottom:2px;">Водії в події</div><div style="margin-bottom:12px;">${topDrivers}</div>` : ''}
                 <div style="padding:10px;border-radius:8px;background:rgba(255,193,7,0.08);border:1px solid rgba(255,193,7,0.2);font-size:12px;color:var(--text-secondary);line-height:1.45;margin-bottom:12px;">
                     ${nextStepHtml}
                 </div>
+                ${subscribedDetails ? '' : joinStepsHtml('Подія', false)}
                 ${actionHtml}
-                ${contactButton}
             `, { maxHeight: options?.sheetMaxHeight || '' });
         }
 
