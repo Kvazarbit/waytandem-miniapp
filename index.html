@@ -3433,9 +3433,18 @@
             margin-top: 12px;
         }
         #map-trip-dock .dock-actions .btn { flex: 1; }
+        /* Arrow depth: explanations -> status + actions -> minimal status/chat strip. */
+        #map-trip-dock .dock-compact-title, #map-trip-dock .dock-compact-context { display: none; }
+        #map-trip-dock.compact .dock-sub, #map-trip-dock.compact .dock-steps,
+        #map-trip-dock.compact .dock-full-title { display: none; }
+        #map-trip-dock.compact .dock-compact-title { display: flex; }
+        #map-trip-dock.compact .dock-compact-context { display: block; font-size: 12px; line-height: 1.4; margin-top: 4px; }
+        #map-trip-dock .dock-strip-expand { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; min-height: 44px; padding: 0; }
+        #map-trip-dock .dock-strip-expand > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        #map-trip-dock .dock-chat-beacon { flex-shrink: 0; border: 0; border-radius: 999px; background: rgba(56,189,248,.10); color: inherit; font-size: 16px; cursor: pointer; min-width: 44px; min-height: 44px; padding: 0 6px; }
         #map-trip-dock .dock-strip {
             margin: 0 12px;
-            padding: 10px 16px;
+            padding: 4px 8px;
             border-radius: 999px;
             background: var(--bg-elevated);
             border: 1px solid var(--blue);
@@ -3758,6 +3767,7 @@
             appSoundEnabled: localStorage.getItem('wt_app_sound') !== 'off',
             didInitialHydrate: false,
             mapTripDockCollapsed: false,
+            mapTripDockCompact: false,
             mapResultCollapsed: false,
             mapResultCollapseTouched: false,
             mapTripDockPhaseSeen: null,
@@ -3817,7 +3827,7 @@
         function restoreCriticalState() {
             try {
                 const memo = JSON.parse(localStorage.getItem(_stateKey('mtdc')) || 'null');
-                S.mapTripDockCollapseMemo = memo && typeof memo.key === 'string' ? { key: memo.key, collapsed: !!memo.collapsed } : null;
+                S.mapTripDockCollapseMemo = memo && typeof memo.key === 'string' ? { key: memo.key, collapsed: !!memo.collapsed, compact: !!memo.compact && !memo.collapsed } : null;
             } catch (_) { S.mapTripDockCollapseMemo = null; }
             try {
                 waitingForPartner = localStorage.getItem(_stateKey('wfp')) === '1';
@@ -12411,14 +12421,23 @@
             const panel = document.getElementById('map-trip-dock');
             if (!panel) return;
             panel.classList.remove('open');
+            panel.classList.remove('compact');
             panel.classList.remove('collapsed');
             panel.classList.remove('stacked-above-result');
             panel.innerHTML = '';
         }
 
         function toggleMapTripDock() {
-            S.mapTripDockCollapsed = !S.mapTripDockCollapsed;
-            S.mapTripDockCollapseMemo = S.mapTripDockPhaseSeen ? { key: S.mapTripDockPhaseSeen, collapsed: S.mapTripDockCollapsed } : null;
+            if (S.mapTripDockCollapsed) {
+                S.mapTripDockCollapsed = false;
+                S.mapTripDockCompact = false;
+            } else if (S.mapTripDockCompact) {
+                S.mapTripDockCollapsed = true;
+                S.mapTripDockCompact = false;
+            } else {
+                S.mapTripDockCompact = true;
+            }
+            S.mapTripDockCollapseMemo = S.mapTripDockPhaseSeen ? { key: S.mapTripDockPhaseSeen, collapsed: S.mapTripDockCollapsed, compact: S.mapTripDockCompact } : null;
             persistCriticalState();
             verifyMapTripDockState();
             // Розгорнутий банер вищий за смужку — точки екіпажу не мають опинитись під ним.
@@ -12461,6 +12480,7 @@
             if (viewKey === S.mapTripDockPhaseSeen) return;
             const memo = S.mapTripDockCollapseMemo;
             S.mapTripDockCollapsed = !!(memo && memo.key === viewKey && memo.collapsed);
+            S.mapTripDockCompact = !!(memo && memo.key === viewKey && memo.compact && !memo.collapsed);
             S.mapTripDockPhaseSeen = viewKey;
         }
 
@@ -12484,6 +12504,7 @@
                 : (waitingForPartner && lastKnownTripForRating) ? lastKnownTripForRating : null;
             if (fwTrip && S.currentScreen === 'explore' && !handshakeOpen) {
                 syncMapTripDockView(`${currentRequestIdFromTrip(fwTrip) || 0}:finish_wait:`);
+                panel.classList.toggle('compact', !S.mapTripDockCollapsed && S.mapTripDockCompact);
                 if (S.mapTripDockCollapsed) {
                     panel.innerHTML = buildMapFinishWaitStrip(fwTrip);
                     panel.classList.add('open', 'collapsed');
@@ -12498,7 +12519,7 @@
             }
             if (!t && S.missedPickup && S.currentScreen === 'explore' && !handshakeOpen && !waitingForPartner) {
                 syncMapTripDockView(`${Number(S.missedPickup.request_id) || 0}:missed:${S.missedPickup.state || ''}`);
-                panel.classList.remove('collapsed', 'stacked-above-result');
+                panel.classList.remove('collapsed', 'compact', 'stacked-above-result');
                 panel.innerHTML = buildMissedPickupDockBody(S.missedPickup);
                 panel.classList.add('open');
                 syncBottomStripStacking();
@@ -12519,6 +12540,7 @@
             // Нова фаза циклу або НОВЕ сповіщення (скасування/фініш партнера) розгортає док один раз;
             // повторний poll того самого стану не перемагає явне згортання людини (кандидат 2026-10-01).
             syncMapTripDockView(mapTripDockViewKey(t, phase));
+            panel.classList.toggle('compact', !S.mapTripDockCollapsed && S.mapTripDockCompact);
             if (S.mapTripDockCollapsed) {
                 panel.innerHTML = buildMapTripDockStrip(t, phase);
                 panel.classList.add('open', 'collapsed');
@@ -12547,10 +12569,20 @@
                 ? { icon: '🏁', title: 'Фініш · чекає вашого підтвердження' }
                 : (tripViewerFinished(t) && !tripPartnerFinished(t) ? { icon: '⏳', title: 'Очікуємо підтвердження' } : mapTripDockTitle(phase));
             const seats = (t && t.viewer_role === 'driver') ? ` · ${tripSeatsLabel(t)}` : '';
-            return `<div class="dock-strip" onclick="toggleMapTripDock()">
+            return `<div class="dock-strip">
+                <button class="dock-strip-expand" onclick="toggleMapTripDock()" aria-label="Розгорнути шторку повністю">
                 <span>${head.icon} ${escapeHtml(head.title)}${seats}</span>
                 <span style="opacity:.55;font-size:11px;">розгорнути ▴</span>
+                </button>
+                ${mapTripDockChatBeacon(t)}
             </div>`;
+        }
+
+        function mapTripDockChatBeacon(t) {
+            const reqId = parseInt(t?.request_id || t?.id || 0, 10) || 0;
+            const partnerId = parseInt(t?.viewer_role === 'driver' ? (t.client_id || 0) : (t?.driver_id || 0), 10) || 0;
+            if (!reqId) return '';
+            return `<button class="dock-chat-beacon" data-dock-chat="true" onclick="openChat(${reqId}, ${partnerId})" aria-label="Відкрити чат екіпажу" title="Чат екіпажу">💬</button>`;
         }
 
         // Finding A (DM-2026-06-16-001): компактний банер фази finish-wait
@@ -12568,6 +12600,7 @@
             return `<div class="dock-head">
                     <div style="min-width:0;">
                         <div class="dock-title">⏳ Очікуємо підтвердження</div>
+                        ${S.mapTripDockCompact ? `<div class="dock-compact-context">${finishAwaitingLine(t)}</div>` : ''}
                         <div class="dock-sub">${metaLine}</div>
                         <div class="dock-sub" style="color:var(--amber);font-weight:bold;margin-top:5px;white-space:normal;">✓ Ви відмітили фініш. ${finishAwaitingLine(t)}</div>
                     </div>
@@ -12581,9 +12614,12 @@
         }
 
         function buildMapFinishWaitStrip(t) {
-            return `<div class="dock-strip" onclick="toggleMapTripDock()">
+            return `<div class="dock-strip">
+                <button class="dock-strip-expand" onclick="toggleMapTripDock()" aria-label="Розгорнути шторку повністю">
                 <span>⏳ Очікуємо підтвердження</span>
                 <span style="opacity:.55;font-size:11px;">розгорнути ▴</span>
+                </button>
+                ${mapTripDockChatBeacon(t)}
             </div>`;
         }
 
@@ -12859,9 +12895,15 @@
             const queueLine = queueText
                 ? `<div class="dock-sub" data-pickup-queue-position="true" style="margin-top:4px;white-space:normal;color:var(--text);">🔢 ${escapeHtml(queueText)}</div>`
                 : '';
+            const self = !isDriver && phase === 'pickup' ? orderedPickupPassengers(t).find(p => String(p.user_id) === String(S.userId)) : null;
+            const compactHead = self && !alertStyle
+                ? { icon: isPassengerPickedUp(self) ? '✅' : '🚗', title: isPassengerPickedUp(self) ? 'Ви в авто · Збір триває' : 'Чекаєте посадки · Збір' }
+                : head;
             return `<div class="dock-head">
                     <div style="min-width:0;">
-                        <div class="dock-title">${head.icon} ${escapeHtml(head.title)}</div>
+                        <div class="dock-title dock-full-title">${head.icon} ${escapeHtml(head.title)}</div>
+                        ${S.mapTripDockCompact ? `<div class="dock-title dock-compact-title">${compactHead.icon} ${escapeHtml(compactHead.title)}${seatsChip}</div>` : ''}
+                        ${S.mapTripDockCompact && alertStyle ? `<div class="dock-compact-context">${hint}</div>` : ''}
                         <div class="dock-sub">${metaLine}</div>
                         <div class="dock-sub" style="${alertStyle || 'color:var(--text);'}margin-top:5px;white-space:normal;">${hint}</div>
                         ${queueLine}
