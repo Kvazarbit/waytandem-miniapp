@@ -3448,6 +3448,29 @@
             gap: 8px;
             cursor: pointer;
         }
+        /* Compact driver roster: scoped to Trips; map/crew sheet keep their existing layout. */
+        #trips-content .compact-driver-trips { padding: 12px; margin: 8px 12px; }
+        #trips-content .compact-driver-trips .hero-title { font-size: 18px; }
+        .compact-passenger-list { display: grid; gap: 8px; margin-top: 12px; }
+        .compact-passenger-card { position: relative; border: 1px solid var(--border); border-radius: 12px; background: rgba(255,255,255,.035); }
+        .compact-passenger-row { display: grid; grid-template-columns: 40px minmax(0,1fr) auto 40px 28px; gap: 6px; align-items: center; min-height: 64px; padding: 6px; }
+        .compact-passenger-avatar { position: relative; padding: 0; width: 40px; height: 44px; border: 0; background: transparent; cursor: pointer; }
+        .compact-telegram-badge, .compact-chat-badge { position: absolute; right: -2px; bottom: 1px; width: 15px; height: 15px; border-radius: 50%; background: var(--blue); color: #fff; font-size: 10px; line-height: 15px; border: 1px solid var(--bg); }
+        .compact-passenger-name { font-size: 14px; font-weight: 850; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .compact-passenger-status { font-size: 11px; line-height: 1.3; margin-top: 3px; color: var(--text-secondary); overflow-wrap: anywhere; }
+        .compact-passenger-row .btn { margin: 0; min-height: 44px; padding: 6px 8px; font-size: 11px; width: auto; }
+        .compact-passenger-row .compact-passenger-map { width: 40px; padding: 0; font-size: 18px; }
+        .compact-passenger-details > summary { position: absolute; right: 4px; top: 10px; width: 32px; height: 44px; display: flex; align-items: center; justify-content: center; list-style: none; cursor: pointer; color: var(--text-secondary); }
+        .compact-passenger-details > summary::-webkit-details-marker { display: none; }
+        .compact-passenger-details[open] > summary { transform: rotate(180deg); }
+        .compact-passenger-detail-body { padding: 10px; border-top: 1px solid var(--border); font-size: 12px; overflow-wrap: anywhere; }
+        .compact-passenger-detail-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+        .compact-passenger-detail-actions .btn { min-height: 44px; width: auto; padding: 8px 10px; font-size: 12px; }
+        .compact-crew-details { margin-top: 12px; font-size: 12px; }
+        .compact-crew-details > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; color: var(--text-secondary); }
+        .compact-driver-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+        .compact-driver-actions .btn { width: auto; flex: 1; min-height: 44px; padding: 8px 10px; font-size: 12px; }
+        .compact-passenger-avatar:focus-visible, .compact-passenger-details > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     </style>
 </head>
 
@@ -10707,6 +10730,93 @@
                 </div>`;
         }
 
+        function rememberCompactTripDetails(details) {
+            // UI-only disclosure state. Polling restores the user's choice; no lifecycle write.
+            const key = details?.dataset?.compactDetailsKey;
+            if (!key) return;
+            if (!(S._compactTripDetails instanceof Set)) S._compactTripDetails = new Set();
+            if (details.open) S._compactTripDetails.add(key); else S._compactTripDetails.delete(key);
+        }
+
+        function compactTripDetailsOpen(key) {
+            return S._compactTripDetails instanceof Set && S._compactTripDetails.has(key);
+        }
+
+        function buildCompactDriverPassengerCards(trip) {
+            if (!trip || trip.viewer_role !== 'driver') return '';
+            const started = !!trip.is_started;
+            const rows = orderedPickupPassengers(trip).map(p => {
+                const reqId = passengerRequestId(p), uid = parseInt(p.user_id || 0, 10) || 0;
+                const name = passengerDisplayName(p), flags = passengerFinishFlags(p);
+                const picked = isPassengerPickedUp(p), cancelBy = memberCancelRequestedBy(p);
+                const cancelIncoming = !started && cancelBy === uid;
+                const cancelOutgoing = !started && cancelBy === Number(S.userId);
+                const coord = firstFiniteLatLng([p.pickup_lat, p.pickup_lng]);
+                const detailKey = `pair-${reqId}`;
+                const status = flags.driverFinished ? 'Очікуємо підтвердження попутника'
+                    : flags.clientFinished ? 'Попутник відмітив фініш'
+                    : cancelIncoming ? 'Просить вихід — потрібна відповідь'
+                    : cancelOutgoing ? 'Очікуємо згоди на скасування'
+                    : isPassengerClaimed(p) ? (p.presence_contested ? 'Каже, що на місці' : 'Не знайшли вас')
+                    : picked ? 'В авто' : 'Чекає посадки';
+                let action = '';
+                if (reqId && uid && !flags.driverFinished) {
+                    if (started && (picked || flags.clientFinished)) {
+                        action = `<button class="btn btn-secondary" data-compact-action="finish" onclick="confirmOwnFinish('request', ${reqId}, { stayOnCrew: true, partnerId: ${uid} })">${flags.clientFinished ? 'Підтвердити' : 'Висадити'}</button>`;
+                    } else if (!picked && !cancelBy && (started || trip.status === 'pickup')) {
+                        action = `<button class="btn btn-primary" data-compact-action="pickup" onclick="markPassengerPickedUp(${reqId}, ${uid})">В авто</button>`;
+                    }
+                }
+                const username = sanitizeBotUsername(p.telegram_username || ''), contact = !!(uid && username);
+                const avatar = `<button type="button" class="compact-passenger-avatar" data-compact-telegram="${contact}" aria-label="${escapeAttr(`${contact ? 'Telegram' : 'Чат застосунку'}: ${name}`)}" title="${escapeAttr(`${contact ? 'Відкрити Telegram' : 'Чат застосунку'}: ${name}`)}" ${uid && (contact || reqId) ? '' : 'disabled'} data-tg-username="${escapeAttr(username)}" data-tg-user-id="${uid}" onclick="${contact ? 'openTelegramContactFromButton(this)' : `openChat(${reqId}, ${uid})`}">${renderAvatarInline(name, p.photo_url || '', 36)}${contact ? '<span class="compact-telegram-badge" aria-hidden="true">➤</span>' : reqId && uid ? '<span class="compact-chat-badge" aria-hidden="true">💬</span>' : ''}</button>`;
+                const navigation = coord
+                    ? `<button class="btn btn-secondary compact-passenger-map" data-nav-lat="${coord.lat}" data-nav-lng="${coord.lng}" aria-label="${escapeAttr(`Маршрут до початкової точки: ${name}`)}" title="Початкова точка посадки" onclick="openMapNavigationFromButton(this)">🧭</button>`
+                    : '<button class="btn btn-secondary compact-passenger-map" disabled aria-label="Точку не вказано" title="Точку не вказано">🧭</button>';
+                const cancelActions = cancelIncoming
+                    ? `<button class="btn btn-primary" onclick="confirmCancelTrip(${reqId})">Погодитись на вихід</button><button class="btn btn-secondary" onclick="rejectCancelTrip(${reqId})">Відмовити</button>` : '';
+                const pointText = p.pickup || p.pickup_label || (coord ? `${coord.lat.toFixed(5)}, ${coord.lng.toFixed(5)}` : 'Точку не вказано');
+                return `<article class="compact-passenger-card" data-compact-passenger="${reqId}">
+                    <div class="compact-passenger-row">
+                        ${avatar}
+                        <div style="min-width:0;"><div class="compact-passenger-name">${escapeHtml(name)}</div><div class="compact-passenger-status">${escapeHtml(status)}</div></div>
+                        <div>${action}</div>${navigation}<span aria-hidden="true"></span>
+                    </div>
+                    <details ${cancelIncoming || compactTripDetailsOpen(detailKey) ? 'open' : ''} class="compact-passenger-details" data-compact-details-key="${detailKey}" ontoggle="rememberCompactTripDetails(this)">
+                        <summary aria-label="${escapeAttr(`Деталі: ${name}`)}" title="Деталі попутника">⌄</summary>
+                        <div class="compact-passenger-detail-body"><strong>Початкова точка посадки</strong><div>${escapeHtml(pointText)}</div>
+                            <div class="compact-passenger-detail-actions"><button class="btn btn-secondary" onclick="openChat(${reqId}, ${uid})">💬 Чат застосунку</button>${cancelActions}</div>
+                        </div>
+                    </details>
+                </article>`;
+            }).join('');
+            return `<div class="compact-passenger-list" data-compact-passenger-list="true">${rows}</div>`;
+        }
+
+        function buildCompactDriverTrips(trip) {
+            const started = !!trip.is_started, pickup = trip.status === 'pickup';
+            const pendingCancel = pendingCrewCancelRequests(trip).length || memberCancelRequestedBy(trip);
+            const remaining = orderedPickupPassengers(trip).some(p => !passengerFinishFlags(p).driverFinished);
+            const crewKey = `crew-${parseInt(trip.crew_id || 0, 10) || 0}`;
+            return `<div class="hero ${started ? 'driving' : 'reservation'} compact-driver-trips" data-compact-driver-trips="true">
+                <div class="hero-title">${escapeHtml(trip.direction_title || 'Поїздка')}</div>
+                <div class="hero-sub">Екіпаж #${escapeHtml(activeTripCrewNumber(trip))} · ${escapeHtml(tripHumanStatusLabel(trip))}</div>
+                ${buildCompactDriverPassengerCards(trip)}
+                <div class="compact-driver-actions">
+                    <button class="btn btn-secondary" onclick="openTripMap()">🗺️ Карта екіпажу</button>
+                    ${!started && !pickup && !pendingCancel ? '<button class="btn btn-secondary" onclick="arriveAtPickup()">Я біля точки збору</button>' : ''}
+                    ${!started && pickup && pickupReadyForStart(trip) && !pendingCancel ? '<button class="btn btn-primary" onclick="startTrip()">Поїхали</button>' : ''}
+                    ${started ? `<button class="btn btn-success" ${remaining ? '' : 'disabled'} onclick="confirmOwnFinish('driver_all')">Фініш з усіма</button>` : ''}
+                </div>
+                <details ${compactTripDetailsOpen(crewKey) ? 'open' : ''} class="compact-crew-details" data-compact-details-key="${crewKey}" ontoggle="rememberCompactTripDetails(this)">
+                    <summary>Подробиці екіпажу та збору</summary>
+                    ${buildCrewTree(trip)}${buildCrewPresenceSummary(trip)}${buildPickupSequence(trip)}
+                    ${buildPickupActionPanel(trip, { includeAction: false })}${buildDriverPresenceClaimsPanel(trip)}
+                    ${buildLiveLocationConsentPanel(trip)}${buildDriverCrewCommsPanel(trip)}${buildCrewCancelAttentionPanel(trip)}
+                    ${!started && !pendingCancel ? '<button class="btn btn-danger" style="margin-top:12px;" onclick="cancelTrip()">Попросити скасування</button>' : ''}
+                </details>
+            </div>`;
+        }
+
         function buildDriverFinishPanel(trip) {
             const passengers = orderedPickupPassengers(trip);
             if (!passengers.length) return '';
@@ -11407,7 +11517,7 @@
                        <button class="btn btn-secondary" onclick="closeSheet();openMapTripCrewSheet()">👥 Екіпаж</button>
                        <button class="btn btn-ghost" onclick="closeSheet()">Карта</button>`
                     : `<button class="btn btn-secondary" onclick="closeSheet();openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
-                       <button class="btn btn-success" onclick="closeSheet();confirmOwnFinish('trip')">🏁 Я доїхав до події</button>
+                       <button class="btn btn-success" onclick="closeSheet();confirmOwnFinish('trip')">🏁 Підтвердити завершення</button>
                        <button class="btn btn-ghost" onclick="closeSheet()">Карта</button>`)
                 : (isDriver
                     ? `${!isPickup ? `<button class="btn btn-secondary" onclick="arriveAtPickup().then(ok => { if (ok) openTripMap(); })">🚗 Я біля точки збору</button>` : ''}
@@ -11513,6 +11623,10 @@
                 // Use clearConsent=false here: this runs on every poll cycle, so clearing
                 // would wipe the user's saved choice and re-trigger the prompt endlessly.
                 if (liveLocationActive) startLocationTracking(); else stopLocationTracking(false);
+                if (isDriver && orderedPickupPassengers(t).length) {
+                    container.innerHTML = buildCompactDriverTrips(t);
+                    return;
+                }
                 container.innerHTML = `
                     <div class="hero ${isStarted ? 'driving' : 'reservation'} animate-in">
                         <div class="hero-label" style="color:${isStarted ? 'var(--accent)' : (isPickup ? 'var(--blue)' : 'var(--amber)')};">
@@ -11552,7 +11666,7 @@
                             ${!isStarted && isDriver && isPickup && nextPassenger && !cancelRequested ? `<button class="btn btn-primary" onclick="markPassengerPickedUp(${nextReqId}, ${nextPassengerId})">✅ ${escapeHtml(nextName)} в авто</button>` : ''}
                             ${!isStarted && isDriver && isPickup && allPickedUp && !cancelRequested ? `<button class="btn btn-primary" onclick="startTrip()">🚀 Усі в авто — поїхали</button>` : ''}
                             ${isStarted && isDriver ? `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="openChat(${t.request_id || t.id || 0}, ${t.client_id || 0})">💬 Чат</button><button class="btn btn-secondary" style="flex:1;" onclick="openTripMap()">🗺️ Карта</button></div>${buildDriverFinishPanel(t)}` : ''}
-                            ${isStarted && !isDriver ? `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="openChat(${t.request_id || t.id || 0}, ${t.driver_id || 0})">💬 Чат</button><button class="btn btn-success" style="flex:1;" onclick="confirmOwnFinish('trip')">${partnerFinished && !viewerFinished ? '✅ Я теж доїхав до події' : '🏁 Я доїхав до події'}</button></div>` : ''}
+                            ${isStarted && !isDriver ? `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="openChat(${t.request_id || t.id || 0}, ${t.driver_id || 0})">💬 Чат</button><button class="btn btn-success" style="flex:1;" onclick="confirmOwnFinish('trip')">${partnerFinished && !viewerFinished ? '✅ Підтвердити завершення' : '🏁 Підтвердити завершення'}</button></div>` : ''}
                             ${showTripLevelCancelActions ? `<div style="display:flex;gap:10px;"><button class="btn btn-primary" style="flex:1;" onclick="confirmCancelTrip()">✅ Згоден скасувати</button><button class="btn btn-secondary" style="flex:1;" onclick="rejectCancelTrip()">❌ Відмовити</button></div>` : ''}
                             ${!isStarted && !cancelPending && !cancelRequested ? `<button class="btn btn-danger" onclick="cancelTrip()">❌ Попросити скасування</button>` : ''}
                         </div>
@@ -12569,7 +12683,7 @@
                 if (!isDriver) {
                     hint = `🏁 Фініш відмічено: ${driverRef(driverName)}. Чекаємо лише вашого підтвердження.`;
                     actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
-                               <button class="btn btn-success" onclick="confirmOwnFinish('trip')">✅ Я теж доїхав до події</button>`;
+                               <button class="btn btn-success" onclick="confirmOwnFinish('trip')">✅ Підтвердити завершення</button>`;
                 } else {
                     // Фікс L-5 (live-прохід 2026-07-04): ДІЯ-банер мусить нести ДІЮ.
                     // Раніше водію давали лише «Екіпаж» → Поїздки → скрол → Підтвердити
@@ -12583,18 +12697,18 @@
                         const fPartnerId = Number(f.user_id) || safePartnerId;
                         hint = `🏁 Фініш відмічено: ${escapeHtml(passengerDisplayName(f))}. Чекаємо лише вашого підтвердження.`;
                         actions = `<button class="btn btn-secondary" onclick="openChat(${fReqId}, ${fPartnerId})">💬 Чат</button>
-                                   <button class="btn btn-success" onclick="confirmOwnFinish('request', ${fReqId})">✅ Я теж доїхав до події</button>`;
+                                   <button class="btn btn-success" onclick="confirmOwnFinish('request', ${fReqId})">✅ Підтвердити завершення</button>`;
                     } else if (finishers.length > 1) {
                         const names = finishers.map(p => passengerDisplayName(p)).filter(Boolean).slice(0, 3).join(', ');
                         hint = `🏁 Відмітили фініш: ${escapeHtml(names)}. Чекаємо вашого підтвердження.`;
                         actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
                                    <button class="btn btn-secondary" onclick="openMapTripCrewSheet()">👥 Екіпаж</button>
-                                   <button class="btn btn-success" onclick="confirmOwnFinish('all_finishers')">✅ Я теж доїхав до події</button>`;
+                                   <button class="btn btn-success" onclick="confirmOwnFinish('all_finishers')">✅ Підтвердити завершення</button>`;
                     } else {
                         // Pair-режим без members-знімка — пряме підтвердження якірної пари.
                         hint = '🏁 Партнер відмітив фініш. Чекаємо лише вашого підтвердження.';
                         actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
-                                   <button class="btn btn-success" onclick="confirmOwnFinish('request', ${safeReqId})">✅ Я теж доїхав до події</button>`;
+                                   <button class="btn btn-success" onclick="confirmOwnFinish('request', ${safeReqId})">✅ Підтвердити завершення</button>`;
                     }
                 }
             } else if (crewAwaiting.length) {
@@ -12621,9 +12735,9 @@
                     actions = isDriver
                         ? `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
                            <button class="btn btn-secondary" onclick="openMapTripCrewSheet()">👥 Екіпаж</button>
-                           <button class="btn btn-success" onclick="confirmOwnFinish('driver_dock')">🏁 Я доїхав до події</button>`
+                           <button class="btn btn-success" onclick="confirmOwnFinish('driver_dock')">🏁 Підтвердити завершення</button>`
                         : `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
-                           <button class="btn btn-success" onclick="confirmOwnFinish('trip')">🏁 Я доїхав до події</button>`;
+                           <button class="btn btn-success" onclick="confirmOwnFinish('trip')">🏁 Підтвердити завершення</button>`;
                 } else {
                     // DM-2026-06-15: gap #6 — до старту поїздки ("Поїхали") вихід з
                     // домовленості можливий лише через взаємну згоду (cancelTrip() ->
@@ -12772,11 +12886,11 @@
             const partner = isDriver ? 'Попутник' : 'Водій';
             const primaryAction = isDriver
                 ? `<button class="btn btn-secondary" id="partner-finish-open">Відкрити Поїздки</button>`
-                : `<button class="btn btn-success" id="partner-finish-confirm">✅ Я теж доїхав до події</button>
+                : `<button class="btn btn-success" id="partner-finish-confirm">✅ Підтвердити завершення</button>
                    <button class="btn btn-secondary" id="partner-finish-open">Відкрити Поїздки</button>`;
             openSheet(`
                 <div class="sheet-title">🏁 ${partner} відмітив фініш</div>
-                <div class="sheet-sub">Поїздка «${title}» чекає вашого підтвердження. ${isDriver ? 'Підтвердіть потрібного попутника у списку екіпажу.' : 'Натисніть завершення тільки якщо ви справді доїхали.'}</div>
+                <div class="sheet-sub">Поїздка «${title}» чекає вашого підтвердження. ${isDriver ? 'Підтвердіть потрібного попутника у списку екіпажу.' : 'Підтвердіть лише якщо ваша поїздка справді завершилась.'}</div>
                 <div class="sheet-actions">
                     ${primaryAction}
                     <button class="btn btn-ghost" id="partner-finish-later">Ще в дорозі</button>
@@ -12785,7 +12899,7 @@
             const confirmBtn = document.getElementById('partner-finish-confirm');
             if (confirmBtn) confirmBtn.onclick = () => { closeSheet(); confirmOwnFinish('trip'); };
             document.getElementById('partner-finish-open').onclick = () => { closeSheet(); switchScreen('trips'); };
-            document.getElementById('partner-finish-later').onclick = () => { closeSheet(); showToast('Підтвердіть у нижній панелі карти, коли доїдете', ''); };
+            document.getElementById('partner-finish-later').onclick = () => { closeSheet(); showToast('Підтвердіть у нижній панелі карти, коли ваша поїздка завершиться', ''); };
             return true;
         }
 
@@ -13315,7 +13429,7 @@
         }
 
         // ═══ Безпечний фініш (кандидат, Опус 2026-10-01; OPUS_FINISH_SAFETY_TASK) ═══
-        // Власний фініш записується лише після явного «Так, я доїхав» у короткому діалозі з назвою
+        // Власний фініш записується лише після явного «Підтвердити завершення» у короткому діалозі з назвою
         // події. «Ще ні», закриття шторки, чат і переходи між вкладками нічого не записують.
         // Діалог прив'язаний до показаної поїздки/екіпажу: якщо до «Так» стан змінився — запису немає.
         // Водійський фініш кількох пар підтверджується один раз — перед наявним виконанням.
@@ -13346,17 +13460,17 @@
             const target = ownFinishTarget(kind, reqId);
             if (!target) { showToast('Цю позначку вже зроблено або поїздка змінилась', ''); return Promise.resolve(false); }
             const dropOff = kind === 'request' && !!options?.stayOnCrew;
-            const question = dropOff ? `Відмітити фініш: ${target.who}?` : 'Ви доїхали до події?';
+            const question = dropOff ? `Підтвердити висадку: ${target.who}?` : 'Підтвердити завершення вашої поїздки?';
             // r2 (рев'ю 02.10): водій екіпажу з кількох пар завершує лише перелічені пари — так і кажемо.
             const others = target.rest > 0 ? ' Інші пари екіпажу залишаться активними.' : '';
             const explain = target.multi && !target.partnerDone
                 ? `Ваш фініш буде відмічено для: ${target.who}. Кожна пара завершиться після підтвердження попутника.`
                 : target.partnerDone
                     ? (target.multi
-                        ? `Фініш уже відмічено: ${target.who}. Після «Так» завершаться поїздки з переліченими попутниками.${others}`
-                        : `Фініш уже відмічено: ${target.who}. Після «Так» ${target.rest > 0 ? 'завершиться поїздка з цим попутником.' : 'поїздку буде завершено.'}${others}`)
-                    : `Після «Так» чекатимемо підтвердження: ${target.who}. Поїздка завершиться, коли підтвердять обоє.${others}`;
-            const yesLabel = dropOff ? 'Так, відмітити' : 'Так, я доїхав';
+                        ? `Фініш уже відмічено: ${target.who}. Після вашого підтвердження завершаться поїздки з переліченими попутниками.${others}`
+                        : `Фініш уже відмічено: ${target.who}. Після вашого підтвердження ${target.rest > 0 ? 'завершиться поїздка з цим попутником.' : 'поїздку буде завершено.'}${others}`)
+                    : `Чекатимемо підтвердження: ${target.who}. Поїздка завершиться, коли підтвердять обоє.${others}`;
+            const yesLabel = 'Підтвердити завершення';
             return new Promise(resolve => {
                 openSheet(`
                     <div data-own-finish-confirm="${escapeAttr(kind)}">
