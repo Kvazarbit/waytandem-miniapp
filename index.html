@@ -4560,6 +4560,7 @@
             maybeOpenMapResultPanelOnHydrate();
             verifyMapTripDockState();
             refreshOpenMapTripCrewSheet();
+            refreshOpenMapPendingMatchesSheet();
             maybeOpenMatchSheet();
             hideSkeleton();
             // Повернення у вкладку / дія людини: оновити знак непрочитаного, не чекаючи наступного опитування.
@@ -4618,6 +4619,7 @@
                     maybeOpenMapResultPanelOnHydrate();
                     verifyMapTripDockState();
                     refreshOpenMapTripCrewSheet();
+                    refreshOpenMapPendingMatchesSheet();
 
                     const newPendingRaw = JSON.stringify(S.pendingMatches);
                     if (oldPendingRaw !== newPendingRaw) updateBadges();
@@ -5093,11 +5095,13 @@
             closeSheet();
         }
 
-        function openMapPendingMatchesSheet(scope = 'all') {
-            if (S.currentScreen !== 'explore') switchScreen('explore');
-            closeMapResultPanel();
-            closeHandshakeActionPanel();
-            const normalizedScope = String(scope || 'all');
+        function openMapPendingMatchesSheet(scope = 'all', refresh = false) {
+            if (!refresh) {
+                if (S.currentScreen !== 'explore') switchScreen('explore');
+                closeMapResultPanel();
+                closeHandshakeActionPanel();
+            }
+            const normalizedScope = ['all', 'incoming', 'outgoing', 'proposed'].includes(scope) ? scope : 'all';
             const matches = (S.pendingMatches || []).filter(m => {
                 if (!m) return false;
                 if (normalizedScope === 'incoming') return m.scope === 'incoming';
@@ -5125,18 +5129,48 @@
                     </div>
                 </div>`;
             })() : '';
-            if (!rows && !proposedHtml) {
+            if (!rows && !proposedHtml && !refresh) {
                 showToast('Активних запитів немає', '');
                 return;
             }
-            openSheet(`
+            const emptyHtml = !rows && !proposedHtml
+                ? `<div data-map-pending-empty="true" style="padding:14px 0;font-size:13px;line-height:1.5;">${S.activeTrip
+                    ? `🤝 Екіпаж домовився · ${escapeHtml(S.activeTrip.direction_title || 'Подія')}. Наступні дії — на карті.`
+                    : 'Активних запитів немає. Пошук можна продовжити на карті.'}</div>`
+                : '';
+            const html = `
+                <div data-map-pending-matches-sheet="${normalizedScope}">
                 <div class="sheet-title">Запити на карті</div>
                 <div class="sheet-sub">Поточні рішення можна закрити тут, не переходячи у «Поїздки».</div>
-                <div style="margin:10px 0 4px;">${rows}${proposedHtml}</div>
+                <div style="margin:10px 0 4px;">${rows}${proposedHtml}${emptyHtml}</div>
                 <div class="sheet-actions" data-map-command-count="1">
                     <button class="btn btn-ghost" onclick="closeSheet()">Карта</button>
                 </div>
-            `, { maxHeight: '65vh' });
+                </div>
+            `;
+            const body = document.getElementById('sheet-body');
+            if (refresh) {
+                const sheet = document.getElementById('sheet');
+                if (!sheet?.classList.contains('open') || !body?.querySelector('[data-map-pending-matches-sheet]')) return false;
+                if (body._mapPendingMatchesMarkup === html) return false;
+                const scrollTop = body.scrollTop;
+                body.innerHTML = html;
+                body._mapPendingMatchesMarkup = html;
+                body.scrollTop = scrollTop;
+                return true;
+            }
+            openSheet(html, { maxHeight: '65vh' });
+            if (body) body._mapPendingMatchesMarkup = html;
+            return true;
+        }
+
+        function refreshOpenMapPendingMatchesSheet() {
+            const sheet = document.getElementById('sheet');
+            const body = document.getElementById('sheet-body');
+            const marker = body?.querySelector('[data-map-pending-matches-sheet]');
+            if (!sheet?.classList.contains('open') || !marker) return false;
+            // Projection only: never accept/cancel, dismiss the sheet or replace another dialog.
+            return openMapPendingMatchesSheet(marker.getAttribute('data-map-pending-matches-sheet'), true);
         }
 
         // A11y (Codex #8): будь-який [role="button"] активується з клавіатури
