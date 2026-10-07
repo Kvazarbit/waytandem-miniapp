@@ -12565,9 +12565,16 @@
         }
 
         function buildMapTripDockStrip(t, phase) {
-            const head = tripPartnerFinished(t) && !tripViewerFinished(t)
+            let head = tripPartnerFinished(t) && !tripViewerFinished(t)
                 ? { icon: '🏁', title: 'Фініш · чекає вашого підтвердження' }
                 : (tripViewerFinished(t) && !tripPartnerFinished(t) ? { icon: '⏳', title: 'Очікуємо підтвердження' } : mapTripDockTitle(phase));
+            if (phase === 'pickup' && t?.viewer_role === 'passenger' && !t.cancel_requested_by
+                && !tripViewerFinished(t) && !tripPartnerFinished(t) && !ownPresenceClaim(t)) {
+                const self = currentPassengerMemberForTrip(t);
+                if (self) head = isPassengerPickedUp(self)
+                    ? { icon: '✅', title: 'Ви в авто' }
+                    : { icon: '🚗', title: 'Чекаєте посадки' };
+            }
             const seats = (t && t.viewer_role === 'driver') ? ` · ${tripSeatsLabel(t)}` : '';
             return `<div class="dock-strip">
                 <button class="dock-strip-expand" onclick="toggleMapTripDock()" aria-label="Розгорнути шторку повністю">
