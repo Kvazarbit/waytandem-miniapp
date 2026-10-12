@@ -8341,7 +8341,11 @@
             const strip = document.getElementById('news-strip');
             if (!strip) return;
             const dock = document.getElementById('map-trip-dock');
-            if (dock && dock.classList.contains('open')) { strip.style.display = 'none'; return; }
+            // G1 (Opus 2026-10-11): a driver who can still take people keeps the «Подія / Водії / Попутники» lens even while
+            // the dock shows the own car or the trip; the strip stays hidden for passengers and for a full car.
+            const recruitCtx = _isDriverRole(S.userRole) ? mapContextScoped() : null;
+            const driverCanRecruit = !!recruitCtx && driverCrewRecruitmentState(recruitCtx.dirId) === 'free';
+            if (dock && dock.classList.contains('open') && !driverCanRecruit) { strip.style.display = 'none'; return; }
             const context = mapContextScoped();
             if (context) {
                 const drivers = (S.mapCrews || []).filter(c =>
@@ -12576,9 +12580,10 @@
                 return;
             }
             if (!t && S.outing && S.currentScreen === 'explore' && !handshakeOpen && !waitingForPartner) {
-                panel.classList.remove('collapsed', 'compact', 'stacked-above-result');
+                // G1: the own-car card is a strip; as a strip it stacks above the manual-search strip instead of under it.
+                panel.classList.remove('compact', 'stacked-above-result');
                 panel.innerHTML = buildOwnOutingCard(true);
-                panel.classList.add('open');
+                panel.classList.add('open', 'collapsed');
                 syncBottomStripStacking();
                 return;
             }
