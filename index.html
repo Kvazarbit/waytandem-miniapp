@@ -2886,6 +2886,12 @@
         }
 
         /* ═══════ TOAST ═══════ */
+        /* D187: quiet sync label — never intercepts input */
+        #sync-state-pill { position: fixed; top: calc(var(--safe-top, 0px) + 8px); left: 50%; transform: translateX(-50%); z-index: 9500;
+            padding: 4px 10px; border-radius: 999px; background: rgba(15, 23, 42, 0.88); color: #fbbf24; font-size: 12px;
+            font-weight: 600; white-space: nowrap; pointer-events: none; }
+        #sync-state-pill[hidden] { display: none; }
+
         .toast {
             position: fixed;
             top: calc(var(--safe-top) + 12px);
@@ -4407,7 +4413,39 @@
 
         async function api(path, opts = {}) {
             const resp = await apiWithStatus(path, opts);
+            noteSyncRead(path, opts, resp);
             return resp.ok ? resp.data : null;
+        }
+
+        // D187 (owner: «максимально просто»): when a core read fails, the screen keeps the last received data and one
+        // quiet, non-interactive label says why; it disappears as soon as that read succeeds again.
+        const SYNC_READ_PATHS = ['/api/v3/hydrate', '/api/v3/map/crews', '/api/v3/map/passengers', '/api/v3/map/crew-members'];
+        function noteSyncRead(path, opts, resp) {
+            const key = String(path || '').split('?')[0];
+            if (!SYNC_READ_PATHS.includes(key) || String(opts?.method || 'GET').toUpperCase() !== 'GET') return;
+            if (resp?.status === 401 || resp?.status === 403) { (S._syncReads = S._syncReads || {})[key] = null; renderSyncState(); return; }   // D192: a known denial
+            S._syncReads = S._syncReads || {};
+            // D191 (Astra): status 0 is any failed fetch, not proof of no internet; «Офлайн» only when the browser says so
+            S._syncReads[key] = resp?.ok ? null : ((resp?.status === 0 && navigator.onLine === false) ? 'offline' : 'failed');
+            renderSyncState();
+            // the network is back (hydrate answered) while a map read is still failed: re-read the map once (<= 1 per 20 s)
+            if (key === '/api/v3/hydrate' && resp?.ok && SYNC_READ_PATHS.slice(1).some(k => S._syncReads[k])
+                && Date.now() - (S._syncRetryAt || 0) > 20000) { S._syncRetryAt = Date.now(); refreshMap(); }
+        }
+
+        function renderSyncState() {
+            const states = Object.values(S._syncReads || {});
+            const state = states.includes('offline') ? 'offline' : (states.includes('failed') ? 'failed' : '');
+            let pill = document.getElementById('sync-state-pill');
+            if (!state) { if (pill) pill.hidden = true; return; }
+            if (!pill) {
+                pill = document.createElement('div');
+                pill.id = 'sync-state-pill';
+                pill.setAttribute('role', 'status');
+                document.body.appendChild(pill);
+            }
+            pill.textContent = state === 'offline' ? 'Офлайн — останні отримані дані' : 'Не вдалося оновити — останні отримані дані';
+            pill.hidden = false;
         }
 
         async function hydrateAppConfig() {
@@ -5664,11 +5702,21 @@
                     direction_id: String(focusedDirIdForPassengers),
                     user_id: String(S.userId)
                 });
-                const passengerRes = await api(`/api/v3/map/passengers?${params.toString()}`);
-                passengers = Array.isArray(passengerRes) ? passengerRes : [];
-                const crewMembersRes = await api(`/api/v3/map/crew-members?${params.toString()}`);
-                const crewMemberRows = Array.isArray(crewMembersRes?.crews) ? crewMembersRes.crews : [];
-                crewMembersById = new Map(crewMemberRows.map(c => [String(c?.crew_id || ''), Array.isArray(c?.members) ? c.members : []]));
+                const passengerResp = await apiWithStatus(`/api/v3/map/passengers?${params.toString()}`);
+                noteSyncRead('/api/v3/map/passengers', {}, passengerResp);
+                const passengerRes = passengerResp.ok ? passengerResp.data : null;
+                const passengersDenied = passengerResp.status === 401 || passengerResp.status === 403;   // D192: access denied is not «unknown»
+                // D187: a failed read keeps the last received pins of this event; a fresh [] still clears them.
+                passengers = Array.isArray(passengerRes) ? passengerRes
+                    : (!passengersDenied && String(S.mapPassengersDirId || '') === String(focusedDirIdForPassengers) ? (S.mapPassengers || []) : []);
+                const crewMembersResp = await apiWithStatus(`/api/v3/map/crew-members?${params.toString()}`);
+                noteSyncRead('/api/v3/map/crew-members', {}, crewMembersResp);
+                const crewMembersRes = crewMembersResp.ok ? crewMembersResp.data : null;
+                const crewMembersDenied = crewMembersResp.status === 401 || crewMembersResp.status === 403;
+                const crewMemberRows = Array.isArray(crewMembersRes?.crews) ? crewMembersRes.crews : null;   // D187: null = read failed
+                crewMembersById = crewMemberRows
+                    ? new Map(crewMemberRows.map(c => [String(c?.crew_id || ''), Array.isArray(c?.members) ? c.members : []]))
+                    : (crewMembersDenied ? new Map() : new Map((S.mapCrews || []).map(c => [String(c?.crew_id || ''), Array.isArray(c?.members) ? c.members : []])));
             }
             const enrichedCrews = (crews || []).map(c => ({
                 ...c,
@@ -5677,6 +5725,7 @@
             await ensureMapCatalogEventsForMap();
             S.mapCrews = enrichedCrews;
             S.mapPassengers = passengers;
+            S.mapPassengersDirId = focusedDirIdForPassengers ? String(focusedDirIdForPassengers) : '';
             S.lastMapSyncAt = Date.now();
             // Zombie-state guard (2026-06-10, I-FRONT-8 / I-170): «мій екіпаж»
             // перераховується З НУЛЯ зі свіжих серверних даних при кожному refreshMap.
