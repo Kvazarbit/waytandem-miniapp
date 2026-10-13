@@ -3864,7 +3864,8 @@
             // driver-онбордингу (місця→старт→метод→екіпаж). Поки підписки ще нема, фоновий
             // poll/hydrate тут бачив би «термінально-порожньо» і обнуляв S.pickupCoords —
             // через що doOpenCrew відкривав розміщення авто ВДРУГЕ.
-            if (!S._driverOnboardingActive) clearPickupPoint();
+            // D170/D171: the same holds for a passenger whose join has no known result yet.
+            if (!S._driverOnboardingActive && !S._passengerJoinStage) clearPickupPoint();
             closeMapResultPanel();
             closeMapTripDock();
             const handshake = document.getElementById('handshake-panel');
@@ -4486,6 +4487,7 @@
             if (S.subscriptionsRefreshFailed) return false;
             S.subscriptions = payload.subscriptions;
             S.subscriptionSearchHeld = false;
+            if (S._passengerJoinStage === 'awaiting') S._passengerJoinStage = null;   // D171: subscription truth known again
             return true;
         }
 
@@ -5524,6 +5526,20 @@
 
         function initMap() {
             S.map = L.map('map', { zoomControl: false, attributionControl: true }).setView([S.homeCity.lat, S.homeCity.lng], 11);
+            // D166 (Opus 2026-10-12, WD-42): after the person moves the map by hand, passive refreshes keep the chosen
+            // centre/zoom; only an explicit choice (🎯, a filter, another event) frames the map again. No timer.
+            S.mapViewHeldByUser = false;
+            const holdMapView = () => { S.mapViewHeldByUser = true; };
+            S.map.on('dragstart', holdMapView);
+            const mapGestureEl = S.map.getContainer();
+            mapGestureEl.addEventListener('wheel', holdMapView, { passive: true });
+            mapGestureEl.addEventListener('dblclick', holdMapView);
+            mapGestureEl.addEventListener('touchstart', (e) => { if (e.touches && e.touches.length > 1) holdMapView(); }, { passive: true });
+            mapGestureEl.addEventListener('keydown', (e) => { if (['+', '-', '=', '_'].includes(e.key)) holdMapView(); });
+            // D167: an open card (any popup) is being read: passive refreshes must not move the map under it.
+            S._openMapCard = null;
+            S.map.on('popupopen', (e) => { S._openMapCard = e.popup; });
+            S.map.on('popupclose', (e) => { if (S._openMapCard === e.popup) S._openMapCard = null; });
             S.map.attributionControl.setPrefix(false);
             L.tileLayer(MAP_TILE_URL, { maxZoom: 19, attribution: MAP_TILE_ATTRIBUTION }).addTo(S.map);
             // No browser GPS prompt on startup: user location is explicit via the map button.
@@ -5558,6 +5574,17 @@
             controls.appendChild(navBtn);
             controls.appendChild(locBtn);
             document.getElementById('map-container').appendChild(controls);
+            // D167: first open, reopen, expand/collapse, result panels and resizes all re-place the 🎯/📍 stack.
+            const syncFabSoon = () => requestAnimationFrame(syncMapFabStack);
+            ['map-trip-dock', 'handshake-panel', 'map-result-panel'].forEach(id => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                new MutationObserver(syncFabSoon).observe(el, { attributes: true, attributeFilter: ['class', 'style'] });
+                if (typeof ResizeObserver === 'function') new ResizeObserver(syncFabSoon).observe(el);
+            });
+            const topStack = document.querySelector('.map-top-stack');
+            if (topStack && typeof ResizeObserver === 'function') new ResizeObserver(syncFabSoon).observe(topStack);
+            window.addEventListener('resize', syncFabSoon);
         }
 
         // ═══════ MY LOCATION TOGGLE (single permission, no repeated GPS prompts) ═══════
@@ -5605,7 +5632,7 @@
                     } else {
                         _myLocMarker.setLatLng(ll);
                     }
-                    if (firstFix) { S.map.flyTo(ll, 15, { duration: 1 }); firstFix = false; }
+                    if (firstFix) { S.map.flyTo(ll, 15, { duration: 1 }); firstFix = false; S.mapViewHeldByUser = true; }   // D166: 📍 is the person's chosen view
                 },
                 (err) => {
                     // Відмова в дозволі або помилка → повертаємо кнопку у вимкнений стан
@@ -5662,6 +5689,9 @@
                 seats_free: safeCount(_mineCrew?.seats_free ?? _mineCrew?.free_seats ?? _mineCrew?.available_seats)
             } : null;
             if (_prevMyCrewId !== (S.myCrew ? String(S.myCrew.crew_id || '') : '')) renderSubBar();
+            // D166: a re-draw must not close the passenger card the person is reading.
+            const openPassengerCard = S.mapMarkers.find(m => m._wtPassengerId && typeof m.isPopupOpen === 'function' && m.isPopupOpen());
+            const keepPassengerCard = openPassengerCard ? { id: openPassengerCard._wtPassengerId, name: openPassengerCard._wtPassengerName } : null;
             S.mapMarkers.forEach(m => S.map.removeLayer(m));
             S.mapMarkers = [];
             S.eventMarkers.forEach(m => S.map.removeLayer(m));
@@ -5709,6 +5739,7 @@
                 S.mapMarkers.push(marker);
             });
             renderMapPassengersOnMap();
+            if (keepPassengerCard) reopenPassengerCard(keepPassengerCard);
             // Re-draw pickup marker if exists
             if (S.pickupCoords && S._pickupMarker) { S._pickupMarker.addTo(S.map); }
             // Show live crew member markers during reservation pickup + Phase 2
@@ -7280,11 +7311,13 @@
             if (guardPassengerRequestWhileInTrip()) return false;
             const autoMatch = !!auto;
             clearPickupPoint();
+            S._passengerJoinStage = 'joining';   // D170: a poll must not take the joining passenger for idle
             // closeSheetAfterConfirm: 06-04 UX-trap (sheet поверх карти блокував тап по
             // машині) — прямий шлях до пікера зобов'язаний закривати шторку після
             // підтвердження, людина лишається на карті зі своїм піном.
             const picked = await pickPickupLocation(safeDirId, { kind: 'passenger_wait', persistUserLocation: true, closeSheetAfterConfirm: true });
             if (!picked) {
+                S._passengerJoinStage = null;
                 openMapInviteMethodSheet(safeDirId);
                 return false;
             }
@@ -7295,7 +7328,9 @@
                 S.mapResultCollapsed = true;
                 persistCriticalState();
             }
-            const subOk = await subscribeDir(safeDirId, {
+            let subOk = false;
+            try {
+            subOk = await subscribeDir(safeDirId, {
                 afterSuccessScreen: 'explore',
                 keepSheetOpen: true,
                 mapInline: true,
@@ -7303,6 +7338,15 @@
                 suppressSubscribedSheet: true,
                 successToast: !autoMatch ? '✓ Точку очікування вказано' : '',
             });
+            } finally {
+                // D171: an accepted subscribe whose read failed keeps the point until a poll re-reads the subscriptions
+                if (subOk && S.subscriptionsRefreshFailed && S._passengerJoinStage) {
+                    S._passengerJoinStage = 'awaiting';
+                    S.subscriptionSearchHeld = true;
+                } else {
+                    S._passengerJoinStage = null;
+                }
+            }
             // UX-fix #4: «Виберу водія сам» більше не кидає людину на порожню карту —
             // одразу показуємо ранжований список екіпажів (відстань від точки очікування),
             // з якого можна запроситись в один тап. Карта лишається доступною («Закрити»).
@@ -8438,6 +8482,7 @@
         // Пункт 2: фокус карти на піни ВІДПОВІДНО до активного фільтра
         function focusMapByFilter() {
             if (!S.map) return;
+            S.mapViewHeldByUser = false;   // D166: an explicit filter or context choice frames the map again
             const context = mapContextScoped();
             const coords = [];
 
@@ -8445,6 +8490,7 @@
                 const dirId = String(context.dirId || '');
                 const ef = S.mapEventFilter || 'all';
                 if (S.activeTrip && String(S.activeTrip.direction_id || '') === dirId) {
+                    S._mapFrameExplicit = true;   // D167: the person chose this lens; frame it even with a card open
                     renderCrewMembersOnMap();
                     return;
                 }
@@ -9211,8 +9257,26 @@
                 marker.bindPopup('<div style="text-align:center;min-width:180px;"><div style="font-weight:800;font-size:14px;margin-bottom:4px;">' + escapeHtml(name) + '</div><div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">Чекає на водія' + (directionTitle ? ' · ' + directionTitle : '') + '</div>' + (inviteBtn ? '<div style="margin-bottom:8px;">' + inviteBtn + '</div>' : '') + '<div style="display:flex;gap:8px;">' + actionRow + '</div></div>', MAP_POPUP_PAN_OPTS);
                 marker.on('add', () => bindMarkerPopupTap(marker));
                 bindMarkerPopupTap(marker);
+                marker._wtPassengerId = safePassengerId;
+                marker._wtPassengerName = name;
                 S.mapMarkers.push(marker);
             });
+        }
+
+        // D166: re-open the card on the re-drawn marker in place (no pan); its button shows the fresh seat state.
+        function reopenPassengerCard(keep) {
+            const marker = S.mapMarkers.find(m => m._wtPassengerId === keep.id);
+            if (!marker) {
+                // a lens can hide the pin; only a person gone from the fresh data is reported as no longer waiting
+                const stillWaiting = (S.mapPassengers || []).some(p => Number(p?.user_id) === keep.id);
+                if (!stillWaiting) showToast(`${keep.name || 'Попутник'} уже не чекає на карті`, '');
+                return;
+            }
+            const popup = marker.getPopup();
+            if (!popup) return;
+            const autoPan = popup.options.autoPan;
+            popup.options.autoPan = false;
+            try { marker.openPopup(); } finally { popup.options.autoPan = autoPan; }
         }
 
         function _pushMapCoord(coords, lat, lng) {
@@ -9406,6 +9470,7 @@
         function focusActiveMapContext() {
             const context = activeMapContextForMap();
             if (!S.map || !context) return;
+            S.mapViewHeldByUser = false;   // D166: 🎯 / an explicit context switch frames the map again
             const coords = activeMapContextCoords(context);
             if (!coords.length) {
                 showToast('У цієї події ще немає точки на карті', '');
@@ -12513,6 +12578,25 @@
             dock.classList.toggle('stacked-above-result', dockMicro && resultMicro);
         }
 
+        // D166: 🎯 and 📍 are the way back to the overview, so an open dock must not cover them.
+        function syncMapFabStack() {
+            const stack = document.querySelector('.map-fab-stack');
+            if (!stack) return;
+            const lift = mapBottomOverlayObstructionPx();
+            stack.style.flexDirection = '';
+            stack.style.visibility = '';
+            if (!lift) { stack.style.bottom = ''; return; }
+            const bottom = Math.max(120, lift + 12);
+            stack.style.bottom = `${bottom}px`;
+            // D167: a small screen with a tall dock leaves no room under the top filters: the same buttons in one row.
+            const mapEl = S.map && typeof S.map.getContainer === 'function' ? S.map.getContainer() : null;
+            const room = (mapEl ? mapEl.clientHeight : window.innerHeight) - bottom - mapPopupTopInset();
+            if (stack.offsetHeight + 8 <= room) return;
+            stack.style.flexDirection = 'row';
+            // only a few pixels of map are left: the buttons wait until the person collapses the dock (▾)
+            if (stack.offsetHeight + 8 > room) stack.style.visibility = 'hidden';
+        }
+
         function mapTripDockViewKey(t, phase) {
             // r2 (рев'ю 02.10): сповіщення водія — конкретні пари, що чекають саме його відповіді.
             // Новий фініш ще одного попутника змінює набір і розгортає док один раз; той самий набір — ні.
@@ -15207,6 +15291,7 @@
         }
 
         function clearPickupPoint() {
+            S._passengerJoinStage = null;   // D171: nothing left to protect
             S.pickupCoords = null;
             S.pickupLabel = '';
             S.pickupKind = '';
@@ -15403,6 +15488,8 @@
         }
 
         function renderCrewMembersOnMap() {
+            const explicitFrame = !!S._mapFrameExplicit;   // D167: set only by an explicit filter/context choice
+            S._mapFrameExplicit = false;
             // Local selection only: relation to a known pickup place, never a GPS route.
             if (!S.map) return;
             const removeAgreementRoute = () => {
@@ -15538,7 +15625,8 @@
                 if (socialCoords.length) focusCoords = schemeEvent ? [...socialCoords, [schemeEvent.coord.lat, schemeEvent.coord.lng]] : socialCoords;
             }
             // 2zi (Ф2): точки лишаються над видимою нижньою панеллю (розгорнутою чи згорнутою).
-            if (focusCoords.length) fitMapCoordsAboveOverlays(focusCoords, focusCoords.length === 1 ? 15 : 14);
+            // D166: polls, re-draws and dock toggles never take the map back from the person.
+            if (focusCoords.length && (explicitFrame || (!S.mapViewHeldByUser && !S._openMapCard))) fitMapCoordsAboveOverlays(focusCoords, focusCoords.length === 1 ? 15 : 14);
         }
 
     </script>
