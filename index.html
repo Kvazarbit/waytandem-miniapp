@@ -3261,6 +3261,14 @@
             transform: translateY(0);
         }
 
+        /* Closed lifecycle panels must neither paint nor intercept input, even with stale layout classes. */
+        #handshake-panel:not(.open),
+        #map-result-panel:not(.open),
+        #map-trip-dock:not(.open) {
+            visibility: hidden;
+            pointer-events: none;
+        }
+
         /* ═══════ MAP RESULT PANEL (non-modal, map stays visible/interactive) ═══════ */
         #map-result-panel {
             position: fixed;
