@@ -3580,6 +3580,12 @@
                         <div class="settings-value" id="settings-role">Не обрано</div>
                         <div class="settings-arrow">›</div>
                     </div>
+                    <div class="settings-row" id="settings-row-home" onclick="setHomeFlow()">
+                        <div class="settings-icon">🏠</div>
+                        <div class="settings-label">Дім</div>
+                        <div class="settings-value" id="settings-home">Не вказано</div>
+                        <div class="settings-arrow">›</div>
+                    </div>
                     <div class="settings-row" id="settings-row-car" onclick="openCarSettings()">
                         <div class="settings-icon">🚗</div>
                         <div class="settings-label">Авто</div>
@@ -4550,6 +4556,7 @@
                 if (!String(S.userName || '').trim()) S.userName = data.profile.name || S.userName;
                 if (!S.userPhoto) S.userPhoto = sanitizeAvatarUrl(data.profile.photo_url || '');
             }
+            if (Object.prototype.hasOwnProperty.call(data, 'home')) { S.home = data.home || null; renderHomeSetting(); }
             if (!String(S.userName || '').trim()) {
                 const prof = await api(`/api/v3/user/profile?user_id=${S.userId}`);
                 if (prof?.found && String(prof.name || '').trim()) {
@@ -4620,6 +4627,7 @@
             verifyMapTripDockState();
             refreshOpenMapTripCrewSheet();
             refreshOpenMapPendingMatchesSheet();
+            refreshOpenMapMyCrewStatusSheet();
             maybeOpenMatchSheet();
             hideSkeleton();
             // Повернення у вкладку / дія людини: оновити знак непрочитаного, не чекаючи наступного опитування.
@@ -4680,6 +4688,7 @@
                     verifyMapTripDockState();
                     refreshOpenMapTripCrewSheet();
                     refreshOpenMapPendingMatchesSheet();
+            refreshOpenMapMyCrewStatusSheet();
 
                     const newPendingRaw = JSON.stringify(S.pendingMatches);
                     if (oldPendingRaw !== newPendingRaw) updateBadges();
@@ -5067,6 +5076,11 @@
             return (S.pendingMatches || []).filter(m => m && String(m.direction_id || '') === safeDirId);
         }
 
+        function proposalButtonFp(item) {
+            const fp = String(item?.points_fp || '');
+            return /^[a-f0-9]{16}$/.test(fp) ? fp : '';
+        }
+
         function renderMapPendingMatchRow(m) {
             const isIncoming = m.scope === 'incoming';
             const partnerId = parseInt(m.partner_id || m.sender_id || m.target_id || 0, 10) || 0;
@@ -5077,9 +5091,12 @@
             const dirTitle = m.direction || m.direction_title || 'Подія';
             const tag = isIncoming ? 'потрібна відповідь' : 'чекаємо відповідь';
             const actions = isIncoming
-                ? `<button class="btn btn-primary" onclick="respondHandshakeFromMapQueue(${partnerId}, ${dirId}, true)">✅ Прийняти</button>
+                ? `<button class="btn btn-primary" onclick="respondHandshakeFromMapQueue(${partnerId}, ${dirId}, true, '', '${proposalButtonFp(m)}')">✅ Прийняти</button>
                    <button class="btn btn-secondary" onclick="respondHandshakeFromMapQueue(${partnerId}, ${dirId}, false)">❌ Відмовити</button>`
-                : `<button class="btn btn-secondary" onclick="respondHandshakeFromMapQueue(${partnerId}, ${dirId}, false, 'cancel')">🛑 Скасувати</button>`;
+                : (m.points_next === 'driver_confirm'
+                    ? `<button class="btn btn-primary" onclick="confirmPointsFromMapQueue(${partnerId}, ${dirId}, '${proposalButtonFp(m)}')">✅ Підтвердити точки</button>
+                       <button class="btn btn-secondary" onclick="respondHandshakeFromMapQueue(${partnerId}, ${dirId}, false, 'cancel')">🛑 Скасувати</button>`
+                    : `<button class="btn btn-secondary" onclick="respondHandshakeFromMapQueue(${partnerId}, ${dirId}, false, 'cancel')">🛑 Скасувати</button>`);
             return `<div style="padding:12px 0;border-bottom:1px solid var(--border);">
                 <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
                     ${renderAvatarInline(partnerName, m.partner_photo_url || m.sender_photo_url || m.target_photo_url || '', 34)}
@@ -5087,13 +5104,14 @@
                         <div style="font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(partnerName)}</div>
                         <div style="font-size:11px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(dirTitle)} · ${escapeHtml(tag)}</div>
                         ${isIncoming && _isDriverRole(S.userRole) ? `<div data-incoming-pickup-line="true" style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${escapeHtml(incomingPickupLine(m))}</div>` : ''}
+                        ${m.points ? `<div data-proposal-points="true" style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${escapeHtml(proposalPointsLine(m, _isDriverRole(S.userRole)))}</div>` : ''}
                     </div>
                 </div>
                 <div style="display:flex;gap:8px;">${actions}</div>
             </div>`;
         }
 
-        function openMapMyCrewStatusSheet(dirId) {
+        function openMapMyCrewStatusSheet(dirId, refresh = false) {
             const crew = S.myCrew;
             if (!crew) return false;
             const safeDirId = parseInt(dirId || crew.direction_id || 0, 10) || 0;
@@ -5118,8 +5136,8 @@
             const passengersAction = seatsFree > 0
                 ? `<button class="btn btn-primary" onclick="closeSheet(); S.mapEventFilter='passengers'; renderNewsStrip(); refreshMap().then(() => focusMapByFilter())">👤 Попутники</button>`
                 : '';
-            openSheet(`
-                <div data-map-my-crew-sheet="true">
+            const html = `
+                <div data-map-my-crew-sheet="true" data-map-my-crew-direction="${safeDirId}">
                     <div style="font-size:11px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:var(--blue);margin-bottom:6px;">Ваше авто на карті</div>
                     <div class="sheet-title">${escapeHtml(crewLabel)}</div>
                     <div class="sheet-sub">${escapeHtml(title)} · ${escapeHtml(seatLine)}</div>
@@ -5132,12 +5150,26 @@
                     ${passengersAction}
                     <button class="btn btn-ghost" onclick="closeSheet()">Карта</button>
                 </div>
-            `, { maxHeight: '65vh' });
+            `;
+            const body = document.getElementById('sheet-body');
+            if (refresh) {
+                const marker = body?.querySelector('[data-map-my-crew-sheet]');
+                if (!document.getElementById('sheet')?.classList.contains('open') || !marker
+                    || marker.getAttribute('data-map-my-crew-direction') !== String(safeDirId)) return false;
+                if (body._mapMyCrewMarkup === html) return false;
+                const scrollTop = body.scrollTop;
+                body.innerHTML = html;
+                body._mapMyCrewMarkup = html;
+                body.scrollTop = scrollTop;
+                return true;
+            }
+            openSheet(html, { maxHeight: '65vh' });
+            if (body) body._mapMyCrewMarkup = html;
             return true;
         }
 
-        async function respondHandshakeFromMapQueue(partnerId, dirId, accept, mode = '') {
-            const ok = await respondHandshake(partnerId, dirId, accept, mode);
+        async function respondHandshakeFromMapQueue(partnerId, dirId, accept, mode = '', shownFp = '') {
+            const ok = await respondHandshake(partnerId, dirId, accept, mode, shownFp);
             if (ok) {
                 closeSheet();
                 verifyHandshakePanelState();
@@ -5222,6 +5254,15 @@
             openSheet(html, { maxHeight: '65vh' });
             if (body) body._mapPendingMatchesMarkup = html;
             return true;
+        }
+
+        function refreshOpenMapMyCrewStatusSheet() {
+            const sheet = document.getElementById('sheet');
+            const marker = document.getElementById('sheet-body')?.querySelector('[data-map-my-crew-sheet]');
+            if (!sheet?.classList.contains('open') || !marker) return false;
+            const dirId = parseInt(marker.getAttribute('data-map-my-crew-direction') || '0', 10) || 0;
+            if (!dirId || String(S.myCrew?.direction_id || '') !== String(dirId)) return false;
+            return openMapMyCrewStatusSheet(dirId, true);
         }
 
         function refreshOpenMapPendingMatchesSheet() {
@@ -6253,6 +6294,7 @@
                 <div class="sheet-title">${title}</div>
                 <div class="sheet-sub">${subtitle}</div>
                 <div class="sheet-context">🎯 ${escapeHtml(direction)}</div>
+                ${match.points ? `<div data-proposal-points="true" style="font-size:12px;line-height:1.6;margin-top:10px;">${escapeHtml(proposalPointsLine(match, isDriver))}</div>` : ''}
                 <div style="display:flex;align-items:center;gap:12px;margin:16px 0;padding:12px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,0.04);">
                     ${renderAvatarInline(partnerName, match.partner_photo_url || match.sender_photo_url || match.target_photo_url || '', 44)}
                     <div style="flex:1;min-width:0;">
@@ -6260,15 +6302,15 @@
                     </div>
                 </div>
                 <div class="sheet-actions">
-                    <button class="btn btn-primary" onclick="respondFromMatchSheet(${partnerId}, ${dirId}, true)">${acceptText}</button>
+                    <button class="btn btn-primary" onclick="respondFromMatchSheet(${partnerId}, ${dirId}, true, '${proposalButtonFp(match)}')">${acceptText}</button>
                     <button class="btn btn-danger" onclick="respondFromMatchSheet(${partnerId}, ${dirId}, false)">${declineText}</button>
                     <button class="btn btn-secondary" onclick="confirmStopSearchFromHandshake(${partnerId}, ${dirId})">🚪 Вийти з події</button>
                 </div>
             `);
         }
 
-        async function respondFromMatchSheet(partnerId, dirId, accept) {
-            const ok = await respondHandshake(partnerId, dirId, accept);
+        async function respondFromMatchSheet(partnerId, dirId, accept, shownFp = '') {
+            const ok = await respondHandshake(partnerId, dirId, accept, '', shownFp);
             if (ok) closeSheet();
         }
 
@@ -6406,27 +6448,190 @@
             `);
         }
 
+        // ─── D197/D200 Home points: «Забрати / Повернення» visible before any request, acceptance or confirmation ───
+        function pointLabel(p, fallback = '') {
+            if (!p) return fallback;
+            const l = String(p.label || '').trim();
+            return l || (p.source === 'home' ? 'Дім' : 'Точка цього разу');
+        }
+
+        function proposalPointsLine(m, viewerIsDriver) {
+            const pts = m?.points;
+            if (!pts) return '';
+            const pk = pts.pickup ? `📍 Забрати: ${pointLabel(pts.pickup)}` : (pts.pickup_hidden ? '📍 Точка збору — після згоди попутника' : '📍 Точку збору не вказано');
+            const rt = pts.return ? `🏠 Повернення: ${pointLabel(pts.return, 'Дім')}`
+                : (pts.return_hidden ? '🏠 Повернення — після згоди попутника'
+                    : (viewerIsDriver ? '🏠 Повернення не вказано' : '🏠 Вкажіть Дім — сюди вас повернуть'));
+            return `${pk} · ${rt}`;
+        }
+
+        async function fetchJoinPoints(dirId) {
+            const safeDirId = parseInt(dirId, 10) || 0;
+            if (!safeDirId || !S.apiBase || !S.userId) return null;
+            const r = await apiWithStatus(`/api/v3/event/points?user_id=${S.userId}&direction_id=${safeDirId}`, { silent: true });
+            if (!r.ok || !r.data) return null;
+            S.joinPoints = S.joinPoints || {};
+            S.joinPoints[safeDirId] = r.data;
+            return r.data;
+        }
+
+        function joinPointsSummaryHtml(dirId) {
+            const safeDirId = parseInt(dirId, 10) || 0;
+            const pts = (S.joinPoints || {})[safeDirId];
+            if (!pts) return `<div data-join-points="${safeDirId}" style="font-size:12px;color:var(--text-secondary);margin:8px 0;">Перевіряємо ваші точки…</div>`;
+            const pk = pts.pickup ? pointLabel(pts.pickup) : 'не вказано';
+            const rt = pts.return ? pointLabel(pts.return, 'Дім') : 'Дім не вказано';
+            const linkBtn = 'class="btn btn-ghost" style="padding:2px 8px;min-height:0;font-size:11px;width:auto;"';
+            return `<div data-join-points="${safeDirId}" data-join-points-ready="${escapeAttr(pts.points_fp || '')}" style="margin:10px 0 6px;padding:10px;border:1px solid var(--border);border-radius:12px;background:rgba(255,255,255,0.03);font-size:12px;line-height:1.6;">
+                <div>📍 Забрати: <b>${escapeHtml(pk)}</b> <button ${linkBtn} onclick="changeJoinPickup(${safeDirId})">Змінити</button></div>
+                <div>🏠 Повернення: <b>${escapeHtml(rt)}</b> <button ${linkBtn} onclick="setHomeFlow(${safeDirId})">${pts.return ? 'Змінити' : 'Вказати Дім'}</button></div>
+                <div style="color:var(--text-muted);font-size:11px;">Запит передасть водієві саме ці точки.</div>
+            </div>`;
+        }
+
+        function visibleJoinPoints(dirId) {
+            const safeDirId = parseInt(dirId, 10) || 0;
+            const pts = (S.joinPoints || {})[safeDirId];
+            if (!pts) return null;
+            const el = document.querySelector(`[data-join-points="${safeDirId}"][data-join-points-ready]`);
+            if (!el || el.offsetParent === null || el.dataset.joinPointsReady !== String(pts.points_fp || '')) return null;
+            return pts;
+        }
+
+        function refreshJoinPointsSummaries(dirId) {
+            const safeDirId = parseInt(dirId, 10) || 0;
+            document.querySelectorAll(`[data-join-points="${safeDirId}"]`).forEach(el => { el.outerHTML = joinPointsSummaryHtml(safeDirId); });
+        }
+
+        async function reloadJoinPoints(dirId) { await fetchJoinPoints(dirId); refreshJoinPointsSummaries(dirId); }
+
+        async function changeJoinPickup(dirId) {
+            const picked = await pickPickupLocation(dirId, { kind: 'passenger_wait', persistUserLocation: true });
+            if (picked) await reloadJoinPoints(dirId);
+            return picked;
+        }
+
+        async function setHomeFlow(dirId = 0) {
+            const home = S.home || null;
+            return new Promise((resolve) => {
+                openLocationPicker({
+                    lat: home?.lat, lng: home?.lng,
+                    hint: 'Ваш Дім — звідси стартуєте і сюди повертаєтесь. Перетягніть карту так, щоб пін був біля дому',
+                    searchPlaceholder: '🔍 Ваш дім',
+                    confirmLabel: '✓ Це мій Дім',
+                    onCancel: () => resolve(null),
+                    onConfirm: async ({ lat, lng }) => {
+                        const res = await api('/api/v3/user/home', { method: 'POST', body: JSON.stringify({ user_id: S.userId, lat, lng }) });
+                        if (res?.status !== 'ok') { showToast('Не вдалося зберегти Дім', 'error'); resolve(null); return; }
+                        S.home = res.home || { lat, lng, label: 'Дім' };
+                        renderHomeSetting();
+                        showToast('✓ Дім збережено. Уже погоджені поїздки не змінюються', 'success');
+                        if (parseInt(dirId, 10)) await reloadJoinPoints(dirId);
+                        resolve(S.home);
+                    }
+                });
+            });
+        }
+
+        function renderHomeSetting() {
+            const el = document.getElementById('settings-home');
+            if (el) el.textContent = S.home ? 'Вказано' : 'Не вказано';
+        }
+
+        async function openJoinPointsConfirmSheet(orgId, dirId, opts = {}) {
+            const safeDirId = parseInt(dirId, 10) || 0;
+            await fetchJoinPoints(safeDirId);
+            const optsJson = escapeAttr(JSON.stringify(opts || {}));
+            openSheet(`
+                <div class="sheet-title">Звідки вас забрати цього разу?</div>
+                <div class="sheet-sub">Водій побачить ці точки у запиті. Змінити можна зараз.</div>
+                ${joinPointsSummaryHtml(safeDirId)}
+                <div class="sheet-actions">
+                    <button class="btn btn-primary" data-opts="${optsJson}" onclick="requestJoin(${parseInt(orgId, 10) || 0}, ${safeDirId}, JSON.parse(this.dataset.opts))">Надіслати запит</button>
+                    <button class="btn btn-ghost" onclick="closeSheet()">Скасувати</button>
+                </div>`, { maxHeight: '65vh' });
+        }
+
+        async function handleJoinPointsRefusal(res, orgId, dirId, opts) {
+            const reason = res?.reason || '';
+            if (!['home_point_required', 'pickup_point_required', 'points_changed'].includes(reason)) return false;
+            const safeDirId = parseInt(dirId, 10) || 0;
+            S.joinPoints = S.joinPoints || {};
+            if (res?.points_fp) S.joinPoints[safeDirId] = { pickup: res.points?.pickup || null, return: res.points?.return || null,
+                                                             points_fp: res.points_fp, points_rev: res.points_rev || 0 };
+            refreshJoinPointsSummaries(safeDirId);
+            if (reason === 'home_point_required') { showToast('Вкажіть свій Дім — туди вас повернуть', 'warning'); await setHomeFlow(safeDirId); }
+            else if (reason === 'pickup_point_required') { showToast('Вкажіть, де вас забрати', 'warning'); await changeJoinPickup(safeDirId); }
+            else showToast('Точки змінились — перевірте й надішліть ще раз', 'warning');
+            if (!visibleJoinPoints(safeDirId)) await openJoinPointsConfirmSheet(orgId, safeDirId, opts);
+            return true;
+        }
+
+        async function handleAcceptPointsRefusal(res, partnerId, dirId) {
+            const texts = {
+                home_point_required: 'Вкажіть свій Дім, щоб прийняти — туди вас повернуть',
+                pickup_point_required: 'Вкажіть, де вас забрати, щоб прийняти',
+                points_changed: 'Точки змінились — перевірте картку й підтвердіть ще раз',
+                passenger_points_missing: 'Попутник ще не вказав свої точки',
+                points_confirmation_required: 'Перевірте точки на картці й підтвердіть ще раз',
+                passenger_not_accepted: 'Попутник ще не погодив ці точки',
+            };
+            const reason = res?.reason || '';
+            if (!texts[reason]) return false;
+            showToast(texts[reason], 'warning');
+            if (reason === 'home_point_required') await setHomeFlow(dirId);
+            else if (reason === 'pickup_point_required') await changeJoinPickup(dirId);
+            await hydrate();
+            return true;
+        }
+
+        async function confirmPointsHandshake(partnerId, dirId, shownFp = '') {
+            if (!beginOp('confirm_points')) return false;
+            try {
+                const resp = await apiWithStatus('/api/v3/match/confirm-points', {
+                    method: 'POST', silent: true,
+                    body: JSON.stringify({ user_id: S.userId, target_id: partnerId, direction_id: dirId, points_fp: proposalButtonFp({ points_fp: shownFp }) })
+                });
+                const res = resp.data;
+                if (await handleAcceptPointsRefusal(res, partnerId, dirId)) return false;
+                if (res?.status === 'ok' && res?.mutual) {
+                    closeHandshakeActionPanel();
+                    await hydrate();
+                    showToast('✅ Точки підтверджено — попутник в екіпажі', 'success');
+                    return true;
+                }
+                showToast(getErrorMessage(res, 'Не вдалось підтвердити'), 'error');
+            } catch (e) {
+                showToast('Немає з’єднання — спробуйте ще раз', 'error');
+            } finally { endOp('confirm_points'); }
+            return false;
+        }
+
+        async function confirmPointsFromMapQueue(partnerId, dirId, shownFp = '') {
+            const ok = await confirmPointsHandshake(partnerId, dirId, shownFp);
+            if (ok) { closeSheet(); verifyHandshakePanelState(); verifyMapTripDockState(); }
+        }
+
         async function requestJoin(orgId, dirId, opts = {}) {
             if (!requireRoleForAction('запроситись до екіпажу', () => requestJoin(orgId, dirId, opts))) return;
             if (_isDriverRole(S.userRole)) { showToast('Запроситись може тільки попутник', 'error'); return; }
             if (guardPassengerRequestWhileInTrip()) return false;
             const confirmed = await confirmOutgoingSwitchIfNeeded(orgId, dirId);
             if (!confirmed) return;
-            if (!S.pickupCoords?.lat || !S.pickupCoords?.lng) {
-                const picked = await pickPickupLocation(dirId, { kind: 'passenger_wait', persistUserLocation: true });
-                if (!picked) { showToast('Вкажіть, де чекати водія', 'error'); return false; }
-            } else {
-                await persistPickupPointForCoordination();
-            }
+            // D200 Q3: the request confirms exactly the points the person SEES; nothing old is persisted silently here.
+            const shownPoints = visibleJoinPoints(dirId);
+            if (!shownPoints) { await openJoinPointsConfirmSheet(orgId, dirId, opts); return false; }
             const fromMap = opts?.source === 'map' || !!opts?.keepMapContext || (!!opts?.closeSheetOnSuccess && S.currentScreen === 'explore');
             if (!beginOp('request_join')) return;
             try {
                 const response = await apiWithStatus('/api/v3/match/invite', {
                     method: 'POST',
                     silent: true,
-                    body: JSON.stringify({ user_id: S.userId, target_id: orgId, direction_id: dirId, replace_existing: true })
+                    body: JSON.stringify({ user_id: S.userId, target_id: orgId, direction_id: dirId, replace_existing: true,
+                                           points_protocol: 1, points_fp: shownPoints.points_fp })
                 });
                 const res = response.data;
+                if (await handleJoinPointsRefusal(res, orgId, dirId, opts)) return false;
                 if (res?.status === 'ok') {
                     if (!fromMap) {
                         if (res.mutual) { showToast('✓ Ваш екіпаж готовий!', 'success'); }
@@ -7480,6 +7685,7 @@
                 <div data-nearby-crews-sheet-dir-id="${safeDirId}">
                 <div class="sheet-title">Оберіть екіпаж</div>
                 <div class="sheet-sub">Водії цієї події, найближчі до вашої точки очікування — зверху.</div>
+                ${joinPointsSummaryHtml(safeDirId)}
                 <div style="margin:12px 0 4px;max-height:42vh;overflow-y:auto;">${rows}</div>
                 <div class="sheet-actions">
                     <button class="btn btn-secondary" onclick="closeSheet()">🗺 Дивитись на карті</button>
@@ -7491,6 +7697,7 @@
             const safeDirId = parseInt(dirId) || 0;
             if (!safeDirId) return false;
             openSheet(buildNearbyCrewsSheetBody(safeDirId), { maxHeight: '70vh' });
+            reloadJoinPoints(safeDirId);
             return true;
         }
 
@@ -10896,6 +11103,16 @@
             return tripEmptySeats(trip) === 0 ? 'Екіпаж зібрано' : 'Екіпаж домовився, місця ще є';
         }
 
+        function tripReturnLine(trip) {
+            const members = Array.isArray(trip?.members) ? trip.members : [];
+            const known = members.filter(m => Object.prototype.hasOwnProperty.call(m || {}, 'return_point'));
+            if (!known.length) return '';
+            const text = trip?.viewer_role === 'driver'
+                ? known.map(m => `${passengerDisplayName(m)} → ${m.return_point ? pointLabel(m.return_point, 'Дім') : 'не погоджено'}`).join(', ')
+                : (known[0].return_point ? pointLabel(known[0].return_point, 'Дім') : 'не погоджено');
+            return `<div class="card-meta" data-trip-return-points="true">🏠 Повернення: ${escapeHtml(text)}</div>`;
+        }
+
         function buildTripHumanSummary(trip) {
             const driverName = trip?.driver_name || trip?.organizer_name || 'Водій';
             const passengers = orderedPickupPassengers(trip);
@@ -10907,6 +11124,7 @@
                     <div class="card-meta">Стан: ${escapeHtml(tripHumanStatusLabel(trip))}</div>
                     <div class="card-meta">Водій: ${escapeHtml(driverName)}</div>
                     <div class="card-meta">Попутники: ${escapeHtml(passengerLine)}${escapeHtml(more)}</div>
+                    ${tripReturnLine(trip)}
                 </div>`;
         }
 
@@ -11907,8 +12125,10 @@
                                 <div style="flex:1;"><div style="font-weight:800;font-size:14px;">${escapeHtml(partnerName)}</div><div style="font-size:11px;color:var(--text-secondary);">${escapeHtml(m.direction || m.direction_title || 'Подія')}</div></div>
                                 <div class="tag ${isIncoming ? 'tag-amber' : 'tag-blue'}">${isIncoming ? '📩 Вхідний' : '📤 Очікування'}</div>
                             </div>
+                            ${m.points ? `<div data-proposal-points="true" style="font-size:12px;color:var(--text-secondary);margin:-4px 0 10px;">${escapeHtml(proposalPointsLine(m, _isDriverRole(S.userRole)))}</div>` : ''}
+                            ${!isIncoming && m.points_next === 'driver_confirm' ? `<button class="btn btn-primary" style="width:100%;margin-bottom:10px;" onclick="confirmPointsHandshake(${partnerId}, ${m.direction_id}, '${proposalButtonFp(m)}')">✅ Підтвердити точки попутника</button>` : ''}
                             ${isIncoming
-                            ? `<div style="display:flex;gap:10px;"><button class="btn btn-primary" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, true)">✓ Прийняти</button><button class="btn btn-danger" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false)">✕ Відхилити</button></div><button class="btn btn-secondary" style="width:100%;margin-top:10px;" onclick="confirmStopSearchFromHandshake(${partnerId}, ${m.direction_id})">🚪 Вийти з події</button><div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.45;">«Відхилити» — лише цей запит, ви лишаєтесь у події. «Вийти з події» — окрема підтверджувана дія, що скасує запит і підписку.</div>`
+                            ? `<div style="display:flex;gap:10px;"><button class="btn btn-primary" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, true, '', '${proposalButtonFp(m)}')">✓ Прийняти</button><button class="btn btn-danger" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false)">✕ Відхилити</button></div><button class="btn btn-secondary" style="width:100%;margin-top:10px;" onclick="confirmStopSearchFromHandshake(${partnerId}, ${m.direction_id})">🚪 Вийти з події</button><div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.45;">«Відхилити» — лише цей запит, ви лишаєтесь у події. «Вийти з події» — окрема підтверджувана дія, що скасує запит і підписку.</div>`
                             : `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false, 'cancel')">🛑 Скасувати запит</button><button class="btn btn-danger" style="flex:1;" onclick="confirmStopSearchFromHandshake(${partnerId}, ${m.direction_id})">🚪 Вийти з події</button></div><div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.45;">«Скасувати запит» — лише цей екіпаж, ви лишаєтесь у події. «Вийти з події» — окрема підтверджувана дія, що скасує запит і підписку.</div>`}
                         </div>`;
                 }).join('')}`;
@@ -12132,11 +12352,20 @@
                 </div>`;
         }
 
-        async function respondHandshake(partnerId, dirId, accept, mode = '') {
+        async function respondHandshake(partnerId, dirId, accept, mode = '', shownFp = '') {
             // mode='cancel' — користувач скасовує ВЛАСНИЙ вихідний запит (не відмова партнера).
             if (!beginOp('respond_handshake')) return;
             try {
-                const res = await api('/api/v3/match/respond', { method: 'POST', body: JSON.stringify({ user_id: S.userId, target_id: partnerId, direction_id: dirId, accept }) });
+                const body = { user_id: S.userId, target_id: partnerId, direction_id: dirId, accept };
+                if (accept) Object.assign(body, { points_protocol: 1, points_fp: proposalButtonFp({ points_fp: shownFp }) });
+                const resp = await apiWithStatus('/api/v3/match/respond', { method: 'POST', silent: true, body: JSON.stringify(body) });
+                const res = resp.data;
+                if (accept && await handleAcceptPointsRefusal(res, partnerId, dirId)) return false;
+                if (res?.status === 'ok' && res?.action === 'awaiting_driver_confirm') {
+                    showToast('✓ Ви погодились. Водій підтверджує ваші точки', 'success');
+                    await hydrate();
+                    return true;
+                }
                 if (res?.status === 'ok') {
                     // §2.1 Atomic Conveyor + §0.13 Stadium Law:
                     // accept одного пасажира ≠ екіпаж готовий. Місце зайняте, але
@@ -12220,6 +12449,7 @@
             const safeDirId = parseInt(dirId, 10) || 0;
             if (!safePartnerId || !safeDirId) return;
 
+            if (!_isDriverRole(S.userRole)) { S.proposedMatch = null; closeMapResultPanel(); return requestJoin(safePartnerId, safeDirId, {}); }
             if (!beginOp('invite_proposed')) return;
             try {
                 const response = await apiWithStatus('/api/v3/match/invite', {
@@ -12339,10 +12569,11 @@
                             <div style="font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(partnerName)}</div>
                             <div style="font-size:11px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;">🎯 ${escapeHtml(dirTitle)}</div>
                             ${pickupLine}
+                            ${m.points ? `<div data-proposal-points="true" style="font-size:12px;color:var(--text);white-space:normal;margin-top:4px;">${escapeHtml(proposalPointsLine(m, isDriver))}</div>` : ''}
                         </div>
                     </div>
                     <div style="display:flex;gap:10px;margin-bottom:8px;">
-                        <button class="btn btn-primary" style="flex:1;height:40px;font-size:13px;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, true)">${escapeHtml(acceptText)}</button>
+                        <button class="btn btn-primary" style="flex:1;height:40px;font-size:13px;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, true, '', '${proposalButtonFp(m)}')">${escapeHtml(acceptText)}</button>
                         <button class="btn btn-danger" style="flex:1;height:40px;font-size:13px;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false)">${escapeHtml(declineText)}</button>
                     </div>
                     <button class="btn btn-secondary" style="width:100%;height:36px;font-size:12px;background:transparent;border:1px solid rgba(255,255,255,0.15);" onclick="openMapRequestsFromHandshakePanel()">Інші запити</button>
@@ -12358,6 +12589,27 @@
                 } else {
                     clearIncomingPickupMarker();
                 }
+                return;
+            }
+
+            // Case A2 (D200): the passenger accepted an invite with points the driver has not seen yet — the driver confirms.
+            const awaitingConfirm = (S.pendingMatches || []).filter(m => m.scope === 'outgoing' && m.points_next === 'driver_confirm');
+            if (awaitingConfirm.length && _isDriverRole(S.userRole)) {
+                closeMapResultPanel();
+                const m = awaitingConfirm[0];
+                const partnerName = m.target_name || m.partner_name || `#${m.target_id}`;
+                const partnerId = m.target_id || m.partner_id;
+                document.body.style.paddingBottom = '175px';
+                panel.innerHTML = `
+                    <div style="font-weight:800;font-size:14px;margin-bottom:10px;color:var(--accent);">📍 ${escapeHtml(partnerName)} погодився — підтвердіть точки</div>
+                    <div data-proposal-points="true" style="font-size:12px;color:var(--text);white-space:normal;margin-bottom:12px;">${escapeHtml(proposalPointsLine(m, true))}</div>
+                    <div style="display:flex;gap:10px;margin-bottom:8px;">
+                        <button class="btn btn-primary" style="flex:1;height:40px;font-size:13px;" onclick="confirmPointsHandshake(${partnerId}, ${m.direction_id}, '${proposalButtonFp(m)}')">✓ Підтвердити точки</button>
+                        <button class="btn btn-danger" style="flex:1;height:40px;font-size:13px;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false, 'cancel')">✕ Скасувати</button>
+                    </div>`;
+                panel.classList.add('open');
+                const nav = document.querySelector('.nav');
+                if (nav) nav.style.display = 'none';
                 return;
             }
 
@@ -15372,12 +15624,18 @@
             S.map.flyTo([S.pickupCoords.lat, S.pickupCoords.lng], 15, { duration: 1 });
         }
 
-        async function persistPickupPointForCoordination() {
-            if (!S.apiBase || !S.userId || !S.pickupCoords?.lat || !S.pickupCoords?.lng) return true;
-            const res = await api('/api/v3/user/location', {
+        // D197/D200: the confirmed waiting point is «цього разу заберіть звідси» for THIS event — an explicit choice kept
+        // apart from live GPS (/user/location stays «де я зараз»). Pending proposals of this person get a visible revision.
+        async function persistPickupPointForCoordination(dirId) {
+            const safeDirId = parseInt(dirId, 10) || 0;
+            if (!S.apiBase || !S.userId || !safeDirId || !S.pickupCoords?.lat || !S.pickupCoords?.lng) return true;
+            const label = String(S.pickupLabel || '').trim();
+            const res = await api('/api/v3/event/pickup', {
                 method: 'POST',
-                body: JSON.stringify({ user_id: S.userId, lat: S.pickupCoords.lat, lng: S.pickupCoords.lng })
+                body: JSON.stringify({ user_id: S.userId, direction_id: safeDirId, lat: S.pickupCoords.lat, lng: S.pickupCoords.lng,
+                                       label: /^-?\d+\.\d+, -?\d+\.\d+$/.test(label) ? '' : label })
             });
+            if (res?.status === 'ok' && S.joinPoints) delete S.joinPoints[safeDirId];
             return res?.status === 'ok';
         }
 
@@ -15402,7 +15660,7 @@
                         S.pickupKind = kind;
                         renderPickupMarker(isDriverStart ? 'Старт авто' : 'Я чекаю тут', kind);
                         if (options?.persistUserLocation) {
-                            const saved = await persistPickupPointForCoordination();
+                            const saved = await persistPickupPointForCoordination(dirId);
                             if (!saved) { showToast('Не вдалося зберегти точку', 'error'); resolve(null); return; }
                         }
                         showToast(isDriverStart ? '✓ Авто на карті' : '✓ Точку очікування вказано', 'success');
