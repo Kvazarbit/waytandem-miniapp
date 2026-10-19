@@ -1547,6 +1547,13 @@
             line-height: 1.35;
         }
 
+        button.map-role-option {   /* P238 (v0.4): the first-choice card is a button with the same look */
+            width: 100%;
+            text-align: left;
+            font: inherit;
+            color: inherit;
+        }
+
         /* ═══════ SCREEN: EXPLORE ═══════ */
         #screen-explore {
             display: flex;
@@ -3759,7 +3766,10 @@
             botUsername: localStorage.getItem('wt_bot_username') || '',
             miniAppShortName: localStorage.getItem('wt_mini_app_short_name') || '',
             pendingStartDirectionId: null,
+            pendingStartLocator: null,   // V05 M2
+            focusIncoming: null,   // V05 M2
             startDirectionHandled: false,
+            startLocatorHandled: false,   // V05 M2
             activeTrip: null, pendingMatches: [], proposedMatch: null, directions: [], news: [], mapCrews: [], mapPassengers: [],
             map: null, mapMarkers: [], currentScreen: 'explore',
             chatRequestId: null, chatPartnerId: null, chatSession: 0, chatLoadSeq: 0, chatUnreadKey: '', chatUnreadToastedId: 0, chatUnreadSeq: 0, busy: false,
@@ -3797,6 +3807,7 @@
             roleGateOpen: false,
             pendingRoleAction: null,
             mapInviteRoleDraft: null,
+            roleServerRead: null,   // P238 (v0.4): the role as last read from the server; null = unknown
             homeCity: { lat: 52.2297, lng: 21.0122, name: 'Warsaw' },
             pickupCoords: null,
             pickupLabel: '',
@@ -3968,7 +3979,7 @@
             initMap();
             await syncUserIdentityToServer();
             await hydrate();
-            setTimeout(() => openStartDirectionIfNeeded(), 250);
+            setTimeout(() => { openStartDirectionIfNeeded(); openStartLocatorIfNeeded(); }, 250);   // V05 M2: the locator after the first hydrate
             startPolling();
             initKeyboardHandler(); // Mobile keyboard handling
             initWelcome(); // Welcome page for new users
@@ -4022,9 +4033,9 @@
         function initWelcome() {
             // Логотип сам є кнопкою вітання (onclick у розмітці); «?» пояснює поточний екран (2026-09-25).
             // Auto-show welcome for new users (if not seen before)
-            if (!localStorage.getItem('wt_welcome_seen') && S.apiBase && S.userId && !S.pendingStartDirectionId && !S.startDirectionHandled) {
+            if (!localStorage.getItem('wt_welcome_seen') && S.apiBase && S.userId && !S.pendingStartDirectionId && !S.startDirectionHandled && !S.pendingStartLocator && !S.startLocatorHandled) {
                 setTimeout(() => {
-                    if (!S.pendingStartDirectionId && !S.startDirectionHandled && !isSheetOpen()) showWelcomeSheet();
+                    if (!S.pendingStartDirectionId && !S.startDirectionHandled && !S.pendingStartLocator && !S.startLocatorHandled && !isSheetOpen()) showWelcomeSheet();
                 }, 1000);
             }
         }
@@ -4169,6 +4180,14 @@
             return m ? parseInt(m[1]) : null;
         }
 
+        // V05 M2 (R4/R8): a notification locator only NAMES what to open; the server resolver decides what this authenticated person
+        // may see. dir_ keeps its own flow above, byte-for-byte.
+        function parseStartLocator(raw) {
+            const value = String(raw || '').trim();
+            if (/^(req|pair)_\d{1,18}$/.test(value) || /^cnl_\d{1,18}_\d{1,9}$/.test(value)) return { value };
+            return null;
+        }
+
         function sanitizeAvatarUrl(raw) {
             const value = String(raw || '').trim();
             if (!value) return '';
@@ -4269,6 +4288,7 @@
             try { initStartParam = new URLSearchParams(tg?.initData || '').get('start_param') || ''; } catch (_) { }
             const startParam = tg?.initDataUnsafe?.start_param || initStartParam || qp.get('tgWebAppStartParam') || qp.get('startapp') || qp.get('start_param') || '';
             S.pendingStartDirectionId = parseStartDirectionId(startParam);
+            S.pendingStartLocator = parseStartLocator(startParam);   // V05 M2
             const initDataUser = _parseInitDataUser(tg?.initData || '');
             const tgUser = tg?.initDataUnsafe?.user || initDataUser;
             if (tgUser?.id) {
@@ -4548,11 +4568,14 @@
         async function hydrate() {
             if (!S.apiBase || !S.userId) { renderNews(); renderBoard(); renderTrips(); renderSubBar(); return; }
             showSkeleton();
+            S.roleServerRead = null;   // P238 (v0.4): unknown while the read is in flight or failed
             const data = await api(`/api/v3/hydrate?user_id=${S.userId}&include_outgoing=1`);
             if (!data) { hideSkeleton(); return; }
             if (data.profile) {
                 if (Object.prototype.hasOwnProperty.call(data.profile, 'role')) {
                     S.userRole = normalizeRole(data.profile.role);
+                    // P238/D272: only a string role from a successful read is known; null or any other type stays unknown
+                    if (typeof data.profile.role === 'string') S.roleServerRead = { role: normalizeRole(data.profile.role) };
                 }
                 if (!String(S.userName || '').trim()) S.userName = data.profile.name || S.userName;
                 if (!S.userPhoto) S.userPhoto = sanitizeAvatarUrl(data.profile.photo_url || '');
@@ -4853,6 +4876,7 @@
             }
 
             S.userRole = normalizedRole;
+            if (S.apiBase) S.roleServerRead = { role: normalizedRole };   // P238: the server accepted this role
             saveProfile();
             updateRolePill();
             if (!options?.keepSheetOpen) closeSheet();
@@ -7576,8 +7600,17 @@
                 S.mapInviteRoleDraft = { directionId: ctx.safeDirId, role: normalizeRole(S.userRole) };
             }
             const selectedRole = normalizeRole(S.mapInviteRoleDraft?.role || '');
+            // P238 (v0.4): the FIRST role choice is one explicit tap, only when the server read says the role is empty
+            const firstChoice = !selectedRole && roleKnownEmpty();
             const roleOption = (role, label, hint) => {
                 const selected = selectedRole === role;
+                if (firstChoice) return `<button type="button" class="map-role-option" data-map-role-option="${role}" data-map-role-first-choice onclick="chooseFirstMapInviteRole(${ctx.safeDirId}, '${role}')">
+                    <span class="map-role-radio" aria-hidden="true"></span>
+                    <span>
+                        <span class="map-role-label">${label}</span>
+                        <span class="map-role-hint">${hint}</span>
+                    </span>
+                </button>`;
                 return `<label class="map-role-option${selected ? ' is-selected' : ''}" data-map-role-option="${role}">
                     <input type="radio" name="map-role-${ctx.safeDirId}" value="${role}" ${selected ? 'checked' : ''} onchange="selectMapInviteRoleDraft(${ctx.safeDirId}, '${role}')">
                     <span class="map-role-radio" aria-hidden="true"></span>
@@ -7597,11 +7630,31 @@
                     ${roleOption('client', '👤 Шукаю місце', 'Хочу приєднатися до водія.')}
                 </div>
                 <div class="sheet-actions" data-map-command-count="2">
-                    <button class="btn btn-primary" data-map-role-continue onclick="confirmMapInviteRole(${ctx.safeDirId})" ${selectedRole ? '' : 'disabled'}>Далі</button>
+                    ${firstChoice ? '' : `<button class="btn btn-primary" data-map-role-continue onclick="confirmMapInviteRole(${ctx.safeDirId})" ${selectedRole ? '' : 'disabled'}>Далі</button>`}
                     ${joinInlineBox(ctx.safeDirId) ? '' : `<button class="btn btn-ghost" onclick="openStartDirectionInvite(${ctx.safeDirId}, { source: 'map', sheetMaxHeight: '65vh', fullInvite: true })">Назад</button>`}
                 </div>
             `, { maxHeight: '65vh' });
             return true;
+        }
+
+        // P238/D272 (v0.4): known-empty = a successful server read returned an empty role and nothing set one since.
+        function roleKnownEmpty() {
+            return !!(S.roleServerRead && typeof S.roleServerRead.role === 'string' && S.roleServerRead.role === ''
+                && normalizeRole(S.userRole) === '');
+        }
+
+        // P238/D272: the guard is re-checked at the moment of the tap; a stale first-choice card falls back to choice + «Далі».
+        async function chooseFirstMapInviteRole(dirId, role) {
+            const safeDirId = parseInt(dirId) || 0;
+            const normalizedRole = normalizeRole(role);
+            if (!safeDirId || !normalizedRole || S._firstRoleChoicePending) return false;
+            const draftRole = String(S.mapInviteRoleDraft?.directionId || '') === String(safeDirId)
+                ? normalizeRole(S.mapInviteRoleDraft?.role || '') : '';
+            S.mapInviteRoleDraft = { directionId: safeDirId, role: normalizedRole };
+            if (draftRole || !roleKnownEmpty()) return openMapInviteRoleSheet(safeDirId);   // CLICK_GUARD: no write now
+            S._firstRoleChoicePending = true;
+            try { return await chooseMapInviteRole(safeDirId, normalizedRole); }
+            finally { S._firstRoleChoicePending = false; }
         }
 
         function selectMapInviteRoleDraft(dirId, role) {
@@ -8498,6 +8551,33 @@
             // One flow for both entry points (map pin / list): role -> search method -> subscribe.
             // auto_match is decided by the method choice, never implied by where the user tapped.
             return openMapInviteRoleSheet(safeDirId);
+        }
+
+        async function openStartLocatorIfNeeded() {   // V05 M2: resolved ONCE after the first hydrate; opening never writes anything
+            const loc = S.pendingStartLocator;
+            if (!loc || S.startLocatorHandled) return;
+            S.startLocatorHandled = true;
+            S.pendingStartLocator = null;
+            const r = await apiWithStatus(`/api/v3/notify/locator?user_id=${S.userId}&locator=${encodeURIComponent(loc.value)}`, { silent: true });
+            const d = r?.ok ? r.data : null;
+            if (!d || d.status !== 'ok') { showToast('Це повідомлення вже не актуальне.', ''); return; }
+            if (d.kind === 'request') {   // D298: the EXACT case of the locator, checked against the person's current read; never another request
+                const caseId = parseInt(String(loc.value).slice(4), 10) || 0;
+                const scope = d.role === 'target' ? 'incoming' : 'outgoing';
+                const live = (S.pendingMatches || []).find(m => m && m.scope === scope && (parseInt(m.case_id, 10) || 0) === caseId);
+                if (!live) { showToast('Цей запит уже не актуальний.', ''); return; }
+                if (scope === 'incoming') {
+                    S.focusIncoming = { case: caseId };
+                    switchScreen('explore');
+                    verifyHandshakePanelState();
+                } else openMapPendingMatchesSheet('outgoing');   // D297: the sender sees the points of the current request
+                return;
+            }
+            if (d.kind === 'pair' && !d.current) { await openTripHistory(); focusHistoryRow(d.request_id); return; }   // D298: the completed pair's own context
+            if (d.kind === 'pair' || d.kind === 'cancel') {
+                switchScreen('trips');
+                if (d.kind === 'cancel' && !d.current) showToast('Ця пропозиція скасування вже не актуальна.', '');
+            }
         }
 
         async function openStartDirectionIfNeeded() {
@@ -11310,8 +11390,8 @@
                             : (picked ? 'В авто' : (isPickup ? 'Чекаємо посадку' : 'Домовленість активна'))));
                 const quickButtons = [];
                 if (cancelByPassenger && !isStarted) {
-                    quickButtons.push(`<button class="btn btn-primary" data-cancel-confirm="${reqId}" onclick="confirmCancelTrip(${reqId})">✅ Погодитись</button>`);
-                    quickButtons.push(`<button class="btn btn-secondary" data-cancel-reject="${reqId}" onclick="rejectCancelTrip(${reqId})">❌ Відмовити</button>`);
+                    quickButtons.push(`<button class="btn btn-primary" data-cancel-confirm="${reqId}" onclick="confirmCancelTrip(${reqId}, ${cancelSeqFor(reqId)})">✅ Погодитись</button>`);
+                    quickButtons.push(`<button class="btn btn-secondary" data-cancel-reject="${reqId}" onclick="rejectCancelTrip(${reqId}, ${cancelSeqFor(reqId)})">❌ Відмовити</button>`);
                 } else {
                     if (!isStarted && !picked && !cancelBySelf) quickButtons.push(`<button class="btn btn-secondary" data-quick-msg="where" onclick="sendTripQuickMessage(${reqId}, 'where')">Де ти?</button>`);
                     if (isPickup && !picked && !cancelBySelf) quickButtons.push(`<button class="btn btn-primary" data-quick-msg="pickup_here" onclick="sendTripQuickMessage(${reqId}, 'pickup_here')">Виходь</button>`);
@@ -11420,7 +11500,7 @@
                     ? `<button class="btn btn-secondary compact-passenger-map" data-nav-lat="${navTarget.lat}" data-nav-lng="${navTarget.lng}" data-nav-kind="${toLandmark ? 'landmark' : 'pickup'}" aria-label="${escapeAttr(toLandmark ? `Маршрут до орієнтира висадки: ${name}` : `Маршрут до точки збору: ${name}`)}" title="${toLandmark ? 'Орієнтир висадки — точка старту' : 'Точка збору'}" onclick="openMapNavigationFromButton(this)">🧭</button>`
                     : '<button class="btn btn-secondary compact-passenger-map" disabled aria-label="Точку не вказано" title="Точку не вказано">🧭</button>';
                 const cancelActions = cancelIncoming
-                    ? `<button class="btn btn-primary" onclick="confirmCancelTrip(${reqId})">Погодитись на вихід</button><button class="btn btn-secondary" onclick="rejectCancelTrip(${reqId})">Відмовити</button>` : '';
+                    ? `<button class="btn btn-primary" onclick="confirmCancelTrip(${reqId}, ${cancelSeqFor(reqId)})">Погодитись на вихід</button><button class="btn btn-secondary" onclick="rejectCancelTrip(${reqId}, ${cancelSeqFor(reqId)})">Відмовити</button>` : '';
                 const pointText = p.pickup || p.pickup_label || (coord ? `${coord.lat.toFixed(5)}, ${coord.lng.toFixed(5)}` : 'Точку не вказано');
                 return `<article class="compact-passenger-card" data-compact-passenger="${reqId}">
                     <div class="compact-passenger-row">
@@ -12401,7 +12481,7 @@
                             ${!isStarted && isDriver && isPickup && allPickedUp && !cancelRequested ? `<button class="btn btn-primary" onclick="startTrip()">🚀 Усі в авто — поїхали</button>` : ''}
                             ${isStarted && isDriver ? `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="openChat(${t.request_id || t.id || 0}, ${t.client_id || 0})">💬 Чат</button><button class="btn btn-secondary" style="flex:1;" onclick="openTripMap()">🗺️ Карта</button></div>${buildDriverFinishPanel(t)}` : ''}
                             ${isStarted && !isDriver ? `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="openChat(${t.request_id || t.id || 0}, ${t.driver_id || 0})">💬 Чат</button><button class="btn btn-success" style="flex:1;" onclick="confirmOwnFinish('trip')">${partnerFinished && !viewerFinished ? '✅ Підтвердити завершення' : '🏁 Підтвердити завершення'}</button></div>` : ''}
-                            ${showTripLevelCancelActions ? `<div style="display:flex;gap:10px;"><button class="btn btn-primary" style="flex:1;" onclick="confirmCancelTrip()">✅ Згоден скасувати</button><button class="btn btn-secondary" style="flex:1;" onclick="rejectCancelTrip()">❌ Відмовити</button></div>` : ''}
+                            ${showTripLevelCancelActions ? `<div style="display:flex;gap:10px;"><button class="btn btn-primary" style="flex:1;" onclick="confirmCancelTrip(0, ${cancelSeqFor(currentRequestId())})">✅ Згоден скасувати</button><button class="btn btn-secondary" style="flex:1;" onclick="rejectCancelTrip(0, ${cancelSeqFor(currentRequestId())})">❌ Відмовити</button></div>` : ''}
                             ${!isStarted && !cancelPending && !cancelRequested ? `<button class="btn btn-danger" onclick="cancelTrip()">❌ Попросити скасування</button>` : ''}
                         </div>
                     </div>
@@ -12663,6 +12743,7 @@
                     return true;
                 }
                 if (res?.status === 'ok') {
+                    { const hp = document.getElementById('handshake-panel'); if (hp) hp.dataset.ownAnswered = String(parseInt(partnerId, 10) || 0); }   // P241: own answer
                     // §2.1 Atomic Conveyor + §0.13 Stadium Law:
                     // accept одного пасажира ≠ екіпаж готовий. Місце зайняте, але
                     // водій продовжує набирати до N=seats_total. Тост і crew_formed
@@ -12811,6 +12892,18 @@
             openMapPendingMatchesSheet('all');
         }
 
+        function dismissWithdrawnRequestCard() {   // P241: the person closes the «no longer actual» card explicitly
+            const p = document.getElementById('handshake-panel');
+            if (p) { p.dataset.shownPartner = ''; p.dataset.shownDir = ''; p.dataset.shownName = ''; }
+            closeHandshakeActionPanel();
+        }
+
+        function acknowledgeHandshakePoints() {   // P240: the person re-reads the changed points of the SAME request
+            const p = document.getElementById('handshake-panel');
+            if (p) p.dataset.shownFp = '';
+            verifyHandshakePanelState();
+        }
+
         function verifyHandshakePanelState() {
             const panel = document.getElementById('handshake-panel');
             if (!panel) return;
@@ -12831,6 +12924,35 @@
                 return;
             }
 
+            const focus = S.focusIncoming;   // V05 M2 (D298/D299): the locator names ONE exact case, once; consumed before the read-card guard
+            const focused = focus && incoming.find(x => focus.case ? (parseInt(x.case_id, 10) || 0) === focus.case
+                : ((parseInt(x.partner_id || x.sender_id, 10) || 0) === focus.partner && (parseInt(x.direction_id, 10) || 0) === focus.dir));
+            if (focus) S.focusIncoming = null;
+
+            // P241 (V04C F2, D274): the request this person was reading disappeared WITHOUT their own answer (the other
+            // side withdrew it). Say so on the same card; no accept of anybody else here. Their own answer, «Інші запити»
+            // or «Зрозуміло» ends this state; a poll or the other side never does.
+            const readingPartner = panel.classList.contains('open') ? (parseInt(panel.dataset.shownPartner || '0', 10) || 0) : 0;
+            const readingDir = parseInt(panel.dataset.shownDir || '0', 10) || 0;
+            const readingStill = readingPartner && incoming.some(x => (parseInt(x.partner_id || x.sender_id, 10) || 0) === readingPartner
+                && (!readingDir || (parseInt(x.direction_id, 10) || 0) === readingDir)
+                && (!panel.dataset.shownCase || String(x.case_id ?? '') === panel.dataset.shownCase));   // D298: the read card is ONE case
+            if (readingPartner && !readingStill && !focused && panel.dataset.ownAnswered !== String(readingPartner)) {   // D299: an explicit live locator completes its own transition
+                closeMapResultPanel();
+                const others = incoming.length;
+                document.body.style.paddingBottom = '175px';
+                panel.innerHTML = `
+                    <div data-request-withdrawn="${readingPartner}" style="font-weight:800;font-size:14px;margin-bottom:10px;color:var(--accent);">🟡 Запит ${escapeHtml(panel.dataset.shownName || '')} більше не актуальний</div>
+                    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">Попутник відкликав запит. ${others ? `Ще ${others} ${pluralUk(others, 'запит чекає', 'запити чекають', 'запитів чекають')} — відкрийте їх явно.` : 'Інших запитів немає.'}</div>
+                    <div style="display:flex;gap:10px;margin-bottom:8px;">
+                        <button class="btn btn-secondary" style="flex:1;height:40px;font-size:13px;" onclick="dismissWithdrawnRequestCard()">Зрозуміло</button>
+                        ${others ? `<button class="btn btn-primary" style="flex:1;height:40px;font-size:13px;" onclick="openMapRequestsFromHandshakePanel()">Інші запити</button>` : ''}
+                    </div>`;
+                panel.classList.add('open');
+                parkHandshakePanelIfCovered(panel);
+                return;
+            }
+
             // Case A: Incoming handshake
             if (incoming.length > 0) {
                 // DM-2026-06-14-003 (addendum): handshake-панель — рішення, що
@@ -12838,7 +12960,14 @@
                 // (auto_search/manual_search/outgoing/rating_due), які мають
                 // той самий z-index і інакше перекривали б цей запит.
                 closeMapResultPanel();
-                const m = incoming[0];
+                // P240 (V04B fix candidate, D273): a decision card must not silently become another person. While the shown
+                // partner is still pending, keep that card; newer requests only raise a hint above «Інші запити».
+                const shownPartner = panel.classList.contains('open') ? (parseInt(panel.dataset.shownPartner || '0', 10) || 0) : 0;
+                const shownDir = parseInt(panel.dataset.shownDir || '0', 10) || 0;   // P241: the read key includes the event
+                const m = focused || (shownPartner && incoming.find(x => (parseInt(x.partner_id || x.sender_id, 10) || 0) === shownPartner && (!shownDir || (parseInt(x.direction_id, 10) || 0) === shownDir) && (!panel.dataset.shownCase || String(x.case_id ?? '') === panel.dataset.shownCase))) || incoming[0];
+                const fpNow = proposalButtonFp(m);
+                const samePartner = shownPartner && shownPartner === (parseInt(m.partner_id || m.sender_id, 10) || 0);
+                const pointsChanged = !!(samePartner && panel.dataset.shownFp && fpNow && panel.dataset.shownFp !== fpNow);
                 const partnerName = m.partner_name || m.sender_name || `#${m.partner_id}`;
                 const partnerId = m.partner_id || m.sender_id;
                 const dirTitle = m.direction || m.direction_title || 'Подія';
@@ -12869,11 +12998,18 @@
                         </div>
                     </div>
                     <div style="display:flex;gap:10px;margin-bottom:8px;">
-                        <button class="btn btn-primary" style="flex:1;height:40px;font-size:13px;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, true, '', '${proposalButtonFp(m)}')">${escapeHtml(acceptText)}</button>
+                        ${pointsChanged ? `<button class="btn btn-secondary" data-points-reread="true" style="flex:1;height:40px;font-size:13px;" onclick="acknowledgeHandshakePoints()">⚠️ Точки змінились — переглянути</button>` : `<button class="btn btn-primary" style="flex:1;height:40px;font-size:13px;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, true, '', '${proposalButtonFp(m)}')">${escapeHtml(acceptText)}</button>`}
                         <button class="btn btn-danger" style="flex:1;height:40px;font-size:13px;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false)">${escapeHtml(declineText)}</button>
                     </div>
+                    ${incoming.length > 1 ? `<div data-more-requests="${incoming.length - 1}" style="font-size:11px;color:var(--text-secondary);margin:0 0 6px;">+${incoming.length - 1} — ще запит в «Інших запитах»</div>` : ''}
                     <button class="btn btn-secondary" style="width:100%;height:36px;font-size:12px;background:transparent;border:1px solid rgba(255,255,255,0.15);" onclick="openMapRequestsFromHandshakePanel()">Інші запити</button>
                 `;
+                panel.dataset.shownPartner = String(parseInt(partnerId, 10) || 0);   // P240: the card this person is reading
+                panel.dataset.shownDir = String(parseInt(m.direction_id, 10) || 0);
+                panel.dataset.shownCase = String(m.case_id ?? '');   // D298
+                panel.dataset.shownName = partnerName;
+                delete panel.dataset.ownAnswered;   // P241: a new card starts unanswered
+                if (!pointsChanged) panel.dataset.shownFp = fpNow;
                 panel.classList.add('open');
                 parkHandshakePanelIfCovered(panel);
                 const nav = document.querySelector('.nav');
@@ -13504,8 +13640,8 @@
                         const reqId = passengerRequestId(p);
                         const passengerId = parseInt(p?.user_id || 0, 10) || safePartnerId;
                         hint = `⚠️ ${escapeHtml(passengerDisplayName(p))} хоче вийти з екіпажу.`;
-                        actions = `<button class="btn btn-primary" ${!reqId ? 'disabled' : ''} onclick="confirmCancelTrip(${reqId})">✅ Прийняти</button>
-                                   <button class="btn btn-secondary" ${!reqId ? 'disabled' : ''} onclick="rejectCancelTrip(${reqId})">❌ Відмовити</button>
+                        actions = `<button class="btn btn-primary" ${!reqId ? 'disabled' : ''} onclick="confirmCancelTrip(${reqId}, ${cancelSeqFor(reqId)})">✅ Прийняти</button>
+                                   <button class="btn btn-secondary" ${!reqId ? 'disabled' : ''} onclick="rejectCancelTrip(${reqId}, ${cancelSeqFor(reqId)})">❌ Відмовити</button>
                                    <button class="btn btn-secondary" onclick="openChat(${reqId || safeReqId}, ${passengerId})">💬 Чат</button>`;
                     } else {
                         hint = `⚠️ Попутники хочуть вийти: ${names}. Відповідь у списку екіпажу.`;
@@ -13514,8 +13650,8 @@
                     }
                 } else {
                     hint = '⚠️ Водій хоче скасувати домовленість';
-                    actions = `<button class="btn btn-primary" onclick="confirmCancelTrip()">✅ Скасувати</button>
-                               <button class="btn btn-secondary" onclick="rejectCancelTrip()">❌ Відмовити</button>`;
+                    actions = `<button class="btn btn-primary" onclick="confirmCancelTrip(0, ${cancelSeqFor(currentRequestId())})">✅ Скасувати</button>
+                               <button class="btn btn-secondary" onclick="rejectCancelTrip(0, ${cancelSeqFor(currentRequestId())})">❌ Відмовити</button>`;
                 }
             } else if (cancelRequested) {
                 hint = '⏳ Очікуємо підтвердження скасування від партнера';
@@ -14434,6 +14570,7 @@
 
         // kind: 'request' — власний запит виходу; 'confirm' / 'reject' — відповідь на запит партнера.
         function cancelOutcomeMessage(kind, st, actorId, partner, post) {
+            if (post?.data?.reason === 'stale_cancel_proposal') return { text: 'Пропозиція скасування змінилась — перегляньте актуальну в картці.', type: 'error', cancelled: false };   // V05 M2 (R5)
             if (!st) return { text: 'Не вдалося перевірити результат. Домовленість може ще діяти — перевірте картку.', type: 'error', cancelled: false };
             const status = String(st.status || '');
             const cancelBy = parseInt(st.cancel_by || 0, 10) || 0;
@@ -14453,6 +14590,16 @@
             }
             if (kind === 'reject') return { text: 'Скасування відхилено — домовленість діє', type: 'success', cancelled: false };
             return { text: post?.ok ? 'Стан не змінився — домовленість діє.' : 'Запит не надіслано — домовленість діє. Спробуйте ще раз.', type: 'error', cancelled: false };
+        }
+
+        function cancelSeqFor(reqId) {   // V05 M2 (R5): the seq of the proposal THIS button is rendered for; 'null' = unknown (refused)
+            const t = S.activeTrip;
+            const id = parseInt(reqId || 0, 10) || 0;
+            if (!t || !id) return 'null';
+            const mem = (Array.isArray(t.members) ? t.members : []).find(x => passengerRequestId(x) === id && x.cancel_seq != null);
+            const own = (parseInt(currentRequestIdFromTrip(t) || 0, 10) || 0) === id ? t.cancel_seq : null;
+            const n = parseInt(mem ? mem.cancel_seq : own, 10);
+            return Number.isFinite(n) ? String(n) : 'null';
         }
 
         async function sendCancelAction(kind, path, reqId, extra = {}) {
@@ -14486,21 +14633,21 @@
             } finally { endOp('cancel_trip'); }
         }
 
-        async function confirmCancelTrip(requestId = null) {
+        async function confirmCancelTrip(requestId = null, shownSeq = null) {
             if (!beginOp('confirm_cancel')) return;
             try {
                 const reqId = parseInt(requestId || currentRequestId() || 0, 10) || 0;
                 if (!reqId) { showToast('Немає активної поїздки', 'error'); return; }
-                await sendCancelAction('confirm', '/api/v3/trip/confirm-cancel', reqId);
+                await sendCancelAction('confirm', '/api/v3/trip/confirm-cancel', reqId, { expected_seq: shownSeq });   // V05 M2 (R5)
             } finally { endOp('confirm_cancel'); }
         }
 
-        async function rejectCancelTrip(requestId = null) {
+        async function rejectCancelTrip(requestId = null, shownSeq = null) {
             if (!beginOp('reject_cancel')) return;
             try {
                 const reqId = parseInt(requestId || currentRequestId() || 0, 10) || 0;
                 if (!reqId) { showToast('Немає активної поїздки', 'error'); return; }
-                await sendCancelAction('reject', '/api/v3/trip/reject-cancel', reqId);
+                await sendCancelAction('reject', '/api/v3/trip/reject-cancel', reqId, { expected_seq: shownSeq });   // V05 M2 (R5)
             } finally { endOp('reject_cancel'); }
         }
 
@@ -15920,6 +16067,15 @@
             else if (btn?.dataset?.outingOpen === '0') ctx.outing_open = false;
             closeSheet();
             setTimeout(() => openRatingSheet(ctx), 350);
+        }
+
+        function focusHistoryRow(requestId) {   // V05 M2 r3 (D298): show THAT pair's row; nothing is rated or changed
+            const row = document.querySelector(`[data-history-rate="${parseInt(requestId, 10) || 0}"]`);
+            if (!row) return false;
+            row.dataset.locatorFocus = '1';
+            row.style.outline = '2px solid var(--accent)';
+            row.scrollIntoView({ block: 'center' });
+            return true;
         }
 
         async function openTripHistory() {
