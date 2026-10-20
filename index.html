@@ -4261,7 +4261,9 @@
         function resolveUser() {
             const tg = window.Telegram?.WebApp;
             const qp = new URLSearchParams(location.search);
-            const storedApi = normalizeApiBase(S.apiBase);
+            const storedApi = normalizeApiBase(S.apiBase) ||
+                (location.origin === 'https://kvazarbit.github.io' && /^\/waytandem-miniapp(?:\/|$)/.test(location.pathname)
+                    ? 'https://api.waytandem.pl' : '');
             S.apiBase = storedApi;
             if (storedApi) localStorage.setItem('wt_api', storedApi);
             const urlApi = qp.get('api');
