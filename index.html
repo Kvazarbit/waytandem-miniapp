@@ -3455,10 +3455,12 @@
             margin-top: 12px;
         }
         #map-trip-dock .dock-actions .btn { flex: 1; }
-        /* Arrow depth: explanations -> status + actions -> minimal status/chat strip. */
+        /* Context is on demand; the phase strip and current actions always remain visible. */
         #map-trip-dock .dock-compact-title, #map-trip-dock .dock-compact-context { display: none; }
-        #map-trip-dock.compact .dock-sub, #map-trip-dock.compact .dock-steps,
+        #map-trip-dock.compact .dock-sub,
         #map-trip-dock.compact .dock-full-title { display: none; }
+        #map-trip-dock .dock-details-toggle { width: auto; min-width: 76px; min-height: 44px; height: auto; padding: 7px 10px; border-radius: 10px; font-size: 12px; }
+        #map-trip-dock:not(.compact) .dock-sub { white-space: normal; overflow: visible; }
         #map-trip-dock.compact .dock-compact-title { display: flex; }
         #map-trip-dock.compact .dock-compact-context { display: block; font-size: 12px; line-height: 1.4; margin-top: 4px; }
         #map-trip-dock .dock-strip-expand { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; min-height: 44px; padding: 0; }
@@ -3770,6 +3772,8 @@
             focusIncoming: null,   // V05 M2
             startDirectionHandled: false,
             startLocatorHandled: false,   // V05 M2
+            locatorResolving: null,   // D357 r3 (L3): the req locator being resolved now
+            locatorFailure: null,     // D357 r3 (L3): {value, kind: 'unavailable'|'network'} until the person closes it
             activeTrip: null, pendingMatches: [], proposedMatch: null, directions: [], news: [], mapCrews: [], mapPassengers: [],
             map: null, mapMarkers: [], currentScreen: 'explore',
             chatRequestId: null, chatPartnerId: null, chatSession: 0, chatLoadSeq: 0, chatUnreadKey: '', chatUnreadToastedId: 0, chatUnreadSeq: 0, busy: false,
@@ -3798,7 +3802,7 @@
             appSoundEnabled: localStorage.getItem('wt_app_sound') !== 'off',
             didInitialHydrate: false,
             mapTripDockCollapsed: false,
-            mapTripDockCompact: false,
+            mapTripDockCompact: true,
             mapResultCollapsed: false,
             mapResultCollapseTouched: false,
             mapTripDockPhaseSeen: null,
@@ -3859,7 +3863,7 @@
         function restoreCriticalState() {
             try {
                 const memo = JSON.parse(localStorage.getItem(_stateKey('mtdc')) || 'null');
-                S.mapTripDockCollapseMemo = memo && typeof memo.key === 'string' ? { key: memo.key, collapsed: !!memo.collapsed, compact: !!memo.compact && !memo.collapsed } : null;
+                S.mapTripDockCollapseMemo = memo && typeof memo.key === 'string' ? { key: memo.key, collapsed: !!memo.collapsed, compact: !!memo.compact && !memo.collapsed, detailsOpen: memo.detailsOpen === true } : null;
             } catch (_) { S.mapTripDockCollapseMemo = null; }
             try {
                 waitingForPartner = localStorage.getItem(_stateKey('wfp')) === '1';
@@ -5135,7 +5139,132 @@
             return /^[a-f0-9]{16}$/.test(fp) ? fp : '';
         }
 
-        function renderMapPendingMatchRow(m) {
+        // D357 r3: a row the person has already seen keeps its place and its read terms while the sheet stays open. Changed terms
+        // of its positive button -> «переглянути» (no accept/confirm of unread terms); a vanished case -> «не актуально» in the same
+        // place; rows not seen yet go below. Closing, an explicit re-open or one's own successful answer start a new reading.
+        function pendingRowKey(m) {
+            const partner = parseInt(m.partner_id || m.sender_id || m.target_id || 0, 10) || 0;
+            return `${m.scope}:${partner}:${parseInt(m.direction_id || 0, 10) || 0}:${parseInt(m.case_id, 10) || ''}`;
+        }
+
+        function pendingRowSig(m) {   // what the row's positive button would agree to; '' = the row has no positive button
+            const act = m.scope === 'incoming' ? (m.points_next === 'driver_confirm' ? '' : 'accept') : (m.points_next === 'driver_confirm' ? 'confirm' : '');
+            return act ? `${act}:${proposalButtonFp(m)}` : '';
+        }
+
+        function readPendingRowRecord(m, afterReread = false) {   // F1: afterReread = the record made by an explicit re-read
+            return { key: pendingRowKey(m), sig: pendingRowSig(m), h: 0, positiveH: 0, afterReread,
+                     html: renderMapPendingMatchRow(m, afterReread ? { afterReread: true } : {}),
+                     name: (m.scope === 'incoming' ? (m.partner_name || m.sender_name || m.target_name) : (m.target_name || m.partner_name || m.sender_name)) || '' };
+        }
+
+        function pendingPositiveButton(row) {
+            return Array.from(row.querySelectorAll('button[onclick]')).find(b => /^(confirmPointsFromMapQueue\(|respondHandshakeFromMapQueue\([^,]+,\s*[^,]+,\s*true(?:,|\)))/.test(b.getAttribute('onclick') || '')) || null;
+        }
+
+        function guardedPendingRow(r, m) {
+            const box = document.createElement('div');
+            box.innerHTML = r.html;
+            const row = box.firstElementChild;
+            if (!row) return '';
+            const done = row.querySelector('[data-row-reread-done]');   // F1: the slot of the previous explicit re-read
+            const line = row.querySelector('[data-row-positive-line]');
+            const review = (done || pendingPositiveButton(row)) || document.createElement('button');
+            const hadPositive = !!review.parentNode;
+            if (done && line && review === done) {   // F1: changed again after a re-read: «Переглянути» returns to slot A, the consent line turns inert
+                const off = document.createElement('div');
+                off.className = 'btn btn-ghost';
+                off.setAttribute('data-row-positive-off', 'true');
+                off.setAttribute('aria-disabled', 'true');
+                off.style.flex = '1';
+                if (r.positiveH) off.style.height = r.positiveH + 'px';
+                off.textContent = 'Умови знову змінились — спершу перегляньте';
+                line.replaceChildren(off);
+                review.removeAttribute('disabled');
+                review.removeAttribute('data-row-reread-done');
+            }
+            review.className = 'btn btn-secondary';
+            review.setAttribute('data-row-reread', r.key);
+            review.setAttribute('onclick', "rereadPendingRow('" + r.key + "')");
+            review.textContent = '⚠️ Переглянути зміни';
+            review.title = 'Умови змінились після відкриття — перегляньте їх перед рішенням';
+            if (hadPositive && r.positiveH) {
+                review.style.height = r.positiveH + 'px';
+                review.style.minHeight = r.positiveH + 'px';
+                review.style.maxHeight = r.positiveH + 'px';
+                review.style.overflow = 'hidden';
+            } else if (!hadPositive) {
+                const status = row.querySelector('[data-pending-status]');
+                review.style.cssText = 'padding:0;border:0;background:none;color:var(--accent);font:inherit;min-height:0;height:auto;display:inline;';
+                if (status) status.replaceChildren(review, document.createTextNode(' · ' + (m.direction || m.direction_title || 'Подія')));
+            }
+            if (r.h) { row.style.boxSizing = 'border-box'; row.style.height = r.h + 'px'; row.style.overflow = 'hidden'; }
+            row.setAttribute('data-pending-changed', 'true');
+            return row.outerHTML;
+        }
+
+        function pendingRowsHtml(matches, read) {
+            if (!read) { const rows = matches.map(m => readPendingRowRecord(m)); return { html: rows.map(r => r.html).join(''), read: rows }; }
+            const live = new Map(matches.map(m => [pendingRowKey(m), m]));
+            const known = new Set(read.map(r => r.key));
+            const fresh = matches.filter(m => !known.has(pendingRowKey(m))).map(m => readPendingRowRecord(m));
+            const readHtml = read.map(r => {
+                const m = live.get(r.key);
+                if (!m) return '<div data-pending-row="' + escapeAttr(r.key) + '" data-pending-gone="true" style="padding:12px 0;border-bottom:1px solid var(--border);box-sizing:border-box;' + (r.h ? 'height:' + r.h + 'px;overflow:hidden;' : '') + '"><div style="font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(r.name) + '</div><div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">Запит закрито</div></div>';
+                const sig = pendingRowSig(m);
+                if (sig !== r.sig) return guardedPendingRow(r, m);
+                return r.html;
+            }).join('');
+            const freshHtml = fresh.map(r => r.html).join('');
+            return { html: readHtml + freshHtml, read: [...read, ...fresh] };
+        }
+
+        function notePendingRowHeights(body) {
+            (body._readPendingRows || []).forEach(r => {
+                if (r.h) return;
+                const el = Array.from(body.querySelectorAll('[data-pending-row]')).find(x => x.getAttribute('data-pending-row') === r.key);
+                if (el) { r.h = el.getBoundingClientRect().height; const b = pendingPositiveButton(el); r.positiveH = b ? b.getBoundingClientRect().height : 0; }
+            });
+        }
+
+        function rereadPendingRow(key) {
+            const body = document.getElementById('sheet-body');
+            const r = (body?._readPendingRows || []).find(x => x.key === key);
+            const m = (S.pendingMatches || []).find(x => x && pendingRowKey(x) === key);
+            const pressed = Array.from(body?.querySelectorAll('[data-row-reread]') || []).find(e => e.getAttribute('data-row-reread') === key);
+            const zone = pressed ? pressed.getBoundingClientRect() : null;   // F1c (D363): the physical place the person just pressed
+            if (r && m) Object.assign(r, readPendingRowRecord(m, true));
+            refreshOpenMapPendingMatchesSheet() || refreshOpenMapMyCrewStatusSheet();
+            if (r && zone) keepPressedZoneInert(body, r, zone);
+        }
+
+        function keepPressedZoneInert(body, r, zone) {   // F1c (D363): a re-render after a re-read never puts an action under the pressed place
+            const row = Array.from(body.querySelectorAll('[data-pending-row]')).find(e => e.getAttribute('data-pending-row') === r.key);
+            if (!row) return;
+            const h0 = body.getBoundingClientRect().height;
+            const hit = b => b.left < zone.right && zone.left < b.right && b.top < zone.bottom && zone.top < b.bottom;
+            for (let i = 0; i < 4; i++) {
+                const bad = Array.from(row.querySelectorAll('[onclick], a[href]')).find(e => !e.disabled && hit(e.getBoundingClientRect()));   // D365: ANY active row action, navigation included
+                if (!bad) break;
+                const line = bad.closest('[data-row-positive-line]') || bad.parentElement;   // the action moves with its own line below the pressed place
+                line.style.marginTop = `${(parseFloat(line.style.marginTop) || 0) + Math.ceil(zone.bottom - bad.getBoundingClientRect().top) + 8}px`;
+                if (Math.abs(body.getBoundingClientRect().height - h0) > 0.5) body.style.height = `${h0}px`;   // the sheet keeps its place
+            }
+            r.html = row.outerHTML;   // the frozen reading keeps this geometry on later refreshes
+            r.h = row.getBoundingClientRect().height;
+            const b = pendingPositiveButton(row);
+            r.positiveH = b ? b.getBoundingClientRect().height : 0;
+        }
+
+        function refreshSheetBodyInPlace(body, html) {   // a poll refresh never moves what the person is reading (the sheet grows upward)
+            const scrollTop = body.scrollTop;
+            const h = body.getBoundingClientRect().height;
+            body.innerHTML = html;
+            if (Math.abs(body.getBoundingClientRect().height - h) > 0.5) body.style.height = `${h}px`;
+            body.scrollTop = scrollTop;
+        }
+
+        function renderMapPendingMatchRow(m, opts = {}) {
             const isIncoming = m.scope === 'incoming';
             const partnerId = parseInt(m.partner_id || m.sender_id || m.target_id || 0, 10) || 0;
             const dirId = parseInt(m.direction_id || 0, 10) || 0;
@@ -5143,25 +5272,33 @@
                 ? (m.partner_name || m.sender_name || m.target_name || `#${partnerId}`)
                 : (m.target_name || m.partner_name || m.sender_name || `#${partnerId}`);
             const dirTitle = m.direction || m.direction_title || 'Подія';
-            const tag = isIncoming ? 'потрібна відповідь' : 'чекаємо відповідь';
-            const actions = isIncoming
-                ? `<button class="btn btn-primary" onclick="respondHandshakeFromMapQueue(${partnerId}, ${dirId}, true, '', '${proposalButtonFp(m)}')">✅ Прийняти</button>
-                   <button class="btn btn-secondary" onclick="respondHandshakeFromMapQueue(${partnerId}, ${dirId}, false)">❌ Відмовити</button>`
-                : (m.points_next === 'driver_confirm'
-                    ? `<button class="btn btn-primary" onclick="confirmPointsFromMapQueue(${partnerId}, ${dirId}, '${proposalButtonFp(m)}')">✅ Підтвердити точки</button>
-                       <button class="btn btn-secondary" onclick="respondHandshakeFromMapQueue(${partnerId}, ${dirId}, false, 'cancel')">🛑 Скасувати</button>`
-                    : `<button class="btn btn-secondary" onclick="respondHandshakeFromMapQueue(${partnerId}, ${dirId}, false, 'cancel')">🛑 Скасувати</button>`);
-            return `<div style="padding:12px 0;border-bottom:1px solid var(--border);">
+            const awaitingDriver = isIncoming && m.points_next === 'driver_confirm';   // D355: own accept recorded, the driver confirms
+            const tag = awaitingDriver ? 'ви погодились · чекаємо підтвердження водія' : (isIncoming ? 'потрібна відповідь' : 'чекаємо відповідь');
+            const key = pendingRowKey(m);   // D357 r3
+            const reread = `<button class="btn btn-secondary" data-row-reread="${escapeAttr(key)}" onclick="rereadPendingRow('${escapeAttr(key)}')">⚠️ Умови змінились — переглянути</button>`;
+            const positive = isIncoming
+                ? (awaitingDriver ? '' : `<button class="btn btn-primary" onclick="respondHandshakeFromMapQueue(${partnerId}, ${dirId}, true, '', '${proposalButtonFp(m)}')">✅ Прийняти</button>`)
+                : (m.points_next === 'driver_confirm' ? `<button class="btn btn-primary" onclick="confirmPointsFromMapQueue(${partnerId}, ${dirId}, '${proposalButtonFp(m)}')">✅ Підтвердити точки</button>` : '');
+            const negative = isIncoming
+                ? `<button class="btn btn-secondary" onclick="respondHandshakeFromMapQueue(${partnerId}, ${dirId}, false)">❌ Відмовити</button>`
+                : `<button class="btn btn-secondary" onclick="respondHandshakeFromMapQueue(${partnerId}, ${dirId}, false, 'cancel')">🛑 Скасувати</button>`;
+            // F1 (D360): after an explicit re-read the re-read slot is an inert «✓ Переглянуто» and the consent gets its own line BELOW the
+            // actions (the sheet holds its height, rows are top-anchored inside it); cancel/decline keep their own slot.
+            const after = !!opts.afterReread && !!positive;
+            const slotA = after ? '<button class="btn btn-secondary" data-row-reread-done="true" disabled>✓ Переглянуто</button>' : (positive && opts.reread ? reread : positive);
+            const actions = `${slotA}${slotA ? ' ' : ''}${negative}`;
+            return `<div data-pending-row="${escapeAttr(key)}" style="padding:12px 0;border-bottom:1px solid var(--border);${opts.minH ? `box-sizing:border-box;min-height:${opts.minH}px;` : ''}">
                 <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
                     ${renderAvatarInline(partnerName, m.partner_photo_url || m.sender_photo_url || m.target_photo_url || '', 34)}
                     <div style="flex:1;min-width:0;">
                         <div style="font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(partnerName)}</div>
-                        <div style="font-size:11px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(dirTitle)} · ${escapeHtml(tag)}</div>
+                        <div data-pending-status="true" style="font-size:11px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(dirTitle)} · ${escapeHtml(tag)}</div>
                         ${isIncoming && _isDriverRole(S.userRole) ? `<div data-incoming-pickup-line="true" style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${escapeHtml(incomingPickupLine(m))}</div>` : ''}
                         ${m.points ? `<div data-proposal-points="true" style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${escapeHtml(proposalPointsLine(m, _isDriverRole(S.userRole)))}</div>${proposalPointsNavHtml(m, _isDriverRole(S.userRole))}` : ''}
                     </div>
                 </div>
                 <div style="display:flex;gap:8px;">${actions}</div>
+                ${after ? `<div data-row-positive-line="true" style="display:flex;gap:8px;margin-top:8px;">${positive}</div>` : ''}
             </div>`;
         }
 
@@ -5177,7 +5314,9 @@
             const crewNo = activeTripCrewNumber(crew);
             const crewLabel = crewNo && crewNo !== '—' ? `Екіпаж #${crewNo}` : 'Екіпаж';
             const title = directionTitleById(safeDirId, 'подія');
-            const pendingRows = pending.map(renderMapPendingMatchRow).join('');
+            const crewBody = document.getElementById('sheet-body');
+            const reading = pendingRowsHtml(pending, refresh ? (crewBody?._readPendingRows || null) : null);   // D357 r3
+            const pendingRows = reading.html;
             const pendingLine = pending.length
                 ? `${pending.length} ${pluralUk(pending.length, 'запит очікує', 'запити очікують', 'запитів очікують')} відповіді`
                 : 'активних запитів немає';
@@ -5211,14 +5350,14 @@
                 if (!document.getElementById('sheet')?.classList.contains('open') || !marker
                     || marker.getAttribute('data-map-my-crew-direction') !== String(safeDirId)) return false;
                 if (body._mapMyCrewMarkup === html) return false;
-                const scrollTop = body.scrollTop;
-                body.innerHTML = html;
+                refreshSheetBodyInPlace(body, html);
                 body._mapMyCrewMarkup = html;
-                body.scrollTop = scrollTop;
+                body._readPendingRows = reading.read;
+                notePendingRowHeights(body);
                 return true;
             }
             openSheet(html, { maxHeight: '65vh' });
-            if (body) body._mapMyCrewMarkup = html;
+            if (body) { body._mapMyCrewMarkup = html; body._readPendingRows = reading.read; notePendingRowHeights(body); }
             return true;
         }
 
@@ -5254,7 +5393,9 @@
                 if (normalizedScope === 'outgoing') return m.scope === 'outgoing';
                 return true;
             });
-            const rows = matches.map(renderMapPendingMatchRow).join('');
+            const sheetBody = document.getElementById('sheet-body');
+            const reading = pendingRowsHtml(matches, refresh ? (sheetBody?._readPendingRows || null) : null);   // D357 r3
+            const rows = reading.html;
             const pm = (normalizedScope === 'all' || normalizedScope === 'proposed') ? S.proposedMatch : null;
             const proposedHtml = pm ? (() => {
                 const partnerId = parseInt(pm.partner_id || 0, 10) || 0;
@@ -5299,14 +5440,14 @@
                 const sheet = document.getElementById('sheet');
                 if (!sheet?.classList.contains('open') || !body?.querySelector('[data-map-pending-matches-sheet]')) return false;
                 if (body._mapPendingMatchesMarkup === html) return false;
-                const scrollTop = body.scrollTop;
-                body.innerHTML = html;
+                refreshSheetBodyInPlace(body, html);
                 body._mapPendingMatchesMarkup = html;
-                body.scrollTop = scrollTop;
+                body._readPendingRows = reading.read;
+                notePendingRowHeights(body);
                 return true;
             }
             openSheet(html, { maxHeight: '65vh' });
-            if (body) body._mapPendingMatchesMarkup = html;
+            if (body) { body._mapPendingMatchesMarkup = html; body._readPendingRows = reading.read; notePendingRowHeights(body); }
             return true;
         }
 
@@ -6353,10 +6494,11 @@
                 : `${escapeHtml(partnerName)} запрошує вас у поїздку.`;
             const acceptText = isDriver ? '✅ Взяти в екіпаж' : '✅ Прийняти запрошення';
             const declineText = isDriver ? '❌ Пропустити' : '❌ Цей варіант не підходить';
+            const awaitingDriver = !isDriver && match?.points_next === 'driver_confirm';   // D355
 
             openSheet(`
                 <div class="sheet-title">${title}</div>
-                <div class="sheet-sub">${subtitle}</div>
+                <div class="sheet-sub">${awaitingDriver ? `Ви погодились — чекаємо, поки ${escapeHtml(partnerName)} підтвердить точки.` : subtitle}</div>
                 <div class="sheet-context">🎯 ${escapeHtml(direction)}</div>
                 ${match.points ? `<div data-proposal-points="true" style="font-size:12px;line-height:1.6;margin-top:10px;">${escapeHtml(proposalPointsLine(match, isDriver))}</div>${proposalPointsNavHtml(match, isDriver)}` : ''}
                 <div style="display:flex;align-items:center;gap:12px;margin:16px 0;padding:12px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,0.04);">
@@ -6366,7 +6508,7 @@
                     </div>
                 </div>
                 <div class="sheet-actions">
-                    <button class="btn btn-primary" onclick="respondFromMatchSheet(${partnerId}, ${dirId}, true, '${proposalButtonFp(match)}')">${acceptText}</button>
+                    ${awaitingDriver ? '' : `<button class="btn btn-primary" onclick="respondFromMatchSheet(${partnerId}, ${dirId}, true, '${proposalButtonFp(match)}')">${acceptText}</button>`}
                     <button class="btn btn-danger" onclick="respondFromMatchSheet(${partnerId}, ${dirId}, false)">${declineText}</button>
                     <button class="btn btn-secondary" onclick="confirmStopSearchFromHandshake(${partnerId}, ${dirId})">🚪 Вийти з події</button>
                 </div>
@@ -6812,7 +6954,8 @@
                 const response = await apiWithStatus('/api/v3/match/invite', {
                     method: 'POST',
                     silent: true,
-                    body: JSON.stringify({ user_id: S.userId, target_id: safePassengerId, direction_id: safeDirId, replace_existing: false })
+                    body: JSON.stringify({ user_id: S.userId, target_id: safePassengerId, direction_id: safeDirId, replace_existing: false,
+                        ...(/^[a-f0-9]{16}$/.test(String(opts?.shownPickupFp || '')) ? { shown_pickup_fp: opts.shownPickupFp } : {}) })   // D355: what the pin showed
                 });
                 const res = response.data;
                 if (res?.status === 'ok') {
@@ -6834,6 +6977,11 @@
                     closeSheet();
                     switchScreen('trips');
                     return true;
+                }
+                if (res?.reason === 'points_changed') {   // D355: the pin the driver saw is stale — show the current one, invite again explicitly
+                    showToast('Точка попутника змінилась — перегляньте пін і запросіть ще раз', 'warning');
+                    if (fromMap) await refreshMap();
+                    return false;
                 }
                 showToast(getErrorMessage(res, 'Не вдалось надіслати запрошення'), 'error');
                 return false;
@@ -8560,16 +8708,29 @@
             if (!loc || S.startLocatorHandled) return;
             S.startLocatorHandled = true;
             S.pendingStartLocator = null;
-            const r = await apiWithStatus(`/api/v3/notify/locator?user_id=${S.userId}&locator=${encodeURIComponent(loc.value)}`, { silent: true });
+            const isReq = /^req_/.test(loc.value);   // D357 r3 (L3): the handshake panel waits for exactly this request
+            if (isReq) S.locatorResolving = loc.value;
+            let r = null;
+            try {
+                r = await apiWithStatus(`/api/v3/notify/locator?user_id=${S.userId}&locator=${encodeURIComponent(loc.value)}`, { silent: true });
+            } finally { S.locatorResolving = null; }
             const d = r?.ok ? r.data : null;
-            if (!d || d.status !== 'ok') { showToast('Це повідомлення вже не актуальне.', ''); return; }
+            if (!d || d.status !== 'ok') {
+                if (isReq) { S.locatorFailure = { value: loc.value, kind: r?.status === 0 ? 'network' : 'unavailable' }; verifyHandshakePanelState(); }
+                showToast(r?.status === 0 ? 'Немає з’єднання — спробуйте ще раз' : 'Це повідомлення вже не актуальне.', '');
+                return;
+            }
             if (d.kind === 'request') {   // D298: the EXACT case of the locator, checked against the person's current read; never another request
                 const caseId = parseInt(String(loc.value).slice(4), 10) || 0;
                 const scope = d.role === 'target' ? 'incoming' : 'outgoing';
                 const live = (S.pendingMatches || []).find(m => m && m.scope === scope && (parseInt(m.case_id, 10) || 0) === caseId);
-                if (!live) { showToast('Цей запит уже не актуальний.', ''); return; }
+                if (!live) { S.locatorFailure = { value: loc.value, kind: 'unavailable' }; verifyHandshakePanelState(); showToast('Цей запит уже не актуальний.', ''); return; }
                 if (scope === 'incoming') {
                     S.focusIncoming = { case: caseId };
+                    switchScreen('explore');
+                    verifyHandshakePanelState();
+                } else if (live.points_next === 'driver_confirm' && _isDriverRole(S.userRole)) {   // D355: exactly this case's confirm card
+                    S.focusOutgoing = { case: caseId };
                     switchScreen('explore');
                     verifyHandshakePanelState();
                 } else openMapPendingMatchesSheet('outgoing');   // D297: the sender sees the points of the current request
@@ -9696,7 +9857,7 @@
                 const isDriverViewer = _isDriverRole(S.userRole);
                 const recruitment = isDriverViewer ? driverCrewRecruitmentState(safeDirectionId) : 'unavailable';
                 const inviteBtn = !isDriverViewer ? '' : (recruitment === 'free'
-                    ? `<button data-passenger-invite="free" onclick="signalPassenger(${safePassengerId}, ${safeDirectionId}, { source: 'map', keepMapContext: true })" style="width:100%;padding:8px;border-radius:10px;background:rgba(101,212,143,0.16);color:#65d48f;border:1px solid rgba(101,212,143,0.34);font-weight:700;font-size:12px;cursor:pointer;">↗ Запросити в екіпаж</button>`
+                    ? `<button data-passenger-invite="free" onclick="signalPassenger(${safePassengerId}, ${safeDirectionId}, { source: 'map', keepMapContext: true, shownPickupFp: '${proposalButtonFp({ points_fp: p.pickup_fp })}' })" style="width:100%;padding:8px;border-radius:10px;background:rgba(101,212,143,0.16);color:#65d48f;border:1px solid rgba(101,212,143,0.34);font-weight:700;font-size:12px;cursor:pointer;">↗ Запросити в екіпаж</button>`
                     : `<button data-passenger-invite="${recruitment}" disabled aria-disabled="true" style="width:100%;padding:8px;border-radius:10px;background:rgba(148,163,184,0.10);color:#94a3b8;border:1px solid rgba(148,163,184,0.25);font-weight:700;font-size:12px;cursor:not-allowed;">Запросити в екіпаж</button>`
                       + `<div role="status" data-passenger-invite-reason="${recruitment}" style="font-size:11px;color:#fbbf24;margin-top:4px;">${escapeHtml(driverRecruitmentBlockReason(recruitment))}</div>`);
                 const chatBtn = isDriverViewer
@@ -11395,6 +11556,7 @@
                     quickButtons.push(`<button class="btn btn-primary" data-cancel-confirm="${reqId}" onclick="confirmCancelTrip(${reqId}, ${cancelSeqFor(reqId)})">✅ Погодитись</button>`);
                     quickButtons.push(`<button class="btn btn-secondary" data-cancel-reject="${reqId}" onclick="rejectCancelTrip(${reqId}, ${cancelSeqFor(reqId)})">❌ Відмовити</button>`);
                 } else {
+                    if (!isStarted && cancelBySelf) quickButtons.push(withdrawCancelButton(reqId));   // C4 (§0.19 п.6)
                     if (!isStarted && !picked && !cancelBySelf) quickButtons.push(`<button class="btn btn-secondary" data-quick-msg="where" onclick="sendTripQuickMessage(${reqId}, 'where')">Де ти?</button>`);
                     if (isPickup && !picked && !cancelBySelf) quickButtons.push(`<button class="btn btn-primary" data-quick-msg="pickup_here" onclick="sendTripQuickMessage(${reqId}, 'pickup_here')">Виходь</button>`);
                     if (isStarted && !flags.driverFinished) quickButtons.push(`<button class="btn btn-secondary" data-quick-msg="dropoff" onclick="sendTripQuickMessage(${reqId}, 'dropoff')">💬 Повідомити: висаджую тут</button>`);
@@ -11502,7 +11664,8 @@
                     ? `<button class="btn btn-secondary compact-passenger-map" data-nav-lat="${navTarget.lat}" data-nav-lng="${navTarget.lng}" data-nav-kind="${toLandmark ? 'landmark' : 'pickup'}" aria-label="${escapeAttr(toLandmark ? `Маршрут до орієнтира висадки: ${name}` : `Маршрут до точки збору: ${name}`)}" title="${toLandmark ? 'Орієнтир висадки — точка старту' : 'Точка збору'}" onclick="openMapNavigationFromButton(this)">🧭</button>`
                     : '<button class="btn btn-secondary compact-passenger-map" disabled aria-label="Точку не вказано" title="Точку не вказано">🧭</button>';
                 const cancelActions = cancelIncoming
-                    ? `<button class="btn btn-primary" onclick="confirmCancelTrip(${reqId}, ${cancelSeqFor(reqId)})">Погодитись на вихід</button><button class="btn btn-secondary" onclick="rejectCancelTrip(${reqId}, ${cancelSeqFor(reqId)})">Відмовити</button>` : '';
+                    ? `<button class="btn btn-primary" onclick="confirmCancelTrip(${reqId}, ${cancelSeqFor(reqId)})">Погодитись на вихід</button><button class="btn btn-secondary" onclick="rejectCancelTrip(${reqId}, ${cancelSeqFor(reqId)})">Відмовити</button>`
+                    : (cancelOutgoing ? withdrawCancelButton(reqId) : '');   // C4 (§0.19 п.6)
                 const pointText = p.pickup || p.pickup_label || (coord ? `${coord.lat.toFixed(5)}, ${coord.lng.toFixed(5)}` : 'Точку не вказано');
                 return `<article class="compact-passenger-card" data-compact-passenger="${reqId}">
                     <div class="compact-passenger-row">
@@ -11510,7 +11673,7 @@
                         <div style="min-width:0;"><div class="compact-passenger-name">${escapeHtml(name)}</div><div class="compact-passenger-status">${escapeHtml(status)}</div></div>
                         <div>${action}</div>${navigation}<span aria-hidden="true"></span>
                     </div>
-                    <details ${cancelIncoming || compactTripDetailsOpen(detailKey) ? 'open' : ''} class="compact-passenger-details" data-compact-details-key="${detailKey}" ontoggle="rememberCompactTripDetails(this)">
+                    <details ${cancelIncoming || cancelOutgoing || compactTripDetailsOpen(detailKey) ? 'open' : ''} class="compact-passenger-details" data-compact-details-key="${detailKey}" ontoggle="rememberCompactTripDetails(this)">
                         <summary aria-label="${escapeAttr(`Деталі: ${name}`)}" title="Деталі попутника">⌄</summary>
                         <div class="compact-passenger-detail-body"><strong>Точка збору</strong><div>${escapeHtml(pointText)}</div>${p.return_point ? `<strong>🧭 Орієнтир висадки — точка старту</strong><div data-landmark-text="true">${escapeHtml(placeText(p.return_point, 'Точка старту'))}</div>` : ''}
                             <div class="compact-passenger-detail-actions"><button class="btn btn-secondary" onclick="openChat(${reqId}, ${uid})">💬 Чат застосунку</button>${cancelActions}</div>
@@ -12475,6 +12638,7 @@
                         </div>` : ''}
                         ${showTripLevelCancelActions ? `<div style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);font-size:13px;color:var(--red);">⚠️ Партнер хоче скасувати поїздку</div>` : ''}
                         ${cancelRequested ? `<div style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(255,193,7,0.1);border:1px solid rgba(255,193,7,0.3);font-size:13px;color:var(--amber);">⏳ Очікуємо підтвердження партнера</div>` : ''}
+                        ${cancelRequested && !isDriver ? `<div style="margin-top:8px;display:flex;">${withdrawCancelButton(currentRequestIdFromTrip(t))}</div>` : ''}
                         ${partnerFinished && !viewerFinished ? `<div style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);font-size:13px;color:var(--green);">🏁 Партнер вже відмітив фініш. Підтвердіть завершення, коли подорож справді завершена.</div>` : ''}
                         ${viewerFinished && !partnerFinished ? `<div style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(255,193,7,0.1);border:1px solid rgba(255,193,7,0.3);font-size:13px;color:var(--amber);">⏳ Ви відмітили фініш. Очікуємо підтвердження партнера.</div>` : ''}
                         <div style="margin-top:16px;display:flex;flex-direction:column;gap:10px;">
@@ -12742,6 +12906,7 @@
                 if (res?.status === 'ok' && res?.action === 'awaiting_driver_confirm') {
                     showToast('✓ Ви погодились. Водій підтверджує ваші точки', 'success');
                     await hydrate();
+                    verifyHandshakePanelState();   // D355: the card becomes the waiting state, not the same accept
                     return true;
                 }
                 if (res?.status === 'ok') {
@@ -12902,8 +13067,65 @@
 
         function acknowledgeHandshakePoints() {   // P240: the person re-reads the changed points of the SAME request
             const p = document.getElementById('handshake-panel');
-            if (p) p.dataset.shownFp = '';
+            if (p) { p.dataset.shownFp = ''; p.dataset.rereadDone = `${p.dataset.shownPartner || ''}:${p.dataset.shownCase || ''}`; }   // F1: THIS request was re-read
             verifyHandshakePanelState();
+        }
+
+        function dismissLocatorFailure() {   // D357 r3 (L3): the person closes the failed-locator card explicitly
+            S.locatorFailure = null;
+            closeHandshakeActionPanel();
+        }
+
+        function retryStartLocator() {   // D357 r3 (L3): the same locator once more, on the person's explicit tap
+            const value = S.locatorFailure?.value;
+            S.locatorFailure = null;
+            if (value) { S.pendingStartLocator = { value }; S.startLocatorHandled = false; }
+            verifyHandshakePanelState();
+            if (value) openStartLocatorIfNeeded();
+        }
+
+        function acknowledgeConfirmPoints() {   // D356: the driver explicitly asks to see the changed points of the SAME confirm card
+            const card = document.querySelector('#handshake-panel [data-confirm-card]');
+            if (card) card.dataset.confirmReread = '1';
+            verifyHandshakePanelState();
+        }
+
+        function renderDriverConfirmCard(panel, m, opts = {}) {   // Case A2 (D200/D355); D356: the card itself carries its person + case + shown fp
+            closeMapResultPanel();
+            const partnerName = m.target_name || m.partner_name || `#${m.target_id}`;
+            const partnerId = m.target_id || m.partner_id;
+            const confirmBtn = `<button class="btn btn-primary" style="flex:1;height:40px;font-size:13px;" onclick="confirmPointsHandshake(${partnerId}, ${m.direction_id}, '${proposalButtonFp(m)}')">✓ Підтвердити точки</button>`;
+            // F1 (D360): after an explicit re-read the re-read slot is an inert «✓ Переглянуто»; the panel grows upward, so the consent
+            // line goes ABOVE the actions line and never lands on the re-read place.
+            const after = !!opts.afterReread;
+            const consentLine = `<div data-confirm-line="true" style="display:flex;gap:10px;margin-bottom:8px;">${confirmBtn}</div>`;
+            const actionsLine = `<div style="display:flex;gap:10px;margin-bottom:8px;">
+                        ${after ? '<button class="btn btn-secondary" data-reread-done="true" disabled style="flex:1;height:40px;font-size:13px;">✓ Переглянуто</button>' : confirmBtn}
+                        <button class="btn btn-danger" style="flex:1;height:40px;font-size:13px;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false, 'cancel')">✕ Скасувати</button>
+                    </div>`;
+            document.body.style.paddingBottom = '175px';
+            panel.innerHTML = `
+                    <div data-confirm-card="${parseInt(m.case_id, 10) || ''}" style="font-weight:800;font-size:14px;margin-bottom:10px;color:var(--accent);">📍 ${escapeHtml(partnerName)} погодився — підтвердіть точки</div>
+                    <div data-proposal-points="true" style="font-size:12px;color:var(--text);white-space:normal;margin-bottom:12px;">${escapeHtml(proposalPointsLine(m, true))}</div>${proposalPointsNavHtml(m, true)}${after ? consentLine : ''}${actionsLine}`;
+            Object.assign(panel.querySelector('[data-confirm-card]').dataset, { confirmPartner: String(parseInt(partnerId, 10) || 0), confirmFp: proposalButtonFp(m), confirmName: partnerName });
+            panel.dataset.shownPartner = '';   // the panel no longer shows a Case A request (P241 keys)
+            panel.dataset.shownDir = '';
+            panel.dataset.shownCase = '';
+            delete panel.dataset.ownAnswered;   // a new read card starts unanswered
+            panel.classList.add('open');
+            parkHandshakePanelIfCovered(panel);
+            const nav = document.querySelector('.nav');
+            if (nav) nav.style.display = 'none';
+        }
+
+        // D377/P322: a successful canonical hydrate may replace this incoming proposal with the agreed pair.
+        // Disappearance of a handshake alone is not a withdrawal; never clear another person's/event's read card.
+        function readIncomingRequestBecameTrip(partnerId, dirId) {
+            const t = S.activeTrip;
+            if (!t || _isDriverRole(S.userRole) || !['active', 'pickup', 'driving'].includes(t.status)) return false;
+            const ids = [S.userId, partnerId, dirId, t.client_id, t.driver_id, t.direction_id].map(Number);
+            return ids.every(n => Number.isSafeInteger(n) && n > 0)
+                && ids[0] === ids[3] && ids[1] === ids[4] && ids[2] === ids[5];
         }
 
         function verifyHandshakePanelState() {
@@ -12926,10 +13148,80 @@
                 return;
             }
 
+            // D357 r3 (L3): an explicit request locator is still resolving, or it failed — no actionable card of anybody else meanwhile
+            // (no time unlock, no automatic choice); success opens exactly its case through the focus below.
+            const locResolving = !!S.locatorResolving || !!(S.pendingStartLocator && !S.startLocatorHandled && /^req_/.test(S.pendingStartLocator.value));
+            if (locResolving || S.locatorFailure) {
+                closeMapResultPanel();
+                clearIncomingPickupMarker();
+                document.body.style.paddingBottom = '175px';
+                const lf = S.locatorFailure || {};
+                const others = (S.pendingMatches || []).length;
+                panel.innerHTML = locResolving ? `
+                    <div data-locator-loading="true" style="font-weight:800;font-size:14px;margin-bottom:8px;color:var(--accent);">⏳ Відкриваємо запит із повідомлення…</div>
+                    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;">Зачекайте — покажемо саме ту людину, про яку повідомлення.</div>` : `
+                    <div ${lf.kind === 'network' ? 'data-locator-failed="true"' : 'data-locator-unavailable="true"'} style="font-weight:800;font-size:14px;margin-bottom:10px;color:var(--accent);">${lf.kind === 'network' ? '⚠️ Не вдалося відкрити запит — немає з’єднання' : '🟡 Цей запит уже не актуальний'}</div>
+                    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">${lf.kind === 'network' ? 'Спробуйте ще раз, коли з’явиться зв’язок.' : 'Попутник відмовився або запит закрито.'}${others ? ' Інші запити — відкрийте їх явно.' : ''}</div>
+                    <div style="display:flex;gap:10px;margin-bottom:8px;">
+                        <button class="btn btn-secondary" style="flex:1;height:40px;font-size:13px;" onclick="dismissLocatorFailure()">Зрозуміло</button>
+                        ${lf.kind === 'network' ? `<button class="btn btn-secondary" style="flex:1;height:40px;font-size:13px;" onclick="retryStartLocator()">Спробувати ще</button>` : (others ? `<button class="btn btn-secondary" style="flex:1;height:40px;font-size:13px;" onclick="dismissLocatorFailure(); openMapRequestsFromHandshakePanel()">Інші запити</button>` : '')}
+                    </div>`;
+                panel.classList.add('open');
+                parkHandshakePanelIfCovered(panel);
+                const navL = document.querySelector('.nav');
+                if (navL) navL.style.display = 'none';
+                return;
+            }
+
             const focus = S.focusIncoming;   // V05 M2 (D298/D299): the locator names ONE exact case, once; consumed before the read-card guard
             const focused = focus && incoming.find(x => focus.case ? (parseInt(x.case_id, 10) || 0) === focus.case
                 : ((parseInt(x.partner_id || x.sender_id, 10) || 0) === focus.partner && (parseInt(x.direction_id, 10) || 0) === focus.dir));
             if (focus) S.focusIncoming = null;
+
+            // D356 R1: the driver-confirm card this person is READING (the card itself carries its person + case + shown fp) never
+            // becomes another person, another revision or another kind of card on a poll: still exact -> kept as it is; changed points
+            // -> «переглянути»; gone -> «більше не актуальне»; neither carries a confirm. Only an explicit locator, the person's own
+            // answer or their explicit re-read moves it.
+            const readConfirm = panel.classList.contains('open') ? panel.querySelector('[data-confirm-card]') : null;
+            if (readConfirm && !focus && !S.focusOutgoing && _isDriverRole(S.userRole)) {
+                const rc = { ...readConfirm.dataset };
+                const readPartner = parseInt(rc.confirmPartner || '0', 10) || 0;
+                const still = (S.pendingMatches || []).find(x => x && x.scope === 'outgoing' && x.points_next === 'driver_confirm'
+                    && String(parseInt(x.case_id, 10) || '') === rc.confirmCard && (parseInt(x.target_id || x.partner_id, 10) || 0) === readPartner);
+                if (still && proposalButtonFp(still) === rc.confirmFp) { closeMapResultPanel(); return; }   // still exactly what was read
+                if (still && rc.confirmReread === '1') { renderDriverConfirmCard(panel, still, { afterReread: true }); return; }   // the person asked for the new points
+                const same = still || (S.pendingMatches || []).find(x => x && x.scope === 'outgoing' && String(parseInt(x.case_id, 10) || '') === rc.confirmCard
+                    && (parseInt(x.target_id || x.partner_id, 10) || 0) === readPartner);   // D357 LOW: the case remains, its new terms are not agreed yet
+                const ownGone = !same && panel.dataset.ownAnswered === String(readPartner);
+                if (!ownGone) {
+                    closeMapResultPanel();
+                    const others = (S.pendingMatches || []).filter(x => x && x !== same).length;
+                    document.body.style.paddingBottom = '175px';
+                    panel.innerHTML = still ? `
+                    <div data-confirm-card="${escapeAttr(rc.confirmCard)}" style="font-weight:800;font-size:14px;margin-bottom:10px;color:var(--accent);">⚠️ ${escapeHtml(rc.confirmName || '')}: точки змінились</div>
+                    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">Точки змінились після того, як ви відкрили цю картку. Перегляньте нові, перш ніж підтверджувати.</div>
+                    <div style="display:flex;gap:10px;margin-bottom:8px;">
+                        <button class="btn btn-secondary" data-points-reread="true" style="flex:1;height:40px;font-size:13px;" onclick="acknowledgeConfirmPoints()">⚠️ Точки змінились — переглянути</button>
+                        <button class="btn btn-danger" style="flex:1;height:40px;font-size:13px;" onclick="respondHandshake(${readPartner}, ${parseInt(still.direction_id, 10) || 0}, false, 'cancel')">✕ Скасувати</button>
+                    </div>` : same ? `
+                    <div data-confirm-card="${escapeAttr(rc.confirmCard)}" data-confirm-changed="${readPartner}" style="font-weight:800;font-size:14px;margin-bottom:10px;color:var(--accent);">⚠️ ${escapeHtml(rc.confirmName || '')}: умови змінились</div>
+                    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">Точки цієї поїздки змінились — потрібне нове погодження попутника.</div>
+                    <div style="display:flex;gap:10px;margin-bottom:8px;">
+                        <button class="btn btn-secondary" style="flex:1;height:40px;font-size:13px;" onclick="dismissWithdrawnRequestCard()">Зрозуміло</button>
+                        <button class="btn btn-danger" style="flex:1;height:40px;font-size:13px;" onclick="respondHandshake(${readPartner}, ${parseInt(same.direction_id, 10) || 0}, false, 'cancel')">✕ Скасувати</button>
+                    </div>` : `
+                    <div data-confirm-card="${escapeAttr(rc.confirmCard)}" data-confirm-gone="${readPartner}" style="font-weight:800;font-size:14px;margin-bottom:10px;color:var(--accent);">🟡 ${escapeHtml(rc.confirmName || '')}: підтвердження більше не актуальне</div>
+                    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">Попутник відмовився або запит закрито. ${others ? `Ще ${others} ${pluralUk(others, 'запит чекає', 'запити чекають', 'запитів чекають')} — відкрийте їх явно.` : 'Інших запитів немає.'}</div>
+                    <div style="display:flex;gap:10px;margin-bottom:8px;">
+                        <button class="btn btn-secondary" style="flex:1;height:40px;font-size:13px;" onclick="dismissWithdrawnRequestCard()">Зрозуміло</button>
+                        ${others ? `<button class="btn btn-primary" style="flex:1;height:40px;font-size:13px;" onclick="openMapRequestsFromHandshakePanel()">Інші запити</button>` : ''}
+                    </div>`;
+                    Object.assign(panel.querySelector('[data-confirm-card]').dataset, { confirmPartner: String(readPartner), confirmFp: rc.confirmFp || '', confirmName: rc.confirmName || '' });
+                    panel.classList.add('open');
+                    parkHandshakePanelIfCovered(panel);
+                    return;
+                }
+            }
 
             // P241 (V04C F2, D274): the request this person was reading disappeared WITHOUT their own answer (the other
             // side withdrew it). Say so on the same card; no accept of anybody else here. Their own answer, «Інші запити»
@@ -12939,6 +13231,10 @@
             const readingStill = readingPartner && incoming.some(x => (parseInt(x.partner_id || x.sender_id, 10) || 0) === readingPartner
                 && (!readingDir || (parseInt(x.direction_id, 10) || 0) === readingDir)
                 && (!panel.dataset.shownCase || String(x.case_id ?? '') === panel.dataset.shownCase));   // D298: the read card is ONE case
+            if (readingPartner && !readingStill && !focused && readIncomingRequestBecameTrip(readingPartner, readingDir)) {
+                closeHandshakeActionPanel();   // the reservation dock is rendered from this same hydrate; no lifecycle write
+                return;
+            }
             if (readingPartner && !readingStill && !focused && panel.dataset.ownAnswered !== String(readingPartner)) {   // D299: an explicit live locator completes its own transition
                 closeMapResultPanel();
                 const others = incoming.length;
@@ -12983,6 +13279,33 @@
                     ? `<div data-incoming-pickup-line="true" ${pickupInfo.hasPickup ? 'role="button" tabindex="0" onclick="focusIncomingPickupOnMap()" style="cursor:pointer;' : 'style="'}font-size:12px;color:var(--text);white-space:normal;margin-top:4px;">${escapeHtml(incomingPickupLine(m))}${pickupInfo.hasPickup ? ' <span style="color:var(--accent);font-weight:700;">· показати</span>' : ''}</div>`
                     : '';
                 const pickupFocusKey = `${partnerId}:${m.direction_id}`;
+                const caseKey = `${parseInt(partnerId, 10) || 0}:${m.case_id ?? ''}`;   // F1 (D360)
+                if (panel.dataset.rereadDone && panel.dataset.rereadDone !== caseKey) delete panel.dataset.rereadDone;   // a re-read belongs to ONE request
+                const afterReread = !pointsChanged && panel.dataset.rereadDone === caseKey;   // F1: the accept gets its own line ABOVE the actions (the panel grows upward)
+
+                if (!isDriver && m.points_next === 'driver_confirm') {   // D355: this person already accepted THIS revision — wait, no second accept
+                    clearIncomingPickupMarker();
+                    document.body.style.paddingBottom = '175px';
+                    // D362: the waiting card keeps the actions row of the card it replaces — the former «Прийняти» slot is an inert
+                    // «✓ Згоду надіслано», «✕ Відмовитися» has its own slot (where «Відхилити» was); a repeated tap never withdraws
+                    panel.innerHTML = `
+                    <div data-awaiting-driver="${parseInt(partnerId, 10) || 0}" style="font-weight:800;font-size:14px;margin-bottom:10px;color:var(--accent);">⏳ Ви погодились — чекаємо, поки ${escapeHtml(partnerName)} підтвердить точки</div>
+                    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">🎯 ${escapeHtml(dirTitle)}. Водій отримає повідомлення; щойно він підтвердить — екіпаж з’явиться тут.</div>
+                    <div style="display:flex;gap:10px;margin-bottom:8px;">
+                        <button class="btn btn-secondary" data-accept-sent="true" disabled style="flex:1;height:40px;font-size:13px;">✓ Згоду надіслано</button>
+                        <button class="btn btn-danger" style="flex:1;height:40px;font-size:13px;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false)">✕ Відмовитися</button>
+                    </div>
+                    <button class="btn btn-secondary" style="width:100%;height:36px;font-size:12px;background:transparent;border:1px solid rgba(255,255,255,0.15);" onclick="openMapRequestsFromHandshakePanel()">Інші запити</button>`;
+                    panel.dataset.shownPartner = String(parseInt(partnerId, 10) || 0);
+                    panel.dataset.shownDir = String(parseInt(m.direction_id, 10) || 0);
+                    panel.dataset.shownCase = String(m.case_id ?? '');
+                    panel.dataset.shownName = partnerName;
+                    panel.classList.add('open');
+                    parkHandshakePanelIfCovered(panel);
+                    const navW = document.querySelector('.nav');
+                    if (navW) navW.style.display = 'none';
+                    return;
+                }
 
                 document.body.style.paddingBottom = '175px';
 
@@ -12999,8 +13322,9 @@
                             ${m.points ? `<div data-proposal-points="true" style="font-size:12px;color:var(--text);white-space:normal;margin-top:4px;">${escapeHtml(proposalPointsLine(m, isDriver))}</div>${proposalPointsNavHtml(m, isDriver)}` : ''}
                         </div>
                     </div>
+                    ${afterReread ? `<div data-accept-line="true" style="display:flex;gap:10px;margin-bottom:8px;"><button class="btn btn-primary" style="flex:1;height:40px;font-size:13px;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, true, '', '${proposalButtonFp(m)}')">${escapeHtml(acceptText)}</button></div>` : ''}
                     <div style="display:flex;gap:10px;margin-bottom:8px;">
-                        ${pointsChanged ? `<button class="btn btn-secondary" data-points-reread="true" style="flex:1;height:40px;font-size:13px;" onclick="acknowledgeHandshakePoints()">⚠️ Точки змінились — переглянути</button>` : `<button class="btn btn-primary" style="flex:1;height:40px;font-size:13px;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, true, '', '${proposalButtonFp(m)}')">${escapeHtml(acceptText)}</button>`}
+                        ${pointsChanged ? `<button class="btn btn-secondary" data-points-reread="true" style="flex:1;height:40px;font-size:13px;" onclick="acknowledgeHandshakePoints()">⚠️ Точки змінились — переглянути</button>` : (afterReread ? '<button class="btn btn-secondary" data-reread-done="true" disabled style="flex:1;height:40px;font-size:13px;">✓ Переглянуто</button>' : `<button class="btn btn-primary" style="flex:1;height:40px;font-size:13px;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, true, '', '${proposalButtonFp(m)}')">${escapeHtml(acceptText)}</button>`)}
                         <button class="btn btn-danger" style="flex:1;height:40px;font-size:13px;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false)">${escapeHtml(declineText)}</button>
                     </div>
                     ${incoming.length > 1 ? `<div data-more-requests="${incoming.length - 1}" style="font-size:11px;color:var(--text-secondary);margin:0 0 6px;">+${incoming.length - 1} — ще запит в «Інших запитах»</div>` : ''}
@@ -13030,22 +13354,9 @@
             // Case A2 (D200): the passenger accepted an invite with points the driver has not seen yet — the driver confirms.
             const awaitingConfirm = (S.pendingMatches || []).filter(m => m.scope === 'outgoing' && m.points_next === 'driver_confirm');
             if (awaitingConfirm.length && _isDriverRole(S.userRole)) {
-                closeMapResultPanel();
-                const m = awaitingConfirm[0];
-                const partnerName = m.target_name || m.partner_name || `#${m.target_id}`;
-                const partnerId = m.target_id || m.partner_id;
-                document.body.style.paddingBottom = '175px';
-                panel.innerHTML = `
-                    <div style="font-weight:800;font-size:14px;margin-bottom:10px;color:var(--accent);">📍 ${escapeHtml(partnerName)} погодився — підтвердіть точки</div>
-                    <div data-proposal-points="true" style="font-size:12px;color:var(--text);white-space:normal;margin-bottom:12px;">${escapeHtml(proposalPointsLine(m, true))}</div>${proposalPointsNavHtml(m, true)}
-                    <div style="display:flex;gap:10px;margin-bottom:8px;">
-                        <button class="btn btn-primary" style="flex:1;height:40px;font-size:13px;" onclick="confirmPointsHandshake(${partnerId}, ${m.direction_id}, '${proposalButtonFp(m)}')">✓ Підтвердити точки</button>
-                        <button class="btn btn-danger" style="flex:1;height:40px;font-size:13px;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false, 'cancel')">✕ Скасувати</button>
-                    </div>`;
-                panel.classList.add('open');
-                parkHandshakePanelIfCovered(panel);
-                const nav = document.querySelector('.nav');
-                if (nav) nav.style.display = 'none';
+                const fo = S.focusOutgoing;   // D355: the notification names ONE exact case, once
+                if (fo) S.focusOutgoing = null;
+                renderDriverConfirmCard(panel, (fo && awaitingConfirm.find(x => (parseInt(x.case_id, 10) || 0) === fo.case)) || awaitingConfirm[0]);
                 return;
             }
 
@@ -13307,20 +13618,17 @@
             panel.innerHTML = '';
         }
 
+        function mapTripDockDetailsToggle() {
+            const open = !S.mapTripDockCompact;
+            return `<button class="dock-collapse dock-details-toggle" data-dock-details-toggle="true" onclick="toggleMapTripDock()" aria-expanded="${open}" aria-label="${open ? 'Сховати деталі' : 'Деталі'}">${open ? 'Сховати деталі ▴' : 'Деталі ▾'}</button>`;
+        }
+
         function toggleMapTripDock() {
-            if (S.mapTripDockCollapsed) {
-                S.mapTripDockCollapsed = false;
-                S.mapTripDockCompact = false;
-            } else if (S.mapTripDockCompact) {
-                S.mapTripDockCollapsed = true;
-                S.mapTripDockCompact = false;
-            } else {
-                S.mapTripDockCompact = true;
-            }
-            S.mapTripDockCollapseMemo = S.mapTripDockPhaseSeen ? { key: S.mapTripDockPhaseSeen, collapsed: S.mapTripDockCollapsed, compact: S.mapTripDockCompact } : null;
+            S.mapTripDockCompact = S.mapTripDockCollapsed ? true : !S.mapTripDockCompact;
+            S.mapTripDockCollapsed = false;   // details never hide the current action row
+            S.mapTripDockCollapseMemo = S.mapTripDockPhaseSeen ? { key: S.mapTripDockPhaseSeen, collapsed: false, compact: S.mapTripDockCompact, detailsOpen: !S.mapTripDockCompact } : null;
             persistCriticalState();
             verifyMapTripDockState();
-            // Розгорнутий банер вищий за смужку — точки екіпажу не мають опинитись під ним.
             if (shouldRenderCrewMembersOnMap(S.activeTrip)) renderCrewMembersOnMap();
         }
 
@@ -13373,13 +13681,13 @@
             return `${currentRequestIdFromTrip(t) || 0}:${phase}:${notice}`;
         }
 
-        // Новий вигляд дока (фаза/сповіщення) — розгорнутий, окрім випадку, коли людина вже
-        // згорнула саме цей вигляд (пам'ять переживає повернення з інших вкладок і F5).
+        // A new phase/notice starts with details folded; only an explicit Details choice can reopen them.
+        // The same view remembers that choice across polls, tabs and F5; legacy three-depth memos do not open details.
         function syncMapTripDockView(viewKey) {
             if (viewKey === S.mapTripDockPhaseSeen) return;
             const memo = S.mapTripDockCollapseMemo;
-            S.mapTripDockCollapsed = !!(memo && memo.key === viewKey && memo.collapsed);
-            S.mapTripDockCompact = !!(memo && memo.key === viewKey && memo.compact && !memo.collapsed);
+            S.mapTripDockCollapsed = false;
+            S.mapTripDockCompact = !(memo && memo.key === viewKey && memo.detailsOpen === true);
             S.mapTripDockPhaseSeen = viewKey;
         }
 
@@ -13444,8 +13752,8 @@
                 return;
             }
             const phase = mapTripDockPhase(t);
-            // Нова фаза циклу або НОВЕ сповіщення (скасування/фініш партнера) розгортає док один раз;
-            // повторний poll того самого стану не перемагає явне згортання людини (кандидат 2026-10-01).
+            // A new state exposes its current action and any required-answer prompt, with optional details folded.
+            // Polling preserves the person's explicit choice for this same view.
             syncMapTripDockView(mapTripDockViewKey(t, phase));
             panel.classList.toggle('compact', !S.mapTripDockCollapsed && S.mapTripDockCompact);
             if (S.mapTripDockCollapsed) {
@@ -13518,7 +13826,7 @@
                         <div class="dock-sub">${metaLine}</div>
                         <div class="dock-sub" style="color:var(--amber);font-weight:bold;margin-top:5px;white-space:normal;">✓ Ви відмітили фініш. ${finishAwaitingLine(t)}</div>
                     </div>
-                    <button class="dock-collapse" onclick="toggleMapTripDock()" title="Згорнути" aria-label="Згорнути">▾</button>
+                    ${mapTripDockDetailsToggle()}
                 </div>
                 ${mapTripPhaseStepper('driving', true)}
                 <div class="dock-actions">
@@ -13658,7 +13966,7 @@
             } else if (cancelRequested) {
                 hint = '⏳ Очікуємо підтвердження скасування від партнера';
                 alertStyle = 'color: var(--amber); font-weight: bold;';
-                actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>`;
+                actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>${!isDriver ? withdrawCancelButton(currentRequestIdFromTrip(t)) : ''}`;
             } else if (partnerFinished && !viewerFinished) {
                 // 2zi (Ф5): заголовок, крокомір і дія — про фініш; ім'я через двокрапку,
                 // без відмінювання й вгадування роду.
@@ -13821,13 +14129,13 @@
                     <div style="min-width:0;">
                         <div class="dock-title dock-full-title">${head.icon} ${escapeHtml(head.title)}</div>
                         ${S.mapTripDockCompact ? `<div class="dock-title dock-compact-title">${compactHead.icon} ${escapeHtml(compactHead.title)}${seatsChip}</div>` : ''}
-                        ${S.mapTripDockCompact && alertStyle ? `<div class="dock-compact-context">${hint}</div>` : ''}
+                        ${S.mapTripDockCompact && alertStyle ? `<div class="dock-compact-context" style="${alertStyle}">${hint}</div>` : ''}
                         <div class="dock-sub">${metaLine}</div>
                         <div class="dock-sub" style="${alertStyle || 'color:var(--text);'}margin-top:5px;white-space:normal;">${hint}</div>
                         ${queueLine}
                         ${schemeLine}
                     </div>
-                    <button class="dock-collapse" onclick="toggleMapTripDock()" title="Згорнути" aria-label="Згорнути">▾</button>
+                    ${mapTripDockDetailsToggle()}
                 </div>
                 ${mapTripPhaseStepper(phase, partnerFinished || viewerFinished)}
                 <div class="dock-actions">${actions}</div>`;
@@ -14582,6 +14890,13 @@
             }
             if (status === 'completed') return { text: '🏁 Поїздку вже завершено — скасовувати нічого', type: '', cancelled: false };
             if (status === 'driving') return { text: 'Після старту скасування неможливе — лише фініш', type: 'error', cancelled: false };
+            if (kind === 'withdraw') {   // C4: the proposer's own withdrawal of the shown proposal
+                if (!cancelBy) return post?.data?.status === 'ok'
+                    ? { text: '↩️ Пропозицію скасування відкликано — домовленість діє.', type: 'success', cancelled: false }
+                    : { text: 'Пропозиції скасування вже немає — домовленість діє.', type: '', cancelled: false };
+                if (cancelBy !== Number(actorId)) return { text: `${partner.name || 'Партнер'} просить скасування — відповідь у картці.`, type: '', cancelled: false };
+                return { text: 'Пропозицію не відкликано — спробуйте ще раз.', type: 'error', cancelled: false };
+            }
             if (cancelBy && cancelBy === Number(actorId)) {
                 return { text: `⏳ Запит на вихід надіслано. Очікуємо підтвердження ${who}. До відповіді домовленість діє.`, type: '', cancelled: false };
             }
@@ -14651,6 +14966,20 @@
                 if (!reqId) { showToast('Немає активної поїздки', 'error'); return; }
                 await sendCancelAction('reject', '/api/v3/trip/reject-cancel', reqId, { expected_seq: shownSeq });   // V05 M2 (R5)
             } finally { endOp('reject_cancel'); }
+        }
+
+        function withdrawCancelButton(reqId) {   // C4 (§0.19 п.6): the proposer's own «↩️ Відмінити пропозицію»; pair + shown seq captured at render
+            const id = parseInt(reqId || 0, 10) || 0;
+            return id ? `<button class="btn btn-secondary" data-cancel-withdraw="${id}" onclick="withdrawCancelTrip(${id}, ${cancelSeqFor(id)})">↩️ Відмінити пропозицію</button>` : '';
+        }
+
+        async function withdrawCancelTrip(requestId, shownSeq) {   // C4: only the rendered pair and seq — never re-read at click
+            const reqId = parseInt(requestId || 0, 10) || 0;
+            if (!reqId || !Number.isInteger(shownSeq)) { showToast('Пропозиція скасування змінилась — перегляньте актуальну в картці.', 'error'); return; }
+            if (!beginOp('withdraw_cancel')) return;
+            try {
+                await sendCancelAction('withdraw', '/api/v3/trip/withdraw-cancel', reqId, { expected_seq: shownSeq });
+            } finally { endOp('withdraw_cancel'); }
         }
 
         // ─── RATING: дві зіркові шкали — подія + партнер (2026-07-14) ───
@@ -15151,6 +15480,7 @@
             const body = document.getElementById('sheet-body');
             body.innerHTML = html;
             body.style.maxHeight = options?.maxHeight || '';
+            body.style.height = '';   // D357 r3: a refresh-time height hold belongs to the sheet that set it
             document.getElementById('sheet-backdrop').classList.add('open');
             document.getElementById('sheet').classList.add('open');
             const sheet = document.getElementById('sheet');
