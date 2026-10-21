@@ -76,3 +76,4 @@
         pluralCategory,
     };
 }());
+
