@@ -3521,9 +3521,9 @@
         </div>
         <!-- HEADER -->
         <div class="header">
-            <div class="header-title" role="button" tabindex="0" title="Як це працює" aria-label="WayTandem — як це працює" style="cursor:pointer;" onclick="showWelcomeSheet()" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); showWelcomeSheet(); }"><span class="accent">Way</span>Tandem</div>
+            <div class="header-title" role="button" tabindex="0" title="Як це працює" data-i18n-title="ui.056" aria-label="WayTandem — як це працює" data-i18n-aria-label="ui.058" style="cursor:pointer;" onclick="showWelcomeSheet()" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); showWelcomeSheet(); }"><span class="accent">Way</span>Tandem</div>
             <div class="header-right">
-                <button class="header-help-btn" id="welcome-help-btn" type="button" title="Що тут робити?" aria-label="Що тут робити?" aria-expanded="false" aria-controls="screen-help" onclick="toggleScreenHelp()">?</button>
+                <button class="header-help-btn" id="welcome-help-btn" type="button" title="Що тут робити?" data-i18n-title="ui.057" aria-label="Що тут робити?" data-i18n-aria-label="ui.057" aria-expanded="false" aria-controls="screen-help" onclick="toggleScreenHelp()">?</button>
                 <div class="role-pill none" id="role-pill" onclick="openRoleSelector()"></div>
                 <div class="avatar-btn" id="avatar-btn" onclick="switchScreen('profile')"></div>
             </div>
@@ -3531,7 +3531,7 @@
 
         <!-- SUBSCRIPTION BAR -->
         <div class="sub-bar" id="sub-bar"></div>
-        <div class="screen-help" id="screen-help" role="region" aria-label="Підказка й пошук" hidden></div>
+        <div class="screen-help" id="screen-help" role="region" aria-label="Підказка й пошук" data-i18n-aria-label="ui.059" hidden></div>
 
         <!-- MAIN SCREENS -->
         <div class="main">
@@ -3551,9 +3551,9 @@
             <div class="screen" id="screen-board" aria-hidden="true" inert>
                 <div style="display:flex;padding:12px 16px 0;">
                     <div style="position:relative;flex:1;min-width:0;">
-                    <input class="board-search" id="board-search" enterkeyhint="search" placeholder="🔍 Пошук події або місця..."
+                    <input class="board-search" id="board-search" enterkeyhint="search" placeholder="🔍 Пошук події або місця..." data-i18n-placeholder="ui.054"
                         oninput="filterBoard(this.value)" style="flex:1;margin:0;width:100%;padding-right:44px;">
-                    <button type="button" class="board-search-clear" aria-label="Очистити пошук" onclick="clearBoardSearch()">×</button>
+                    <button type="button" class="board-search-clear" aria-label="Очистити пошук" data-i18n-aria-label="ui.053" onclick="clearBoardSearch()">×</button>
                     </div>
                 </div>
                 <div class="board-breadcrumb" id="board-breadcrumb"></div>
@@ -3563,7 +3563,7 @@
             <!-- NEWS -->
             <div class="screen" id="screen-news" aria-hidden="true" inert>
                 <div class="news-head">
-                    <div class="section-label">Стрічка Новин</div>
+                    <div class="section-label" data-i18n="ui.005">Стрічка Новин</div>
                     <button class="news-scope-btn" id="news-scope-btn" onclick="toggleNewsScope()" type="button" style="display:none;"></button>
                 </div>
                 <div class="news-banners" id="news-banners"></div>
@@ -3586,25 +3586,25 @@
                 <div class="settings-group">
                     <div class="settings-row" onclick="openRoleSelector()">
                         <div class="settings-icon">👤</div>
-                        <div class="settings-label">Роль</div>
+                        <div class="settings-label" data-i18n="ui.010">Роль</div>
                         <div class="settings-value" id="settings-role">Не обрано</div>
                         <div class="settings-arrow">›</div>
                     </div>
                     <div class="settings-row" id="settings-row-home" onclick="setHomeFlow()">
                         <div class="settings-icon">🏠</div>
-                        <div class="settings-label">Збережена точка старту</div>
+                        <div class="settings-label" data-i18n="ui.025">Збережена точка старту</div>
                         <div class="settings-value" id="settings-home">Не вказано</div>
                         <div class="settings-arrow">›</div>
                     </div>
                     <div class="settings-row" id="settings-row-car" onclick="openCarSettings()">
                         <div class="settings-icon">🚗</div>
-                        <div class="settings-label">Авто</div>
+                        <div class="settings-label" data-i18n="ui.027">Авто</div>
                         <div class="settings-value" id="settings-car">—</div>
                         <div class="settings-arrow">›</div>
                     </div>
                     <div class="settings-row" id="settings-row-seats" onclick="openSeatsSettings()">
                         <div class="settings-icon">💺</div>
-                        <div class="settings-label">Місць</div>
+                        <div class="settings-label" data-i18n="ui.029">Місць</div>
                         <div class="settings-value" id="settings-seats">4</div>
                         <div class="settings-arrow">›</div>
                     </div>
@@ -3612,31 +3612,31 @@
                 <div class="settings-group">
                     <div class="settings-row" onclick="openMyIdeas()">
                         <div class="settings-icon">💡</div>
-                        <div class="settings-label">Моя подія</div>
+                        <div class="settings-label" data-i18n="ui.009">Моя подія</div>
                         <div class="settings-arrow">›</div>
                     </div>
                     <div class="settings-row" onclick="openTripHistory()">
                         <div class="settings-icon">📋</div>
-                        <div class="settings-label">Історія поїздок</div>
+                        <div class="settings-label" data-i18n="ui.030">Історія поїздок</div>
                         <div class="settings-arrow">›</div>
                     </div>
                 </div>
                 <div class="settings-group">
                     <div class="settings-row" onclick="openLangSelector()">
                         <div class="settings-icon">🌐</div>
-                        <div class="settings-label">Мова</div>
+                        <div class="settings-label" data-i18n="ui.031">Мова</div>
                         <div class="settings-value" id="settings-lang">Українська</div>
                         <div class="settings-arrow">›</div>
                     </div>
                     <div class="settings-row">
                         <div class="settings-icon">🔔</div>
-                        <div class="settings-label">Сповіщення</div>
+                        <div class="settings-label" data-i18n="ui.035">Сповіщення</div>
                         <div class="toggle on" id="toggle-notifications" onclick="this.classList.toggle('on')">
                         </div>
                     </div>
                     <div class="settings-row" onclick="toggleAppSound()">
                         <div class="settings-icon">🔊</div>
-                        <div class="settings-label">Звуки в додатку</div>
+                        <div class="settings-label" data-i18n="ui.036">Звуки в додатку</div>
                         <div class="settings-value" id="settings-sound">Важливі</div>
                         <div class="toggle on" id="toggle-app-sound"></div>
                     </div>
@@ -3652,7 +3652,7 @@
                     <line x1="8" y1="2" x2="8" y2="18" />
                     <line x1="16" y1="6" x2="16" y2="22" />
                 </svg>
-                <span>Мапа</span>
+                <span data-i18n="ui.001">Мапа</span>
             </div>
             <div class="nav-item" data-tab="board" role="button" tabindex="0" onclick="switchScreen('board')">
                 <svg viewBox="0 0 24 24">
@@ -3661,14 +3661,14 @@
                     <rect x="3" y="14" width="7" height="7" rx="1" />
                     <rect x="14" y="14" width="7" height="7" rx="1" />
                 </svg>
-                <span>Каталог</span>
+                <span data-i18n="ui.002">Каталог</span>
             </div>
             <div class="nav-item" data-tab="board-add" id="nav-board-add" role="button" tabindex="0" onclick="openCreateDirection()" style="display:none;">
                 <svg viewBox="0 0 24 24">
                     <line x1="12" y1="5" x2="12" y2="19" />
                     <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
-                <span>Додати подію</span>
+                <span data-i18n="ui.007">Додати подію</span>
             </div>
             <div class="nav-item" data-tab="trips" id="nav-trips" role="button" tabindex="0" onclick="switchScreen('trips')">
                 <svg viewBox="0 0 24 24">
@@ -3677,7 +3677,7 @@
                     <line x1="16" y1="13" x2="8" y2="13" />
                     <line x1="16" y1="17" x2="8" y2="17" />
                 </svg>
-                <span>Поїздки</span>
+                <span data-i18n="ui.003">Поїздки</span>
                 <div class="nav-badge" id="nav-trips-badge" style="display:none;">0</div>
             </div>
             <div class="nav-item" data-tab="news" id="nav-news" role="button" tabindex="0" onclick="switchScreen('news')">
@@ -3685,7 +3685,7 @@
                     <path d="M18 8a6 6 0 0 0-12 0v5l-2 2v1h16v-1l-2-2z" />
                     <path d="M10 19a2 2 0 0 0 4 0" />
                 </svg>
-                <span>Новини</span>
+                <span data-i18n="ui.004">Новини</span>
                 <div class="nav-badge" id="nav-news-badge" style="display:none;">0</div>
             </div>
         </nav>
@@ -3716,14 +3716,14 @@
         <div class="map-picker-map" id="map-picker-map"></div>
         <div class="map-picker-pin">📍</div>
         <div class="map-picker-top">
-            <input id="map-picker-search" class="map-picker-search" placeholder="🔍 Місто або місце (напр. Люблін)" autocomplete="off">
+            <input id="map-picker-search" class="map-picker-search" placeholder="🔍 Місто або місце (напр. Люблін)" data-i18n-placeholder="ui.055" autocomplete="off">
             <div id="map-picker-results" class="map-picker-results"></div>
         </div>
-        <button class="map-picker-gps" id="map-picker-gps" title="Моє місце" type="button">🎯</button>
+        <button class="map-picker-gps" id="map-picker-gps" title="Моє місце" data-i18n-title="ui.072" type="button">🎯</button>
         <div class="map-picker-hint" id="map-picker-hint">Перетягни карту так, щоб пін був на місці події</div>
         <div class="map-picker-bottom">
-            <button class="btn btn-ghost" id="map-picker-cancel" type="button" style="flex:1;">Скасувати</button>
-            <button class="btn btn-primary" id="map-picker-confirm" type="button" style="flex:2;">✓ Готово</button>
+            <button class="btn btn-ghost" id="map-picker-cancel" type="button" style="flex:1;" data-i18n="ui.041">Скасувати</button>
+            <button class="btn btn-primary" id="map-picker-confirm" type="button" style="flex:2;" data-i18n="ui.045">✓ Готово</button>
         </div>
     </div>
 
@@ -3733,7 +3733,7 @@
         <div class="map-chat-card">
             <div class="chat-container">
                 <div class="map-chat-header">
-                    <button class="map-chat-close" onclick="closeChat()" type="button" aria-label="Закрити чат">←</button>
+                    <button class="map-chat-close" onclick="closeChat()" type="button" aria-label="Закрити чат" data-i18n-aria-label="ui.067">←</button>
                     <div style="flex:1;">
                         <div style="font-weight:800; font-size:15px;" id="chat-title">Чат</div>
                         <div style="font-size:11px; color:var(--text-muted);" id="chat-subtitle"></div>
@@ -3743,10 +3743,10 @@
                 <div class="chat-feed" id="chat-feed"></div>
                 <div id="chat-length" style="font-size:11px;padding:0 12px;color:var(--text-muted);" aria-live="polite">0 / 500</div>
                 <div class="chat-input-bar">
-                    <input class="chat-input" id="chat-input" placeholder="Написати..."
+                    <input class="chat-input" id="chat-input" placeholder="Написати..." data-i18n-placeholder="ui.068"
                         oninput="rememberChatDraft(); updateChatComposer()" aria-describedby="chat-length"
                         onkeydown="if(event.key==='Enter' )sendChat()">
-                    <button class="chat-send" id="chat-send" onclick="sendChat()" aria-label="Надіслати">➤</button>
+                    <button class="chat-send" id="chat-send" onclick="sendChat()" aria-label="Надіслати" data-i18n-aria-label="ui.069">➤</button>
                 </div>
             </div>
         </div>
@@ -3761,6 +3761,20 @@
         /* ══════════════════════════════════════════════════════════════════
            WAYTANDEM v3.1 — E2E Complete
            ══════════════════════════════════════════════════════════════════ */
+
+        // A source-owned label lookup; API/user content never passes through a DOM text matcher.
+        function uiText(source) {
+            return window.WayTandemI18n?.translate?.(source, S.lang) || source;
+        }
+
+        function applyInterfaceLanguage() {
+            const i18n = window.WayTandemI18n;
+            if (!i18n) return;
+            i18n.setLanguage(S.lang);
+            document.documentElement.lang = S.lang;
+            const label = document.getElementById('settings-lang');
+            if (label) label.textContent = i18n.languageNames[S.lang];
+        }
 
         const S = {
             userId: 0, userName: '', userPhoto: '', userUsername: '', userRole: '', car: '', seats: 4, lang: 'uk',
@@ -3973,6 +3987,7 @@
 
         document.addEventListener('DOMContentLoaded', async () => {
             resolveUser();
+            applyInterfaceLanguage();
             // ПІСЛЯ resolveUser: ключі стану (_stateKey) неймспейсяться по S.userId.
             // Якщо викликати раніше — читаємо `wt_state_undefined_*` і весь F5-стан
             // (mapResultCollapsed/wfp/ltr) губиться (фікс DM-2026-06-14-007).
@@ -4257,7 +4272,7 @@
         function syncIdentityUI() {
             const displayName = String(S.userName || '').trim();
             applyAvatarElement(document.getElementById('profile-avatar'), displayName, S.userPhoto);
-            document.getElementById('profile-name').textContent = displayName || 'Користувач';
+            document.getElementById('profile-name').textContent = displayName || uiText('Користувач');
             document.getElementById('profile-id').textContent = displayName ? `Telegram: ${displayName}` : 'Telegram: —';
             applyAvatarElement(document.getElementById('avatar-btn'), displayName, S.userPhoto);
         }
@@ -4297,6 +4312,7 @@
             S.pendingStartLocator = parseStartLocator(startParam);   // V05 M2
             const initDataUser = _parseInitDataUser(tg?.initData || '');
             const tgUser = tg?.initDataUnsafe?.user || initDataUser;
+            S.lang = window.WayTandemI18n?.normalizeLang(tgUser?.language_code) || 'uk';
             if (tgUser?.id) {
                 S.userId = tgUser.id;
                 S.userName = _pickTelegramName(tgUser, qp.get('name') || '');
@@ -4335,7 +4351,7 @@
                 if (typeof saved.role === 'string') S.userRole = normalizeRole(saved.role);
                 if (saved.car) S.car = saved.car;
                 if (saved.seats) S.seats = saved.seats;
-                if (saved.lang) S.lang = saved.lang;
+                if (saved.lang) S.lang = window.WayTandemI18n?.normalizeLang(saved.lang) || 'uk';
             } catch (_) { }
             updateRolePill();
         }
@@ -4803,9 +4819,9 @@
         function updateRolePill() {
             const pill = document.getElementById('role-pill');
             const sr = document.getElementById('settings-role');
-            if (_isDriverRole(S.userRole)) { pill.className = 'role-pill driver'; pill.textContent = '🚗 Водій'; sr.textContent = 'Водій'; }
-            else if (_isPassengerRole(S.userRole)) { pill.className = 'role-pill passenger'; pill.textContent = '👤 Попутник'; sr.textContent = 'Попутник'; }
-            else { pill.className = 'role-pill none'; pill.textContent = 'Обрати роль'; sr.textContent = 'Не обрано'; }
+            if (_isDriverRole(S.userRole)) { pill.className = 'role-pill driver'; pill.textContent = uiText('🚗 Водій'); sr.textContent = uiText('Водій'); }
+            else if (_isPassengerRole(S.userRole)) { pill.className = 'role-pill passenger'; pill.textContent = uiText('👤 Попутник'); sr.textContent = uiText('Попутник'); }
+            else { pill.className = 'role-pill none'; pill.textContent = uiText('Обрати роль'); sr.textContent = uiText('Не обрано'); }
             // Організатор — факт про подію, не про роль: водій чи попутник можуть
             // одночасно бути організаторами власної події, тому значок додається
             // поверх пілюлі, а не замінює її текст.
@@ -4827,12 +4843,12 @@
             const isClient = S.userRole === 'client';
             S.roleGateOpen = !!required;
             openSheet(`
-                <div class="sheet-title">${required ? 'Як ти їдеш?' : 'Оберіть роль'}</div>
-                <div class="sheet-sub">${required ? `Щоб ${escapeHtml(actionLabel || 'продовжити')}, оберіть свій варіант для цієї події. Роль можна змінити пізніше, якщо немає активних домовленостей.` : 'Створювати події можуть обидві ролі. Далі дії залежать від ролі.'}</div>
+                <div class="sheet-title">${required ? uiText('Як ти їдеш?') : uiText('Оберіть роль')}</div>
+                <div class="sheet-sub">${required ? `Щоб ${escapeHtml(actionLabel || 'продовжити')}, оберіть свій варіант для цієї події. Роль можна змінити пізніше, якщо немає активних домовленостей.` : uiText('Створювати події можуть обидві ролі. Далі дії залежать від ролі.')}</div>
                 <div class="sheet-actions">
                     <button class="btn ${isDriver ? 'btn-primary' : 'btn-secondary'}" onclick="setRole('driver')">🚗 Я повезу людей</button>
                     <button class="btn ${isClient ? 'btn-primary' : 'btn-secondary'}" onclick="setRole('client')">👤 Мені потрібно місце</button>
-                    ${required ? '' : '<button class="btn btn-ghost" onclick="closeSheet()">Скасувати</button>'}
+                    ${required ? '' : "<button class=\"btn btn-ghost\" onclick=\"closeSheet()\" data-i18n=\"ui.041\">Скасувати</button>"}
                 </div>
             `);
         }
@@ -5210,7 +5226,7 @@
             const fresh = matches.filter(m => !known.has(pendingRowKey(m))).map(m => readPendingRowRecord(m));
             const readHtml = read.map(r => {
                 const m = live.get(r.key);
-                if (!m) return '<div data-pending-row="' + escapeAttr(r.key) + '" data-pending-gone="true" style="padding:12px 0;border-bottom:1px solid var(--border);box-sizing:border-box;' + (r.h ? 'height:' + r.h + 'px;overflow:hidden;' : '') + '"><div style="font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(r.name) + '</div><div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">Запит закрито</div></div>';
+                if (!m) return '<div data-pending-row="' + escapeAttr(r.key) + '" data-pending-gone="true" style="padding:12px 0;border-bottom:1px solid var(--border);box-sizing:border-box;' + (r.h ? 'height:' + r.h + 'px;overflow:hidden;' : '') + '"><div style="font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(r.name) + "</div><div style=\"font-size:12px;color:var(--text-secondary);margin-top:4px;\" data-i18n=\"ui.123\">Запит закрито</div></div>";
                 const sig = pendingRowSig(m);
                 if (sig !== r.sig) return guardedPendingRow(r, m);
                 return r.html;
@@ -5271,7 +5287,7 @@
             const partnerName = isIncoming
                 ? (m.partner_name || m.sender_name || m.target_name || `#${partnerId}`)
                 : (m.target_name || m.partner_name || m.sender_name || `#${partnerId}`);
-            const dirTitle = m.direction || m.direction_title || 'Подія';
+            const dirTitle = m.direction || m.direction_title || uiText('Подія');
             const awaitingDriver = isIncoming && m.points_next === 'driver_confirm';   // D355: own accept recorded, the driver confirms
             const tag = awaitingDriver ? 'ви погодились · чекаємо підтвердження водія' : (isIncoming ? 'потрібна відповідь' : 'чекаємо відповідь');
             const key = pendingRowKey(m);   // D357 r3
@@ -5312,7 +5328,7 @@
             const seatsFree = safeCount(crew.seats_free);
             const seatsBusy = Math.max(0, seatsTotal - seatsFree);
             const crewNo = activeTripCrewNumber(crew);
-            const crewLabel = crewNo && crewNo !== '—' ? `Екіпаж #${crewNo}` : 'Екіпаж';
+            const crewLabel = crewNo && crewNo !== '—' ? `Екіпаж #${crewNo}` : uiText('Екіпаж');
             const title = directionTitleById(safeDirId, 'подія');
             const crewBody = document.getElementById('sheet-body');
             const reading = pendingRowsHtml(pending, refresh ? (crewBody?._readPendingRows || null) : null);   // D357 r3
@@ -5401,7 +5417,7 @@
                 const partnerId = parseInt(pm.partner_id || 0, 10) || 0;
                 const dirId = parseInt(pm.direction_id || 0, 10) || 0;
                 const partnerName = pm.partner_name || `#${partnerId}`;
-                const dirTitle = pm.direction_title || 'Подія';
+                const dirTitle = pm.direction_title || uiText('Подія');
                 return `<div style="padding:12px 0;border-bottom:1px solid var(--border);">
                     <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
                         ${renderAvatarInline(partnerName, pm.partner_photo_url || '', 34)}
@@ -5422,7 +5438,7 @@
             }
             const emptyHtml = !rows && !proposedHtml
                 ? `<div data-map-pending-empty="true" style="padding:14px 0;font-size:13px;line-height:1.5;">${S.activeTrip
-                    ? `🤝 Екіпаж домовився · ${escapeHtml(S.activeTrip.direction_title || 'Подія')}. Наступні дії — на карті.`
+                    ? `🤝 Екіпаж домовився · ${escapeHtml(S.activeTrip.direction_title || uiText('Подія'))}. Наступні дії — на карті.`
                     : 'Активних запитів немає. Пошук можна продовжити на карті.'}</div>`
                 : '';
             const html = `
@@ -5500,7 +5516,7 @@
                     cls = 'sub-bar-pending';
                 } else if (partnerDone && !myDone) {
                     label = `🏁 Екіпаж #${escapeHtml(activeTripCrewNumber(t))} · Партнер чекає фініш`;
-                    title = `${t?.direction_title || 'Поїздка'} · партнер уже підтвердив фініш`;
+                    title = `${t?.direction_title || uiText('Поїздка')} · партнер уже підтвердив фініш`;
                     cls = 'sub-bar-pending';
                 }
                 parts.push(`<div class="${cls}" role="button" tabindex="0" title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}" onclick="openMapActiveTripFromSubBar()">${label}</div>`);
@@ -5565,7 +5581,7 @@
                     const title = d.direction_title || d.title || `#${did}`;
                     return `<button class="btn btn-secondary" onclick="doOpenCrew(${did});closeSheet();">${escapeHtml(title)}</button>`;
                 }).join('')}
-                    <button class="btn btn-ghost" onclick="closeSheet()">Скасувати</button>
+                    <button class="btn btn-ghost" onclick="closeSheet()" data-i18n="ui.041">Скасувати</button>
                 </div>
             `);
             } finally {
@@ -5709,14 +5725,14 @@
             if (!nav || !boardItem) return;
             const boardLabel = boardItem.querySelector('span');
             const boardIcon = boardItem.querySelector('svg');
-            if (!boardNavDefaults) boardNavDefaults = { label: boardLabel?.textContent || 'Каталог', icon: boardIcon?.innerHTML || '' };
+            if (!boardNavDefaults) boardNavDefaults = { label: boardLabel?.textContent || uiText('Каталог'), icon: boardIcon?.innerHTML || '' };
             const deepInBoard = S.currentScreen === 'board' && S.boardStack.length > 0;
             const navItems = Array.from(nav.querySelectorAll('.nav-item'));
             const addItem = document.getElementById('nav-board-add');
             nav.classList.toggle('board-deep', deepInBoard);
             navItems.forEach(item => { if (item === boardItem) return; item.style.display = deepInBoard ? 'none' : ''; });
             if (deepInBoard) {
-                if (boardLabel) boardLabel.textContent = 'Назад';
+                if (boardLabel) boardLabel.textContent = uiText('Назад');
                 if (boardIcon) boardIcon.innerHTML = '<polyline points="15 18 9 12 15 6"></polyline><line x1="9" y1="12" x2="21" y2="12"></line>';
                 boardItem.onclick = (e) => { e?.preventDefault?.(); boardGoUp(); };
                 boardItem.classList.add('active');
@@ -5730,7 +5746,7 @@
                     if (S.canCreateEvent) {
                         const addLabel = addItem.querySelector('span');
                         const addIcon = addItem.querySelector('svg');
-                        if (addLabel) addLabel.textContent = hasOwnEvent ? 'Редагувати подію' : 'Додати подію';
+                        if (addLabel) addLabel.textContent = hasOwnEvent ? uiText('Редагувати подію') : uiText('Додати подію');
                         if (addIcon) addIcon.innerHTML = hasOwnEvent
                             ? '<path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>'
                             : '<line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>';
@@ -5741,7 +5757,7 @@
                 }
                 return;
             }
-            if (boardLabel) boardLabel.textContent = boardNavDefaults.label || 'Каталог';
+            if (boardLabel) boardLabel.textContent = boardNavDefaults.label || uiText('Каталог');
             if (boardIcon && boardNavDefaults.icon) boardIcon.innerHTML = boardNavDefaults.icon;
             boardItem.onclick = () => switchScreen('board');
             navItems.forEach(item => { if (item === addItem) return; item.style.display = ''; });
@@ -6249,7 +6265,7 @@
                 <div class="crew-mini-card" onclick="${S.userRole !== 'driver' ? `requestJoin(${orgId}, ${dirId})` : ''}">
                     ${renderAvatarInline(cr.driver_name || cr.organizer_name || '?', cr.driver_photo_url || cr.organizer_photo_url || '', 40, 'crew-mini-avatar')}
                     <div class="crew-mini-info">
-                        <div class="crew-mini-name">${escapeAttr(cr.driver_name || cr.organizer_name || 'Екіпаж')}</div>
+                        <div class="crew-mini-name">${escapeAttr(cr.driver_name || cr.organizer_name || uiText('Екіпаж'))}</div>
                         <div class="crew-mini-dir">${escapeAttr(cr.direction_title || '')}</div>
                     </div>
                     <div class="crew-mini-seats">${parseInt(cr.passengers) || 0} пас.</div>
@@ -6379,7 +6395,7 @@
                     <div class="sheet-sub">Ви вже запросились до "${escapeHtml(String(currentName))}".<br>Перейти до іншого екіпажу?<br><br>Попередній запит буде скасовано.</div>
                     <div class="sheet-actions">
                         <button class="btn btn-primary" id="confirm-request-switch-yes">✓ Так, перемкнути</button>
-                        <button class="btn btn-ghost" id="confirm-request-switch-no">Скасувати</button>
+                        <button class="btn btn-ghost" id="confirm-request-switch-no" data-i18n="ui.041">Скасувати</button>
                     </div>
                 `, { pinnedStrip: `<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📤 Очікуємо відповіді: ${escapeHtml(String(currentName))}</span>` });
                 document.getElementById('confirm-request-switch-yes').onclick = () => { closeSheet(); resolve(true); };
@@ -6487,7 +6503,7 @@
 
             const isDriver = _isDriverRole(S.userRole);
             const partnerName = match.partner_name || match.sender_name || match.target_name || `#${partnerId}`;
-            const direction = match.direction || match.direction_title || 'Подія';
+            const direction = match.direction || match.direction_title || uiText('Подія');
             const title = isDriver ? 'Хтось хоче до екіпажу' : 'Водій знайдений';
             const subtitle = isDriver
                 ? `${escapeHtml(partnerName)} хоче приєднатися до вашого екіпажу.`
@@ -6580,7 +6596,7 @@
             const partnerId = m.target_id || m.partner_id || opts.partnerId || 0;
             const partnerName = m.target_name || m.partner_name || opts.partnerName || (partnerId ? `#${partnerId}` : 'Партнер');
             const partnerPhoto = m.target_photo_url || m.partner_photo_url || '';
-            const directionLabel = m.direction || m.direction_title || opts.directionLabel || 'Подія';
+            const directionLabel = m.direction || m.direction_title || opts.directionLabel || uiText('Подія');
             const queueHint = total > 1
                 ? `<div style="font-size:11px;color:var(--text-muted);margin:0 0 10px;line-height:1.35;">На карті показано один запит. Ще ${total - 1} ${pluralUk(total - 1, 'запит', 'запити', 'запитів')} — у списку поверх карти.</div>`
                 : `<div style="font-size:11px;color:var(--text-muted);margin:0 0 10px;line-height:1.35;">На карті показано поточний запит. Усі запити можна відкрити тут, не покидаючи карту.</div>`;
@@ -6621,7 +6637,7 @@
                 <div class="sheet-title">🎉 Екіпаж готовий!</div>
                 <div class="sheet-sub">${escapeHtml('Водій уже відкрив місця — резервацію створено. Екіпаж можна відкрити прямо на карті.')}</div>
                 <div class="sheet-actions" data-map-command-count="3">
-                    <button class="btn btn-primary" onclick="closeMapResultPanel(); openMapTripCrewSheet()">Екіпаж</button>
+                    <button class="btn btn-primary" onclick="closeMapResultPanel(); openMapTripCrewSheet()" data-i18n="ui.090">Екіпаж</button>
                     <button class="btn btn-secondary" onclick="closeMapResultPanel()">Зрозуміло</button>
                     <button class="btn btn-ghost" onclick="closeMapResultPanel(); openSubscribedDirectionDetails(${safeDirId})">Деталі</button>
                 </div>
@@ -6647,7 +6663,7 @@
                 <div class="sheet-title">Екіпаж готовий</div>
                 <div class="sheet-sub">${escapeHtml('Попутник підтвердився. Відкрийте екіпаж поверх карти, щоб узгодити посадку.')}</div>
                 <div class="sheet-actions" data-map-command-count="3">
-                    <button class="btn btn-primary" onclick="closeMapResultPanel(); openMapTripCrewSheet()">Екіпаж</button>
+                    <button class="btn btn-primary" onclick="closeMapResultPanel(); openMapTripCrewSheet()" data-i18n="ui.090">Екіпаж</button>
                     <button class="btn btn-secondary" onclick="closeMapResultPanel()">Зрозуміло</button>
                     <button class="btn btn-ghost" onclick="closeMapResultPanel(); openSubscribedDirectionDetails(${safeDirId})">Деталі</button>
                 </div>
@@ -6808,7 +6824,7 @@
 
         function renderHomeSetting() {
             const el = document.getElementById('settings-home');
-            if (el) el.textContent = S.home ? 'Вказано' : 'Не вказано';
+            if (el) el.textContent = S.home ? 'Вказано' : uiText('Не вказано');
         }
 
         async function openJoinPointsConfirmSheet(orgId, dirId, opts = {}) {
@@ -6822,7 +6838,7 @@
                 ${joinPointsSummaryHtml(safeDirId)}
                 <div class="sheet-actions">
                     <button class="btn btn-primary" data-opts="${optsJson}" onclick="requestJoin(${parseInt(orgId, 10) || 0}, ${safeDirId}, JSON.parse(this.dataset.opts))">Надіслати запит</button>
-                    <button class="btn btn-ghost" onclick="closeSheet()">Скасувати</button>
+                    <button class="btn btn-ghost" onclick="closeSheet()" data-i18n="ui.041">Скасувати</button>
                 </div>`, { maxHeight: '65vh' });
         }
 
@@ -7449,7 +7465,7 @@
                 <div class="sheet-sub">Щоб створити посилання-запрошення, потрібен username Telegram-бота без @. Це збережеться тільки у цьому браузері.</div>
                 <input class="board-search" id="bot-username-input" placeholder="Наприклад: WayTandemBot" maxlength="32" style="margin:12px 0;">
                 <button class="btn btn-primary" onclick="saveBotUsernameAndShare(${parseInt(dirId) || 0})">Зберегти і запросити</button>
-                <button class="btn btn-ghost" style="margin-top:8px;" onclick="closeSheet()">Скасувати</button>
+                <button class="btn btn-ghost" style="margin-top:8px;" onclick="closeSheet()" data-i18n="ui.041">Скасувати</button>
             `);
             setTimeout(() => document.getElementById('bot-username-input')?.focus(), 250);
             return '';
@@ -7561,7 +7577,7 @@
                     <div class="sheet-title">Посилання</div>
                     <div class="sheet-sub">Скопіюйте вручну, якщо буфер обміну недоступний.</div>
                     <input class="board-search" readonly value="${escapeAttr(inviteLink)}" style="margin-top:12px;">
-                    <button class="btn btn-primary" style="margin-top:12px;" onclick="closeSheet()">Готово</button>
+                    <button class="btn btn-primary" style="margin-top:12px;" onclick="closeSheet()" data-i18n="ui.044">Готово</button>
                 `);
             }
         }
@@ -7772,7 +7788,7 @@
             };
             wizardShow(ctx.safeDirId, `
                 ${joinInlineBox(ctx.safeDirId) ? '' : renderMapInviteContextHeader(ctx)}
-                ${joinStepsHtml('Роль', _isDriverRole(selectedRole))}
+                ${joinStepsHtml(uiText('Роль'), _isDriverRole(selectedRole))}
                 <div class="sheet-title">Як ви поїдете?</div>
                 <div class="sheet-sub">Оберіть роль — її видно вгорі, змінити можна будь-коли.</div>
                 <div class="map-role-options" role="radiogroup" aria-label="Як ви поїдете?">
@@ -7969,7 +7985,7 @@
             }
             const rows = crews.slice(0, 12).map(c => {
                 const orgId = parseInt(c.organizer_id) || 0;
-                const name = c.driver_name || c.organizer_name || 'Екіпаж';
+                const name = c.driver_name || c.organizer_name || uiText('Екіпаж');
                 const freeSeats = safeCount(c?.seats_free ?? c?.free_seats ?? c?.available_seats);
                 const seatsHtml = freeSeats > 0
                     ? `<span style="color:#22c55e;font-weight:700;">${freeSeats} ${pluralUk(freeSeats, 'місце', 'місця', 'місць')}</span>`
@@ -8029,7 +8045,7 @@
             const chip = (n) => `<button type="button" class="btn btn-secondary" data-seat="${n}" style="flex:1;text-align:center;" onclick="chooseDriverSeats(${ctx.safeDirId}, ${n})">${n}</button>`;
             wizardShow(ctx.safeDirId, `
                 ${joinInlineBox(ctx.safeDirId) ? '' : renderMapInviteContextHeader(ctx)}
-                ${joinStepsHtml('Місця', true)}
+                ${joinStepsHtml(uiText('Місця'), true)}
                 <div class="sheet-title">Скільки місць для попутників?</div>
                 <div class="sheet-sub">Стільки людей зможе сісти до вас в авто. Можна змінити пізніше.</div>
                 <div style="display:flex;gap:8px;margin:12px 0 4px;">${chip(1)}${chip(2)}${chip(3)}${chip(4)}</div>
@@ -8226,9 +8242,9 @@
                 const orgId = parseInt(c.organizer_id, 10) || 0;
                 const freeSeats = safeCount(c.seats_free);
                 return `<div data-auto-search-crew-id="${orgId}" style="display:flex;align-items:center;gap:8px;padding:8px;border:1px solid rgba(34,197,94,0.22);border-radius:10px;background:rgba(34,197,94,0.07);margin-bottom:6px;">
-                    ${renderAvatarInline(c.name || 'Водій', c.photo_url || '', 30)}
+                    ${renderAvatarInline(c.name || uiText('Водій'), c.photo_url || '', 30)}
                     <div style="flex:1;min-width:0;">
-                        <div style="font-size:12px;font-weight:850;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(c.name || 'Водій')}</div>
+                        <div style="font-size:12px;font-weight:850;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(c.name || uiText('Водій'))}</div>
                         <div style="font-size:11px;color:#86efac;">${freeSeats} ${pluralUk(freeSeats, 'вільне місце', 'вільні місця', 'вільних місць')}</div>
                     </div>
                     <button class="btn btn-primary" style="width:auto;min-height:32px;padding:7px 10px;font-size:12px;border-radius:9px;" onclick="requestJoin(${orgId}, ${safeDirId}, { source: 'auto_search', keepMapContext: true })">Запроситись</button>
@@ -8292,7 +8308,7 @@
                 <div class="sheet-sub" style="font-size:12px;margin-bottom:10px;">${escapeHtml(sub)}</div>
                 ${crewChoicesHtml}
                 <div style="display:flex;gap:10px;">
-                    <button class="btn ${crewChoices.length ? 'btn-primary' : 'btn-secondary'}" style="flex:1;" onclick="closeMapResultPanel(); ${crewChoices.length ? `openNearbyCrewsSheet(${safeDirId})` : `openSubscribedDirectionDetails(${safeDirId})`}">${crewChoices.length ? 'Показати місця' : 'Деталі'}</button>
+                    <button class="btn ${crewChoices.length ? 'btn-primary' : 'btn-secondary'}" style="flex:1;" onclick="closeMapResultPanel(); ${crewChoices.length ? `openNearbyCrewsSheet(${safeDirId})` : `openSubscribedDirectionDetails(${safeDirId})`}">${crewChoices.length ? 'Показати місця' : uiText('Деталі')}</button>
                     <button class="btn btn-secondary" style="flex:1;" onclick="disableAutoSearch(${safeDirId})">⏸ Зупинити автопошук</button>
                 </div>
             `, { kind: 'auto_search', dirId: safeDirId, renderSignature }, mapResultStrip(escapeHtml(`${title}${seats ? ' · ' + seats : ''}`)));
@@ -8455,7 +8471,7 @@
                 ? 'closeSheet()'
                 : (auto ? `closeSheet(); disableAutoSearch(${ctx.safeDirId})` : `confirmLeaveDirection(${ctx.safeDirId})`);
             const secondaryLabel = isDriver
-                ? 'Закрити'
+                ? uiText('Закрити')
                 : (auto ? '⏸ Зупинити автопошук' : '🚪 Вийти з події');
             const primary = isDriver
                 ? `<button class="btn btn-primary" onclick="doOpenCrew(${ctx.safeDirId}, { keepMapSheet: true })">${S.pickupCoords ? 'Відкрити місця' : 'Поставте авто на карту'}</button>`
@@ -8524,7 +8540,7 @@
                         <div style="flex:1;min-width:0;">
                             <div style="display:flex;align-items:center;gap:6px;min-width:0;">
                                 <div style="font-size:${compact ? '12px' : '15px'};font-weight:800;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(o?.name || 'Водій')}</div>
-                                ${isSelf ? '<span class="tag tag-green" style="border-radius:6px;padding:2px 6px;font-size:10px;flex-shrink:0;">Ви</span>' : ''}
+                                ${isSelf ? "<span class=\"tag tag-green\" style=\"border-radius:6px;padding:2px 6px;font-size:10px;flex-shrink:0;\" data-i18n=\"ui.097\">Ви</span>" : ''}
                             </div>
                             <div style="font-size:11px;color:${availability === 'open' ? '#22c55e' : 'var(--text-secondary)'};margin-top:2px;font-weight:${availability === 'open' ? '700' : '500'};">${escapeHtml(statusText)}</div>
                         </div>
@@ -8639,7 +8655,7 @@
                 <div style="padding:10px;border-radius:8px;background:rgba(255,193,7,0.08);border:1px solid rgba(255,193,7,0.2);font-size:12px;color:var(--text-secondary);line-height:1.45;margin-bottom:12px;">
                     ${nextStepHtml}
                 </div>
-                ${subscribedDetails ? '' : joinStepsHtml('Подія', false)}
+                ${subscribedDetails ? '' : joinStepsHtml(uiText('Подія'), false)}
                 ${actionHtml}
             `, { maxHeight: options?.sheetMaxHeight || '' });
         }
@@ -9025,8 +9041,8 @@
                 const eventSub = { ready: eventShown ? 'на карті' : 'показати', loading: 'завантажуємо…', error: 'не вдалося завантажити', missing: 'без координат' }[eventState.state] || '';
                 const cards = [
                     { key: 'event', title: '📍 Подія', color: '#fbbf24', count: '', sub: eventSub, onclick: 'onMapEventChip()' },
-                    { key: 'drivers', title: 'Водії', color: '#38bdf8', count: drivers, sub: drivers > 0 ? `${driversWithSeats} з місцями` : '' },
-                    { key: 'passengers', title: 'Попутники', color: '#34d399', count: livePassengerCountForMapContext(context) },
+                    { key: 'drivers', title: uiText('Водії'), color: '#38bdf8', count: drivers, sub: drivers > 0 ? `${driversWithSeats} з місцями` : '' },
+                    { key: 'passengers', title: uiText('Попутники'), color: '#34d399', count: livePassengerCountForMapContext(context) },
                 ];
                 strip.style.display = 'grid';
                 strip.style.gridTemplateColumns = 'repeat(3, minmax(0, 1fr))';
@@ -9414,9 +9430,9 @@
                 const paxCount = filterNewsItemsByEventLens(dirItems, 'passengers').length;
 
                 const eventCards = [
-                    { key: 'event',      title: 'Подія',     color: '#fbbf24', count: eventCount  },
-                    { key: 'drivers',    title: 'Водії',     color: '#38bdf8', count: driverCount },
-                    { key: 'passengers', title: 'Попутники', color: '#34d399', count: paxCount    },
+                    { key: 'event',      title: uiText('Подія'),     color: '#fbbf24', count: eventCount  },
+                    { key: 'drivers',    title: uiText('Водії'),     color: '#38bdf8', count: driverCount },
+                    { key: 'passengers', title: uiText('Попутники'), color: '#34d399', count: paxCount    },
                 ];
                 banners.style.display = '';
                 banners.innerHTML = eventCards.map(c => {
@@ -9649,11 +9665,11 @@
                 const cat = itemCategory(d);
                 // Розділ із результатів пошуку може лежати на іншому рівні — відкриваємо його за результатами.
                 const click = isFolder ? (searchQuery ? `boardOpenSearchFolder(${d.id})` : `boardOpenFolder(${d.id})`) : `openDirection(${d.id})`;
-                const cardLabel = `${isFolder ? 'Відкрити розділ' : 'Відкрити подію'}: ${d.title || 'Подія'}`;
+                const cardLabel = `${isFolder ? 'Відкрити розділ' : 'Відкрити подію'}: ${d.title || uiText('Подія')}`;
                 return `<button type="button" class="dir-card dir-card-tint-${cat}${isSub ? ' subscribed' : ''}" onclick="${click}" aria-label="${escapeAttr(cardLabel)}">
                     <span class="dir-card-icon cat-ico cat-ico-${cat}" aria-hidden="true">${itemIcon(d, cat, isFolder)}</span>
                     <span class="dir-card-info">
-                        <span class="dir-card-name">${escapeHtml(d.title || 'Подія')}${isSub ? '<span class="dir-card-mine">✓ Ви в події</span>' : ''}</span>
+                        <span class="dir-card-name">${escapeHtml(d.title || uiText('Подія'))}${isSub ? '<span class="dir-card-mine">✓ Ви в події</span>' : ''}</span>
                         ${whereWhen ? `<span class="dir-card-where">📍 ${escapeHtml(whereWhen)}</span>` : ''}
                         <span class="dir-card-stats"><span class="dir-card-total">${escapeHtml(stats.primary)}</span>${stats.secondary ? `<span class="dir-card-context">${escapeHtml(stats.secondary)}</span>` : ''}</span>
                     </span>
@@ -9746,7 +9762,7 @@
 
         function renderMapCrewRoster(crew) {
             const members = Array.isArray(crew?.members) ? crew.members : [];
-            const driverName = crew?.driver_name || crew?.organizer_name || 'Водій';
+            const driverName = crew?.driver_name || crew?.organizer_name || uiText('Водій');
             const roster = [
                 {
                     user_id: crew?.organizer_id,
@@ -9756,7 +9772,7 @@
                 },
                 ...members.map(m => ({
                     user_id: m?.user_id,
-                    name: m?.name || 'Попутник',
+                    name: m?.name || uiText('Попутник'),
                     role: 'passenger',
                     photo_url: m?.photo_url || '',
                     matched_into_crew: true
@@ -9834,7 +9850,7 @@
                 const lat = Number(p.lat);
                 const lng = Number(p.lng);
                 if (!safePassengerId || !safeDirectionId || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
-                const name = p.name || 'Попутник';
+                const name = p.name || uiText('Попутник');
                 const markerLabel = escapeAttr(`Попутник чекає: ${name}`);
                 const marker = L.marker([lat, lng], {
                     title: markerLabel,
@@ -10135,7 +10151,7 @@
             const sub = activeSubscriptionForRadar();
             if (!sub) return '';
             const dirId = directionIdForRadar(sub);
-            const title = escapeHtml(sub.title || sub.direction_title || (dirId ? `#${dirId}` : 'Подія'));
+            const title = escapeHtml(sub.title || sub.direction_title || (dirId ? `#${dirId}` : uiText('Подія')));
             const openCrews = openCrewCountForRadar(dirId);
             const mapText = S.lastMapSyncAt ? `${openCrews} ${openCrews === 1 ? 'водій' : 'водіїв'} на карті` : 'карта синхронізується';
             const primaryLine = isDriver
@@ -10337,7 +10353,7 @@
                 const isSelf = String(m?.user_id || '') === String(S.userId || '');
                 // У шторці «стежить за подією» = попутник ще без місця — як лічильник «без місця».
                 const label = m?.status === 'subscribed' ? 'Шукає місце' : (NEWS_PERSON_STATUS_LABELS[m?.status] || 'Учасник');
-                return `<div class="event-person-row">${renderAvatarInline(m?.name || 'Учасник', personPhoto(m?.user_id), 42)}<div style="flex:1;min-width:0;"><div class="event-person-name">${escapeHtml(m?.name || 'Учасник')}${isSelf ? ' <span class="tag tag-green" style="border-radius:6px;padding:2px 6px;font-size:10px;">Ви</span>' : ''}</div><div class="event-person-status">${escapeHtml(label)}</div></div></div>`;
+                return `<div class="event-person-row">${renderAvatarInline(m?.name || 'Учасник', personPhoto(m?.user_id), 42)}<div style="flex:1;min-width:0;"><div class="event-person-name">${escapeHtml(m?.name || 'Учасник')}${isSelf ? " <span class=\"tag tag-green\" style=\"border-radius:6px;padding:2px 6px;font-size:10px;\" data-i18n=\"ui.097\">Ви</span>" : ''}</div><div class="event-person-status">${escapeHtml(label)}</div></div></div>`;
             }).join('');
         }
 
@@ -10429,7 +10445,7 @@
             const body = mode === 'search'
                 ? `<input class="screen-help-search" id="screen-help-search" type="search" enterkeyhint="search" autocomplete="off" placeholder="Подія, місто або місце — напр. «пікнік» чи «Варшава»" aria-label="Знайти подію" oninput="stripSearch(this.value)"><div class="screen-help-results" id="screen-help-results"></div>`
                 : escapeHtml(screenHelpText(S.currentScreen || 'explore'));
-            panel.innerHTML = `<div class="screen-help-head"><div class="screen-help-body">${body}</div><button type="button" class="screen-help-close" aria-label="Закрити" onclick="closeScreenHelp()">✕</button></div>`;
+            panel.innerHTML = `<div class="screen-help-head"><div class="screen-help-body">${body}</div><button type="button" class="screen-help-close" aria-label="Закрити" data-i18n-aria-label="ui.043" onclick="closeScreenHelp()">✕</button></div>`;
             panel.dataset.mode = mode;
         }
 
@@ -10822,7 +10838,7 @@
             if (!S.map || !window.L) return false;
             const info = incomingPickupInfo(m);
             if (!info.hasPickup) { clearIncomingPickupMarker(); return false; }
-            const name = m?.partner_name || m?.sender_name || 'Попутник';
+            const name = m?.partner_name || m?.sender_name || uiText('Попутник');
             const key = `${m?.partner_id || m?.sender_id}:${m?.direction_id}:${info.pickup.join(',')}`;
             const onMap = S._incomingPickupMarker && (typeof S.map.hasLayer !== 'function' || S.map.hasLayer(S._incomingPickupMarker));
             if (S._incomingPickupMarkerKey !== key || !onMap) {
@@ -10878,7 +10894,7 @@
         function completedContextCardHtml(dirId, surface = 'map') {
             const safeDirId = parseInt(dirId, 10) || 0;
             const header = surface === 'map' ? renderMapInviteContextHeader(mapInviteContext(safeDirId)) : '';
-            const close = surface === 'map' ? '<button class="btn btn-ghost" style="flex:1;" onclick="dismissCompletedContextPanel()">Закрити</button>' : '';
+            const close = surface === 'map' ? "<button class=\"btn btn-ghost\" style=\"flex:1;\" onclick=\"dismissCompletedContextPanel()\" data-i18n=\"ui.043\">Закрити</button>" : '';
             // like the other status banners: ▾ folds the card into a strip above the bottom menu (frame B20261015T170531/013)
             const fold = surface === 'map' ? '<span onclick="toggleMapResultCollapse()" style="float:right;cursor:pointer;opacity:.6;font-size:18px;line-height:1;" title="Згорнути">▾</span>' : '';
             if (outingDoneFor(safeDirId)) {
@@ -11006,7 +11022,7 @@
                 <div class="sheet-sub">Поїздки вже немає серед активних, а список ваших подій ще не оновився. Пошук не показуємо, доки дані не підтвердяться, — WayTandem перевіряє їх сам.</div>
                 <div class="sheet-actions" data-map-command-count="2">
                     <button class="btn btn-secondary" onclick="openSubscribedDirectionDetails(${ctx.safeDirId})">Деталі події</button>
-                    <button class="btn btn-ghost" onclick="closeSheet()">Закрити</button>
+                    <button class="btn btn-ghost" onclick="closeSheet()" data-i18n="ui.043">Закрити</button>
                 </div>
             `, { maxHeight: options?.sheetMaxHeight || '65vh' });
         }
@@ -11061,7 +11077,7 @@
             if (!dir && data?.direction && typeof data.direction === 'object') {
                 dir = {
                     id: data.direction.id ?? dirId,
-                    title: data.direction.title || data.direction.name || 'Подія',
+                    title: data.direction.title || data.direction.name || uiText('Подія'),
                     drivers: Number(data.direction.drivers || data.direction.drivers_count || 0),
                     passengers: Number(data.direction.passengers || data.direction.passengers_count || 0),
                     is_folder: !!data.direction.is_folder,
@@ -11170,7 +11186,7 @@
                 <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;">
                     <div class="cat-ico sheet-cat-ico cat-ico-${sheetCat}" aria-hidden="true">${itemIcon(data?.direction || dir, sheetCat, false)}</div>
                     <div style="flex:1;">
-                        <div class="sheet-title" style="margin-bottom:2px;">${escapeHtml(dir.title || 'Подія')}</div>
+                        <div class="sheet-title" style="margin-bottom:2px;">${escapeHtml(dir.title || uiText('Подія'))}</div>
                         <div style="font-size:12px;color:var(--text-secondary);font-weight:600;">${escapeHtml(customStatsLine)}</div>
                     </div>
                     ${isMyDir ? `<div style="display:flex;gap:6px;flex-shrink:0;"><button onclick="shareDirectionInvite(${parseInt(dirId) || 0})" style="padding:6px 10px;border-radius:8px;background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.28);color:var(--blue);font-size:14px;cursor:pointer;" title="Запросити учасників">📨</button><button data-dir-id="${parseInt(dirId) || 0}" data-dir-title="${escapeAttr(String(dir.title || ''))}" onclick="openEditDirectionFromButton(this)" style="padding:6px 10px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text-secondary);font-size:14px;cursor:pointer;" title="Редагувати">✏️</button></div>` : ''}
@@ -11184,7 +11200,7 @@
                     ? `<button class="btn btn-danger" style="width:100%;font-size:15px;padding:13px 0;border-radius:12px;" onclick="confirmLeaveDirection(${dirId})">🚪 Вийти з події</button>`
                     : joinPrimaryCta}
                     ${chatLink.startsWith('https://t.me/') ? `<button id="btn-idea-chat" class="btn btn-secondary" style="width:100%;font-size:15px;font-weight:700;padding:13px 0;border-radius:12px;border:1px solid rgba(56,189,248,0.35);background:rgba(56,189,248,0.10);color:var(--blue);cursor:pointer;" data-chat-link="${escapeAttr(chatLink)}" onclick="openIdeaChat(this)">💬 Чат події</button>` : ''}
-                    <button class="btn btn-secondary" style="width:100%;font-size:16px;font-weight:700;padding:14px 0;border-radius:12px;background:#334155;color:#ffffff;border:none;cursor:pointer;" onclick="closeSheet()">Закрити</button>
+                    <button class="btn btn-secondary" style="width:100%;font-size:16px;font-weight:700;padding:14px 0;border-radius:12px;background:#334155;color:#ffffff;border:none;cursor:pointer;" onclick="closeSheet()" data-i18n="ui.043">Закрити</button>
                 </div>
                 ${isSub ? `<button class="btn btn-secondary" style="width:100%;margin-bottom:8px;font-size:12px;" onclick="pickPickupLocation(${dirId}, { kind: ${_isDriverRole(S.userRole) ? "'driver_start'" : "'passenger_wait'"}, persistUserLocation: ${_isDriverRole(S.userRole) ? 'false' : 'true'} })">${hasPickup ? '📍 Точка вказана ✓' : (_isDriverRole(S.userRole) ? '🚗 Поставити авто на карту' : '📍 Вказати де чекати водія')}</button>` : ''}
                 <div data-event-people="${parseInt(dirId, 10) || 0}"></div>
@@ -11232,7 +11248,7 @@
                         <div class="sheet-sub">Ви вже в черзі на "${escapeHtml(oldTitle)}".<br>Перейти на "${escapeHtml(newTitle)}"?<br><br>Попередня черга буде скасована.</div>
                         <div class="sheet-actions">
                             <button class="btn btn-primary" id="confirm-switch-yes">✓ Так, перемкнути</button>
-                            <button class="btn btn-ghost" id="confirm-switch-no">Скасувати</button>
+                            <button class="btn btn-ghost" id="confirm-switch-no" data-i18n="ui.041">Скасувати</button>
                         </div>
                     `);
                     document.getElementById('confirm-switch-yes').onclick = () => { closeSheet(); resolve(true); };
@@ -11547,10 +11563,10 @@
                 const cancelBySelf = cancelBy && String(cancelBy) === String(S.userId);
                 const cancelByPassenger = cancelBy && String(cancelBy) === String(passengerId);
                 const status = isStarted
-                    ? (flags.driverFinished ? 'Фініш відмічено' : 'В дорозі')
+                    ? (flags.driverFinished ? 'Фініш відмічено' : uiText('В дорозі'))
                     : (cancelByPassenger ? 'Хоче вийти з екіпажу'
                         : (cancelBySelf ? 'Ви запросили скасування'
-                            : (picked ? 'В авто' : (isPickup ? 'Чекаємо посадку' : 'Домовленість активна'))));
+                            : (picked ? uiText('В авто') : (isPickup ? 'Чекаємо посадку' : 'Домовленість активна'))));
                 const quickButtons = [];
                 if (cancelByPassenger && !isStarted) {
                     quickButtons.push(`<button class="btn btn-primary" data-cancel-confirm="${reqId}" onclick="confirmCancelTrip(${reqId}, ${cancelSeqFor(reqId)})">✅ Погодитись</button>`);
@@ -11603,7 +11619,7 @@
         }
 
         function buildTripHumanSummary(trip) {
-            const driverName = trip?.driver_name || trip?.organizer_name || 'Водій';
+            const driverName = trip?.driver_name || trip?.organizer_name || uiText('Водій');
             const passengers = orderedPickupPassengers(trip);
             const passengerNames = passengers.map(passengerDisplayName).filter(Boolean);
             const passengerLine = passengerNames.length ? passengerNames.slice(0, 4).join(', ') : 'попутників ще немає';
@@ -11645,11 +11661,11 @@
                     : cancelIncoming ? 'Просить вихід — потрібна відповідь'
                     : cancelOutgoing ? 'Очікуємо згоди на скасування'
                     : isPassengerClaimed(p) ? (p.presence_contested ? 'Каже, що на місці' : 'Не знайшли вас')
-                    : picked ? 'В авто' : 'Чекає посадки';
+                    : picked ? uiText('В авто') : 'Чекає посадки';
                 let action = '';
                 if (reqId && uid && !flags.driverFinished) {
                     if (started && (picked || flags.clientFinished)) {
-                        action = `<button class="btn btn-secondary" data-compact-action="finish" onclick="confirmOwnFinish('request', ${reqId}, { stayOnCrew: true, partnerId: ${uid} })">${flags.clientFinished ? 'Підтвердити' : 'Висадити'}</button>`;
+                        action = `<button class="btn btn-secondary" data-compact-action="finish" onclick="confirmOwnFinish('request', ${reqId}, { stayOnCrew: true, partnerId: ${uid} })">${flags.clientFinished ? uiText('Підтвердити') : 'Висадити'}</button>`;
                     } else if (!picked && !cancelBy && (trip.is_started || trip.status === 'pickup')) {
                         action = `<button class="btn btn-primary" data-compact-action="pickup" onclick="markPassengerPickedUp(${reqId}, ${uid})">В авто</button>`;
                     }
@@ -11695,7 +11711,7 @@
             const title = outing.is_started ? 'Виїзд триває' : 'Авто відкрите';
             return `<section class="${compact ? 'dock-strip' : 'hero compact-driver-trips'}" data-own-outing="true">
                 <div><strong>${escapeHtml(title)}</strong> · ${Number(outing.seats_free) || 0} вільних місць
-                ${!compact ? `<div class="hero-sub">${escapeHtml(outing.direction_title || 'Подія')}</div>` : ''}</div>
+                ${!compact ? `<div class="hero-sub">${escapeHtml(outing.direction_title || uiText('Подія'))}</div>` : ''}</div>
                 <button class="btn btn-secondary" onclick="finishOwnOuting()">Завершити свій виїзд</button>
             </section>`;
         }
@@ -11756,13 +11772,13 @@
             const remaining = orderedPickupPassengers(trip).some(p => !passengerFinishFlags(p).driverFinished);
             const crewKey = `crew-${parseInt(trip.crew_id || 0, 10) || 0}`;
             return `<div class="hero ${started ? 'driving' : 'reservation'} compact-driver-trips" data-compact-driver-trips="true">
-                <div class="hero-title">${escapeHtml(trip.direction_title || 'Поїздка')}</div>
+                <div class="hero-title">${escapeHtml(trip.direction_title || uiText('Поїздка'))}</div>
                 <div class="hero-sub">Екіпаж #${escapeHtml(activeTripCrewNumber(trip))} · ${escapeHtml(tripHumanStatusLabel(trip))}</div>
                 ${buildCompactDriverPassengerCards(trip)}
                 <div class="compact-driver-actions">
                     <button class="btn btn-secondary" onclick="openTripMap()">🗺️ Карта екіпажу</button>
                     ${(!started && !pickup || needsFreshPickupArrival(trip)) && !pendingCancel ? '<button class="btn btn-secondary" onclick="arriveAtPickup()">Я біля точки збору</button>' : ''}
-                    ${!started && pickup && pickupReadyForStart(trip) && !pendingCancel ? '<button class="btn btn-primary" onclick="startTrip()">Поїхали</button>' : ''}
+                    ${!started && pickup && pickupReadyForStart(trip) && !pendingCancel ? "<button class=\"btn btn-primary\" onclick=\"startTrip()\" data-i18n=\"ui.105\">Поїхали</button>" : ''}
                     ${started ? `<button class="btn btn-success" ${remaining ? '' : 'disabled'} onclick="confirmOwnFinish('driver_all')">Фініш з усіма</button>` : ''}
                 </div>
                 <details ${compactTripDetailsOpen(crewKey) ? 'open' : ''} class="compact-crew-details" data-compact-details-key="${crewKey}" ontoggle="rememberCompactTripDetails(this)">
@@ -11787,12 +11803,12 @@
                 const passengerWaitingDriver = !flags.driverFinished && flags.clientFinished;
                 const status = waitingPassenger
                     ? 'Очікуємо підтвердження попутника'
-                    : (passengerWaitingDriver ? 'Попутник уже відмітив фініш' : 'У дорозі');
+                    : (passengerWaitingDriver ? 'Попутник уже відмітив фініш' : uiText('У дорозі'));
                 const statusColor = waitingPassenger
                     ? 'var(--amber)'
                     : (passengerWaitingDriver ? 'var(--green)' : 'var(--text-secondary)');
                 const disabled = !reqId || !passengerId || flags.driverFinished;
-                const actionLabel = flags.driverFinished ? 'Фініш відмічено' : (passengerWaitingDriver ? 'Підтвердити' : 'Висадити');
+                const actionLabel = flags.driverFinished ? 'Фініш відмічено' : (passengerWaitingDriver ? uiText('Підтвердити') : 'Висадити');
                 const lm = p.return_point ? firstFiniteLatLng([p.return_point.lat, p.return_point.lng]) : null;
                 const lmLine = p.return_point ? `<div data-finish-landmark="true" style="font-size:11px;color:var(--text-secondary);margin-top:2px;">🧭 Орієнтир: точка старту — ${escapeHtml(placeText(p.return_point, 'Точка старту'))}</div>` : '';
                 const lmNav = lm ? `<button class="btn btn-secondary" data-finish-landmark-nav="true" data-nav-lat="${lm.lat}" data-nav-lng="${lm.lng}" style="padding:8px 10px;font-size:12px;" aria-label="${escapeAttr(`Маршрут до орієнтира висадки: ${name}`)}" title="Орієнтир висадки — точка старту" onclick="openMapNavigationFromButton(this)">🧭</button>` : '';
@@ -11951,7 +11967,7 @@
                         <div class="sheet-sub">Ви вийдете з події «${escapeHtml(mp.direction_title || 'подія')}». Пошук у ній вимкнеться.</div>
                         <div class="sheet-actions">
                             <button class="btn btn-primary" id="g5-notgoing-yes">Так, більше не їду</button>
-                            <button class="btn btn-ghost" id="g5-notgoing-no">Назад</button>
+                            <button class="btn btn-ghost" id="g5-notgoing-no" data-i18n="ui.042">Назад</button>
                         </div>`);
                     document.getElementById('g5-notgoing-yes').onclick = () => { closeSheet(); resolve(true); };
                     document.getElementById('g5-notgoing-no').onclick = () => { closeSheet(); resolve(false); };
@@ -12259,14 +12275,14 @@
         function buildPickupScheme(trip) {
             if (!trip) return null;
             const driver = crewDriverMember(trip);
-            const nodes = [{ kind: 'car', name: driver?.name || trip.driver_name || 'Водій', coord: tripCarStartCoord(trip) }];
+            const nodes = [{ kind: 'car', name: driver?.name || trip.driver_name || uiText('Водій'), coord: tripCarStartCoord(trip) }];
             orderedPickupPassengers(trip).filter(p => !isPassengerPickedUp(p)).forEach(p => {
                 nodes.push({ kind: 'passenger', name: passengerDisplayName(p), member: p,
                     coord: firstFiniteLatLng([p?.pickup_lat, p?.pickup_lng]) });
             });
             const destination = tripEventDestination(trip);
             const eventCoord = destination && destination.lat != null ? { lat: destination.lat, lng: destination.lng } : null;
-            nodes.push({ kind: 'event', name: trip.direction_title || destination?.label || 'Подія', coord: eventCoord });
+            nodes.push({ kind: 'event', name: trip.direction_title || destination?.label || uiText('Подія'), coord: eventCoord });
             const segments = [];
             let run = [];
             nodes.forEach(n => {
@@ -12295,7 +12311,7 @@
             const passengers = orderedPickupPassengers(trip);
             if (!passengers.length) return '';
             const driver = crewDriverMember(trip);
-            const driverName = driver?.name || trip.driver_name || 'Водій';
+            const driverName = driver?.name || trip.driver_name || uiText('Водій');
             const isStarted = !!trip.is_started;
             const isPickup = trip.status === 'pickup';
             const nextPassenger = nextPickupPassenger(trip);
@@ -12352,7 +12368,7 @@
                 return {
                     type: 'passenger-stop',
                     icon: '✅',
-                    title: isSelf ? 'Ви' : passengerDisplayName(p),
+                    title: isSelf ? uiText('Ви') : passengerDisplayName(p),
                     meta: p.pickup || p.pickup_label || '',
                     badge: 'в авто',
                     isSelf,
@@ -12465,7 +12481,7 @@
             const nextPassenger = nextPickupPassenger(t);
             const safeReqId = parseInt(t.request_id || t.id || 0, 10) || 0;
             const safePartnerId = parseInt(isDriver ? (t.client_id || 0) : (t.driver_id || 0), 10) || 0;
-            const title = isStarted ? 'У дорозі до події' : (isPickup ? 'Збір екіпажу' : 'Екіпаж домовився');
+            const title = isStarted ? 'У дорозі до події' : (isPickup ? uiText('Збір екіпажу') : uiText('Екіпаж домовився'));
             const status = isStarted
                 ? (nextPassenger ? 'Частина екіпажу вже їде; ще є попутники, яких треба забрати.' : 'Усі в авто. Карта лишається як просторовий контекст поїздки.')
                 : (isDriver
@@ -12477,18 +12493,18 @@
             const actions = isStarted
                 ? (isDriver
                     ? `<button class="btn btn-secondary" onclick="closeSheet();openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
-                       <button class="btn btn-secondary" onclick="closeSheet();openMapTripCrewSheet()">👥 Екіпаж</button>
+                       <button class="btn btn-secondary" onclick="closeSheet();openMapTripCrewSheet()" data-i18n="ui.089">👥 Екіпаж</button>
                        <button class="btn btn-ghost" onclick="closeSheet()">Карта</button>`
                     : `<button class="btn btn-secondary" onclick="closeSheet();openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
-                       <button class="btn btn-success" onclick="closeSheet();confirmOwnFinish('trip')">🏁 Підтвердити завершення</button>
+                       <button class="btn btn-success" onclick="closeSheet();confirmOwnFinish('trip')" data-i18n="ui.109">🏁 Підтвердити завершення</button>
                        <button class="btn btn-ghost" onclick="closeSheet()">Карта</button>`)
                 : (isDriver
                     ? `${!isPickup ? `<button class="btn btn-secondary" onclick="arriveAtPickup().then(ok => { if (ok) openTripMap(); })">🚗 Я біля точки збору</button>` : ''}
                        ${isPickup && nextPassenger ? `<button class="btn btn-primary" onclick="markPassengerPickedUp(${nextReqId}, ${nextPassengerId}).then(ok => { if (ok) openTripMap(); })">✅ ${escapeHtml(nextName)} в авто</button>` : ''}
                        ${isPickup && allPickedUp ? `<button class="btn btn-primary" onclick="startTrip().then(ok => { if (ok) openTripMap(); })">🚀 Усі в авто — поїхали</button>` : ''}
-                       <button class="btn btn-ghost" onclick="closeSheet();openMapTripCrewSheet()">👥 Екіпаж</button>`
+                       <button class="btn btn-ghost" onclick="closeSheet();openMapTripCrewSheet()" data-i18n="ui.089">👥 Екіпаж</button>`
                     : `<button class="btn btn-primary" onclick="closeSheet()">Дивитись карту</button>
-                       <button class="btn btn-secondary" onclick="closeSheet();openMapTripCrewSheet()">👥 Екіпаж</button>
+                       <button class="btn btn-secondary" onclick="closeSheet();openMapTripCrewSheet()" data-i18n="ui.089">👥 Екіпаж</button>
                        <button class="btn btn-ghost" onclick="closeSheet()">Пізніше</button>`);
             openSheet(`
                 <div data-map-trip-coordination="true">
@@ -12611,8 +12627,8 @@
                         <div class="hero-label" style="color:${isStarted ? 'var(--accent)' : (isPickup ? 'var(--blue)' : 'var(--amber)')};">
                             ${formationLabel}
                         </div>
-                        <div class="hero-title">${escapeHtml(t.direction_title || 'Поїздка')}</div>
-                        <div class="hero-sub">Екіпаж #${activeTripCrewNumber(t)} • ${isDriver ? '🚗 Ви водій' : '👤 Ви попутник'}</div>
+                        <div class="hero-title">${escapeHtml(t.direction_title || uiText('Поїздка'))}</div>
+                        <div class="hero-sub">Екіпаж #${activeTripCrewNumber(t)} • ${isDriver ? uiText('🚗 Ви водій') : uiText('👤 Ви попутник')}</div>
                         ${buildCrewTree(t)}
                         ${buildCrewPresenceSummary(t)}
                         ${buildPickupSequence(t)}
@@ -12646,7 +12662,7 @@
                             ${!isStarted && isDriver && isPickup && nextPassenger && !cancelRequested ? `<button class="btn btn-primary" onclick="markPassengerPickedUp(${nextReqId}, ${nextPassengerId})">✅ ${escapeHtml(nextName)} в авто</button>` : ''}
                             ${!isStarted && isDriver && isPickup && allPickedUp && !cancelRequested ? `<button class="btn btn-primary" onclick="startTrip()">🚀 Усі в авто — поїхали</button>` : ''}
                             ${isStarted && isDriver ? `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="openChat(${t.request_id || t.id || 0}, ${t.client_id || 0})">💬 Чат</button><button class="btn btn-secondary" style="flex:1;" onclick="openTripMap()">🗺️ Карта</button></div>${buildDriverFinishPanel(t)}` : ''}
-                            ${isStarted && !isDriver ? `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="openChat(${t.request_id || t.id || 0}, ${t.driver_id || 0})">💬 Чат</button><button class="btn btn-success" style="flex:1;" onclick="confirmOwnFinish('trip')">${partnerFinished && !viewerFinished ? '✅ Підтвердити завершення' : '🏁 Підтвердити завершення'}</button></div>` : ''}
+                            ${isStarted && !isDriver ? `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="openChat(${t.request_id || t.id || 0}, ${t.driver_id || 0})">💬 Чат</button><button class="btn btn-success" style="flex:1;" onclick="confirmOwnFinish('trip')">${partnerFinished && !viewerFinished ? '✅ Підтвердити завершення' : uiText('🏁 Підтвердити завершення')}</button></div>` : ''}
                             ${showTripLevelCancelActions ? `<div style="display:flex;gap:10px;"><button class="btn btn-primary" style="flex:1;" onclick="confirmCancelTrip(0, ${cancelSeqFor(currentRequestId())})">✅ Згоден скасувати</button><button class="btn btn-secondary" style="flex:1;" onclick="rejectCancelTrip(0, ${cancelSeqFor(currentRequestId())})">❌ Відмовити</button></div>` : ''}
                             ${!isStarted && !cancelPending && !cancelRequested ? `<button class="btn btn-danger" onclick="cancelTrip()">❌ Попросити скасування</button>` : ''}
                         </div>
@@ -12664,7 +12680,7 @@
                     return `<div class="card animate-in" style="border-left:3px solid ${isIncoming ? 'var(--amber)' : 'var(--blue)'};">
                             <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
                                 ${renderAvatarInline(partnerName, m.partner_photo_url || m.sender_photo_url || m.target_photo_url || '', 40)}
-                                <div style="flex:1;"><div style="font-weight:800;font-size:14px;">${escapeHtml(partnerName)}</div><div style="font-size:11px;color:var(--text-secondary);">${escapeHtml(m.direction || m.direction_title || 'Подія')}</div></div>
+                                <div style="flex:1;"><div style="font-weight:800;font-size:14px;">${escapeHtml(partnerName)}</div><div style="font-size:11px;color:var(--text-secondary);">${escapeHtml(m.direction || m.direction_title || uiText('Подія'))}</div></div>
                                 <div class="tag ${isIncoming ? 'tag-amber' : 'tag-blue'}">${isIncoming ? '📩 Вхідний' : '📤 Очікування'}</div>
                             </div>
                             ${m.points ? `<div data-proposal-points="true" style="font-size:12px;color:var(--text-secondary);margin:-4px 0 10px;">${escapeHtml(proposalPointsLine(m, _isDriverRole(S.userRole)))}</div>${proposalPointsNavHtml(m, _isDriverRole(S.userRole))}` : ''}
@@ -13268,7 +13284,7 @@
                 const pointsChanged = !!(samePartner && panel.dataset.shownFp && fpNow && panel.dataset.shownFp !== fpNow);
                 const partnerName = m.partner_name || m.sender_name || `#${m.partner_id}`;
                 const partnerId = m.partner_id || m.sender_id;
-                const dirTitle = m.direction || m.direction_title || 'Подія';
+                const dirTitle = m.direction || m.direction_title || uiText('Подія');
                 const isDriver = _isDriverRole(S.userRole);
                 const title = isDriver ? '📩 Запит в екіпаж' : '📩 Знайдено водія';
                 const acceptText = isDriver ? '✓ Взяти в екіпаж' : '✓ Прийняти';
@@ -13367,7 +13383,7 @@
                 const pm = S.proposedMatch;
                 const partnerName = pm.partner_name || `#${pm.partner_id}`;
                 const partnerId = pm.partner_id;
-                const dirTitle = pm.direction_title || 'Подія';
+                const dirTitle = pm.direction_title || uiText('Подія');
                 const isDriver = _isDriverRole(S.userRole);
                 const title = isDriver ? '✨ Знайдено попутника' : '✨ Знайдено водія';
 
@@ -13603,9 +13619,9 @@
         }
 
         function mapTripDockTitle(phase) {
-            if (phase === 'driving') return { icon: '🛣', title: 'Екіпаж у поїздці' };
-            if (phase === 'pickup') return { icon: '🚗', title: 'Збір екіпажу' };
-            return { icon: '🤝', title: 'Екіпаж домовився' };
+            if (phase === 'driving') return { icon: '🛣', title: uiText('Екіпаж у поїздці') };
+            if (phase === 'pickup') return { icon: '🚗', title: uiText('Збір екіпажу') };
+            return { icon: '🤝', title: uiText('Екіпаж домовився') };
         }
 
         function closeMapTripDock() {
@@ -13620,7 +13636,7 @@
 
         function mapTripDockDetailsToggle() {
             const open = !S.mapTripDockCompact;
-            return `<button class="dock-collapse dock-details-toggle" data-dock-details-toggle="true" onclick="toggleMapTripDock()" aria-expanded="${open}" aria-label="${open ? 'Сховати деталі' : 'Деталі'}">${open ? 'Сховати деталі ▴' : 'Деталі ▾'}</button>`;
+            return `<button class="dock-collapse dock-details-toggle" data-dock-details-toggle="true" onclick="toggleMapTripDock()" aria-expanded="${open}" aria-label="${open ? uiText('Сховати деталі') : uiText('Деталі')}">${open ? uiText('Сховати деталі ▴') : uiText('Деталі ▾')}</button>`;
         }
 
         function toggleMapTripDock() {
@@ -13814,9 +13830,9 @@
         function buildMapFinishWaitBody(t) {
             const isDriver = t.viewer_role === 'driver';
             const crewNo = activeTripCrewNumber(t);
-            const dir = t.direction_title || 'Поїздка';
+            const dir = t.direction_title || uiText('Поїздка');
             const seatsChip = isDriver ? ` · ${tripSeatsLabel(t)}` : '';
-            const metaLine = `Екіпаж #${escapeHtml(String(crewNo))} · ${escapeHtml(dir)} · ${isDriver ? '🚗 Ви водій' : '👤 Ви попутник'}${seatsChip}`;
+            const metaLine = `Екіпаж #${escapeHtml(String(crewNo))} · ${escapeHtml(dir)} · ${isDriver ? uiText('🚗 Ви водій') : uiText('👤 Ви попутник')}${seatsChip}`;
             const safeReqId = parseInt(t.request_id || t.id || 0, 10) || 0;
             const safePartnerId = parseInt(isDriver ? (t.client_id || 0) : (t.driver_id || 0), 10) || 0;
             return `<div class="dock-head">
@@ -13831,7 +13847,7 @@
                 ${mapTripPhaseStepper('driving', true)}
                 <div class="dock-actions">
                     <button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
-                    <button class="btn btn-secondary" onclick="openMapTripCrewSheet()">👥 Екіпаж</button>
+                    <button class="btn btn-secondary" onclick="openMapTripCrewSheet()" data-i18n="ui.089">👥 Екіпаж</button>
                 </div>`;
         }
 
@@ -13857,7 +13873,7 @@
                 ? `<button class="btn btn-secondary" onclick="closeSheet();openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
                    <button class="btn btn-ghost" onclick="closeSheet()">Карта</button>`
                 : `<button class="btn btn-secondary" onclick="closeSheet();openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
-                   ${!isStarted ? `<button class="btn btn-ghost" onclick="closeSheet();cancelTrip()">🚪 Попросити вихід</button>` : ''}
+                   ${!isStarted ? `<button class="btn btn-ghost" onclick="closeSheet();cancelTrip()" data-i18n="ui.127">🚪 Попросити вихід</button>` : ''}
                    <button class="btn btn-ghost" onclick="closeSheet()">Карта</button>`;
             return `
                 <div data-map-trip-crew-sheet="true">
@@ -13914,9 +13930,9 @@
             let head = mapTripDockTitle(phase);
             const isDriver = t.viewer_role === 'driver';
             const crewNo = activeTripCrewNumber(t);
-            const dir = t.direction_title || 'Поїздка';
+            const dir = t.direction_title || uiText('Поїздка');
             const seatsChip = isDriver ? ` · ${tripSeatsLabel(t)}` : '';
-            const metaLine = `Екіпаж #${escapeHtml(String(crewNo))} · ${escapeHtml(dir)} · ${isDriver ? '🚗 Ви водій' : '👤 Ви попутник'}${seatsChip}`;
+            const metaLine = `Екіпаж #${escapeHtml(String(crewNo))} · ${escapeHtml(dir)} · ${isDriver ? uiText('🚗 Ви водій') : uiText('👤 Ви попутник')}${seatsChip}`;
             const safeReqId = parseInt(t.request_id || t.id || 0, 10) || 0;
             const safePartnerId = parseInt(isDriver ? (t.client_id || 0) : (t.driver_id || 0), 10) || 0;
             const nextPassenger = nextPickupPassenger(t);
@@ -13927,7 +13943,7 @@
             // P-5 (live-прохід 2026-07-05): канон §9 хоче ІМ'Я, не роль-генерик.
             // У водія ціль уже персоналізована (nextName). Дзеркалимо для попутника —
             // щоб той, хто забув, з банера памʼятав, ХТО саме по нього їде.
-            const driverName = t.driver_name || t.organizer_name || 'Водій';
+            const driverName = t.driver_name || t.organizer_name || uiText('Водій');
 
             const partnerFinished = tripPartnerFinished(t);
             const viewerFinished = tripViewerFinished(t);
@@ -13955,7 +13971,7 @@
                                    <button class="btn btn-secondary" onclick="openChat(${reqId || safeReqId}, ${passengerId})">💬 Чат</button>`;
                     } else {
                         hint = `⚠️ Попутники хочуть вийти: ${names}. Відповідь у списку екіпажу.`;
-                        actions = `<button class="btn btn-primary" onclick="openMapTripCrewSheet()">👥 Екіпаж</button>
+                        actions = `<button class="btn btn-primary" onclick="openMapTripCrewSheet()" data-i18n="ui.089">👥 Екіпаж</button>
                                    <button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>`;
                     }
                 } else {
@@ -13994,7 +14010,7 @@
                         const names = finishers.map(p => passengerDisplayName(p)).filter(Boolean).slice(0, 3).join(', ');
                         hint = `🏁 Відмітили фініш: ${escapeHtml(names)}. Чекаємо вашого підтвердження.`;
                         actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
-                                   <button class="btn btn-secondary" onclick="openMapTripCrewSheet()">👥 Екіпаж</button>
+                                   <button class="btn btn-secondary" onclick="openMapTripCrewSheet()" data-i18n="ui.089">👥 Екіпаж</button>
                                    <button class="btn btn-success" onclick="confirmOwnFinish('all_finishers')">✅ Підтвердити завершення</button>`;
                     } else {
                         // Pair-режим без members-знімка — пряме підтвердження якірної пари.
@@ -14010,7 +14026,7 @@
                 hint = `⏳ Чекаємо підтвердження: ${escapeHtml(shown)}`;
                 alertStyle = 'color: var(--amber); font-weight: bold;';
                 actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
-                           <button class="btn btn-secondary" onclick="openMapTripCrewSheet()">👥 Екіпаж</button>`;
+                           <button class="btn btn-secondary" onclick="openMapTripCrewSheet()" data-i18n="ui.089">👥 Екіпаж</button>`;
             } else if (viewerFinished && !partnerFinished) {
                 head = { icon: '🏁', title: 'Фініш' };
                 hint = `⏳ Ви відмітили фініш. ${finishAwaitingLine(t)}`;
@@ -14020,7 +14036,7 @@
                 if (phase === 'driving' && isDriver && needsFreshPickupArrival(t)) {
                     hint = `Ще забрати: ${escapeHtml(nextName)}.`;
                     actions = `<button class="btn btn-primary" onclick="arriveAtPickup()">Я біля точки збору</button>
-                        <button class="btn btn-secondary" onclick="openMapTripCrewSheet()">Екіпаж</button>`;
+                        <button class="btn btn-secondary" onclick="openMapTripCrewSheet()" data-i18n="ui.090">Екіпаж</button>`;
                 } else if (phase === 'driving') {
                     hint = isDriver ? (nextPassenger ? `Ще забрати: ${escapeHtml(nextName)}.` : 'Екіпаж у поїздці.') : `Ви в авто (${driverRef(driverName)}).`;
                     // Codex аудит #3 (2026-07-14): хінт кликав завершувати, але дія
@@ -14030,10 +14046,10 @@
                     // pending-виходів і огляду під час руху.
                     actions = isDriver
                         ? `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
-                           <button class="btn btn-secondary" onclick="openMapTripCrewSheet()">${nextPassenger ? '👥 Забрати попутника' : '👥 Екіпаж'}</button>
-                           <button class="btn btn-success" onclick="confirmOwnFinish('driver_dock')">🏁 Підтвердити завершення</button>`
+                           <button class="btn btn-secondary" onclick="openMapTripCrewSheet()">${nextPassenger ? '👥 Забрати попутника' : uiText('👥 Екіпаж')}</button>
+                           <button class="btn btn-success" onclick="confirmOwnFinish('driver_dock')" data-i18n="ui.109">🏁 Підтвердити завершення</button>`
                         : `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
-                           <button class="btn btn-success" onclick="confirmOwnFinish('trip')">🏁 Підтвердити завершення</button>`;
+                           <button class="btn btn-success" onclick="confirmOwnFinish('trip')" data-i18n="ui.109">🏁 Підтвердити завершення</button>`;
                 } else {
                     // DM-2026-06-15: gap #6 — до старту поїздки ("Поїхали") вихід з
                     // домовленості можливий лише через взаємну згоду (cancelTrip() ->
@@ -14047,7 +14063,7 @@
                     // (cancelTrip() → «Ви вийдете з екіпажу. Водій та інші лишаться»).
                     // Вихід з ПОДІЇ — окремий шлях (unsubscribeDir/stopSearch), живе в
                     // «Поїздки»/map-filter. Уточнюємо напис, wiring не чіпаємо (gap#6).
-                    const leaveBtn = `<button class="btn btn-ghost" onclick="cancelTrip()">${isDriver ? '🚪 Попросити скасування' : '🚪 Попросити вихід'}</button>`;
+                    const leaveBtn = `<button class="btn btn-ghost" onclick="cancelTrip()">${isDriver ? uiText('🚪 Попросити скасування') : uiText('🚪 Попросити вихід')}</button>`;
                     const claimedNow = isDriver ? claimedPickupPassengers(t) : [];
                     const ownClaim = !isDriver ? ownPresenceClaim(t) : null;
                     if (phase === 'pickup') {
@@ -14061,14 +14077,14 @@
                             const one = claimedNow.length === 1 ? claimedNow[0] : null;
                             hint = `Не знайшли: ${claimedNamesLine(claimedNow)}. Якщо людина підійде — позначте «в авто». Інакше можна вирушати без неї.`;
                             alertStyle = 'color: var(--amber); font-weight: bold;';
-                            actions = `<button class="btn btn-secondary" onclick="openMapTripCrewSheet()">👥 Екіпаж</button>
+                            actions = `<button class="btn btn-secondary" onclick="openMapTripCrewSheet()" data-i18n="ui.089">👥 Екіпаж</button>
                                 ${one ? `<button class="btn btn-secondary" onclick="markPassengerPickedUp(${passengerRequestId(one)}, ${parseInt(one.user_id || 0, 10) || 0})">✅ ${escapeHtml(passengerDisplayName(one))} в авто</button>` : ''}
-                                <button class="btn btn-primary" onclick="startTrip()">🚀 Поїхали</button>`;
+                                <button class="btn btn-primary" onclick="startTrip()" data-i18n="ui.104">🚀 Поїхали</button>`;
                         } else if (isDriver && allPicked) {
-                            hint = 'Усі попутники в авто. Можна стартувати до події.';
+                            hint = uiText('Усі попутники в авто. Можна стартувати до події.');
                             actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
-                                <button class="btn btn-secondary" onclick="openMapTripCrewSheet()">👥 Екіпаж</button>
-                                <button class="btn btn-primary" onclick="startTrip()">🚀 Поїхали</button>`;
+                                <button class="btn btn-secondary" onclick="openMapTripCrewSheet()" data-i18n="ui.089">👥 Екіпаж</button>
+                                <button class="btn btn-primary" onclick="startTrip()" data-i18n="ui.104">🚀 Поїхали</button>`;
                         } else if (ownClaim) {
                             alertStyle = 'color: var(--amber); font-weight: bold;';
                             hint = ownClaim.contested
@@ -14076,13 +14092,13 @@
                                 : 'Водій повідомив, що не знайшов вас на погодженій точці. Якщо ви там — натисніть «Я на місці».';
                             actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
                                 ${ownClaim.can_contest ? `<button class="btn btn-primary" data-g5-contest="true" onclick="contestPresenceClaim(${Number(ownClaim.request_id) || 0}, ${Number(ownClaim.claim_seq) || 0})">📍 Я на місці</button>` : ''}
-                                <button class="btn btn-secondary" onclick="openMapTripCrewSheet()">👥 Екіпаж</button>`;
+                                <button class="btn btn-secondary" onclick="openMapTripCrewSheet()" data-i18n="ui.089">👥 Екіпаж</button>`;
                         } else {
                             // 2zi (Ф3): текст — за власним статусом посадки попутника. Вихід
                             // до «Поїхали» лишається (взаємна згода; сервер блокує лише після старту).
                             hint = passengerPickupHint(t, driverName, nextPassenger);
                             actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
-                                <button class="btn btn-secondary" onclick="openMapTripCrewSheet()">👥 Екіпаж</button>
+                                <button class="btn btn-secondary" onclick="openMapTripCrewSheet()" data-i18n="ui.089">👥 Екіпаж</button>
                                 ${leaveBtn}`;
                         }
                     } else {
@@ -14103,7 +14119,7 @@
                         } else {
                             hint = `✅ Місце зарезервовано (${driverRef(driverName)}). Початок збору, вашу чергу й посадку видно у картці. Деталі зустрічі уточнюйте в чаті.`;
                             actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
-                                <button class="btn btn-secondary" onclick="openMapTripCrewSheet()">👥 Екіпаж</button>
+                                <button class="btn btn-secondary" onclick="openMapTripCrewSheet()" data-i18n="ui.089">👥 Екіпаж</button>
                                 ${leaveBtn}`;
                         }
                     }
@@ -14265,7 +14281,7 @@
                 const isMe = String(m.user_id) === String(S.userId);
                 const icon = m.role === 'driver' ? '🚗' : '👤';
                 const name = escapeHtml(m.name || `#${m.user_id || '?'}`);
-                const roleLabel = m.role === 'driver' ? 'водій' : (isMe ? 'Ви' : '');
+                const roleLabel = m.role === 'driver' ? 'водій' : (isMe ? uiText('Ви') : '');
                 html += `<div class="crew-member${isMe ? ' is-self' : ''}">
                     ${connector ? `<span class="crew-connector">${connector} </span>` : ''}
                     <span class="crew-icon">${icon}</span>
@@ -15668,7 +15684,7 @@
                 <div class="sheet-actions">
                     <button class="btn btn-primary" onclick="closeSheet(); localStorage.setItem('wt_welcome_seen', '1'); switchScreen('explore');">🗺️ Знайти подію на мапі</button>
                     <button class="btn btn-secondary" onclick="closeSheet(); localStorage.setItem('wt_welcome_seen', '1'); switchScreen('board');">Перейти до каталогу</button>
-                    <button class="btn btn-ghost" onclick="closeSheet(); localStorage.setItem('wt_welcome_seen', '1');">Закрити</button>
+                    <button class="btn btn-ghost" onclick="closeSheet(); localStorage.setItem('wt_welcome_seen', '1');" data-i18n="ui.043">Закрити</button>
                 </div>
             `;
             openSheet(welcomeText);
@@ -15712,7 +15728,7 @@
             const toggle = document.getElementById('toggle-app-sound');
             const label = document.getElementById('settings-sound');
             if (toggle) toggle.classList.toggle('on', !!S.appSoundEnabled);
-            if (label) label.textContent = S.appSoundEnabled ? 'Важливі' : 'Вимкнено';
+            if (label) label.textContent = S.appSoundEnabled ? uiText('Важливі') : uiText('Вимкнено');
         }
 
         function toggleAppSound() {
@@ -15774,8 +15790,8 @@
 
         // ─── PROFILE SETTINGS ───
         function openCarSettings() {
-            if (!_isDriverRole(S.userRole)) { showToast('Доступно тільки для ролі Водій', 'error'); return; }
-            openSheet(`<div class="sheet-title">Авто</div><div class="sheet-sub">Модель вашого авто</div><input class="board-search" id="car-input" placeholder="Toyota Camry" value="${escapeHtml(S.car)}" style="margin:0 0 16px;"><button class="btn btn-primary" onclick="saveCar()">Зберегти</button>`);
+            if (!_isDriverRole(S.userRole)) { showToast(uiText('Доступно тільки для ролі Водій'), 'error'); return; }
+            openSheet(`<div class="sheet-title" data-i18n="ui.027">Авто</div><div class="sheet-sub" data-i18n="ui.132">Модель вашого авто</div><input class="board-search" id="car-input" placeholder="Toyota Camry" value="${escapeHtml(S.car)}" style="margin:0 0 16px;"><button class="btn btn-primary" onclick="saveCar()" data-i18n="ui.040">Зберегти</button>`);
             setTimeout(() => document.getElementById('car-input')?.focus(), 300);
         }
 
@@ -15787,8 +15803,8 @@
         }
 
         function openSeatsSettings() {
-            if (!_isDriverRole(S.userRole)) { showToast('Доступно тільки для ролі Водій', 'error'); return; }
-            openSheet(`<div class="sheet-title">Місця</div><div class="sheet-sub">Кількість пасажирських місць</div><div style="display:flex;align-items:center;justify-content:center;gap:24px;margin:20px 0;"><div style="width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;" onclick="changeSeats(-1)">−</div><div style="font-size:40px;font-weight:900;min-width:60px;text-align:center;" id="seats-display">${S.seats}</div><div style="width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;" onclick="changeSeats(1)">+</div></div><button class="btn btn-primary" onclick="saveSeats()">Зберегти</button>`);
+            if (!_isDriverRole(S.userRole)) { showToast(uiText('Доступно тільки для ролі Водій'), 'error'); return; }
+            openSheet(`<div class="sheet-title" data-i18n="ui.028">Місця</div><div class="sheet-sub" data-i18n="ui.133">Кількість пасажирських місць</div><div style="display:flex;align-items:center;justify-content:center;gap:24px;margin:20px 0;"><div style="width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;" onclick="changeSeats(-1)">−</div><div style="font-size:40px;font-weight:900;min-width:60px;text-align:center;" id="seats-display">${S.seats}</div><div style="width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;" onclick="changeSeats(1)">+</div></div><button class="btn btn-primary" onclick="saveSeats()" data-i18n="ui.040">Зберегти</button>`);
         }
 
         function changeSeats(d) { S.seats = Math.max(1, Math.min(8, S.seats + d)); const el = document.getElementById('seats-display'); if (el) el.textContent = S.seats; }
@@ -15800,15 +15816,32 @@
         }
 
         function openLangSelector() {
-            openSheet(`<div class="sheet-title">Мова</div><div class="sheet-sub">Оберіть мову</div><div class="sheet-actions"><button class="btn ${S.lang === 'uk' ? 'btn-primary' : 'btn-secondary'}" onclick="setLang('uk')">🇺🇦 Українська</button><button class="btn ${S.lang === 'pl' ? 'btn-primary' : 'btn-secondary'}" onclick="setLang('pl')">🇵🇱 Polski</button><button class="btn ${S.lang === 'en' ? 'btn-primary' : 'btn-secondary'}" onclick="setLang('en')">🇬🇧 English</button></div>`);
+            const names = window.WayTandemI18n?.languageNames || {uk: 'Українська', ru: 'Русский', pl: 'Polski', en: 'English'};
+            const options = Object.entries(names).map(([lang, name]) =>
+                `<button type="button" class="btn ${S.lang === lang ? 'btn-primary' : 'btn-secondary'}" onclick="setLang('${lang}')" lang="${lang}">${escapeHtml(name)}</button>`).join('');
+            openSheet(`<div class="sheet-title">${escapeHtml(uiText('Мова'))}</div><div class="sheet-sub">${escapeHtml(uiText('Оберіть мову'))}</div><div class="sheet-actions">${options}</div>`);
         }
 
         async function setLang(lang) {
-            S.lang = lang; saveProfile();
-            document.getElementById('settings-lang').textContent = { uk: 'Українська', pl: 'Polski', en: 'English' }[lang];
+            const next = window.WayTandemI18n?.normalizeLang(lang) || 'uk';
+            if (S.apiBase) {
+                const res = await api('/api/v3/user/lang', {method: 'POST', body: JSON.stringify({user_id: S.userId, lang: next})});
+                if (res?.status !== 'ok') {
+                    showToast(uiText('Не вдалося зберегти мову. Спробуйте ще раз.'), 'error');
+                    return false;
+                }
+            }
+            S.lang = next;
+            saveProfile();
+            applyInterfaceLanguage();
             closeSheet();
-            if (S.apiBase) await api('/api/v3/user/lang', { method: 'POST', body: JSON.stringify({ user_id: S.userId, lang }) });
-            showToast('Мова оновлена', 'success'); renderBoard();
+            updateRolePill();
+            if (boardNavDefaults) boardNavDefaults.label = uiText('Каталог');
+            updateBottomNavForBoardDepth();
+            renderBoard(); renderTrips(); renderSubBar(); renderNewsScreen();
+            verifyMapTripDockState(); verifyHandshakePanelState();
+            showToast(uiText('Мова оновлена'), 'success');
+            return true;
         }
 
         // ═══════ EVENT CREATION ═══════
@@ -15833,20 +15866,20 @@
             const parentTitle = S.boardStack.length ? S.boardStack[S.boardStack.length - 1].title : 'Корінь';
             S._createDirLat = null; S._createDirLng = null;
             openSheet(`
-                <div class="sheet-title">Запропонувати ідею поїздки</div>
+                <div class="sheet-title" data-i18n="ui.078">Запропонувати ідею поїздки</div>
                 <div class="sheet-sub">Каталог: ${escapeHtml(parentTitle)}</div>
-                <input class="board-search" id="create-dir-title" placeholder="Назва ідеї..." maxlength="80" style="margin:12px 0 8px;">
-                <input class="board-search" id="create-dir-place" placeholder="Куди їхати: адреса або місце події..." maxlength="255" style="margin-bottom:8px;">
+                <input class="board-search" id="create-dir-title" placeholder="Назва ідеї..." data-i18n-placeholder="ui.076" maxlength="80" style="margin:12px 0 8px;">
+                <input class="board-search" id="create-dir-place" placeholder="Куди їхати: адреса або місце події..." data-i18n-placeholder="ui.077" maxlength="255" style="margin-bottom:8px;">
                 <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
-                    <button class="btn btn-secondary" style="flex:1;font-size:13px;" onclick="pickGpsForDirection()">📍 Точка на карті</button>
-                    <span id="create-dir-loc-label" style="flex:2;font-size:12px;color:var(--text-muted);">Не вказано</span>
+                    <button class="btn btn-secondary" style="flex:1;font-size:13px;" onclick="pickGpsForDirection()" data-i18n="ui.075">📍 Точка на карті</button>
+                    <span id="create-dir-loc-label" style="flex:2;font-size:12px;color:var(--text-muted);" data-i18n="ui.026">Не вказано</span>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:8px;">
                     <label style="display:flex;flex-direction:column;gap:4px;min-width:0;font-size:12px;color:var(--text-muted);">Виїзд на подію
-                        <input class="board-search" id="create-dir-start" type="datetime-local" title="Виїзд на подію" style="margin:0;">
+                        <input class="board-search" id="create-dir-start" type="datetime-local" title="Виїзд на подію" data-i18n-title="ui.079" style="margin:0;">
                     </label>
                     <label style="display:flex;flex-direction:column;gap:4px;min-width:0;font-size:12px;color:var(--text-muted);">Виїзд додому
-                        <input class="board-search" id="create-dir-end" type="datetime-local" title="Виїзд додому" style="margin:0;">
+                        <input class="board-search" id="create-dir-end" type="datetime-local" title="Виїзд додому" data-i18n-title="ui.080" style="margin:0;">
                     </label>
                 </div>
                 <textarea class="board-search" id="create-dir-desc" placeholder="Подробиці для учасників..." maxlength="1200" style="min-height:108px;resize:vertical;margin-bottom:12px;"></textarea>
@@ -15901,11 +15934,11 @@
             _mapPicker.onCancel = typeof opts.onCancel === 'function' ? opts.onCancel : null;
             overlay.style.display = 'block';
             const hint = document.getElementById('map-picker-hint');
-            if (hint) hint.textContent = opts.hint || 'Перетягни карту так, щоб пін був на місці події';
+            if (hint) hint.textContent = opts.hint || uiText('Перетягни карту так, щоб пін був на місці події');
             const search = document.getElementById('map-picker-search');
-            if (search) search.placeholder = opts.searchPlaceholder || '🔍 Місто або місце (напр. Люблін)';
+            if (search) search.placeholder = opts.searchPlaceholder || uiText('🔍 Місто або місце (напр. Люблін)');
             const confirm = document.getElementById('map-picker-confirm');
-            _mapPicker.confirmLabel = opts.confirmLabel || '✓ Готово';
+            _mapPicker.confirmLabel = opts.confirmLabel || uiText('✓ Готово');
             if (confirm) confirm.textContent = _mapPicker.confirmLabel;
 
             const hasCoords = Number.isFinite(opts.lat) && Number.isFinite(opts.lng);
@@ -16085,7 +16118,7 @@
                         <div class="sheet-sub">Ви вже в черзі на "${escapeHtml(oldTitle)}".<br>Після створення "${escapeHtml(title)}" активною стане нова черга.</div>
                         <div class="sheet-actions">
                             <button class="btn btn-primary" id="confirm-create-switch-yes">✓ Створити і перейти</button>
-                            <button class="btn btn-ghost" id="confirm-create-switch-no">Скасувати</button>
+                            <button class="btn btn-ghost" id="confirm-create-switch-no" data-i18n="ui.041">Скасувати</button>
                         </div>
                     `);
                     document.getElementById('confirm-create-switch-yes').onclick = () => { closeSheet(); resolve(true); };
@@ -16150,21 +16183,21 @@
             S._editDirOriginalMeetingPoint = meetingPoint;
             const locLabel = S._editDirLat != null && S._editDirLng != null
                 ? `📍 ${S._editDirLat.toFixed(4)}, ${S._editDirLng.toFixed(4)}`
-                : 'Не вказано';
+                : uiText('Не вказано');
             openSheet(`
-                <div class="sheet-title">Редагувати подію</div>
-                <input class="board-search" id="edit-dir-title" value="${escapeAttr(currentTitle)}" placeholder="Назва ідеї..." maxlength="80" style="margin:12px 0 8px;">
-                <input class="board-search" id="edit-dir-place" value="${escapeAttr(meetingPoint)}" placeholder="Куди їхати: адреса або місце події..." maxlength="255" style="margin-bottom:8px;">
+                <div class="sheet-title" data-i18n="ui.008">Редагувати подію</div>
+                <input class="board-search" id="edit-dir-title" value="${escapeAttr(currentTitle)}" placeholder="Назва ідеї..." data-i18n-placeholder="ui.076" maxlength="80" style="margin:12px 0 8px;">
+                <input class="board-search" id="edit-dir-place" value="${escapeAttr(meetingPoint)}" placeholder="Куди їхати: адреса або місце події..." data-i18n-placeholder="ui.077" maxlength="255" style="margin-bottom:8px;">
                 <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
-                    <button class="btn btn-secondary" style="flex:1;font-size:13px;" onclick="pickGpsForEditDirection()">📍 Точка на карті</button>
+                    <button class="btn btn-secondary" style="flex:1;font-size:13px;" onclick="pickGpsForEditDirection()" data-i18n="ui.075">📍 Точка на карті</button>
                     <span id="edit-dir-loc-label" style="flex:2;font-size:12px;color:var(--text-muted);">${escapeHtml(locLabel)}</span>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:8px;">
                     <label style="display:flex;flex-direction:column;gap:4px;min-width:0;font-size:12px;color:var(--text-muted);">Виїзд на подію
-                        <input class="board-search" id="edit-dir-start" type="datetime-local" value="${escapeAttr(startDate)}" title="Виїзд на подію" style="margin:0;">
+                        <input class="board-search" id="edit-dir-start" type="datetime-local" value="${escapeAttr(startDate)}" title="Виїзд на подію" data-i18n-title="ui.079" style="margin:0;">
                     </label>
                     <label style="display:flex;flex-direction:column;gap:4px;min-width:0;font-size:12px;color:var(--text-muted);">Виїзд додому
-                        <input class="board-search" id="edit-dir-end" type="datetime-local" value="${escapeAttr(endDate)}" title="Виїзд додому" style="margin:0;">
+                        <input class="board-search" id="edit-dir-end" type="datetime-local" value="${escapeAttr(endDate)}" title="Виїзд додому" data-i18n-title="ui.080" style="margin:0;">
                     </label>
                 </div>
                 <textarea class="board-search" id="edit-dir-desc" placeholder="Подробиці для учасників..." maxlength="1200" style="min-height:108px;resize:vertical;margin-bottom:8px;">${escapeHtml(description)}</textarea>
@@ -16172,7 +16205,7 @@
                 <div class="sheet-actions">
                     <button class="btn btn-primary" onclick="doEditDirection(${dirId})">💾 Зберегти</button>
                     <button class="btn btn-danger" onclick="confirmDeleteDirection(${dirId})">🗑 Видалити подію</button>
-                    <button class="btn btn-ghost" onclick="closeSheet()">Скасувати</button>
+                    <button class="btn btn-ghost" onclick="closeSheet()" data-i18n="ui.041">Скасувати</button>
                 </div>
             `);
             setTimeout(() => { const el = document.getElementById('edit-dir-title'); if (el) { el.focus(); el.select(); } }, 300);
@@ -16257,7 +16290,7 @@
                 <div class="sheet-sub">Усі черги та запити на цю подію будуть скасовані. Дію не можна скасувати.</div>
                 <div class="sheet-actions">
                     <button class="btn btn-danger" onclick="doDeleteDirection(${dirId})">🗑 Так, видалити</button>
-                    <button class="btn btn-ghost" onclick="closeSheet()">Скасувати</button>
+                    <button class="btn btn-ghost" onclick="closeSheet()" data-i18n="ui.041">Скасувати</button>
                 </div>
             `);
         }
@@ -16328,25 +16361,25 @@
         }
 
         async function openMyIdeas() {
-            openSheet(`<div class="sheet-title">Моя подія</div><div style="text-align:center;padding:24px;"><div class="pulse-dot" style="margin:0 auto 12px;"></div><div style="font-size:13px;color:var(--text-muted);">Завантаження...</div></div>`);
+            openSheet(`<div class="sheet-title" data-i18n="ui.009">Моя подія</div><div style="text-align:center;padding:24px;"><div class="pulse-dot" style="margin:0 auto 12px;"></div><div style="font-size:13px;color:var(--text-muted);" data-i18n="ui.050">Завантаження...</div></div>`);
             const data = await api(`/api/v3/board/my?user_id=${S.userId}&lang=${S.lang}`);
             const dirs = data?.directions || data?.my_directions || [];
             S.myDirections = Array.isArray(dirs) ? dirs : [];
             if (!dirs.length) {
                 document.getElementById('sheet-body').innerHTML = `
-                    <div class="sheet-title">Моя подія</div>
+                    <div class="sheet-title" data-i18n="ui.009">Моя подія</div>
                     <div class="sheet-sub">Створена вами подія з'явиться тут.</div>
                     <button class="btn btn-primary" onclick="closeSheet();switchScreen('board');">Відкрити каталог</button>`;
                 return;
             }
             document.getElementById('sheet-body').innerHTML = `
-                <div class="sheet-title">Моя подія</div>
+                <div class="sheet-title" data-i18n="ui.009">Моя подія</div>
                 <div style="margin:8px 0;">
                     ${dirs.map(d => `
                         <div style="display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--border);">
                             <div style="font-size:20px;flex-shrink:0;">🧭</div>
                             <div style="flex:1;min-width:0;">
-                                <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(d.title || d.name || 'Подія')}</div>
+                                <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(d.title || d.name || uiText('Подія'))}</div>
                                 <div style="font-size:11px;color:var(--text-muted);">${(d.drivers || 0) + (d.passengers || 0)} учасників</div>
                             </div>
                             <div style="display:flex;gap:6px;flex-shrink:0;">
@@ -16428,7 +16461,7 @@
                 .filter(t => t.status === 'completed' && Number(t.partner_id) > 0
                     && (t.my_score == null || (t.outing_open === false && t.my_event_score == null)));
             const rateRows = rateable.map(t => `<div data-history-rate="${Number(t.request_id)}" style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);">
-                    <div style="flex:1;min-width:0;font-size:13px;font-weight:700;">${escapeHtml(String(t.partner_name || 'Партнер'))}<div style="font-size:11px;font-weight:400;color:var(--text-muted);">${escapeHtml(String(t.direction_title || t.dir || 'Поїздка'))}</div></div>
+                    <div style="flex:1;min-width:0;font-size:13px;font-weight:700;">${escapeHtml(String(t.partner_name || 'Партнер'))}<div style="font-size:11px;font-weight:400;color:var(--text-muted);">${escapeHtml(String(t.direction_title || t.dir || uiText('Поїздка')))}</div></div>
                     <button class="btn btn-secondary" style="width:auto;padding:6px 10px;font-size:12px;" data-partner-name="${escapeAttr(String(t.partner_name || ''))}" data-direction-title="${escapeAttr(String(t.direction_title || t.dir || ''))}" data-viewer-role="${escapeAttr(String(t.viewer_role || t.role || ''))}" data-finish-intent="${escapeAttr(String(t.finish_intent || ''))}" data-outing-open="${t.outing_open === true ? '1' : t.outing_open === false ? '0' : ''}" onclick="rateFromHistory(${Number(t.request_id)}, ${Number(t.partner_id)}, this)">⭐ Оцінити</button>
                 </div>`).join('');
             document.getElementById('sheet-body').innerHTML = `
@@ -16451,7 +16484,7 @@
                         <div style="display:flex;align-items:center;gap:8px;">
                             <div style="font-size:20px;flex-shrink:0;">${isDriver ? '🚗' : '👤'}</div>
                             <div style="flex:1;min-width:0;">
-                                <div style="font-weight:700;font-size:13px;">${escapeHtml(t.direction_title || t.dir || 'Поїздка')}</div>
+                                <div style="font-weight:700;font-size:13px;">${escapeHtml(t.direction_title || t.dir || uiText('Поїздка'))}</div>
                                 <div style="font-size:11px;color:var(--text-muted);">${[chronology, partnerLine].filter(Boolean).join(' · ')}</div>
                                 ${ratingLine ? `<div style="font-size:11px;color:var(--amber);margin-top:2px;">${ratingLine}</div>` : ''}
                                 ${t.contact ? tripContactCard(t.contact, true) : ''}
@@ -16707,7 +16740,7 @@
             if (carPinCoord) {
                 driverFocusCoords.push([carPinCoord.lat, carPinCoord.lng]);
                 const driver = members.find(m => String(m?.role || '').toLowerCase() === 'driver');
-                const driverName = driver?.name || t.driver_name || t.partner_name || 'Водій';
+                const driverName = driver?.name || t.driver_name || t.partner_name || uiText('Водій');
                 const carLabel = escapeAttr(`Авто водія: ${driverName}`);
                 const closePassengerCoord = fullMembers
                     .filter(m => String(m?.role || '').toLowerCase() !== 'driver')
@@ -16741,7 +16774,7 @@
                 // (жива геопозиція), а не зупинка «Схеми збору»: пунктир, приглушено, чесний підпис.
                 const liveOnly = !pickedUp && (role === 'driver' || !firstFiniteLatLng([m?.pickup_lat, m?.pickup_lng]));
                 const color = pickedUp ? '#10b981' : (isMe ? '#34d399' : '#38bdf8');
-                const name = isMe ? (pickedUp ? 'Ви' : 'Ви тут') : escapeHtml(m.name || '?');
+                const name = isMe ? (pickedUp ? uiText('Ви') : uiText('Ви тут')) : escapeHtml(m.name || '?');
                 const phaseLabel = liveOnly
                     ? (role === 'driver' ? 'зараз тут · старт авто не задано' : 'зараз тут · точки збору немає')
                     : (pickedUp ? (firstFiniteLatLng([m?.pickup_lat, m?.pickup_lng]) ? 'Місце посадки · В авто' : 'Остання геопозиція · В авто') : (t.is_started ? 'в дорозі' : 'зустріч'));
@@ -16749,7 +16782,7 @@
                 const pinStyle = pickedUp ? 'opacity:.5;border:2px solid rgba(0,0,0,0.4);' : (liveOnly ? 'opacity:.6;border:2px dashed rgba(255,255,255,0.85);' : 'border:2px solid rgba(0,0,0,0.4);');
                 const ownChat = isMe && pickedUp ? `<button onclick="openChat(${currentRequestIdFromTrip(t)}, ${parseInt(t.driver_id, 10) || 0})" style="margin-top:8px;padding:8px;">💬 Чат екіпажу</button>` : '';
                 const marker = L.marker([c.lat, c.lng], {
-                    title: pickedUp ? `${firstFiniteLatLng([m?.pickup_lat, m?.pickup_lng]) ? 'Місце посадки' : 'Остання геопозиція'}: ${m.name || 'Ви'} · В авто` : (m.name || 'Попутник'),
+                    title: pickedUp ? `${firstFiniteLatLng([m?.pickup_lat, m?.pickup_lng]) ? uiText('Місце посадки') : uiText('Остання геопозиція')}: ${m.name || uiText('Ви')} · В авто` : (m.name || uiText('Попутник')),
                     icon: L.divIcon({
                         className: '',
                         html: `<div data-crew-member="${parseInt(m.user_id, 10) || 0}" ${liveOnly ? 'data-live-only="1" ' : ''}style="width:36px;height:36px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;font-size:16px;${pinStyle}box-shadow:0 2px 12px ${color}66;">${emoji}</div>`,
