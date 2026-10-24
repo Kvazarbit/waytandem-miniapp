@@ -3809,6 +3809,7 @@
             tripStartNotifiedIds: new Set(),
             partnerFinishNotifiedIds: new Set(),
             pickupNotifiedIds: new Set(),
+            atPointNotifiedIds: new Set(),
             partnerFinishSheetShownIds: new Set(),
             completedRatingNotifiedIds: new Set(),
             completedRatingSheetShownIds: new Set(),
@@ -10727,6 +10728,34 @@
             return n && n !== 'Водій' ? `водій ${escapeHtml(n)}` : 'водій';
         }
 
+        // О8 (власник 2026-10-23): водій позначає «я біля точки» для ОДНІЄЇ зупинки — це його заява, не GPS.
+        // Лише попутник цієї зупинки бачить «водій біля вашої точки»; старт збору лишається без заяв про прибуття (D82).
+        function driverAtPoint(member) {
+            return !!(member && member.driver_at_point_at);
+        }
+
+        // r2 (D415 R1): сервер каже, що сталося з повідомленням саме цієї зупинки (delivered | pending). Позначку збережено ≠ надіслано.
+        function atPointNoticePending(member) {
+            return driverAtPoint(member) && member.driver_at_point_notice === 'pending';
+        }
+
+        // Одна кнопка позначки для всіх поверхонь: «Я біля точки», поки позначки нема; «Надіслати ще раз», поки повідомлення
+        // не надіслано; нічого, коли надіслано. Повтор доставляє лише недоставлене — надіслане сервер удруге не шле.
+        function driverAtPointButton(member, reqId, paxId, cls = 'btn btn-primary', after = '', style = '') {
+            if (!member || !reqId || !paxId) return '';
+            const name = escapeHtml(passengerDisplayName(member));
+            const call = `markDriverAtPoint(${reqId}, ${paxId})${after}`;
+            const css = style ? ` style="${style}"` : '';
+            if (atPointNoticePending(member)) return `<button class="btn btn-secondary" data-driver-at-point-retry="true"${css} onclick="${call}">📍 Надіслати ще раз: ${name}</button>`;
+            if (driverAtPoint(member)) return '';
+            return `<button class="${cls}" data-driver-at-point="true"${css} onclick="${call}">📍 Я біля точки: ${name}</button>`;
+        }
+
+        function collectionStartLabel(trip) {
+            const first = nextPickupPassenger(trip);
+            return first ? `🚗 Їду по: ${escapeHtml(passengerDisplayName(first))}` : '🚗 Почати збір';
+        }
+
         // Ф3: попутник у фазі збору бачить свій власний стан посадки.
         function passengerPickupHint(t, driverName, nextPassenger) {
             const self = orderedPickupPassengers(t).find(p => String(p?.user_id) === String(S.userId));
@@ -10738,6 +10767,10 @@
                     return '✅ Ви в авто. Усі попутники в авто. Водій має підтвердити виїзд до події — «Поїхали».';
                 }
                 return '✅ Ви в авто. Екіпаж ще на зборі.';
+            }
+            if (self && driverAtPoint(self)) {
+                const who = driverRef(driverName);
+                return `📍 ${who.charAt(0).toUpperCase() + who.slice(1)}: «Я біля вашої точки». Підходьте до авто; за потреби уточніть зустріч у чаті.`;
             }
             if (self && nextPassenger && String(nextPassenger.user_id) !== String(self.user_id)) {
                 return `🚗 Збір почався. Наступна точка: ${escapeHtml(passengerDisplayName(nextPassenger))}. Чекайте на погодженій точці.`;
@@ -11777,7 +11810,7 @@
                 ${buildCompactDriverPassengerCards(trip)}
                 <div class="compact-driver-actions">
                     <button class="btn btn-secondary" onclick="openTripMap()">🗺️ Карта екіпажу</button>
-                    ${(!started && !pickup || needsFreshPickupArrival(trip)) && !pendingCancel ? '<button class="btn btn-secondary" onclick="arriveAtPickup()">Я біля точки збору</button>' : ''}
+                    ${(!started && !pickup || needsFreshPickupArrival(trip)) && !pendingCancel ? `<button class="btn btn-secondary" onclick="arriveAtPickup()">${collectionStartLabel(trip)}</button>` : ''}
                     ${!started && pickup && pickupReadyForStart(trip) && !pendingCancel ? "<button class=\"btn btn-primary\" onclick=\"startTrip()\" data-i18n=\"ui.105\">Поїхали</button>" : ''}
                     ${started ? `<button class="btn btn-success" ${remaining ? '' : 'disabled'} onclick="confirmOwnFinish('driver_all')">Фініш з усіма</button>` : ''}
                 </div>
@@ -12435,6 +12468,7 @@
                 <div style="font-size:11px;font-weight:900;color:var(--amber);text-transform:uppercase;letter-spacing:.6px;">Зараз забрати</div>
                 <div style="font-size:15px;font-weight:850;margin-top:4px;">${escapeHtml(name)}</div>
                 <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">${escapeHtml(meta)}</div>
+                ${includeAction && !disabled ? driverAtPointButton(next, reqId, passengerId, 'btn btn-primary', '', 'width:100%;margin-top:10px;') : ''}
                 ${includeAction ? `<button class="btn btn-primary" data-pickup-current-action="true" style="width:100%;margin-top:10px;" ${disabled ? 'disabled' : ''} onclick="markPassengerPickedUp(${reqId}, ${passengerId})">✅ ${escapeHtml(name)} в авто</button>` : ''}
             </div>`;
         }
@@ -12499,7 +12533,8 @@
                        <button class="btn btn-success" onclick="closeSheet();confirmOwnFinish('trip')" data-i18n="ui.109">🏁 Підтвердити завершення</button>
                        <button class="btn btn-ghost" onclick="closeSheet()">Карта</button>`)
                 : (isDriver
-                    ? `${!isPickup ? `<button class="btn btn-secondary" onclick="arriveAtPickup().then(ok => { if (ok) openTripMap(); })">🚗 Я біля точки збору</button>` : ''}
+                    ? `${!isPickup ? `<button class="btn btn-secondary" onclick="arriveAtPickup().then(ok => { if (ok) openTripMap(); })">${collectionStartLabel(t)}</button>` : ''}
+                       ${isPickup && nextPassenger ? driverAtPointButton(nextPassenger, nextReqId, nextPassengerId, 'btn btn-primary', '.then(ok => { if (ok) openTripMap(); })') : ''}
                        ${isPickup && nextPassenger ? `<button class="btn btn-primary" onclick="markPassengerPickedUp(${nextReqId}, ${nextPassengerId}).then(ok => { if (ok) openTripMap(); })">✅ ${escapeHtml(nextName)} в авто</button>` : ''}
                        ${isPickup && allPickedUp ? `<button class="btn btn-primary" onclick="startTrip().then(ok => { if (ok) openTripMap(); })">🚀 Усі в авто — поїхали</button>` : ''}
                        <button class="btn btn-ghost" onclick="closeSheet();openMapTripCrewSheet()" data-i18n="ui.089">👥 Екіпаж</button>`
@@ -12658,7 +12693,8 @@
                         ${partnerFinished && !viewerFinished ? `<div style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);font-size:13px;color:var(--green);">🏁 Партнер вже відмітив фініш. Підтвердіть завершення, коли подорож справді завершена.</div>` : ''}
                         ${viewerFinished && !partnerFinished ? `<div style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(255,193,7,0.1);border:1px solid rgba(255,193,7,0.3);font-size:13px;color:var(--amber);">⏳ Ви відмітили фініш. Очікуємо підтвердження партнера.</div>` : ''}
                         <div style="margin-top:16px;display:flex;flex-direction:column;gap:10px;">
-                            ${!isStarted && isDriver && !isPickup && !cancelRequested ? `<button class="btn btn-secondary" onclick="arriveAtPickup()">🚗 Я біля точки збору</button>` : ''}
+                            ${!isStarted && isDriver && !isPickup && !cancelRequested ? `<button class="btn btn-secondary" onclick="arriveAtPickup()">${collectionStartLabel(t)}</button>` : ''}
+                            ${!isStarted && isDriver && isPickup && nextPassenger && !cancelRequested ? driverAtPointButton(nextPassenger, nextReqId, nextPassengerId) : ''}
                             ${!isStarted && isDriver && isPickup && nextPassenger && !cancelRequested ? `<button class="btn btn-primary" onclick="markPassengerPickedUp(${nextReqId}, ${nextPassengerId})">✅ ${escapeHtml(nextName)} в авто</button>` : ''}
                             ${!isStarted && isDriver && isPickup && allPickedUp && !cancelRequested ? `<button class="btn btn-primary" onclick="startTrip()">🚀 Усі в авто — поїхали</button>` : ''}
                             ${isStarted && isDriver ? `<div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1;" onclick="openChat(${t.request_id || t.id || 0}, ${t.client_id || 0})">💬 Чат</button><button class="btn btn-secondary" style="flex:1;" onclick="openTripMap()">🗺️ Карта</button></div>${buildDriverFinishPanel(t)}` : ''}
@@ -13804,7 +13840,7 @@
                 const self = currentPassengerMemberForTrip(t);
                 if (self) head = isPassengerPickedUp(self)
                     ? { icon: '✅', title: 'Ви в авто' }
-                    : { icon: '🚗', title: 'Чекаєте посадки' };
+                    : (driverAtPoint(self) ? { icon: '📍', title: 'Водій біля вашої точки' } : { icon: '🚗', title: 'Чекаєте посадки' });
             }
             const seats = (t && t.viewer_role === 'driver') ? ` · ${tripSeatsLabel(t)}` : '';
             return `<div class="dock-strip">
@@ -13955,6 +13991,7 @@
             let hint = '';
             let actions = '';
             let alertStyle = '';
+            let atPointRetry = '';   // r3 (D416): повтор повідомлення зупинки — поруч із попередженням, не замість дії G5
 
             if (cancelPending) {
                 alertStyle = 'color: var(--red); font-weight: bold;';
@@ -14035,7 +14072,7 @@
             } else {
                 if (phase === 'driving' && isDriver && needsFreshPickupArrival(t)) {
                     hint = `Ще забрати: ${escapeHtml(nextName)}.`;
-                    actions = `<button class="btn btn-primary" onclick="arriveAtPickup()">Я біля точки збору</button>
+                    actions = `<button class="btn btn-primary" onclick="arriveAtPickup()">${collectionStartLabel(t)}</button>
                         <button class="btn btn-secondary" onclick="openMapTripCrewSheet()" data-i18n="ui.090">Екіпаж</button>`;
                 } else if (phase === 'driving') {
                     hint = isDriver ? (nextPassenger ? `Ще забрати: ${escapeHtml(nextName)}.` : 'Екіпаж у поїздці.') : `Ви в авто (${driverRef(driverName)}).`;
@@ -14067,9 +14104,20 @@
                     const claimedNow = isDriver ? claimedPickupPassengers(t) : [];
                     const ownClaim = !isDriver ? ownPresenceClaim(t) : null;
                     if (phase === 'pickup') {
-                        if (isDriver && nextPassenger && !isPassengerClaimed(nextPassenger)) {
-                            hint = `Заберіть: ${escapeHtml(nextName)}. Позначайте по одному.`
+                        if (isDriver && nextPassenger && !isPassengerClaimed(nextPassenger) && !driverAtPoint(nextPassenger)) {
+                            hint = `Їдете по: ${escapeHtml(nextName)}. Біля точки натисніть «📍 Я біля точки» — ${escapeHtml(nextName)} отримає повідомлення.`
                                 + (claimedNow.length ? ` Не знайшли: ${claimedNamesLine(claimedNow)}.` : '');
+                            actions = `<button class="btn btn-secondary" onclick="openChat(${nextReqId || safeReqId}, ${nextPassengerId || safePartnerId})">💬 Чат</button>
+                                <button class="btn btn-secondary" ${(!nextReqId || !nextPassengerId) ? 'disabled' : ''} onclick="markPassengerPickedUp(${nextReqId}, ${nextPassengerId})">✅ ${escapeHtml(nextName)} в авто</button>
+                                ${driverAtPointButton(nextPassenger, nextReqId, nextPassengerId)}`;
+                        } else if (isDriver && nextPassenger && !isPassengerClaimed(nextPassenger)) {
+                            hint = `Заберіть: ${escapeHtml(nextName)}. Позначайте по одному.`
+                                + (atPointNoticePending(nextPassenger) ? ` ⚠️ ${escapeHtml(nextName)} ще не отримав повідомлення — натисніть «Надіслати ще раз».` : '')
+                                + (claimedNow.length ? ` Не знайшли: ${claimedNamesLine(claimedNow)}.` : '');
+                            if (atPointNoticePending(nextPassenger)) {
+                                alertStyle = 'color: var(--amber); font-weight: bold;';   // seen in the folded dock too
+                                atPointRetry = driverAtPointButton(nextPassenger, nextReqId, nextPassengerId);
+                            }
                             actions = `<button class="btn btn-secondary" onclick="openChat(${nextReqId || safeReqId}, ${nextPassengerId || safePartnerId})">💬 Чат</button>
                                 <button class="btn btn-secondary" data-g5-claim-action="true" ${(!nextReqId || !nextPassengerId) ? 'disabled' : ''} onclick="declarePassengerMissing(${nextReqId}, ${nextPassengerId}, ${JSON.stringify(nextName).replace(/"/g, '&quot;')})">❓ Не знайшов</button>
                                 <button class="btn btn-primary" ${(!nextReqId || !nextPassengerId) ? 'disabled' : ''} onclick="markPassengerPickedUp(${nextReqId}, ${nextPassengerId})">✅ ${escapeHtml(nextName)} в авто</button>`;
@@ -14111,10 +14159,10 @@
                         // (DM-2026-06-16-002 §8.2, ротація через nextPickupPassenger).
                         if (isDriver) {
                             hint = nextName
-                                ? `✅ Резервацію підтверджено. Перша точка збору: ${escapeHtml(nextName)}. У день виїзду рушайте й позначте, коли будете на місці.`
-                                : '✅ Резервацію підтверджено. У день виїзду рушайте до точки збору й позначте, коли будете на місці.';
+                                ? `✅ Резервацію підтверджено. Перша точка збору: ${escapeHtml(nextName)}. У день виїзду, коли рушите, натисніть «Їду по».`
+                                : '✅ Резервацію підтверджено. У день виїзду, коли рушите до точки збору, натисніть «Почати збір».';
                             actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">💬 Чат</button>
-                                <button class="btn btn-primary" onclick="arriveAtPickup()">🚗 Я біля точки збору</button>
+                                <button class="btn btn-primary" onclick="arriveAtPickup()">${collectionStartLabel(t)}</button>
                                 ${leaveBtn}`;
                         } else {
                             hint = `✅ Місце зарезервовано (${driverRef(driverName)}). Початок збору, вашу чергу й посадку видно у картці. Деталі зустрічі уточнюйте в чаті.`;
@@ -14139,7 +14187,8 @@
                 : '';
             const self = !isDriver && phase === 'pickup' ? orderedPickupPassengers(t).find(p => String(p.user_id) === String(S.userId)) : null;
             const compactHead = self && !alertStyle
-                ? { icon: isPassengerPickedUp(self) ? '✅' : '🚗', title: isPassengerPickedUp(self) ? 'Ви в авто · Збір триває' : 'Чекаєте посадки · Збір' }
+                ? (isPassengerPickedUp(self) ? { icon: '✅', title: 'Ви в авто · Збір триває' }
+                    : (driverAtPoint(self) ? { icon: '📍', title: 'Водій біля вашої точки · Збір' } : { icon: '🚗', title: 'Чекаєте посадки · Збір' }))
                 : head;
             return `<div class="dock-head">
                     <div style="min-width:0;">
@@ -14148,6 +14197,7 @@
                         ${S.mapTripDockCompact && alertStyle ? `<div class="dock-compact-context" style="${alertStyle}">${hint}</div>` : ''}
                         <div class="dock-sub">${metaLine}</div>
                         <div class="dock-sub" style="${alertStyle || 'color:var(--text);'}margin-top:5px;white-space:normal;">${hint}</div>
+                        ${atPointRetry ? `<div data-at-point-retry-line="true" style="margin-top:6px;">${atPointRetry}</div>` : ''}
                         ${queueLine}
                         ${schemeLine}
                     </div>
@@ -14233,6 +14283,15 @@
                 S.pickupNotifiedIds.add(reqId);
                 notifyCriticalEvent('pickup_arrived', reqId);
                 showToast('🚗 Водій почав збір екіпажу', 'success');
+            }
+            const atPointSeen = S.atPointNotifiedIds || (S.atPointNotifiedIds = new Set());
+            if (sameTrip && nextTrip.status === 'pickup' && nextTrip.viewer_role !== 'driver' && !atPointSeen.has(reqId)) {
+                const wasSelf = currentPassengerMemberForTrip(prevTrip), nowSelf = currentPassengerMemberForTrip(nextTrip);
+                if (nowSelf && driverAtPoint(nowSelf) && !driverAtPoint(wasSelf) && !isPassengerPickedUp(nowSelf)) {
+                    atPointSeen.add(reqId);
+                    notifyCriticalEvent('pickup_arrived', `at_point:${reqId}`);
+                    showToast('📍 Водій біля вашої точки — підходьте до авто', 'success');
+                }
             }
             if (sameTrip && !prevTrip.is_started && nextTrip.is_started && nextTrip.viewer_role !== 'driver' && !S.tripStartNotifiedIds.has(reqId)) {
                 S.tripStartNotifiedIds.add(reqId);
@@ -14526,6 +14585,32 @@
             } finally { endOp(`pickup_passenger_${reqId}`); }
         }
 
+        // О8: водій позначає, що він біля точки саме цього попутника; сервер повідомляє лише його.
+        async function markDriverAtPoint(requestId, passengerId) {
+            const reqId = parseInt(requestId || 0, 10) || 0;
+            const paxId = parseInt(passengerId || 0, 10) || 0;
+            if (!reqId || !paxId) {
+                showToast('Немає конкретного попутника для позначки', 'error');
+                return false;
+            }
+            if (!beginOp(`at_point_${reqId}`)) return false;
+            try {
+                const res = await api('/api/v3/trip/at-point', {
+                    method: 'POST',
+                    body: JSON.stringify({ request_id: reqId, user_id: S.userId, passenger_id: paxId })
+                });
+                if (res?.status === 'ok') {
+                    // r2 (D415 R1): «збережено» ≠ «надіслано»; «надіслано» = Telegram прийняв, не «прочитав»
+                    if (res.notice === 'delivered') showToast('📍 Позначено. Повідомлення попутнику надіслано', 'success');
+                    else showToast('📍 Позначку збережено, але повідомлення ще не надіслано — натисніть «Надіслати ще раз»', '');
+                    await hydrate();
+                    return true;
+                }
+                showToast('Не вдалося позначити точку', 'error');
+                return false;
+            } finally { endOp(`at_point_${reqId}`); }
+        }
+
         async function arriveAtPickup() {
             if (!S.activeTrip) return false;
             if (!beginOp('arrive_at_pickup')) return false;
@@ -14533,7 +14618,7 @@
                 const reqId = currentRequestId();
                 if (!reqId) { showToast('Немає активної поїздки', 'error'); return false; }
                 const res = await api('/api/v3/trip/arrive', { method: 'POST', body: JSON.stringify({ request_id: reqId, user_id: S.userId }) });
-                if (res?.status === 'ok') { showToast('📍 Ви біля точки збору. Екіпаж у режимі посадки', 'success'); await hydrate(); return true; }
+                if (res?.status === 'ok') { showToast('🚗 Збір почато. Біля точки попутника натисніть «📍 Я біля точки»', 'success'); await hydrate(); return true; }
                 showToast('Помилка', 'error');
                 return false;
             } finally { endOp('arrive_at_pickup'); }
