@@ -4604,6 +4604,9 @@
                 if (!S.userPhoto) S.userPhoto = sanitizeAvatarUrl(data.profile.photo_url || '');
             }
             if (Object.prototype.hasOwnProperty.call(data, 'home')) { S.home = data.home || null; renderHomeSetting(); }
+            // Follow-up 2026-10-25 (D440): the person's own saved waiting point per event (server event_pickups) — state only,
+            // never copied into S.pickupCoords / S.joinPoints / Home and never written back.
+            if (Object.prototype.hasOwnProperty.call(data, 'event_pickups')) S.eventPickups = Array.isArray(data.event_pickups) ? data.event_pickups : [];
             if (!String(S.userName || '').trim()) {
                 const prof = await api(`/api/v3/user/profile?user_id=${S.userId}`);
                 if (prof?.found && String(prof.name || '').trim()) {
@@ -4709,6 +4712,7 @@
 
                     S.lastHydrateAt = Date.now();
                     S.activeTrip = resolveActiveTripPayload(data);
+                    if (Object.prototype.hasOwnProperty.call(data, 'event_pickups')) S.eventPickups = Array.isArray(data.event_pickups) ? data.event_pickups : [];
             S.outing = data.outing && typeof data.outing === 'object' ? data.outing : null;
             S.journey = data.journey && typeof data.journey === 'object' ? data.journey : null;   // D230 hold (server truth)
             S.lastOuting = data.last_outing && typeof data.last_outing === 'object' ? data.last_outing : null;
@@ -6055,7 +6059,9 @@
             // Show live crew member markers during reservation pickup + Phase 2
             renderCrewMembersOnMap();
             renderEventPointsOnMap();
+            renderOwnWaitingPointOnMap();
             maybeInitialDiscoveryFit();
+            maybeInitialContextFit();
             // Crew details live on the icon-only pin popup. Do not duplicate
             // the same drivers as bottom overlay cards; they cover the map.
             renderMapOverlay([]);
@@ -6078,6 +6084,99 @@
             if (!mapEventPointsForDiscovery().length) return;
             S._initialDiscoveryFitDone = true;
             focusMapByFilter();
+        }
+
+        // Follow-up 2026-10-25 (owner via Astra, D440): the person opening the map inside an event context sees that event,
+        // their own waiting point and the pins of the current lens — not the default city.
+        function ownEventPickupFor(dirId) {
+            const id = String(dirId || '');
+            if (!id) return null;
+            const row = (Array.isArray(S.eventPickups) ? S.eventPickups : []).find(p => String(p?.direction_id || '') === id);
+            const c = row ? firstFiniteLatLng([row.lat, row.lng]) : null;
+            return c ? { lat: c.lat, lng: c.lng, label: String(row.label || '') } : null;
+        }
+
+        // The saved waiting point of the CURRENT event, shown only for a confirmed passenger participation without an active
+        // trip and without a held or ended journey. Not GPS, not presence, not a new consent; any other or unknown state: null.
+        function passiveOwnWaitingPoint(context = mapContextScoped()) {
+            if (!context || context.kind !== 'subscription' || S.activeTrip) return null;
+            const sub = activeSubscriptionForRadar();
+            if (!sub || String(directionIdForRadar(sub)) !== String(context.dirId || '')) return null;
+            if (!_isPassengerRole(sub.role || '')) return null;
+            const j = S.journey;
+            if (j && (j.search_held || j.journey_ended)) return null;
+            return ownEventPickupFor(context.dirId);
+        }
+
+        // Passive marker: no flyTo, no state copy; not drawn when this session's explicit pickup marker already shows the point.
+        function renderOwnWaitingPointOnMap() {
+            if (!S.map) return;
+            const pt = passiveOwnWaitingPoint();
+            if (!pt || (S.pickupCoords && S._pickupMarker)) {
+                if (S._ownWaitMarker) { S.map.removeLayer(S._ownWaitMarker); S._ownWaitMarker = null; }
+                return;
+            }
+            const ll = [pt.lat, pt.lng];
+            if (!S._ownWaitMarker) {
+                S._ownWaitMarker = L.marker(ll, {
+                    icon: L.divIcon({
+                        className: '',
+                        html: '<div class="pickup-point-pin pickup-point-passenger" role="img" aria-label="Я чекаю тут">👤</div>',
+                        iconSize: [34, 34], iconAnchor: [17, 17], popupAnchor: [0, -25]
+                    })
+                }).bindPopup('Я чекаю тут');
+            } else {
+                S._ownWaitMarker.setLatLng(ll);
+            }
+            S._ownWaitMarker.addTo(S.map);
+        }
+
+        // One PASSIVE frame per session for an event context without a trip (a trip is framed by renderCrewMembersOnMap,
+        // no context keeps the discovery fit). Passive (DM-2026-10-13-001): it never resets the hold, never sets
+        // _mapFrameExplicit, never moves the map after a gesture or under an open card. The flag is spent only by a real
+        // frame that contains an anchor (the event or the own point), so late data cannot leave the person in the default city.
+        function maybeInitialContextFit() {
+            if (S.currentScreen !== 'explore' || !S.map) return;
+            if (S._initialContextFitDone && S._initialContextFitOwnFramed) return;
+            if (S.mapViewHeldByUser || S._openMapCard) return;
+            const context = mapContextScoped();
+            if (!context || context.kind !== 'subscription') return;
+            const own = passiveOwnWaitingPoint(context);
+            // D442 R1: after a frame on the event alone, the own point arriving later earns ONE more passive frame (same guards)
+            if (S._initialContextFitDone && !own) return;
+            const coords = [];
+            const ev = eventPointForMapContext(context);
+            if (ev) _pushMapCoord(coords, ev.lat, ev.lng);
+            if (own) _pushMapCoord(coords, own.lat, own.lng);
+            if (!coords.length) return;   // no anchor yet: wait for the event / own point instead of spending the flag
+            visibleMapCrewsForContext(S.mapCrews).forEach(c => _pushMapCoord(coords, c.lat, c.lng));
+            visibleMapPassengersForContext(S.mapPassengers).forEach(p => _pushMapCoord(coords, p.lat, p.lng));
+            const seen = new Set();
+            const uniq = coords.filter(([lat, lng]) => {
+                const k = `${lat.toFixed(5)},${lng.toFixed(5)}`;
+                if (seen.has(k)) return false; seen.add(k); return true;
+            });
+            if (fitMapCoordsAboveOverlays(uniq, 14)) {
+                S._initialContextFitDone = true;
+                if (own) S._initialContextFitOwnFramed = true;
+            }
+        }
+
+        // First centre of a location picker the person opened: an explicit current draft, then the given fallbacks
+        // (own point of this event, the profile template), then the old fallback. Only a centre — nothing is confirmed or written.
+        function locationPickerInitialCenter(opts = {}) {
+            const draft = firstFiniteLatLng([opts.lat, opts.lng]);
+            if (draft) return { center: [draft.lat, draft.lng], zoom: 15 };
+            const fallback = firstFiniteLatLng(...(Array.isArray(opts.fallbackCenters) ? opts.fallbackCenters : []));
+            if (fallback) return { center: [fallback.lat, fallback.lng], zoom: 14 };
+            const known = S._lastKnownPos ? firstFiniteLatLng([S._lastKnownPos.lat, S._lastKnownPos.lng]) : null;
+            if (known) return { center: [known.lat, known.lng], zoom: 14 };
+            return { center: [S.homeCity.lat, S.homeCity.lng], zoom: 11 };
+        }
+
+        function pickupPickerFallbackCenters(dirId) {
+            const own = ownEventPickupFor(dirId);
+            return [own ? [own.lat, own.lng] : [null, null], [S.home?.lat, S.home?.lng]];
         }
 
         function refreshOpenMapAutoSearchPanelFromFreshMap() {
@@ -14112,7 +14211,7 @@
                                 ${driverAtPointButton(nextPassenger, nextReqId, nextPassengerId)}`;
                         } else if (isDriver && nextPassenger && !isPassengerClaimed(nextPassenger)) {
                             hint = `Заберіть: ${escapeHtml(nextName)}. Позначайте по одному.`
-                                + (atPointNoticePending(nextPassenger) ? ` ⚠️ ${escapeHtml(nextName)} ще не отримав повідомлення — натисніть «Надіслати ще раз».` : '')
+                                + (atPointNoticePending(nextPassenger) ? ` ⚠️ ${escapeHtml(nextName)}: повідомлення ще не надіслано.` : '')
                                 + (claimedNow.length ? ` Не знайшли: ${claimedNamesLine(claimedNow)}.` : '');
                             if (atPointNoticePending(nextPassenger)) {
                                 alertStyle = 'color: var(--amber); font-weight: bold;';   // seen in the folded dock too
@@ -16026,11 +16125,8 @@
             _mapPicker.confirmLabel = opts.confirmLabel || uiText('✓ Готово');
             if (confirm) confirm.textContent = _mapPicker.confirmLabel;
 
-            const hasCoords = Number.isFinite(opts.lat) && Number.isFinite(opts.lng);
-            let center, zoom;
-            if (hasCoords) { center = [opts.lat, opts.lng]; zoom = 15; }
-            else if (S._lastKnownPos) { center = [S._lastKnownPos.lat, S._lastKnownPos.lng]; zoom = 14; }
-            else { center = [S.homeCity.lat, S.homeCity.lng]; zoom = 11; }
+            const hasCoords = Number.isFinite(opts.lat) && Number.isFinite(opts.lng);   // explicit draft: also enables confirm (unchanged)
+            const { center, zoom } = locationPickerInitialCenter(opts);   // follow-up 2026-10-25: draft -> own point -> profile -> old fallback
 
             if (!_mapPicker.map) {
                 _mapPicker.map = L.map('map-picker-map', { zoomControl: true, attributionControl: true }).setView(center, zoom);
@@ -16631,6 +16727,7 @@
                 openLocationPicker({
                     lat: S.pickupCoords?.lat,
                     lng: S.pickupCoords?.lng,
+                    fallbackCenters: pickupPickerFallbackCenters(dirId),
                     hint: options?.hint || (isDriverStart
                         ? 'Перетягніть карту так, щоб пін був там, звідки стартує ваше авто'
                         : 'Спершу вкажіть, де вас забрати. Перетягніть карту так, щоб пін був там, де чекати водія'),
