@@ -1782,6 +1782,40 @@
             100% { transform: scale(2.2); opacity: 0;   }
         }
 
+        /* Arrival is a saved human declaration for this stop, never live GPS. */
+        .map-at-point-stop {
+            position: relative;
+            outline: 3px solid #fbbf24;
+            outline-offset: 2px;
+        }
+        .map-at-point-stop::after {
+            content: '';
+            position: absolute;
+            inset: -5px;
+            border: 3px solid #fbbf24;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: atPointArrivalRing 1.8s ease-out infinite;
+        }
+        .at-point-status {
+            border-radius: 12px;
+            outline: 2px solid #fbbf24;
+            outline-offset: 3px;
+            animation: atPointArrivalGlow 2.2s ease-in-out infinite;
+        }
+        @keyframes atPointArrivalRing {
+            from { transform: scale(1); opacity: .8; }
+            to { transform: scale(2); opacity: 0; }
+        }
+        @keyframes atPointArrivalGlow {
+            0%, 100% { box-shadow: 0 0 0 2px rgba(251,191,36,.15); }
+            50% { box-shadow: 0 0 16px 3px rgba(251,191,36,.42); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .map-at-point-stop::after { animation: none; display: none; }
+            .at-point-status { animation: none; }
+        }
+
         .map-pin-full {
             opacity: 0.58;
             filter: grayscale(0.35);
@@ -10919,6 +10953,24 @@
             return !!(member && member.driver_at_point_at);
         }
 
+        function hasAtPointArrival(trip, member) {
+            if (!trip || trip.status !== 'pickup' || trip.is_started || trip.cancel_requested_by
+                || tripViewerFinished(trip) || tripPartnerFinished(trip)) return false;
+            if (!member || String(member.role || '').toLowerCase() === 'driver' || !passengerRequestId(member)
+                || !driverAtPoint(member) || isPendingCrewMember(member) || isPassengerPickedUp(member)
+                || isPassengerClaimed(member) || memberCancelRequestedBy(member) || passengerHasStarted(member, trip)) return false;
+            const flags = passengerFinishFlags(member);
+            if (flags.driverFinished || flags.clientFinished
+                || ['completed', 'cancelled', 'canceled', 'missed_pickup'].includes(String(member.request_status || '').toLowerCase())) return false;
+            return !!firstFiniteLatLng([member.pickup_lat, member.pickup_lng]);
+        }
+
+        function atPointArrivalForViewer(trip) {
+            if (!trip || !['driver', 'passenger', 'client'].includes(trip.viewer_role)) return false;
+            return orderedPickupPassengers(trip).some(member => hasAtPointArrival(trip, member)
+                && (trip.viewer_role === 'driver' || String(member.user_id) === String(S.userId)));
+        }
+
         // r2 (D415 R1): сервер каже, що сталося з повідомленням саме цієї зупинки (delivered | pending). Позначку збережено ≠ надіслано.
         function atPointNoticePending(member) {
             return driverAtPoint(member) && member.driver_at_point_notice === 'pending';
@@ -14028,7 +14080,7 @@
                     : (driverAtPoint(self) ? { icon: '📍', title: uiText('Водій біля вашої точки') } : { icon: '🚗', title: uiText('Чекаєте посадки') });
             }
             const seats = (t && t.viewer_role === 'driver') ? ` · ${tripSeatsLabel(t)}` : '';
-            return `<div class="dock-strip">
+            return `<div class="dock-strip${atPointArrivalForViewer(t) ? ' at-point-status' : ''}"${atPointArrivalForViewer(t) ? ' data-at-point-status="true"' : ''}>
                 <button class="dock-strip-expand" onclick="toggleMapTripDock()" aria-label="${escapeAttr(uiText('Розгорнути шторку повністю'))}">
                 <span>${head.icon} ${escapeHtml(head.title)}${seats}</span>
                 <span style="opacity:.55;font-size:11px;">${uiText('розгорнути ▴')}</span>
@@ -14375,7 +14427,7 @@
                 ? (isPassengerPickedUp(self) ? { icon: '✅', title: uiText('Ви в авто · Збір триває') }
                     : (driverAtPoint(self) ? { icon: '📍', title: uiText('Водій біля вашої точки · Збір') } : { icon: '🚗', title: uiText('Чекаєте посадки · Збір') }))
                 : head;
-            return `<div class="dock-head">
+            return `<div class="dock-head${atPointArrivalForViewer(t) ? ' at-point-status' : ''}"${atPointArrivalForViewer(t) ? ' data-at-point-status="true"' : ''}>
                     <div style="min-width:0;">
                         <div class="dock-title dock-full-title">${head.icon} ${escapeHtml(uiText(head.title))}</div>
                         ${S.mapTripDockCompact ? `<div class="dock-title dock-compact-title">${compactHead.icon} ${escapeHtml(uiText(compactHead.title))}${seatsChip}</div>` : ''}
@@ -17045,6 +17097,7 @@
                 if (!c) return;
                 const emoji = role === 'driver' ? '🚗' : '👤';
                 const pickedUp = role !== 'driver' && isPassengerPickedUp(m);
+                const atPointArrival = hasAtPointArrival(t, m);
                 // А7 (запис 57): без точки збору (попутник) чи без старту авто (водій) маркер — лише «зараз тут»
                 // (жива геопозиція), а не зупинка «Схеми збору»: пунктир, приглушено, чесний підпис.
                 const liveOnly = !pickedUp && (role === 'driver' || !firstFiniteLatLng([m?.pickup_lat, m?.pickup_lng]));
@@ -17053,14 +17106,14 @@
                 const phaseLabel = liveOnly
                     ? (role === 'driver' ? uiText('зараз тут · старт авто не задано') : uiText('зараз тут · точки збору немає'))
                     : (pickedUp ? (firstFiniteLatLng([m?.pickup_lat, m?.pickup_lng]) ? uiText('Місце посадки · В авто') : uiText('Остання геопозиція · В авто')) : (t.is_started ? uiText('в дорозі') : uiText('зустріч')));
-                const statusLabel = `${role === 'driver' ? uiText('водій') : uiText('попутник')} · ${phaseLabel}`;
+                const statusLabel = `${role === 'driver' ? uiText('водій') : uiText('попутник')} · ${atPointArrival ? uiText('Водій біля точки') : phaseLabel}`;
                 const pinStyle = pickedUp ? 'opacity:.5;border:2px solid rgba(0,0,0,0.4);' : (liveOnly ? 'opacity:.6;border:2px dashed rgba(255,255,255,0.85);' : 'border:2px solid rgba(0,0,0,0.4);');
                 const ownChat = isMe && pickedUp ? `<button onclick="openChat(${currentRequestIdFromTrip(t)}, ${parseInt(t.driver_id, 10) || 0})" style="margin-top:8px;padding:8px;">${uiText('💬 Чат екіпажу')}</button>` : '';
                 const marker = L.marker([c.lat, c.lng], {
                     title: pickedUp ? `${firstFiniteLatLng([m?.pickup_lat, m?.pickup_lng]) ? uiText('Місце посадки') : uiText('Остання геопозиція')}: ${m.name || uiText('Ви')} · ${uiText('В авто')}` : (m.name || uiText('Попутник')),
                     icon: L.divIcon({
                         className: '',
-                        html: `<div data-crew-member="${parseInt(m.user_id, 10) || 0}" ${liveOnly ? 'data-live-only="1" ' : ''}style="width:36px;height:36px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;font-size:16px;${pinStyle}box-shadow:0 2px 12px ${color}66;">${emoji}</div>`,
+                        html: `<div data-crew-member="${parseInt(m.user_id, 10) || 0}" ${atPointArrival ? `class="map-at-point-stop" data-at-point-arrival="true" role="img" aria-label="${escapeAttr(uiText('Водій біля точки') + ': ' + passengerDisplayName(m))}" ` : ''}${liveOnly ? 'data-live-only="1" ' : ''}style="width:36px;height:36px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;font-size:16px;${pinStyle}box-shadow:0 2px 12px ${color}66;">${emoji}</div>`,
                         iconSize: [36, 36], iconAnchor: [18, 18]
                     })
                 }).addTo(S.map).bindPopup(`<b>${name}</b><br>${statusLabel}` + crewMemberContactButtonsHtml(m, c) + ownChat, MAP_POPUP_PAN_OPTS);
