@@ -1253,7 +1253,8 @@
     "Нічого не знайдено": "ui.1079",
     "До кореня": "ui.1080",
     "Відкрити розділ": "ui.1081",
-    "✓ Ви в події": "ui.1082"
+    "✓ Ви в події": "ui.1082",
+    "Водій біля точки": "ui.1083"
 };
     const messages = {
     "uk": {
@@ -2338,7 +2339,8 @@
         "ui.1079": "Нічого не знайдено",
         "ui.1080": "До кореня",
         "ui.1081": "Відкрити розділ",
-        "ui.1082": "✓ Ви в події"
+        "ui.1082": "✓ Ви в події",
+        "ui.1083": "Водій біля точки"
     },
     "ru": {
         "ui.001": "Карта",
@@ -3422,7 +3424,8 @@
         "ui.1079": "Ничего не найдено",
         "ui.1080": "В начало каталога",
         "ui.1081": "Открыть раздел",
-        "ui.1082": "✓ Вы в событии"
+        "ui.1082": "✓ Вы в событии",
+        "ui.1083": "Водитель у точки посадки"
     },
     "pl": {
         "ui.001": "Mapa",
@@ -4506,7 +4509,8 @@
         "ui.1079": "Nic nie znaleziono",
         "ui.1080": "Na początek katalogu",
         "ui.1081": "Otwórz dział",
-        "ui.1082": "✓ Jesteś w wydarzeniu"
+        "ui.1082": "✓ Jesteś w wydarzeniu",
+        "ui.1083": "Kierowca jest przy miejscu odbioru"
     },
     "en": {
         "ui.001": "Map",
@@ -5590,7 +5594,8 @@
         "ui.1079": "Nothing found",
         "ui.1080": "To the top of the catalogue",
         "ui.1081": "Open the section",
-        "ui.1082": "✓ You're in the event"
+        "ui.1082": "✓ You're in the event",
+        "ui.1083": "Driver is at the pickup point"
     }
 };
     let activeLanguage = "uk";
