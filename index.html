@@ -1798,18 +1798,17 @@
             animation: atPointArrivalRing 1.8s ease-out infinite;
         }
         .at-point-status {
-            border-radius: 12px;
-            outline: 2px solid #fbbf24;
-            outline-offset: 3px;
-            animation: atPointArrivalGlow 2.2s ease-in-out infinite;
+            border-radius: 10px;
+            background-color: rgba(251,191,36,.045);
+            animation: atPointArrivalGlow 3.6s ease-in-out infinite;
         }
         @keyframes atPointArrivalRing {
             from { transform: scale(1); opacity: .8; }
             to { transform: scale(2); opacity: 0; }
         }
         @keyframes atPointArrivalGlow {
-            0%, 100% { box-shadow: 0 0 0 2px rgba(251,191,36,.15); }
-            50% { box-shadow: 0 0 16px 3px rgba(251,191,36,.42); }
+            0%, 100% { background-color: rgba(251,191,36,.035); }
+            50% { background-color: rgba(251,191,36,.085); }
         }
         @media (prefers-reduced-motion: reduce) {
             .map-at-point-stop::after { animation: none; display: none; }
@@ -17064,6 +17063,7 @@
                 return true;
             });
             const carPinCoord = crewCarPinCoordForTrip(t);
+            const carAtPointArrival = t.viewer_role !== 'driver' && atPointArrivalForViewer(t);
             if (carPinCoord) {
                 driverFocusCoords.push([carPinCoord.lat, carPinCoord.lng]);
                 const driver = members.find(m => String(m?.role || '').toLowerCase() === 'driver');
@@ -17079,7 +17079,7 @@
                     alt: carLabel,
                     icon: L.divIcon({
                         className: '',
-                        html: `<div class="pickup-point-pin pickup-point-driver" role="img" aria-label="${carLabel}">🚗</div>`,
+                        html: `<div class="pickup-point-pin pickup-point-driver${carAtPointArrival ? ' map-at-point-stop' : ''}"${carAtPointArrival ? ' data-at-point-arrival="true"' : ''} role="img" aria-label="${carLabel}${carAtPointArrival ? ' · ' + escapeAttr(uiText('Водій біля точки')) : ''}">🚗</div>`,
                         iconSize: [34, 34],
                         iconAnchor: [17, 17],
                         popupAnchor: [0, -25]
@@ -17097,7 +17097,9 @@
                 if (!c) return;
                 const emoji = role === 'driver' ? '🚗' : '👤';
                 const pickedUp = role !== 'driver' && isPassengerPickedUp(m);
-                const atPointArrival = hasAtPointArrival(t, m);
+                const atPointArrival = role === 'driver'
+                    ? carAtPointArrival
+                    : t.viewer_role === 'driver' && hasAtPointArrival(t, m);
                 // А7 (запис 57): без точки збору (попутник) чи без старту авто (водій) маркер — лише «зараз тут»
                 // (жива геопозиція), а не зупинка «Схеми збору»: пунктир, приглушено, чесний підпис.
                 const liveOnly = !pickedUp && (role === 'driver' || !firstFiniteLatLng([m?.pickup_lat, m?.pickup_lng]));
