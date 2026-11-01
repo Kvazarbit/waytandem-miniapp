@@ -3374,6 +3374,13 @@
             cursor: pointer;
         }
 
+        /* D525: one gentle nudge of the folded search strip's ▴ (see hintFoldedSearchArrowOnce). Transform only, after the
+           0.4 s slide-in, once; the class is set on the first visible strip of a page view only and dropped when the nudge
+           ends, so neither a rebuild nor a reveal of the same arrow from display:none replays it. */
+        @keyframes stripArrowHint { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+        #map-result-panel .strip-arrow-hint { animation: stripArrowHint .6s ease-in-out .4s 1; }
+        @media (prefers-reduced-motion: reduce) { #map-result-panel .strip-arrow-hint { animation: none; } }
+
         /* DM-2026-06-14-011: коли обидві мікро-смужки (#map-result-panel і
            #map-trip-dock) одночасно .open.collapsed -- напр. активна поїздка
            по одному напрямку + нова підписка-пошук по іншому -- вони мають
@@ -3538,6 +3545,7 @@
         .compact-driver-actions .btn { width: auto; flex: 1; min-height: 44px; padding: 8px 10px; font-size: 12px; }
         .compact-passenger-avatar:focus-visible, .compact-passenger-details > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     </style>
+
 </head>
 
 <body>
@@ -5619,7 +5627,7 @@
                 parts.push(`<div class="sub-bar-pending" role="button" tabindex="0" onclick="openMapActiveTripFromSubBar()">${uiText('⏳ Очікуємо підтвердження партнера')}</div>`);
             }
             if (!S.activeTrip && !waitingForPartner && hasPendingRating()) {
-                parts.push(`<div class="sub-bar-pending" role="button" tabindex="0" onclick="maybeOpenCompletedTripRatingSheet('subbar') || openMapActiveTripFromSubBar()">${uiText('⭐ Оцініть поїздку')}</div>`);
+                parts.push(`<div class="sub-bar-pending" role="button" tabindex="0" onclick="maybeOpenCompletedTripRatingSheet('subbar') || openMapActiveTripFromSubBar()">${ratingReminderLabel()}</div>`);
             }
             const incoming = S.pendingMatches.filter(m => m.scope === 'incoming');
             if (incoming.length > 0) parts.push(`<div class="sub-bar-pending" role="button" tabindex="0" onclick="openMapPendingMatchesSheet('incoming')">${escapeHtml(pendingMatchSubBarLabel(incoming, 'incoming'))}</div>`);
@@ -8483,13 +8491,15 @@
             const isDriver = _isDriverRole(S.userRole);
             const title = isDriver ? uiText('✨ Шукаємо попутників') : uiText('✨ Шукаємо місце');
             const seats = isDriver ? searchSeatsLabel(safeDirId) : '';
-            const chip = `${uiText('✨ Авто')}${seats ? ' · ' + seats : ''}`;
+            const own = isDriver ? ownOutingForSearch(safeDirId) : null, ownKey = ownOutingSearchKey(own);
+            const chip = `${uiText('✨ Авто')}${seats && !own ? ' · ' + seats : ''}`;
             const panel = document.getElementById('map-result-panel');
             const meta = panel && panel._mapResultMeta;
             const sameAutoPanel =
                 panel?.classList.contains('open') &&
                 meta?.kind === 'auto_search' &&
-                String(meta?.dirId || '') === String(safeDirId);
+                String(meta?.dirId || '') === String(safeDirId) &&
+                (meta?.ownOuting || '') === ownKey;
             const collapseStateMatches = !!S.mapResultCollapsed === !!panel?.classList.contains('collapsed');
             if (sameAutoPanel && collapseStateMatches && (isDriver || S.mapResultCollapsed)) {
                 return;
@@ -8501,6 +8511,7 @@
                 isDriver ? 'driver' : 'passenger',
                 seats,
                 S.mapResultCollapsed ? 'collapsed' : 'open',
+                ownKey,
                 crewChoices.map(c => `${c.organizer_id}:${c.seats_free}:${c.name || ''}`).join('|')
             ].join('::');
             if (
@@ -8524,13 +8535,13 @@
                     <span onclick="toggleMapResultCollapse()" style="cursor:pointer;opacity:.6;font-size:18px;line-height:1;" title="${escapeAttr(uiText('Згорнути'))}">▾</span>
                 </div>
                 <div class="sheet-sub" style="font-size:12px;margin:4px 0 4px;"><span style="display:inline-block;padding:2px 8px;border-radius:999px;background:rgba(56,189,248,0.12);font-weight:700;">${escapeHtml(chip)}</span></div>
-                <div class="sheet-sub" style="font-size:12px;margin-bottom:10px;">${escapeHtml(sub)}</div>
+                ${own ? ownOutingSearchBlock(own) : ''}<div class="sheet-sub" style="font-size:12px;margin-bottom:10px;">${escapeHtml(sub)}</div>
                 ${crewChoicesHtml}
                 <div style="display:flex;gap:10px;">
                     <button class="btn ${crewChoices.length ? 'btn-primary' : 'btn-secondary'}" style="flex:1;" onclick="closeMapResultPanel(); ${crewChoices.length ? `openNearbyCrewsSheet(${safeDirId})` : `openSubscribedDirectionDetails(${safeDirId})`}">${crewChoices.length ? uiText('Показати місця') : uiText('Деталі')}</button>
                     <button class="btn btn-secondary" style="flex:1;" onclick="disableAutoSearch(${safeDirId})">${uiText('⏸ Зупинити автопошук')}</button>
                 </div>
-            `, { kind: 'auto_search', dirId: safeDirId, renderSignature }, mapResultStrip(escapeHtml(`${title}${seats ? ' · ' + seats : ''}`)));
+            ${own ? ownOutingLeaveBlock() : ''}`, { kind: 'auto_search', dirId: safeDirId, renderSignature, ownOuting: ownKey }, searchStrip(isDriver, 'auto', own ? ` · ${uiHtml('Вільно: {n}', { n: Number(own.seats_free) || 0 })}` : (seats ? ` · ${escapeHtml(seats)}` : '')));
         }
 
         function hasHandshakeActionSurface() {
@@ -8556,7 +8567,8 @@
                 persistCriticalState();
             }
             const seats = isDriver ? searchSeatsLabel(safeDirId) : '';
-            const chip = `${uiText('📍 Ручний')}${seats ? ' · ' + seats : ''}`;
+            const own = ownOutingForSearch(safeDirId);
+            const chip = `${uiText('📍 Ручний')}${seats && !own ? ' · ' + seats : ''}`;
             const sub = isDriver
                 ? uiText('Ви на карті як водій. Тапайте попутників, щоб запросити — або увімкніть автопошук, і система знайде їх сама.')
                 : uiText('Ви на карті. Тапайте машини, щоб запроситись — або увімкніть автопошук, і система знайде водія сама.');
@@ -8567,12 +8579,12 @@
                     <span onclick="toggleMapResultCollapse()" style="cursor:pointer;opacity:.6;font-size:18px;line-height:1;" title="${escapeAttr(uiText('Згорнути'))}">▾</span>
                 </div>
                 <div class="sheet-sub" style="font-size:12px;margin:4px 0 4px;"><span style="display:inline-block;padding:2px 8px;border-radius:999px;background:rgba(56,189,248,0.12);font-weight:700;">${escapeHtml(chip)}</span></div>
-                <div class="sheet-sub" style="font-size:12px;margin:0 0 10px;">${escapeHtml(sub)}</div>
+                ${own ? ownOutingSearchBlock(own) : ''}<div class="sheet-sub" style="font-size:12px;margin:0 0 10px;">${escapeHtml(sub)}</div>
                 <div style="display:flex;gap:10px;">
                     <button class="btn btn-primary" style="flex:1;" onclick="enableAutoSearch(${safeDirId})">${uiText('✨ Включити автопошук')}</button>
-                    <button class="btn btn-danger" style="flex:1;" onclick="closeMapResultPanel(); confirmLeaveDirection(${safeDirId})">${uiText('🚪 Вийти з події')}</button>
+                    ${own ? '' : `<button class="btn btn-danger" style="flex:1;" onclick="closeMapResultPanel(); confirmLeaveDirection(${safeDirId})">${uiText('🚪 Вийти з події')}</button>`}
                 </div>
-            `, { kind: 'manual_search', dirId: safeDirId }, mapResultStrip(escapeHtml(`📍 ${ctx.title || uiText('Підписка')} · ${uiText('ручний')}${seats ? ' · ' + seats : ''}`)));
+            ${own ? ownOutingLeaveBlock() : ''}`, { kind: 'manual_search', dirId: safeDirId, ownOuting: ownOutingSearchKey(own) }, searchStrip(isDriver, 'manual', own ? ` · ${uiHtml('Вільно: {n}', { n: Number(own.seats_free) || 0 })}` : (seats ? ` · ${escapeHtml(seats)}` : '')));
         }
 
         // СТАТУС-банер «Очікування відповіді партнера» (outgoing). За рішенням —
@@ -11172,7 +11184,7 @@
                     <div class="sheet-sub">${uiText('Нових попутників вам не пропонуємо. Новий виїзд — окремою дією; або завершіть участь у події.')}</div>
                     <div class="sheet-actions" style="flex-direction:row;flex-wrap:wrap;">
                         <button class="btn btn-secondary" style="flex:1;" data-new-outing="true" onclick="startNewOutingAfterFinish(${safeDirId})">${uiText('🚗 Новий виїзд')}</button>
-                        <button class="btn btn-secondary" style="flex:1;" data-leave-event="true" onclick="leaveEventAfterOuting(${safeDirId})">${uiText('🚪 Завершити участь')}</button>${close}
+                        <button class="btn btn-secondary" style="flex:1;" data-leave-event="true" onclick="leaveEventAfterOuting(${safeDirId})">${uiText('🚪 Завершити участь у події')}</button>${close}
                     </div></div>`;
             }
             const ended = !!S.journey?.journey_ended;
@@ -11181,7 +11193,7 @@
             const title = ended ? uiText('🏁 Подорож завершено') : (late ? uiText('Дата події минула. Ваша подорож ще триває?') : uiText('🏁 Пару завершено · ви на події'));
             const sub = ended ? uiText('Подорож завершено, але участь ще тримає незавершена домовленість.')
                 : (late ? uiText('Шукайте авто серед учасників події або завершіть подорож.') : uiText('Ви на події. Нове авто автоматично не шукаємо — лише коли попросите.'));
-            const endBtn = `<button class="btn btn-secondary" style="flex:1;" data-end-journey="true" onclick="endJourneyExplicitly(${safeDirId})">${uiText('🏁 Подорож завершено')}</button>`;
+            const endBtn = `<button class="btn btn-secondary" style="flex:1;" data-end-journey="true" onclick="endJourneyExplicitly(${safeDirId})">${uiText('🚪 Завершити участь у події')}</button>`;
             return `<div data-completed-context="${ended ? 'journey_end' : (late ? 'stay_after_date' : 'stay')}">${header}
                 <div class="sheet-title">${fold}${title}</div>
                 <div class="sheet-sub">${sub}</div>
@@ -11638,6 +11650,10 @@
                 body: JSON.stringify({ user_id: S.userId, direction_id: dirId })
             });
             if (!resp.ok) {
+                if (resp?.data?.reason === 'unfinished_driver_outing') {   // D520: the guard's own reason, not a generic failure
+                    showToast(uiText('Вийти з події можна після завершення свого виїзду.'), 'error');
+                    return false;
+                }
                 if (resp?.data?.reason === 'active_trip_in_direction') {
                     showActiveDealWarning(dirId, 'leave');  // з домовленості — лише через партнера (2026-09-26)
                     return false;
@@ -11983,6 +11999,79 @@
                 ${!compact ? `<div class="hero-sub">${escapeHtml(outing.direction_title || uiText('Подія'))}</div>` : ''}</div>
                 <button class="btn btn-secondary" onclick="finishOwnOuting()">${uiText('Завершити свій виїзд')}</button>
             </section>`;
+        }
+
+        // D519 (Опус, 29.10): власне незавершене авто й пошук ТІЄЇ САМОЇ події — один статус, одна смуга (P436/D520).
+        // Лише вигляд: ті самі факти S.outing; дії — наявні finishOwnOuting / керування пошуком; жодного запису.
+        function ownOutingForSearch(dirId) {
+            const o = S.outing;
+            return !S.activeTrip && o && !o.finished_at && String(o.direction_id) === String(parseInt(dirId, 10) || 0) ? o : null;
+        }
+
+        function ownOutingSearchKey(o) {
+            return o ? `${parseInt(o.crew_id, 10) || 0}:${Number(o.seats_free) || 0}:${o.is_started ? 1 : 0}` : '';
+        }
+
+        function ownOutingSearchLine(o) {
+            return `🚗 ${o.is_started ? uiText('Виїзд триває') : uiText('Авто відкрите')} · ${uiHtml('{n} вільних місць', { n: Number(o.seats_free) || 0 })}`;
+        }
+
+        function ownOutingSearchBlock(o) {
+            return `<div class="sheet-sub" data-own-outing-row="true" style="font-size:13px;font-weight:700;margin:4px 0 8px;">${ownOutingSearchLine(o)}</div>`;
+        }
+
+        // D522 / D523 (owner chose «Силует і лупа»): the folded search strip shows WHO is searched — a person for a driver,
+        // a car for a passenger — with a small magnifier, the way of search in words, and the driver's own free seats when the
+        // own car is here. Same height as mapResultStrip; the expand affordance is ▴ alone at every width (D525) and the whole strip
+        // stays the one tap zone; no new state or action.
+        function searchStripSymbol(isDriver) {
+            const subject = isDriver
+                ? '<circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/>'
+                : '<path d="m21 8-2 2-1.5-3.7A2 2 0 0 0 15.646 5H8.4a2 2 0 0 0-1.903 1.257L5 10 3 8"/><path d="M7 14h.01"/><path d="M17 14h.01"/><rect width="18" height="8" x="3" y="10" rx="2"/><path d="M5 18v2"/><path d="M19 18v2"/>';
+            const svg = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"';
+            return `<span aria-hidden="true" data-search-for="${isDriver ? 'passengers' : 'driver'}" style="position:relative;flex:0 0 24px;width:24px;height:24px;">`
+                + `<svg ${svg} width="20" height="20" stroke-width="1.8" style="position:absolute;left:0;top:0;">${subject}</svg>`
+                + `<svg ${svg} width="13" height="13" stroke-width="2.4" data-search-glass="true" style="position:absolute;right:0;bottom:0;color:var(--accent);background:var(--bg-elevated);border-radius:3px;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span>`;
+        }
+
+        function searchStrip(isDriver, kind, extra = '') {
+            const mode = kind === 'auto' ? uiText('Автопошук') : uiText('Вручну');
+            // the 24 px symbol is taller than a text line: 8 px instead of 10 px vertical padding keeps the strip at the r1 height (~41 px)
+            return `<div class="result-strip" role="button" tabindex="0" aria-expanded="false" onclick="toggleMapResultCollapse()" style="padding-top:8px;padding-bottom:8px;">${searchStripSymbol(isDriver)}`
+                + `<span data-search-copy="true" style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(mode)}${extra}</span>`
+                + `<span role="img" aria-label="${escapeAttr(uiText('Розгорнути'))}" data-strip-arrow="true" style="flex-shrink:0;opacity:.6;font-size:18px;line-height:1;">▴</span></div>`;
+        }
+
+        // D525: the first time the folded search strip is actually visible in this page view, nudge its ▴ once. A rebuild
+        // (hydrate / poll / seat change / fold-unfold) inserts a fresh arrow without the class, so the hint never replays; the class
+        // goes when the nudge ends or is cut short, so the SAME arrow shown again after display:none (point picker, sheet) stays
+        // still too — a CSS animation would otherwise restart on that reveal (D526 R1).
+        function hintFoldedSearchArrowOnce(panel) {
+            if (hintFoldedSearchArrowOnce.shown || !panel || !panel.classList.contains('collapsed')) return;
+            const arrow = panel.querySelector('[data-strip-arrow]');
+            if (!arrow || !arrow.getClientRects().length) return;   // hidden (other screen / covered by a sheet): keep it for later
+            hintFoldedSearchArrowOnce.shown = true;
+            const done = () => arrow.classList.remove('strip-arrow-hint');
+            arrow.addEventListener('animationend', done, { once: true });
+            arrow.addEventListener('animationcancel', done, { once: true });
+            arrow.classList.add('strip-arrow-hint');
+        }
+
+        // with an unfinished own outing the server refuses to leave (409 unfinished_driver_outing): say why, offer the existing finish
+        function ownOutingLeaveBlock() {
+            return `<div class="sheet-sub" data-own-outing-leave="true" style="font-size:12px;margin:10px 0 6px;">${uiText('Вийти з події можна після завершення свого виїзду.')}</div>
+                <button class="btn btn-secondary" style="width:100%;" data-own-outing-finish="true" onclick="finishOwnOuting()">${uiText('Завершити свій виїзд')}</button>`;
+        }
+
+        // the open search panel follows the facts: rebuilt once when the own car appears / changes / goes; returns «merged now»
+        function syncOwnOutingSearchPanel() {
+            const panel = document.getElementById('map-result-panel'), meta = panel && panel.classList.contains('open') ? panel._mapResultMeta : null;
+            if (!meta || (meta.kind !== 'manual_search' && meta.kind !== 'auto_search')) return false;
+            const want = ownOutingSearchKey(ownOutingForSearch(meta.dirId));
+            if ((meta.ownOuting || '') !== want) {
+                if (meta.kind === 'manual_search') openMapManualSearchPanel(meta.dirId); else openMapAutoSearchPanel(meta.dirId);
+            }
+            return !!want;
         }
 
         function confirmFinishOwnOuting(outing) {
@@ -13706,6 +13795,7 @@
             const manual = panel._mapResultMeta?.kind === 'manual_search';
             panel.classList.toggle('manual-search-panel', manual);
             panel.classList.toggle('screen-hidden', manual && S.currentScreen !== 'explore');
+            hintFoldedSearchArrowOnce(panel);
         }
 
         function openMapResultPanel(html, meta = null, stripHtml = null) {
@@ -13982,6 +14072,7 @@
         function verifyMapTripDockState() {
             const panel = document.getElementById('map-trip-dock');
             if (!panel) return;
+            const ownSearchMerged = syncOwnOutingSearchPanel();   // D519: the search panel follows the own car first
             const t = S.activeTrip;
             const handshake = document.getElementById('handshake-panel');
             const handshakeOpen = handshake && handshake.classList.contains('open');
@@ -14021,6 +14112,7 @@
                 return;
             }
             if (!t && S.outing && S.currentScreen === 'explore' && !handshakeOpen && !waitingForPartner) {
+                if (ownSearchMerged) { closeMapTripDock(); syncBottomStripStacking(); return; }   // D519: one strip, not two
                 // G1: the own-car card is a strip; as a strip it stacks above the manual-search strip instead of under it.
                 panel.classList.remove('compact', 'stacked-above-result');
                 panel.innerHTML = buildOwnOutingCard(true);
@@ -14046,6 +14138,13 @@
             panel.classList.toggle('compact', !S.mapTripDockCollapsed && S.mapTripDockCompact);
             if (S.mapTripDockCollapsed) {
                 panel.innerHTML = buildMapTripDockStrip(t, phase);
+                panel.classList.add('open', 'collapsed');
+                syncBottomStripStacking();
+                return;
+            }
+            if (S.mapTripDockCompact && passengerFinishPending(t)) {   // D543: the folded pending finish is one strip
+                panel.classList.remove('compact', 'stacked-above-result');
+                panel.innerHTML = buildPassengerFinishStrip(t);
                 panel.classList.add('open', 'collapsed');
                 syncBottomStripStacking();
                 return;
@@ -14128,6 +14227,27 @@
                 <button class="dock-strip-expand" onclick="toggleMapTripDock()" aria-label="${escapeAttr(uiText('Розгорнути шторку повністю'))}">
                 <span>${uiText('⏳ Очікуємо підтвердження')}</span>
                 <span style="opacity:.55;font-size:11px;">${uiText('розгорнути ▴')}</span>
+                </button>
+                ${mapTripDockChatBeacon(t)}
+            </div>`;
+        }
+
+        // D543 (owner's walk, mockup 9185abc9): the passenger's pending finish — the same state and the same action as the
+        // buildMapTripDockBody branch partnerFinished && !viewerFinished — folded into one ~44 px strip: icon, short state, the
+        // action, ▴. The whole strip (no padding dead zone; not the chat beacon) calls confirmOwnFinish('trip'); what each choice means is said only
+        // in that sheet. Details stay where they were (an explicit «Деталі» choice of this view keeps the full dock).
+        function passengerFinishPending(t) {
+            if (!t || t.viewer_role === 'driver' || (t.cancel_requested_by && !t.is_started)) return false;
+            return tripPartnerFinished(t) && !tripViewerFinished(t);
+        }
+
+        function buildPassengerFinishStrip(t) {
+            const who = String(t.driver_name || t.organizer_name || '').trim();
+            const said = uiText('Приїхали: фініш відмічено, чекаємо вашого вибору') + (who ? ` · ${who}` : '');
+            return `<div class="dock-strip" data-finish-strip="true" style="padding:0;gap:0;border-color:var(--green);">
+                <button class="dock-strip-expand" data-finish-strip-action="true" style="padding:0 8px 0 12px;" onclick="confirmOwnFinish('trip')" aria-label="${escapeAttr(said)}">
+                <span data-finish-strip-label="true">${escapeHtml(uiText('🏁 Приїхали'))}</span>
+                <span style="display:flex;align-items:center;gap:6px;flex-shrink:0;"><span data-finish-strip-pill="true" style="padding:5px 11px;border-radius:999px;background:var(--green);color:#06210f;font-size:12px;font-weight:800;white-space:nowrap;">${escapeHtml(uiText('Завершити'))}</span><span aria-hidden="true" style="opacity:.6;font-size:18px;line-height:1;">▴</span></span>
                 </button>
                 ${mapTripDockChatBeacon(t)}
             </div>`;
@@ -14253,7 +14373,7 @@
                                <button class="btn btn-secondary" onclick="rejectCancelTrip(0, ${cancelSeqFor(currentRequestId())})">${uiText('❌ Відмовити')}</button>`;
                 }
             } else if (cancelRequested) {
-                hint = uiText('⏳ Очікуємо підтвердження скасування від партнера');
+                hint = isDriver ? uiText('⏳ Очікуємо згоди кожного попутника на скасування') : uiText('⏳ Очікуємо підтвердження скасування від партнера');
                 alertStyle = 'color: var(--amber); font-weight: bold;';
                 actions = `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">${uiText('💬 Чат')}</button>${!isDriver ? withdrawCancelButton(currentRequestIdFromTrip(t)) : ''}`;
             } else if (partnerFinished && !viewerFinished) {
@@ -14662,8 +14782,37 @@
             return !!lastKnownTripForRating || (Array.isArray(S._ratingQueue) && S._ratingQueue.length > 0);
         }
 
+        // D541 (intent walk P449 / D538): the reminder names the person waiting for a rating, or how many are waiting
+        function ratingReminderLabel() {
+            const queue = Array.isArray(S._ratingQueue) ? S._ratingQueue.filter(Boolean) : [];
+            if (queue.length > 1) return escapeHtml(uiFmt('⭐ Оцінити · {n}', { n: queue.length }));
+            const name = String((queue[0] || buildRatingContext(lastKnownTripForRating) || {}).partner_name || '').trim();
+            return escapeHtml(name ? uiFmt('⭐ Оцінити: {name}', { name }) : uiText('⭐ Оцініть поїздку'));
+        }
+
+        // D541: a driver's crew may hold pairs finished at other moments. When the queue empties, the reminder stays while another
+        // completed pair of the SAME crew is still unrated by this person (server truth: /history my_score). Nothing opens by itself.
+        async function refillRatingQueueFromCrew(ctx) {
+            const crew = ctx?.crew_id;
+            if (crew == null || ctx?.event_only || !S.userId) return false;
+            const data = await api(`/api/v3/history?user_id=${S.userId}`, { silent: true });
+            const rows = Array.isArray(data) ? data : (data?.trips || data?.history || []);
+            const due = rows.filter(t => t && t.status === 'completed' && Number(t.partner_id) > 0 && t.my_score == null
+                && String(t.crew_id ?? '') === String(crew) && Number(t.request_id) !== Number(ctx.request_id));
+            if (!due.length || S.activeTrip) return false;
+            due.forEach(t => queueRatingContext({
+                request_id: Number(t.request_id), partner_id: Number(t.partner_id), partner_name: String(t.partner_name || ''),
+                direction_title: String(t.direction_title || t.dir || ''), viewer_role: t.role === 'driver' ? 'driver' : 'passenger',
+                crew_id: t.crew_id ?? null,
+                ...(['stay', 'end'].includes(t.finish_intent) ? { finish_intent: t.finish_intent } : {}),
+                ...(typeof t.outing_open === 'boolean' ? { outing_open: t.outing_open } : {})
+            }));
+            return true;
+        }
+
         function queueRatingContext(ratingContext, tripSnapshot = null) {
-            if (!ratingContext?.request_id) return false;
+            // D541 R1: an event-only rating (history) is optional, never a reminder — not queued, so it cannot reopen
+            if (!ratingContext?.request_id || ratingContext.event_only) return false;
             if (tripSnapshot) {
                 lastKnownTripForRating = { ...tripSnapshot };
             } else if (!lastKnownTripForRating) {
@@ -14722,7 +14871,7 @@
                 if (!S.completedRatingNotifiedIds.has(reqId)) {
                     S.completedRatingNotifiedIds.add(reqId);
                     notifyCriticalEvent('trip_completed', reqId);
-                    showToast(ratingIsStayOnEvent(ratingContext) ? (_isDriverRole(ratingContext?.viewer_role || S.userRole) ? uiText('🏁 Пару завершено. Оцініть попутника у Поїздках') : uiText('🏁 Пару завершено. Оцініть водія у Поїздках')) : uiText('🏁 Подорож завершена. Оцініть партнера у Поїздках'), '');
+                    showToast(ratingIsStayOnEvent(ratingContext) ? (_isDriverRole(ratingContext?.viewer_role || S.userRole) ? uiText('🏁 Пару завершено. Оцінка попутника — у верхній стрічці ⭐') : uiText('🏁 Пару завершено. Оцінка водія — у верхній стрічці ⭐')) : uiText('🏁 Подорож завершена. Оцінка — у верхній стрічці ⭐'), '');
                 }
                 renderSubBar();
                 persistCriticalState();
@@ -15119,9 +15268,11 @@
             const yesLabel = uiText('Підтвердити завершення');
             // D229/D230: a passenger finishes the PAIR; her intent («Залишаюсь на події» / «Подорож завершено») goes with it
             const passengerIntent = !!S.activeTrip && S.activeTrip.viewer_role !== 'driver' && kind !== 'all_finishers';
-            const intentNote = passengerIntent ? `<div data-finish-intent-note="true" style="margin:-6px 0 12px;font-size:12px;line-height:1.45;color:var(--text-secondary);"><b>${uiText('Залишаюсь на події')}</b> — ${uiText('пару з водієм завершено, ви лишаєтесь на події; нове авто шукатимемо лише коли попросите.')}<br><b>${uiText('Подорож завершено')}</b> — ${uiText('ви дісталися кінцевої точки.')}</div>` : '';
+            // D543: each choice carries its consequence in one short line (the long two-paragraph note is gone)
+            const choice = (label, consequence, kind) => `<span>${uiText(label)}</span><span data-finish-consequence="${kind}" style="font-size:12px;font-weight:500;line-height:1.35;opacity:.9;white-space:normal;">${uiText(consequence)}</span>`;
+            const choiceStyle = 'display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;width:100%;';
             const yesButtons = passengerIntent
-                ? `<div style="flex:1;display:flex;flex-direction:column;gap:8px;"><button class="btn btn-success" id="own-finish-yes" data-finish-intent="stay">${uiText('🎪 Залишаюсь на події')}</button><button class="btn btn-secondary" id="own-finish-end" data-finish-intent="end">${uiText('🏁 Подорож завершено')}</button></div>`
+                ? `<div data-finish-choices="true" style="display:flex;flex-direction:column;gap:8px;"><button class="btn btn-success" id="own-finish-yes" data-finish-intent="stay" style="${choiceStyle}">${choice('🎪 Залишаюсь', 'Участь збережеться · пошук авто — коли попросите', 'stay')}</button><button class="btn btn-secondary" id="own-finish-end" data-finish-intent="end" style="${choiceStyle}">${choice('🚪 Завершити участь у події', 'Ви вийдете з події · історія, контакти й оцінки збережуться', 'end')}</button></div>`
                 : `<button class="btn btn-success" id="own-finish-yes" style="flex:1;">${yesLabel}</button>`;
             return new Promise(resolve => {
                 openSheet(`
@@ -15129,13 +15280,12 @@
                         <div class="sheet-title">${question}</div>
                         <div class="sheet-sub">🎯 ${escapeHtml(target.title)}</div>
                         <div style="margin:10px 0 14px;font-size:13px;line-height:1.45;color:var(--text-secondary);">${explain}</div>
-                        ${intentNote}
                         <!-- «Так» ліворуч, «Ще ні» праворуч: дія фінішу в доці завжди праворуч, тож другий тап
                              подвійного тапу (навіть під час виїзду шторки) влучає в «Ще ні» або в текст. Нижнє поле
                              тримає кнопки над зоною меню: тап у зону вкладок нічого не записує (guard 412/390). -->
-                        <div class="sheet-actions" style="flex-direction:row;align-items:stretch;">
+                        <div class="sheet-actions" style="flex-direction:${passengerIntent ? 'column' : 'row'};align-items:stretch;">
                             ${yesButtons}
-                            <button class="btn btn-secondary" id="own-finish-no" style="flex:1;">${uiText('Ще ні')}</button>
+                            <button class="btn ${passengerIntent ? 'btn-ghost' : 'btn-secondary'}" id="own-finish-no" style="${passengerIntent ? 'width:100%;' : 'flex:1;'}">${uiText('Ще ні')}</button>
                         </div>
                         <div aria-hidden="true" style="height:calc(var(--nav-height) + var(--safe-bottom) + 16px);"></div>
                     </div>
@@ -15144,7 +15294,11 @@
                 const end = document.getElementById('own-finish-end');
                 const no = document.getElementById('own-finish-no');
                 no.onclick = () => { closeSheet(); resolve(false); };
+                // D543: the whole finish strip opens this sheet, so the second tap of a double tap (also while the sheet still
+                // slides in, 0.4 s) must not choose an intent: the two choices act only after 450 ms; «Ще ні» acts at once.
+                const armedAt = Date.now() + 450;
                 const confirmWith = finishIntent => async () => {
+                    if (passengerIntent && Date.now() < armedAt) return;
                     yes.disabled = true; no.disabled = true; if (end) end.disabled = true;
                     closeSheet();
                     const fresh = ownFinishTarget(kind, reqId);
@@ -15163,17 +15317,26 @@
             });
         }
 
-        async function cancelTrip() {
+        async function cancelTrip(reqId = 0) {
             if (!S.activeTrip) return;
             const t = S.activeTrip;
             const crewLabel = `#${activeTripCrewNumber(t)}`;
             const isDriver = t.viewer_role === 'driver';
+            // Owner 31.10 + §0.19 п.1 (Crew-Level Rule): a DRIVER cancels with the whole current crew (illness, a broken car) — one
+            // batch proposal (/trip/cancel-crew); each passenger confirms or rejects her own pair; started pairs stay untouched.
+            // A passenger asks to leave only her own pair, with the driver's consent (the dialog below).
+            S._cancelCrewDir = null;
+            if (isDriver) { openCrewCancelDialog(t); return; }
+            let chosen = parseInt(reqId, 10) || 0;
+            if (!chosen) chosen = currentRequestId();
+            S._cancelReqId = chosen;
+            const chosenMember = isDriver ? orderedPickupPassengers(t).find(p => passengerRequestId(p) === chosen) : null;
             // Чесний вихід (2026-10-02): для активної пари це ЗАПИТ — домовленість діє до згоди партнера (§0.19).
             // Діалог називає конкретну пару, якої стосується запит (водій: якірна пара, не «вибраний» попутник).
-            const partner = cancelPartnerLabel(t, currentRequestId());
+            const partner = cancelPartnerLabel(t, chosen);
             const who = escapeHtml(partner.name || (isDriver ? uiText('попутник') : uiText('водій')));
-            const instant = ['pending', 'pending_confirm'].includes(String(t.status || ''));
-            const title = isDriver ? uiFmt('Попросити скасування домовленості {crew}?', { crew: crewLabel }) : uiFmt('Попросити вихід з екіпажу {crew}?', { crew: crewLabel });
+            const instant = ['pending', 'pending_confirm'].includes(String((chosenMember ? chosenMember.request_status : t.status) || ''));
+            const title = isDriver ? escapeHtml(uiFmt('Попросити скасування домовленості: {name}?', { name: partner.name || uiText('попутник') })) : uiFmt('Попросити вихід з екіпажу {crew}?', { crew: crewLabel });
             const sub = instant
                 ? uiText('Домовленість ще не підтверджена — запит буде скасовано одразу.')
                 : (isDriver
@@ -15277,11 +15440,86 @@
             return msg;
         }
 
+        // C2 (§0.19 p.1 Crew-Level): the unconfirmed line says when they end — at once in a pending-only crew, after every
+        // confirmed person agrees in a mixed crew, and not while someone of the crew is already on the way
+        function crewPendingLine(mode, names) {
+            if (mode === 'started') return names ? uiHtml('Непідтверджені запити ({names}) лишаються: частина екіпажу вже в дорозі.', { names })
+                : uiText('Непідтверджені запити до вашого авто, якщо є, лишаються: частина екіпажу вже в дорозі.');
+            if (mode === 'confirmed') return names ? uiHtml('Непідтверджені запити ({names}) скасуються, коли погодяться всі підтверджені.', { names })
+                : uiText('Непідтверджені запити до вашого авто, якщо є, скасуються, коли погодяться всі підтверджені.');
+            return names ? uiHtml('Непідтверджені запити ({names}) скасуються одразу, без відповіді.', { names })
+                : uiText('Непідтверджені запити до вашого авто, якщо є, скасуються одразу.');
+        }
+
+        // Owner 31.10: the driver's cancel reaches the whole crew; the dialog names every person it reaches, before the press.
+        function openCrewCancelDialog(t) {
+            // D556 R1: the batch reaches every non-started request of this driver here, unconfirmed ones included (they are not
+            // pickup stops, so orderedPickupPassengers hides them) — the dialog names both groups before the press
+            const reach = crewPassengerMembers(t).filter(p => passengerRequestId(p) && !passengerHasStarted(p, t) && !memberCancelRequestedBy(p)
+                && !['completed', 'cancelled', 'cancelled_by_system', 'missed_pickup'].includes(String(p?.request_status || '').toLowerCase()));
+            if (!reach.length) { showToast(uiText('Немає домовленостей, які ще можна скасувати.'), ''); return; }
+            const nameList = list => list.map(p => passengerDisplayName(p)).filter(Boolean).join(', ');
+            const names = nameList(reach.filter(p => !isPendingCrewMember(p)));
+            const pendingNames = nameList(reach.filter(isPendingCrewMember));
+            const onTheWay = crewPassengerMembers(t).some(p => passengerHasStarted(p, t)
+                && !['completed', 'cancelled', 'cancelled_by_system', 'missed_pickup'].includes(String(p?.request_status || '').toLowerCase()));
+            const pendingMode = onTheWay ? 'started' : (reach.some(p => !isPendingCrewMember(p)) ? 'confirmed' : 'pending_only');
+            S._cancelCrewDir = parseInt(t.direction_id, 10) || 0;
+            S._cancelCrewMode = pendingMode;
+            openSheet(`<div data-cancel-crew="true">
+                <div class="sheet-title">${uiText('Скасувати поїздку з усім екіпажем?')}</div>
+                ${names ? `<div class="sheet-sub" data-cancel-crew-names="true">${uiHtml('Запит отримає кожен: {names}. Кожен погоджується окремо; до відповіді домовленість з ним діє.', { names })}</div>` : ''}
+                <div class="sheet-sub" data-cancel-crew-pending="${pendingMode}">${crewPendingLine(pendingMode, pendingNames)}</div>
+                <div class="sheet-sub" style="margin-top:8px;font-weight:600;" data-i18n="ui.953">Вкажіть причину:</div>
+                <div class="sheet-actions" style="flex-direction:column;">
+                    <button class="btn btn-secondary" onclick="doCancelTrip('plans')" data-i18n="ui.954">📅 Змінилися плани</button>
+                    <button class="btn btn-secondary" onclick="doCancelTrip('wait')" data-i18n="ui.955">⏳ Довго чекати</button>
+                    <button class="btn btn-secondary" onclick="doCancelTrip('force')" data-i18n="ui.956">🤕 Захворів / Форс-мажор</button>
+                    <button class="btn btn-ghost" style="margin-top:8px;" onclick="S._cancelCrewDir = null; closeSheet()">${uiText('Не скасовувати')}</button>
+                </div></div>`);
+        }
+
+        async function sendCrewCancel(dirId) {
+            const mode = S._cancelCrewMode;
+            S._cancelCrewMode = null;
+            // one opaque key per press: a duplicate delivery replays, a new press after refusals asks anew (§0.19)
+            const idemKey = `crew:${dirId}:${S.userId}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 10)}`;
+            let post = { ok: false, data: null };
+            try {
+                post = await apiWithStatus('/api/v3/trip/cancel-crew', { method: 'POST', silent: true, body: JSON.stringify({ user_id: S.userId, direction_id: dirId, idem_key: idemKey }) });
+            } catch (_) { post = { ok: false, data: null }; }
+            await hydrate();
+            // D556 R2: the envelope «ok» is not the outcome — the counts are; unknown stays unknown, nothing is re-sent by itself
+            const r = post.data || {}, num = v => (Number.isInteger(v) && v >= 0 ? v : null);
+            // C2: seven counters, all integers >= 0 whose six categories sum to total; anything else — an older server without
+            // «deferred», a contradiction, a failed pair — is an unknown result, never guessed as 0
+            const total = num(r.total), flagged = num(r.flagged), cancelled = num(r.cancelled), deferred = num(r.deferred),
+                closed = num(r.closed), skipped = num(r.skipped), failed = num(r.failed);
+            const cats = [flagged, cancelled, deferred, closed, skipped, failed];
+            if (!post.ok || r.status !== 'ok' || [total, ...cats].includes(null) || cats.reduce((a, b) => a + b, 0) !== total || failed > 0) {
+                showToast(uiText('Результат невідомий — перевірте картку екіпажу.'), 'error'); return;
+            }
+            if (!flagged && !cancelled && !deferred && !closed) { showToast(uiText('Немає домовленостей, які ще можна скасувати.'), ''); return; }
+            const parts = [];
+            if (flagged) parts.push(uiFmt('Запит на скасування надіслано: {n}. Кожен відповість окремо.', { n: flagged }));
+            if (cancelled) parts.push(uiFmt('Непідтверджених скасовано одразу: {n}.', { n: cancelled }));
+            if (deferred) parts.push(flagged && mode !== 'started'
+                ? uiFmt('Непідтверджені поки лишаються: {n}. Скасуються, коли погодяться всі підтверджені.', { n: deferred })
+                : uiFmt('Непідтверджені поки лишаються: {n}, доки хтось з екіпажу лишається в поїздці.', { n: deferred }));
+            if (closed) parts.push(uiFmt('Ще {n} — уже закрито іншою дією.', { n: closed }));
+            if (skipped) parts.push(uiFmt('Ще {n} — без змін (уже в дорозі або вже мають запит).', { n: skipped }));
+            showToast(parts.join(' '), (deferred || closed || skipped) ? '' : 'success');
+        }
+
         async function doCancelTrip(reason) {
             closeSheet();
             if (!beginOp('cancel_trip')) return;
             try {
-                const reqId = currentRequestId();
+                const crewDir = parseInt(S._cancelCrewDir || 0, 10) || 0;   // owner 31.10: the driver's whole crew
+                S._cancelCrewDir = null;
+                if (crewDir) { await sendCrewCancel(crewDir); return; }
+                const reqId = parseInt(S._cancelReqId || 0, 10) || currentRequestId();
+                S._cancelReqId = null;
                 if (!reqId) { showToast('Немає активної поїздки', 'error'); return; }
                 await sendCancelAction('request', '/api/v3/trip/cancel', reqId, { reason: reason || '' });
             } finally { endOp('cancel_trip'); }
@@ -15349,6 +15587,7 @@
             // D230: after «Залишаюсь на події» the intermediate partner is rated alone; the whole event is not the final screen
             const stay = ratingIsStayOnEvent(S._ratingContext);
             const asDriver = _isDriverRole(S._ratingContext?.viewer_role || S.userRole);
+            const ev = !!S._ratingContext?.event_only;   // D541: the event row of a closed outing, from history
             const partnerLine = stay && asDriver
                 ? uiHtml('Пару завершено — ваш виїзд триває. Оцініть попутника{who}; подію оціните, коли завершите свій виїзд.', { who: uiTrusted(partnerName ? `: <strong>${escapeHtml(partnerName)}</strong>` : '') })
                 : stay
@@ -15357,12 +15596,12 @@
                 ? uiHtml('Ви оцінюєте: {who} та подію', { who: uiTrusted(`<strong>${escapeHtml(partnerName)}</strong>`) })
                 : uiText('Ваш відгук допомагає покращити сервіс');
             openSheet(`
-                <div class="sheet-title" data-rating-stay="${stay}">${stay ? (asDriver ? uiText('Оцініть попутника') : uiText('Оцініть водія')) : uiText('Оцініть поїздку')}</div>
-                <div class="sheet-sub" data-rating-partner-name="${escapeAttr(partnerName)}">${partnerLine}</div>
-                ${stay ? '' : buildStarRow('event', `🎪 ${uiText('Подія')}${eventTitle ? ': <strong>' + escapeHtml(eventTitle) + '</strong>' : ''}`)}
-                ${buildStarRow('partner', `${((S._ratingContext?.viewer_role || S.activeTrip?.viewer_role || '') === 'driver') ? '👤' : '🚗'} ${uiText('Партнер')}${partnerName ? ': <strong>' + escapeHtml(partnerName) + '</strong>' : ''}`)}
+                <div class="sheet-title" data-rating-stay="${stay}">${ev ? uiText('Оцініть подію') : stay ? (asDriver ? uiText('Оцініть попутника') : uiText('Оцініть водія')) : uiText('Оцініть поїздку')}</div>
+                <div class="sheet-sub" data-rating-partner-name="${escapeAttr(partnerName)}">${ev ? escapeHtml(eventTitle) : partnerLine}</div>
+                ${stay && !ev ? '' : buildStarRow('event', `🎪 ${uiText('Подія')}${eventTitle ? ': <strong>' + escapeHtml(eventTitle) + '</strong>' : ''} · ${uiText("необов'язково")}`)}
+                ${ev ? '' : buildStarRow('partner', `${((S._ratingContext?.viewer_role || S.activeTrip?.viewer_role || '') === 'driver') ? '👤' : '🚗'} ${uiText('Партнер')}${partnerName ? ': <strong>' + escapeHtml(partnerName) + '</strong>' : ''}`)}
                 <input class="board-search" id="rating-comment" placeholder="${escapeAttr(uiText("Коментар (необов'язково)..."))}" style="margin:12px 0 16px;">
-                <button class="btn btn-primary" id="rating-submit" onclick="submitRating()" disabled>${uiText('Надіслати оцінку')}</button>
+                <button class="btn btn-primary" id="rating-submit" onclick="submitRating()" data-rating-count="0" disabled>${uiText('Надіслати оцінку')}</button>
                 <button class="btn btn-ghost" style="width:100%;margin-top:8px;" data-i18n="ui.350" onclick="postponeRatingSheet()">Пізніше</button>
             `);
             S._ratingStars = { event: null, partner: null };
@@ -15394,9 +15633,11 @@
                 btn.setAttribute('aria-checked', v === value ? 'true' : 'false');
             });
             const submit = document.getElementById('rating-submit');
-            if (submit && (Number.isInteger(S._ratingStars.event) || Number.isInteger(S._ratingStars.partner))) {
+            const chosen = ['event', 'partner'].filter(k => Number.isInteger(S._ratingStars[k])).length;   // D543: = the POST components
+            if (submit && chosen) {
                 submit.disabled = false;
-                if (submit.textContent !== '🔁 Спробувати ще раз') submit.textContent = 'Надіслати оцінку';
+                submit.dataset.ratingCount = String(chosen);
+                if (submit.textContent !== '🔁 Спробувати ще раз') submit.textContent = uiFmt('Надіслати оцінки · {n}', { n: chosen });
             }
         }
 
@@ -15439,6 +15680,7 @@
             persistCriticalState();
             closeSheet({ preserveRating: true, suppressRatingReopen: true });
             renderSubBar();
+            if (context?.event_only) return true;   // D541 R1: the optional event stays in history only
             showToast(source === 'later'
                 ? 'Оцінку збережено на пізніше'
                 : 'Оцінка чекає у смужці стану');
@@ -15447,9 +15689,15 @@
 
         function finalizeRatingFlow(source = '') {
             const finishedReq = S._ratingContext?.request_id;
+            const finishedCtx = S._ratingContext;   // D541: its crew is re-read below when the queue empties
             closeSheet({ preserveRating: true, suppressRatingReopen: true });
             S._ratingStars = null;
             S._ratingContext = null;
+            if (finishedCtx?.event_only) {   // D541 R1: nothing queued, nothing scheduled, the partner debts untouched
+                persistCriticalState();
+                renderSubBar();
+                return;
+            }
             // Мульти-екіпаж водія: оцінив/пропустив одного → наступний з черги.
             if (Array.isArray(S._ratingQueue) && S._ratingQueue.length) {
                 S._ratingQueue = S._ratingQueue.filter(c => c && c.request_id !== finishedReq);
@@ -15475,6 +15723,7 @@
             refreshMap();
             verifyMapTripDockState();
             verifyMapResultPanelState();
+            refillRatingQueueFromCrew(finishedCtx);   // D541
         }
 
         // ─── CHAT ───
@@ -16755,6 +17004,9 @@
             if (['stay', 'end'].includes(btn?.dataset?.finishIntent)) ctx.finish_intent = btn.dataset.finishIntent;   // D237
             if (btn?.dataset?.outingOpen === '1') ctx.outing_open = true;   // D241: the outing of THAT pair
             else if (btn?.dataset?.outingOpen === '0') ctx.outing_open = false;
+            if (btn?.dataset?.eventOnly === '1') ctx.event_only = true;   // D541: the event of a closed outing, not the partner
+            const crewId = parseInt(btn?.dataset?.crewId || '', 10);
+            if (crewId > 0) ctx.crew_id = crewId;   // D541 R2: the refill reads only the crew of this row, never the current one
             closeSheet();
             setTimeout(() => openRatingSheet(ctx), 350);
         }
@@ -16782,16 +17034,28 @@
             const trips = (Array.isArray(data) ? data : (data?.trips || data?.history || []))
                 .filter(t => !contactIds.has(Number(t.request_id)));
             const retry = `<button class="btn btn-secondary" onclick="openTripHistory()" data-i18n="ui.909">Спробувати ще раз</button>`;
-            const rateable = (Array.isArray(data) ? data : (data?.trips || data?.history || []))
-                .filter(t => t.status === 'completed' && Number(t.partner_id) > 0
-                    && (t.my_score == null || (t.outing_open === false && t.my_event_score == null)));
+            const historyRows = Array.isArray(data) ? data : (data?.trips || data?.history || []);
+            // D541: a partner is offered only while THIS person's partner rating is missing; the event (allowed once the driver's
+            // outing of that crew is closed) is ONE optional row per outing — never repeated under the partners' names
+            const rateable = historyRows.filter(t => t.status === 'completed' && Number(t.partner_id) > 0 && t.my_score == null);
+            const eventDue = new Map();
+            historyRows.filter(t => t.status === 'completed' && t.outing_open === false).forEach(t => {
+                const key = String(t.crew_id ?? `r${t.request_id}`);
+                const group = eventDue.get(key) || { rated: false, row: t };
+                if (t.my_event_score != null) group.rated = true;
+                eventDue.set(key, group);
+            });
+            const eventRows = [...eventDue.values()].filter(g => !g.rated).map(g => g.row).map(t => `<div data-history-rate-event="${Number(t.request_id)}" style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);">
+                    <div style="flex:1;min-width:0;font-size:13px;font-weight:700;">🎪 ${escapeHtml(uiText('Подія'))}: ${escapeHtml(String(t.direction_title || t.dir || ''))}<div style="font-size:11px;font-weight:400;color:var(--text-muted);">${escapeHtml(uiText("необов'язково"))}</div></div>
+                    <button class="btn btn-secondary" style="width:auto;padding:6px 10px;font-size:12px;" data-event-only="1" data-partner-name="" data-direction-title="${escapeAttr(String(t.direction_title || t.dir || ''))}" data-viewer-role="${escapeAttr(String(t.viewer_role || t.role || ''))}" data-outing-open="0" data-crew-id="${escapeAttr(String(t.crew_id ?? ''))}" onclick="rateFromHistory(${Number(t.request_id)}, ${Number(t.partner_id) || 0}, this)" data-i18n="ui.862">⭐ Оцінити</button>
+                </div>`).join('');
             const rateRows = rateable.map(t => `<div data-history-rate="${Number(t.request_id)}" style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);">
                     <div style="flex:1;min-width:0;font-size:13px;font-weight:700;">${escapeHtml(String(t.partner_name || 'Партнер'))}<div style="font-size:11px;font-weight:400;color:var(--text-muted);">${escapeHtml(String(t.direction_title || t.dir || uiText('Поїздка')))}</div></div>
-                    <button class="btn btn-secondary" style="width:auto;padding:6px 10px;font-size:12px;" data-partner-name="${escapeAttr(String(t.partner_name || ''))}" data-direction-title="${escapeAttr(String(t.direction_title || t.dir || ''))}" data-viewer-role="${escapeAttr(String(t.viewer_role || t.role || ''))}" data-finish-intent="${escapeAttr(String(t.finish_intent || ''))}" data-outing-open="${t.outing_open === true ? '1' : t.outing_open === false ? '0' : ''}" onclick="rateFromHistory(${Number(t.request_id)}, ${Number(t.partner_id)}, this)" data-i18n="ui.862">⭐ Оцінити</button>
+                    <button class="btn btn-secondary" style="width:auto;padding:6px 10px;font-size:12px;" data-partner-name="${escapeAttr(String(t.partner_name || ''))}" data-direction-title="${escapeAttr(String(t.direction_title || t.dir || ''))}" data-viewer-role="${escapeAttr(String(t.viewer_role || t.role || ''))}" data-finish-intent="${escapeAttr(String(t.finish_intent || ''))}" data-outing-open="${t.outing_open === true ? '1' : t.outing_open === false ? '0' : ''}" data-crew-id="${escapeAttr(String(t.crew_id ?? ''))}" onclick="rateFromHistory(${Number(t.request_id)}, ${Number(t.partner_id)}, this)" data-i18n="ui.862">⭐ Оцінити</button>
                 </div>`).join('');
             document.getElementById('sheet-body').innerHTML = `
                 <div class="sheet-title" data-i18n="ui.565">Історія поїздок і контактів</div>
-                ${rateRows ? `<div style="font-weight:700;margin:14px 0 8px;" data-i18n="ui.910">Оцініть партнерів</div>${rateRows}` : ''}
+                ${rateRows ? `<div style="font-weight:700;margin:14px 0 8px;" data-i18n="ui.910">Оцініть партнерів</div>${rateRows}` : ''}${eventRows ? `<div style="font-weight:700;margin:14px 0 8px;">${uiText('Оцініть подію')}</div>${eventRows}` : ''}
                 <div style="font-weight:700;margin:14px 0 8px;" data-i18n="ui.911">Збережені контакти</div>
                 ${contactsOk ? (contacts.length ? contacts.map(c => tripContactCard(c, true)).join('') : '<div class="sheet-sub">' + uiText('Збережених контактів поки немає') + '</div>') : `<div class="sheet-sub">${uiText('Не вдалося завантажити контакти.')} ${retry}</div>`}
                 <div style="font-weight:700;margin:20px 0 8px;" data-i18n="ui.914">Останні поїздки</div>
@@ -17175,6 +17439,10 @@
         }
 
     </script>
+<script src="gps_snake.js"></script>
+<script src="pin_people.js"></script>
+<script src="compact_chrome.js"></script>
+
 </body>
 
 </html>
