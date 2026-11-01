@@ -11159,7 +11159,10 @@
 
         function outingDoneFor(dirId) {
             const o = S.lastOuting;
-            return !!(o && !S.outing && !S.myCrew && !S.activeTrip && _isDriverRole(S.userRole) && String(o.direction_id) === String(dirId));
+            // A historical outing is not current participation after an explicit leave.
+            // Failed subscription reads keep the last valid list in applySubscriptionsPayload.
+            const member = (S.subscriptions || []).some(s => String(s?.direction_id ?? s?.id) === String(dirId));
+            return !!(o && member && !S.outing && !S.myCrew && !S.activeTrip && _isDriverRole(S.userRole) && String(o.direction_id) === String(dirId));
         }
 
         function completedContextDirId() {
