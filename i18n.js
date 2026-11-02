@@ -1315,7 +1315,16 @@
     "Непідтверджені запити до вашого авто, якщо є, скасуються, коли погодяться всі підтверджені.": "ui.1141",
     "Непідтверджені поки лишаються: {n}. Скасуються, коли погодяться всі підтверджені.": "ui.1142",
     "Непідтверджені поки лишаються: {n}, доки хтось з екіпажу лишається в поїздці.": "ui.1143",
-    "Ще {n} — уже закрито іншою дією.": "ui.1144"
+    "Ще {n} — уже закрито іншою дією.": "ui.1144",
+    "Крок {n} з {total}": "ui.1145",
+    "Знайомство з подією": "ui.1146",
+    "Пошук місця": "ui.1147",
+    "Ви учасник події": "ui.1148",
+    "Місце підтверджено": "ui.1149",
+    "Учасник події": "ui.1150",
+    "Про подію": "ui.1151",
+    "🤝 Домовитись": "ui.1152",
+    "Показати ще {n}": "ui.1153"
 };
     const messages = {
     "uk": {
@@ -2462,7 +2471,16 @@
         "ui.1141": "Непідтверджені запити до вашого авто, якщо є, скасуються, коли погодяться всі підтверджені.",
         "ui.1142": "Непідтверджені поки лишаються: {n}. Скасуються, коли погодяться всі підтверджені.",
         "ui.1143": "Непідтверджені поки лишаються: {n}, доки хтось з екіпажу лишається в поїздці.",
-        "ui.1144": "Ще {n} — уже закрито іншою дією."
+        "ui.1144": "Ще {n} — уже закрито іншою дією.",
+        "ui.1145": "Крок {n} з {total}",
+        "ui.1146": "Знайомство з подією",
+        "ui.1147": "Пошук місця",
+        "ui.1148": "Ви учасник події",
+        "ui.1149": "Місце підтверджено",
+        "ui.1150": "Учасник події",
+        "ui.1151": "Про подію",
+        "ui.1152": "🤝 Домовитись",
+        "ui.1153": "Показати ще {n}"
     },
     "ru": {
         "ui.001": "Карта",
@@ -3608,7 +3626,16 @@
         "ui.1141": "Неподтверждённые запросы к вашему авто, если есть, отменятся, когда согласятся все подтверждённые.",
         "ui.1142": "Неподтверждённые пока остаются: {n}. Отменятся, когда согласятся все подтверждённые.",
         "ui.1143": "Неподтверждённые пока остаются: {n}, пока кто-то из экипажа остаётся в поездке.",
-        "ui.1144": "Ещё {n} — уже закрыто другим действием."
+        "ui.1144": "Ещё {n} — уже закрыто другим действием.",
+        "ui.1145": "Шаг {n} из {total}",
+        "ui.1146": "Знакомство с событием",
+        "ui.1147": "Поиск места",
+        "ui.1148": "Вы участник события",
+        "ui.1149": "Место подтверждено",
+        "ui.1150": "Участник события",
+        "ui.1151": "О событии",
+        "ui.1152": "🤝 Договориться",
+        "ui.1153": "Показать ещё {n}"
     },
     "pl": {
         "ui.001": "Mapa",
@@ -4754,7 +4781,16 @@
         "ui.1141": "Niepotwierdzone prośby do twojego auta, jeśli są, zostaną anulowane, gdy zgodzą się wszyscy potwierdzeni.",
         "ui.1142": "Niepotwierdzone na razie zostają: {n}. Zostaną anulowane, gdy zgodzą się wszyscy potwierdzeni.",
         "ui.1143": "Niepotwierdzone na razie zostają: {n}, dopóki ktoś z załogi jest w podróży.",
-        "ui.1144": "Jeszcze {n} — już zamknięte inną akcją."
+        "ui.1144": "Jeszcze {n} — już zamknięte inną akcją.",
+        "ui.1145": "Krok {n} z {total}",
+        "ui.1146": "Poznawanie wydarzenia",
+        "ui.1147": "Szukanie miejsca",
+        "ui.1148": "Jesteś uczestnikiem wydarzenia",
+        "ui.1149": "Miejsce potwierdzone",
+        "ui.1150": "Uczestnik wydarzenia",
+        "ui.1151": "O wydarzeniu",
+        "ui.1152": "🤝 Umówić się",
+        "ui.1153": "Pokaż jeszcze {n}"
     },
     "en": {
         "ui.001": "Map",
@@ -4953,7 +4989,7 @@
         "ui.194": "Cancellation",
         "ui.195": "Cancellation request",
         "ui.196": "On the road",
-        "ui.197": "Reserved",
+        "ui.197": "Reservation",
         "ui.198": "Waiting for the partner",
         "ui.199": "waiting for the partner's confirmation",
         "ui.200": "the partner",
@@ -5900,7 +5936,16 @@
         "ui.1141": "Unconfirmed requests to your car, if any, are cancelled once every confirmed person agrees.",
         "ui.1142": "Unconfirmed stay for now: {n}. They are cancelled once every confirmed person agrees.",
         "ui.1143": "Unconfirmed stay for now: {n}, while someone of the crew is still on the trip.",
-        "ui.1144": "{n} more already closed by another action."
+        "ui.1144": "{n} more already closed by another action.",
+        "ui.1145": "Step {n} of {total}",
+        "ui.1146": "Getting to know the event",
+        "ui.1147": "Looking for a seat",
+        "ui.1148": "You are in this event",
+        "ui.1149": "Seat confirmed",
+        "ui.1150": "Event participant",
+        "ui.1151": "About the event",
+        "ui.1152": "🤝 Arrange",
+        "ui.1153": "Show {n} more"
     }
 };
     let activeLanguage = "uk";
