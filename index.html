@@ -6503,8 +6503,8 @@
             // «Запрошення до події»: організатор+контакт, дати/місце/опис, CTA,
             // список водіїв з «Запроситись». Раніше було 3 шари одного контексту
             // (компактна → запрошення → учасники), тепер один.
-            // «Запрошення до події» лишається ТІЛЬКИ для deep-link інвайтів
-            // (openStartDirectionIfNeeded) — там доречний фрейм «вас запросили».
+            // Deep-link запрошення та «Деталі» використовують цю ж головну картку.
+            // Перезавантаження зберігає контекст події без проміжного повтору інформації.
             await openDirection(dirId);
         }
 
@@ -8949,52 +8949,13 @@
         }
 
         async function openSubscribedDirectionDetails(dirId, options = {}) {
-            const safeDirId = parseInt(dirId) || 0;
-            if (!safeDirId) return;
-            S._openDirectionSeq = (S._openDirectionSeq || 0) + 1;
-            const seq = S._openDirectionSeq;
-            openStartDirectionLoadingSheet(safeDirId);
-            const data = await api(`/api/v3/fractal/organizers?direction_id=${safeDirId}&lang=${S.lang}&user_id=${S.userId || ''}`);
-            if (seq !== S._openDirectionSeq) return;
-            const localDir = cachedDirectionDetails(safeDirId);
-            const remoteDir = data?.direction && typeof data.direction === 'object' ? data.direction : {};
-            const dir = { ...localDir, ...remoteDir, id: safeDirId,
-                title: remoteDir.title || remoteDir.name || localDir.title || localDir.direction_title || localDir.dir_title || localDir.name };
-            if (!dir || !dir.id) { closeSheet(); showToast('Подія недоступна', 'error'); return; }
-            if (isFolderNode(dir)) { closeSheet(); await boardOpenFolder(safeDirId); return; }
-            S.directionDetailsCache = S.directionDetailsCache || {};
-            S.directionDetailsCache[safeDirId] = { ...(data || {}), direction: dir };
-            openDirectionInviteSheet(safeDirId, dir, data || {}, {
-                ...(options || {}),
-                source: 'map',
-                sheetMaxHeight: options?.sheetMaxHeight || '65vh',
-                fullInvite: true,
-                subscribedDetails: true
-            });
+            // One event card for invitation, reload, and details; intent still opens the role gate.
+            return openDirection(dirId);
         }
 
         async function openStartDirectionInvite(dirId, options = {}) {
-            const safeDirId = parseInt(dirId) || 0;
-            if (!safeDirId) return;
-            S._openDirectionSeq = (S._openDirectionSeq || 0) + 1;
-            const seq = S._openDirectionSeq;
-            openStartDirectionLoadingSheet(safeDirId);
-            const data = await api(`/api/v3/fractal/organizers?direction_id=${safeDirId}&lang=${S.lang}&user_id=${S.userId || ''}`);
-            if (seq !== S._openDirectionSeq) return;
-            const localDir = cachedDirectionDetails(safeDirId);
-            const remoteDir = data?.direction && typeof data.direction === 'object' ? data.direction : {};
-            const dir = { ...localDir, ...remoteDir, id: safeDirId,
-                title: remoteDir.title || remoteDir.name || localDir.title || localDir.direction_title || localDir.dir_title || localDir.name };
-            if (!dir || !dir.id) { closeSheet(); showToast('Подія недоступна', 'error'); return; }
-            if (isFolderNode(dir)) { closeSheet(); await boardOpenFolder(safeDirId); return; }
-            S.directionDetailsCache = S.directionDetailsCache || {};
-            S.directionDetailsCache[safeDirId] = { ...(data || {}), direction: dir };
-            const inviteOptions = options || {};
-            if (inviteOptions?.source === 'map' && !inviteOptions?.fullInvite) {
-                openMapCompactDirectionInviteSheet(safeDirId, dir, data || {}, inviteOptions);
-                return;
-            }
-            openDirectionInviteSheet(safeDirId, dir, data || {}, inviteOptions);
+            // One event card for invitation, reload, and details; intent still opens the role gate.
+            return openDirection(dirId);
         }
 
         async function joinInvitedDirection(dirId, source = '') {
@@ -11511,23 +11472,26 @@
             openDirectionLoadingSheet(safeDirId);
             const data = await api(`/api/v3/fractal/organizers?direction_id=${safeDirId}&lang=${S.lang}&user_id=${S.userId || ''}`);
             if (seq !== S._openDirectionSeq) return;
+            const localDir = cachedDirectionDetails(safeDirId);
+            if (data?.direction) {
+                S.directionDetailsCache = S.directionDetailsCache || {};
+                S.directionDetailsCache[safeDirId] = { ...data, direction: { ...localDir, ...data.direction } };
+            }
+            const remoteDir = data?.direction && typeof data.direction === 'object' ? data.direction : {};
             let dir = allDirections.find(d => String(d.id) === String(dirId));
-            if (!dir && data?.direction && typeof data.direction === 'object') {
-                dir = {
-                    id: data.direction.id ?? dirId,
-                    title: data.direction.title || data.direction.name || uiText('Подія'),
-                    drivers: Number(data.direction.drivers || data.direction.drivers_count || 0),
-                    passengers: Number(data.direction.passengers || data.direction.passengers_count || 0),
-                    is_folder: !!data.direction.is_folder,
-                    has_kids: !!data.direction.has_kids,
-                    kind: data.direction.kind || '',
-                };
+            if (!dir && (remoteDir.id || localDir.id || localDir.direction_id)) {
+                dir = { ...localDir, ...remoteDir, id: safeDirId,
+                    title: remoteDir.title || remoteDir.name || localDir.title || localDir.direction_title || localDir.dir_title || localDir.name };
             }
             if (!dir) { closeSheet(); showToast(uiText('Подія недоступна'), 'error'); return; }
             if (isFolderNode(dir)) { closeSheet(); await boardOpenFolder(dirId); return; }
             rememberViewedDirection(safeDirId, dir.title || dir.name || cachedDirectionTitle(safeDirId));
             const orgs = data?.organizers || [];
-            const isSub = data?.user_status?.subscribed;
+            // A failed read cannot turn known current participation into a fresh join; a fresh false wins.
+            const isSub = data?.user_status?.subscribed === true || (typeof data?.user_status?.subscribed !== 'boolean' && (
+                (S.subscriptions || []).some(s => String(s.direction_id || s.id) === String(safeDirId)) ||
+                String(S.activeTrip?.direction_id || '') === String(safeDirId) ||
+                (S.pendingMatches || []).some(m => String(m?.direction_id || '') === String(safeDirId))));
             const creatorId = data?.direction?.creator_id || data?.direction?.user_id || dir?.creator_id || dir?.user_id;
             const isMyDir = creatorId && String(creatorId) === String(S.userId);
             const creatorName = data?.direction?.creator_name || dir?.creator_name || (isMyDir ? S.userName : '');
