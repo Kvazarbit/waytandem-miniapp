@@ -3544,6 +3544,54 @@
         .compact-driver-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
         .compact-driver-actions .btn { width: auto; flex: 1; min-height: 44px; padding: 8px 10px; font-size: 12px; }
         .compact-passenger-avatar:focus-visible, .compact-passenger-details > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+        /* Шторка події (власник 2026-11-02): смужка кроку, гармошки, тихий вихід. */
+        .event-stage { margin: 0 0 10px; }
+        .event-stage-bar { display: flex; gap: 3px; }
+        .event-stage-bar i { flex: 1; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.12); }
+        .event-stage-bar i.on { background: var(--accent); }
+        .event-stage-label { font-size: 11px; color: var(--text-secondary); margin-top: 4px; font-weight: 600; }
+        .event-facts { font-size: 12px; color: var(--text-secondary); font-weight: 600; line-height: 1.35; }
+        /* Власник 2026-11-02 (r9): «Водії» і «Попутники» — дві кнопки зі стрілкою, кожна одразу розгортає свій список. */
+        .event-people-block .event-people-chips { margin: 8px 0 6px; }
+        .event-people-block .event-people-chip { position: relative; }
+        .event-people-block .event-people-chip-sub { padding-right: 18px; }
+        .event-people-chip-chevron { position: absolute; right: 12px; bottom: 10px; font-size: 12px; color: var(--text-secondary); }
+        .event-person-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        /* Астра D670 R1: ім'я не може стиснутись до нуля під кнопками. Ім'я тримає щонайменше 64 px; дії стоять у рядку
+           імені, а нижче (праворуч) переходять лише тоді, коли поруч з ім'ям їм справді не вистачає місця. */
+        .event-people-list .event-person-row, .event-people-list [data-event-driver-row] { flex-wrap: wrap; row-gap: 8px !important; }
+        .event-people-list .event-person-main, .event-people-list .event-roster-main { flex: 1 1 64px !important; min-width: 64px !important; }
+        .event-people-list .event-person-actions, .event-people-list .event-roster-actions { margin-left: auto; }
+        /* Вузький телефон: менші аватар і відступи, щоб ім'я й обидві дії вмістились в один рядок. */
+        @media (max-width: 400px) {
+            .event-people-list .event-person-row, .event-people-list [data-event-driver-row] { column-gap: 7px !important; padding: 9px !important; }
+            .event-people-list .avatar-inline { width: 30px !important; height: 30px !important; font-size: 13px; }
+            .event-people-list .event-person-actions, .event-people-list .event-roster-actions { gap: 4px !important; }
+            .event-people-list .event-person-actions .btn, .event-people-list [data-event-driver-row] .btn { padding-left: 7px !important; padding-right: 7px !important; }
+            .event-people-list .event-chat-icon, .event-people-list [data-driver-chat] { min-width: 30px; }
+            .event-people-list .event-person-name { font-size: 14px; }
+        }
+        .event-sheet-x { flex-shrink: 0; width: 36px; height: 36px; border-radius: 10px; background: rgba(255,255,255,0.06); border: 1px solid var(--border); color: var(--text-secondary); font-size: 16px; cursor: pointer; }
+        .event-leave-quiet { width: 100%; margin: 14px 0 4px; padding: 10px 0; background: transparent; border: none; color: var(--text-muted); font-size: 12px; font-weight: 600; cursor: pointer; }
+        .event-person-actions { display: flex; gap: 6px; flex-shrink: 0; }
+        .event-person-row[hidden] { display: none; } /* `display:flex` вище інакше перебиває hidden (Астра D667 R1) */
+        /* Банер події (варіант Б): кольорова шапка рубрики + опис одним рядком із ▾ + організатор. */
+        .event-banner { border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: rgba(255,255,255,0.03); margin: 0 0 6px; }
+        .event-banner-head { display: flex; align-items: center; gap: 12px; padding: 12px; cursor: pointer; background: rgba(255,255,255,0.06); }
+        .event-banner-theocracy { background: rgba(167,139,250,0.16); }
+        .event-banner-leisure { background: rgba(52,211,153,0.16); }
+        .event-banner-work { background: rgba(56,189,248,0.16); }
+        .event-banner-other { background: rgba(251,191,36,0.16); }
+        .event-banner-body { padding: 9px 12px 10px; }
+        .event-banner-row { display: flex; align-items: flex-start; gap: 8px; }
+        .event-banner-desc { flex: 1; min-width: 0; font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+        .event-banner-desc-label { font-size: 10px; font-weight: 900; letter-spacing: 0.6px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+        .event-banner-desc.is-clamped .event-banner-desc-label { display: none; }
+        .event-banner-desc.is-clamped .event-banner-desc-text { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+        .event-banner-chevron { flex-shrink: 0; width: 30px; height: 24px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); font-size: 12px; cursor: pointer; }
+        .event-people-more { width: 100%; margin-top: 6px; padding: 8px; border-radius: 10px; background: transparent; border: 1px dashed var(--border); color: var(--blue); font-size: 12px; font-weight: 700; cursor: pointer; }
+        /* Власник 2026-11-02: «Чат» — у рядку навпроти імені (економить місце); коли поруч «Домовитись», чат — лише 💬. */
+        .event-chat-icon { min-width: 36px; padding: 8px 9px !important; }
     </style>
 
 </head>
@@ -8728,6 +8776,7 @@
             const safeDirId = parseInt(dirId, 10) || 0;
             const compact = !!options.compact;
             const allowJoin = !!options.allowJoin;
+            const joinLabel = options.joinLabel || uiText('Запроситись');
             const drivers = (Array.isArray(organizers) ? organizers : [])
                 .filter(o => normalizeRole(o?.role || 'driver') === 'driver')
                 .slice()
@@ -8757,18 +8806,19 @@
                 const background = isSelf ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.04)';
                 const border = isSelf ? 'rgba(34,197,94,0.42)' : 'rgba(255,255,255,0.08)';
                 const username = escapeAttr(sanitizeBotUsername(o?.telegram_username || ''));
+                const chatIconOnly = allowJoin && !isSelf && seats > 0 && !capacityUnknown;
                 const chatButton = !isSelf
-                    ? `<button class="btn btn-secondary" data-driver-chat="true" data-tg-username="${username}" data-tg-user-id="${uid}" onclick="openTelegramContactFromButton(this)" style="padding:${compact ? '6px 9px' : '8px 11px'};font-size:12px;min-height:${compact ? '30px' : '36px'};border-radius:9px;white-space:nowrap;">${uiText('💬 Чат')}</button>`
+                    ? `<button class="btn btn-secondary" data-driver-chat="true" data-tg-username="${username}" data-tg-user-id="${uid}" onclick="openTelegramContactFromButton(this)"${chatIconOnly ? ` aria-label="${escapeAttr(uiText('💬 Чат'))}" title="${escapeAttr(uiText('💬 Чат'))}"` : ''} style="padding:${compact ? '6px 9px' : '8px 11px'};font-size:12px;min-height:${compact ? '30px' : '36px'};border-radius:9px;white-space:nowrap;">${chatIconOnly ? '💬' : uiText('💬 Чат')}</button>`
                     : '';
                 const joinButton = allowJoin && !isSelf && seats > 0 && !capacityUnknown
-                    ? `<button class="btn btn-primary" style="padding:8px 12px;font-size:12px;min-height:36px;border-radius:10px;white-space:nowrap;" onclick="requestJoin(${uid}, ${safeDirId}, { source: 'map', closeSheetOnSuccess: true, keepMapContext: true })">${uiText('Запроситись')}</button>`
+                    ? `<button class="btn btn-primary" style="padding:8px 12px;font-size:12px;min-height:36px;border-radius:10px;white-space:nowrap;" onclick="requestJoin(${uid}, ${safeDirId}, { source: 'map', closeSheetOnSuccess: true, keepMapContext: true })">${escapeHtml(joinLabel)}</button>`
                     : '';
                 const actions = [chatButton, joinButton].filter(Boolean).join('');
 
                 return `
                     <div data-event-driver-row="true" data-event-driver-id="${uid}" data-current-driver="${isSelf ? 'true' : 'false'}" data-driver-availability="${availability}" style="display:flex;align-items:center;gap:${compact ? '9px' : '12px'};padding:${compact ? '8px' : '12px'};margin-bottom:${compact ? '6px' : '8px'};border-radius:${compact ? '9px' : '12px'};background:${background};border:1px solid ${border};opacity:${opacity};">
                         ${renderAvatarInline(o?.name || 'Водій', o?.photo_url || personPhoto(o?.user_id), compact ? 30 : 42)}
-                        <div style="flex:1;min-width:0;">
+                        <div class="event-roster-main" style="flex:1;min-width:0;">
                             <div style="display:flex;align-items:center;gap:6px;min-width:0;">
                                 <div style="font-size:${compact ? '12px' : '15px'};font-weight:800;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(o?.name || uiText('Водій'))}</div>
                                 ${isSelf ? "<span class=\"tag tag-green\" style=\"border-radius:6px;padding:2px 6px;font-size:10px;flex-shrink:0;\" data-i18n=\"ui.097\">Ви</span>" : ''}
@@ -10558,7 +10608,7 @@
         }
 
         function eventPeopleChipHtml(key, title, count, sub, active) {
-            return `<button type="button" class="event-people-chip${active ? ' active' : ''}" aria-pressed="${active ? 'true' : 'false'}" onclick="toggleEventPeopleFilter('${key}')"><span class="event-people-chip-title">${escapeHtml(title)} · ${count}</span><span class="event-people-chip-sub">${escapeHtml(sub)}</span></button>`;
+            return `<button type="button" class="event-people-chip${active ? ' active' : ''}" aria-pressed="${active ? 'true' : 'false'}" onclick="toggleEventPeopleFilter('${key}')"><span class="event-people-chip-title">${escapeHtml(title)} · ${count}</span><span class="event-people-chip-sub">${escapeHtml(sub)}</span><span class="event-people-chip-chevron" aria-hidden="true">${active ? '▴' : '▾'}</span></button>`;
         }
 
         function toggleEventPeopleFilter(key) {
@@ -10580,12 +10630,103 @@
             if (!rows.length) return `<div class="event-people-note">${uiText('Поки ніхто не шукає місце.')}</div>`;
             // Спершу ті, хто ще шукає місце.
             const rank = s => (['searching', 'subscribed', 'waiting_response'].includes(s) ? 0 : 1);
-            return rows.slice().sort((a, b) => rank(a?.status) - rank(b?.status)).map(m => {
+            // Власник 2026-11-02: обидві ролі бачать ту саму пару дій — «Домовитись» і «Чат» (D81/D83: ті самі захищені
+            // дії, що в картці попутника на карті). Запрошувати можна лише вільного: хто чекає відповіді чи вже в
+            // екіпажі — зайнятий (WD-45). Багато людей — по чотири; решта лишається в документі за «Показати ще».
+            const viewerIsDriver = _isDriverRole(S.userRole);
+            const safeDirId = parseInt(ctx.dirId, 10) || 0;
+            const canInvite = viewerIsDriver && ctx.isSub && driverCrewRecruitmentState(safeDirId) === 'free';
+            const ordered = rows.slice().sort((a, b) => rank(a?.status) - rank(b?.status));
+            const html = ordered.map((m, index) => {
+                const uid = parseInt(m?.user_id, 10) || 0;
                 const isSelf = String(m?.user_id || '') === String(S.userId || '');
                 // У шторці «стежить за подією» = попутник ще без місця — як лічильник «без місця».
-                const label = m?.status === 'subscribed' ? uiText('Шукає місце') : uiText(NEWS_PERSON_STATUS_LABELS[m?.status] || 'Учасник');
-                return `<div class="event-person-row">${renderAvatarInline(m?.name || 'Учасник', personPhoto(m?.user_id), 42)}<div style="flex:1;min-width:0;"><div class="event-person-name">${escapeHtml(m?.name || uiText('Учасник'))}${isSelf ? " <span class=\"tag tag-green\" style=\"border-radius:6px;padding:2px 6px;font-size:10px;\" data-i18n=\"ui.097\">Ви</span>" : ''}</div><div class="event-person-status">${escapeHtml(label)}</div></div></div>`;
+                // Попередній перегляд до участі (власник 2026-11-02, Астра D672): сервер дає грубі правдиві мітки.
+                const label = m?.status === 'subscribed' ? uiText('Шукає місце')
+                    : m?.status === 'seat_confirmed' ? uiText('Місце підтверджено')
+                    : m?.status === 'participant' ? uiText('Учасник події')
+                    : uiText(NEWS_PERSON_STATUS_LABELS[m?.status] || 'Учасник');
+                const free = ['searching', 'subscribed'].includes(m?.status);
+                // Власник 2026-11-02: «Чат» з кожним іншим учасником — і водію, і попутнику, щоб домовитись до виїзду. Цей
+                // список віддає сервер: учасникам і організатору — повний, до вступу — лише чинних попутників із грубою
+                // міткою (власник 2026-11-02, кандидат до DM-2026-07-25-001); контакт — за user-id, без username.
+                const invite = viewerIsDriver && canInvite && free;
+                const chatLabel = escapeAttr(uiText('💬 Чат'));
+                const actions = !isSelf && uid
+                    ? `<div class="event-person-actions"><button class="btn btn-secondary${invite ? ' event-chat-icon' : ''}" data-passenger-chat="true" data-tg-user-id="${uid}" onclick="openTelegramContactFromButton(this)"${invite ? ` aria-label="${chatLabel}" title="${chatLabel}"` : ''} style="padding:8px 11px;font-size:12px;min-height:36px;border-radius:10px;white-space:nowrap;">${invite ? '💬' : uiText('💬 Чат')}</button>${invite ? `<button class="btn btn-primary" data-passenger-invite="free" onclick="signalPassenger(${uid}, ${safeDirId})" style="padding:8px 12px;font-size:12px;min-height:36px;border-radius:10px;white-space:nowrap;">${uiText('🤝 Домовитись')}</button>` : ''}</div>`
+                    : '';
+                return `<div class="event-person-row"${index >= 4 ? ' data-people-more hidden' : ''}>${renderAvatarInline(m?.name || 'Учасник', personPhoto(m?.user_id), 42)}<div class="event-person-main" style="flex:1;min-width:0;"><div class="event-person-name">${escapeHtml(m?.name || uiText('Учасник'))}${isSelf ? " <span class=\"tag tag-green\" style=\"border-radius:6px;padding:2px 6px;font-size:10px;\" data-i18n=\"ui.097\">Ви</span>" : ''}</div><div class="event-person-status">${escapeHtml(label)}</div></div>${actions}</div>`;
             }).join('');
+            const more = Math.max(0, ordered.length - 4);
+            return html + (more ? `<button type="button" class="event-people-more" onclick="showMoreEventPeople(this)">${escapeHtml(uiFmt('Показати ще {n}', { n: Math.min(4, more) }))}</button>` : '');
+        }
+
+        function showMoreEventPeople(button) {
+            const list = button?.parentElement;
+            if (!list) return;
+            const hidden = Array.from(list.querySelectorAll('[data-people-more][hidden]'));
+            hidden.forEach((row, index) => { if (index < 4) row.removeAttribute('hidden'); });
+            const rest = hidden.length - 4;
+            if (rest > 0) button.textContent = uiFmt('Показати ще {n}', { n: Math.min(4, rest) });
+            else button.remove();
+        }
+
+        // Смужка кроку (власник 2026-11-02): де людина зараз — тим самим словником, що й фаза поїздки вгорі
+        // (Резервація → Збір → Подорож триває, activeTripSubBarPhase). Дія — «Домовитись», фаза — «Резервація»; поки
+        // відповіді немає — «Чекаємо відповіді» (pending ≠ згода, DM-2026-09-27-001). Крок — лише з власного статусу в
+        // /home/feed/members (DM-2026-07-25-001); «Подорож триває» — тільки після явного старту (DM-2026-07-12-005).
+        // Ще не прочитаний чи невідомий стан і завершена поїздка не вигадують пошук (Астра D667 R3).
+        const EVENT_STAGES = {
+            intro: { n: 1, text: () => uiText('Знайомство з подією') },
+            search: { n: 2, text: () => (_isDriverRole(S.userRole) ? uiText('Пошук попутників') : uiText('Пошук місця')) },
+            pending: { n: 3, text: () => `${uiText('Резервація')} · ${uiText('Чекаємо відповіді')}` },
+            reserved: { n: 3, text: () => `${uiText('Резервація')} · ${uiText('Екіпаж зібрано')}` },
+            pickup: { n: 4, text: () => uiText('Збір') },
+            riding: { n: 5, text: () => uiText('Подорож триває') },
+            finished: { n: 5, plain: true, text: () => uiText('Поїздку завершено') },
+            member: { n: 1, plain: true, text: () => uiText('Ви учасник події') }
+        };
+
+        function eventStageFor(ctx) {
+            if (!ctx?.isSub) return 'intro';
+            const self = Array.isArray(ctx.members) ? ctx.members.find(m => String(m?.user_id || '') === String(S.userId || '')) : null;
+            const byStatus = { searching: 'search', subscribed: 'search', waiting_response: 'pending', in_crew: 'reserved',
+                               awaiting_pickup: 'pickup', riding: 'riding', finished: 'finished' };
+            return byStatus[String(self?.status || '')] || 'member';
+        }
+
+        function eventStageHtml(dirId, key) {
+            const stage = EVENT_STAGES[key] || EVENT_STAGES.member;
+            const bar = [1, 2, 3, 4, 5].map(n => `<i${n <= stage.n ? ' class="on"' : ''}></i>`).join('');
+            const text = stage.plain ? stage.text() : `${uiFmt('Крок {n} з {total}', { n: stage.n, total: 5 })} · ${stage.text()}`;
+            return `<div class="event-stage" data-event-stage-for="${parseInt(dirId, 10) || 0}" data-event-stage="${EVENT_STAGES[key] ? key : 'member'}"><div class="event-stage-bar" aria-hidden="true">${bar}</div><div class="event-stage-label">${escapeHtml(text)}</div></div>`;
+        }
+
+        function updateEventStage(ctx) {
+            const host = ctx && document.querySelector(`[data-event-stage-for="${ctx.dirId}"]`);
+            if (!host) return;
+            const hidden = host.hidden;
+            host.outerHTML = eventStageHtml(ctx.dirId, eventStageFor(ctx));
+            const fresh = document.querySelector(`[data-event-stage-for="${ctx.dirId}"]`);
+            if (fresh) fresh.hidden = hidden;
+        }
+
+        // Банер події (власник 2026-11-02, варіант Б): опис — один рядок і ▾; дотик по шапці чи ▾ розгортає опис
+        // (і в учасника — організатора з чатом події). Кнопки в шапці (✕, інструменти організатора) не згортають.
+        function toggleEventBanner(dirId, event) {
+            if (event && event.target && event.target.closest('button') && !event.target.closest('[data-event-banner-chevron]')) return;
+            const id = parseInt(dirId, 10) || 0;
+            const banner = document.querySelector(`[data-event-banner="${id}"]`);
+            if (!banner) return;
+            const chevron = banner.querySelector('[data-event-banner-chevron]');
+            const open = chevron ? chevron.getAttribute('aria-expanded') !== 'true' : true;
+            banner.querySelector('[data-event-banner-desc]')?.classList.toggle('is-clamped', !open);
+            const more = banner.querySelector('[data-event-banner-more]');
+            if (more) more.hidden = !open;
+            if (chevron) {
+                chevron.setAttribute('aria-expanded', open ? 'true' : 'false');
+                chevron.textContent = open ? '▴' : '▾';
+            }
         }
 
         function renderEventPeopleSection() {
@@ -10597,7 +10738,7 @@
                 + eventPeopleChipHtml('passengers', uiText('👤 Попутники'), ctx.passengers, uiFmt('{n} без місця', { n: ctx.withoutSeat }), ctx.filter === 'passengers')
                 + '</div>';
             const driversHtml = ctx.orgs.length
-                ? eventDriverRosterHtml(ctx.orgs, ctx.dirId, { allowJoin: ctx.isSub && !_isDriverRole(S.userRole) })
+                ? eventDriverRosterHtml(ctx.orgs, ctx.dirId, { allowJoin: ctx.isSub && !_isDriverRole(S.userRole), joinLabel: uiText('🤝 Домовитись') })
                 : `<div class="event-people-note">${uiText('Поки немає водіїв. Можна поїхати водієм.')}</div>`;
             const passengersHtml = eventPassengerRowsHtml(ctx);
             let body;
@@ -10606,7 +10747,9 @@
             else if (!ctx.orgs.length && !ctx.passengers) body = `<div class="event-people-note">${escapeHtml(ctx.emptyCrewLine)}</div>`;
             // Без фільтра — усі; спершу ті, хто потрібен саме цій людині.
             else body = _isDriverRole(S.userRole) ? passengersHtml + driversHtml : driversHtml + passengersHtml;
-            host.innerHTML = chips + `<div class="event-people-list">${body}</div>`;
+            // Власник 2026-11-02 (r9): «Водії» / «Попутники» — дві кнопки зі стрілкою; список видно лише вибраної.
+            host.innerHTML = chips + (ctx.filter ? `<div class="event-people-list">${body}</div>` : '');
+            updateEventStage(ctx);
         }
         function membershipClock(ts) {
             const d = new Date(Number(ts || 0) * 1000);
@@ -10919,6 +11062,9 @@
             cta.classList.toggle('join-cta-open', open);
             cta.textContent = open ? uiText('Хочу поїхати ▴') : uiText('Хочу поїхати');
             cta.setAttribute('aria-label', open ? uiText('Згорнути кроки «Хочу поїхати»') : uiText('Хочу поїхати'));
+            // Одна шкала кроків за раз (WD-5): поки відкриті кроки вступу зі своєю смужкою, верхня смужка події прихована.
+            const stage = document.querySelector(`[data-event-stage-for="${parseInt(dirId, 10) || 0}"]`);
+            if (stage) stage.hidden = open;
         }
 
         function toggleJoinInline(dirId) {
@@ -11383,7 +11529,7 @@
             const creatorAvatarBg = _avatarGradient(creatorDisplay || 'О');
             // Написати організатору (коментар для проходження тестів)
             const creatorContactBlock = creatorId ? `
-                <div style="display:flex;align-items:center;gap:12px;margin:16px 0 20px;">
+                <div style="display:flex;align-items:center;gap:12px;margin:10px 0 2px;">
                     <div id="sheet-organizer-avatar" data-person-id="${parseInt(creatorId, 10) || 0}" data-initial="${escapeAttr(creatorInitial)}" style="width:40px;height:40px;border-radius:50%;background:${creatorAvatarBg};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:#fff;flex-shrink:0;overflow:hidden;">${organizerAvatarInner(creatorId, creatorInitial)}</div>
                     <div style="flex:1;min-width:0;">
                         <div style="font-size:12px;color:var(--text-muted);line-height:1.2;">${uiText('Організатор:')}</div>
@@ -11391,7 +11537,7 @@
                             ${escapeHtml(creatorDisplay || uiText('Організатор'))}${creatorUsername ? ` <span style="font-weight:400;color:var(--blue);">(@${escapeHtml(creatorUsername)})</span>` : ''}
                         </div>
                     </div>
-                    ${!isMyDir ? `<button class="btn btn-secondary" style="border:1px solid rgba(56,189,248,0.4);background:rgba(56,189,248,0.08);color:var(--blue);padding:6px 12px;border-radius:12px;font-size:12px;font-weight:600;min-height:36px;white-space:nowrap;line-height:1.3;text-align:center;cursor:pointer;" data-tg-username="${escapeAttr(creatorUsername)}" data-tg-user-id="${parseInt(creatorId, 10) || 0}" onclick="openTelegramContactFromButton(this)">${uiText('💬 Написати')}<br>${uiText('організатору')}</button>` : `<span class="tag tag-green">${uiText('Ваша ідея')}</span>`}
+                    ${!isMyDir ? `<button class="btn btn-secondary" style="border:1px solid rgba(56,189,248,0.4);background:rgba(56,189,248,0.08);color:var(--blue);padding:6px 12px;border-radius:12px;font-size:12px;font-weight:600;min-height:36px;white-space:nowrap;line-height:1.3;text-align:center;cursor:pointer;" data-tg-username="${escapeAttr(creatorUsername)}" data-tg-user-id="${parseInt(creatorId, 10) || 0}" onclick="openTelegramContactFromButton(this)" aria-label="${escapeAttr(uiText('💬 Написати') + ' ' + uiText('організатору'))}">${uiText('💬 Написати')}</button>` : `<span class="tag tag-green">${uiText('Ваша ідея')}</span>`}
                 </div>` : '';
             const hasPickup = !!S.pickupCoords;
             // «Гармошка» (власник 2026-09-26): кроки розгортаються тут же, під кнопкою, а не в новій шторці.
@@ -11409,6 +11555,9 @@
             const whenText = formatEventDateRange(startAt, endAt);
             const durationText = formatEventDuration(startAt, endAt);
             const daysText = durationText ? `📅 ${durationText}` : '';
+            // Власник 2026-11-02: факти — одним рядком під назвою, без повторів; слова «Куди:» і «Виїзд:» лишаються
+            // (дні події — дні виїзду, не «Коли»; WEB_FLOWS «Шторка Детальніше»).
+            const factsLine = [meetingPoint ? `📍 ${uiText('Куди:')} ${meetingPoint}` : '', whenText ? `📅 ${uiText('Виїзд:')} ${whenText}` : '', durationText].filter(Boolean).join(' · ');
 
             const eventSummary = (data?.event_summary && typeof data.event_summary === 'object') ? data.event_summary : {};
             const hasEventSummary = eventSummary.drivers_total != null;
@@ -11451,43 +11600,45 @@
                     </div>
                 </div>` : '';
 
-            // --- Detail card: horizontal location + date row, description below ---
-            const hasDetailMeta = meetingPoint || whenText;
-            const hasDetailCard = hasDetailMeta || desc;
-            const detailCardHtml = hasDetailCard ? `
-                <div style="margin:10px 0 6px;padding:14px;border-radius:12px;background:rgba(255,255,255,0.05);border:1px solid rgba(56,189,248,0.15);backdrop-filter:blur(6px);">
-                    ${hasDetailMeta ? `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:${desc ? '12px' : '0'};">
-                        ${meetingPoint ? `<div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-primary);font-weight:600;"><span style="color:var(--blue);font-size:15px;">📍</span> <span><span style="color:var(--text-muted);font-weight:700;">${uiText('Куди:')}</span> ${escapeHtml(meetingPoint)}</span></div>` : '<div></div>'}
-                        ${whenText ? `<div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-primary);font-weight:600;"><span style="color:var(--accent);font-size:15px;">📅</span> <span><span style="color:var(--text-muted);font-weight:700;">${uiText('Виїзд:')}</span> ${escapeHtml(whenText)}</span></div>` : '<div></div>'}
-                    </div>` : ''}
-                    ${desc ? `<div style="font-size:13px;color:var(--text-secondary);line-height:1.55;white-space:pre-wrap;${hasDetailMeta ? 'border-top:1px solid rgba(255,255,255,0.08);padding-top:12px;' : ''}"><div style="font-size:10px;font-weight:900;letter-spacing:0.6px;text-transform:uppercase;color:var(--text-muted);margin-bottom:5px;">${uiText('Опис події')}</div>${escapeHtml(desc)}</div>` : ''}
-                </div>` : '';
+            const eventChatButton = chatLink.startsWith('https://t.me/') ? `<button id="btn-idea-chat" class="btn btn-secondary" style="width:100%;font-size:15px;font-weight:700;padding:13px 0;border-radius:12px;border:1px solid rgba(56,189,248,0.35);background:rgba(56,189,248,0.10);color:var(--blue);cursor:pointer;" data-chat-link="${escapeAttr(chatLink)}" onclick="openIdeaChat(this)">${uiText('💬 Чат події')}</button>` : '';
+            const peopleId = parseInt(dirId, 10) || 0;
+            // Банер події (власник 2026-11-02, варіант Б). Опис — той самий текст, згорнутий до одного рядка з ▾; дотик по
+            // шапці чи ▾ показує його повністю з підписом «Опис події». До участі опис і організатор лишаються видимими
+            // (уточнення власника до рішення 2026-10-15: один рядок, не прибрано); в учасника організатор і чат події —
+            // у частині, що розгортається (окремої гармошки «Про подію» більше немає).
+            const bannerMore = isSub ? `${creatorContactBlock}${eventChatButton}` : '';
+            const bannerDesc = desc
+                ? `<div class="event-banner-desc is-clamped" data-event-banner-desc><div class="event-banner-desc-label">${uiText('Опис події')}</div><div class="event-banner-desc-text" style="white-space:pre-wrap;">${escapeHtml(desc)}</div></div>`
+                : (bannerMore.trim() ? `<div class="event-banner-desc">${uiText('Про подію')}</div>` : '');
+            const bannerRow = bannerDesc ? `<div class="event-banner-row">${bannerDesc}<button type="button" class="event-banner-chevron" data-event-banner-chevron aria-expanded="false" aria-label="${escapeAttr(uiText('Про подію'))}" onclick="toggleEventBanner(${peopleId}, event)">▾</button></div>` : '';
+            const bannerBodyInner = bannerRow + (isSub ? (bannerMore.trim() ? `<div data-event-banner-more hidden>${bannerMore}</div>` : '') : creatorContactBlock);
+            const bannerBody = bannerBodyInner.trim() ? `<div class="event-banner-body">${bannerBodyInner}</div>` : '';
+            const pickupButton = isSub ? `<button class="btn btn-secondary" style="width:100%;margin:6px 0 2px;font-size:13px;" onclick="pickPickupLocation(${dirId}, { kind: ${_isDriverRole(S.userRole) ? "'driver_start'" : "'passenger_wait'"}, persistUserLocation: ${_isDriverRole(S.userRole) ? 'false' : 'true'} })">${hasPickup ? uiText('📍 Точка вказана ✓') : (_isDriverRole(S.userRole) ? uiText('🚗 Поставити авто на карту') : uiText('📍 Вказати де чекати водія'))}</button>` : '';
 
             const sheetCat = itemCategory(data?.direction || dir);  // значок рубрики, як на піні (2026-09-25)
             // Після того як шторка намальована — облік «долучились і вийшли» (лише організатор).
             if (isMyDir) setTimeout(() => loadOrganizerMembership(dirId), 0);
+            // Порядок «контекст перед дією» (власник 2026-11-02): крок → назва і факти → що вирішити → люди → деталі;
+            // до участі вступ лишається видимим (власник 2026-10-15), учаснику деталі згорнуто, вихід — тихий унизу.
             openSheet(`
-                <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;">
+                ${eventStageHtml(dirId, isSub ? 'member' : 'intro')}
+                <div class="event-banner" data-event-banner="${peopleId}">
+                <div class="event-banner-head event-banner-${sheetCat}" onclick="toggleEventBanner(${peopleId}, event)">
                     <div class="cat-ico sheet-cat-ico cat-ico-${sheetCat}" aria-hidden="true">${itemIcon(data?.direction || dir, sheetCat, false)}</div>
-                    <div style="flex:1;">
+                    <div style="flex:1;min-width:0;">
                         <div class="sheet-title" style="margin-bottom:2px;">${escapeHtml(dir.title || uiText('Подія'))}</div>
-                        <div style="font-size:12px;color:var(--text-secondary);font-weight:600;">${escapeHtml(customStatsLine)}</div>
+                        <div class="event-facts">${escapeHtml(factsLine)}</div>
                     </div>
                     ${isMyDir ? `<div style="display:flex;gap:6px;flex-shrink:0;"><button onclick="shareDirectionInvite(${parseInt(dirId) || 0})" style="padding:6px 10px;border-radius:8px;background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.28);color:var(--blue);font-size:14px;cursor:pointer;" data-i18n-title="ui.1056" title="Запросити учасників">📨</button><button data-dir-id="${parseInt(dirId) || 0}" data-dir-title="${escapeAttr(String(dir.title || ''))}" onclick="openEditDirectionFromButton(this)" style="padding:6px 10px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text-secondary);font-size:14px;cursor:pointer;" data-i18n-title="ui.1057" title="Редагувати">✏️</button></div>` : ''}
+                    <button type="button" class="event-sheet-x" aria-label="${escapeAttr(uiText('Закрити'))}" onclick="closeSheet()">✕</button>
                 </div>
-                ${detailCardHtml}
+                ${bannerBody}
+                </div>
                 ${organizerEventSummaryHtml}
                 ${isMyDir ? `<div data-organizer-membership="${parseInt(dirId, 10) || 0}"></div>` : ''}
-                ${creatorContactBlock}
-                <div style="display:flex;flex-direction:column;gap:8px;margin:14px 0 10px;">
-                    ${isSub
-                    ? `<button class="btn btn-danger" style="width:100%;font-size:15px;padding:13px 0;border-radius:12px;" onclick="confirmLeaveDirection(${dirId})">${uiText('🚪 Вийти з події')}</button>`
-                    : joinPrimaryCta}
-                    ${chatLink.startsWith('https://t.me/') ? `<button id="btn-idea-chat" class="btn btn-secondary" style="width:100%;font-size:15px;font-weight:700;padding:13px 0;border-radius:12px;border:1px solid rgba(56,189,248,0.35);background:rgba(56,189,248,0.10);color:var(--blue);cursor:pointer;" data-chat-link="${escapeAttr(chatLink)}" onclick="openIdeaChat(this)">${uiText('💬 Чат події')}</button>` : ''}
-                    <button class="btn btn-secondary" style="width:100%;font-size:16px;font-weight:700;padding:14px 0;border-radius:12px;background:#334155;color:#ffffff;border:none;cursor:pointer;" onclick="closeSheet()" data-i18n="ui.043">Закрити</button>
-                </div>
-                ${isSub ? `<button class="btn btn-secondary" style="width:100%;margin-bottom:8px;font-size:12px;" onclick="pickPickupLocation(${dirId}, { kind: ${_isDriverRole(S.userRole) ? "'driver_start'" : "'passenger_wait'"}, persistUserLocation: ${_isDriverRole(S.userRole) ? 'false' : 'true'} })">${hasPickup ? uiText('📍 Точка вказана ✓') : (_isDriverRole(S.userRole) ? uiText('🚗 Поставити авто на карту') : uiText('📍 Вказати де чекати водія'))}</button>` : ''}
-                <div data-event-people="${parseInt(dirId, 10) || 0}"></div>
+                ${isSub ? pickupButton : `<div style="display:flex;flex-direction:column;gap:8px;margin:14px 0 6px;">${joinPrimaryCta}${eventChatButton}</div>`}
+                <div class="event-people-block" data-event-people="${peopleId}"></div>
+                ${isSub ? `<button class="event-leave-quiet" onclick="confirmLeaveDirection(${dirId})">${uiText('🚪 Вийти з події')}</button>` : ''}
             `);
             // Люди події (рішення власника 2026-09-24): фільтри «Водії» / «Попутники» з
             // цифрами для всіх; імена попутників — лише тим, кому їх віддає сервер
