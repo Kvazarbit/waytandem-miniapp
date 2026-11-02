@@ -3577,7 +3577,14 @@
         .event-person-row[hidden] { display: none; } /* `display:flex` вище інакше перебиває hidden (Астра D667 R1) */
         /* Банер події (варіант Б): кольорова шапка рубрики + опис одним рядком із ▾ + організатор. */
         .event-banner { border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: rgba(255,255,255,0.03); margin: 0 0 6px; }
-        .event-banner-head { display: flex; align-items: center; gap: 12px; padding: 12px; cursor: pointer; background: rgba(255,255,255,0.06); }
+        .event-banner-head { padding: 12px; cursor: pointer; background: rgba(255,255,255,0.06); }
+        .event-banner-main { display: flex; align-items: center; gap: 10px; }
+        .event-banner-heading { flex: 1; min-width: 0; }
+        .event-banner .sheet-title { font-size: 20px; line-height: 1.2; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+        .event-banner .event-facts { margin-top: 6px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+        .event-banner .event-organizer-name { line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .event-banner[data-expanded="true"] .sheet-title, .event-banner[data-expanded="true"] .event-facts { display: block; -webkit-line-clamp: unset; overflow: visible; }
+        .event-banner[data-expanded="true"] .event-organizer-name { white-space: normal; overflow-wrap: anywhere; overflow: visible; }
         .event-banner-theocracy { background: rgba(167,139,250,0.16); }
         .event-banner-leisure { background: rgba(52,211,153,0.16); }
         .event-banner-work { background: rgba(56,189,248,0.16); }
@@ -10719,7 +10726,8 @@
             const banner = document.querySelector(`[data-event-banner="${id}"]`);
             if (!banner) return;
             const chevron = banner.querySelector('[data-event-banner-chevron]');
-            const open = chevron ? chevron.getAttribute('aria-expanded') !== 'true' : true;
+            const open = banner.dataset.expanded !== 'true';
+            banner.dataset.expanded = open ? 'true' : 'false';
             banner.querySelector('[data-event-banner-desc]')?.classList.toggle('is-clamped', !open);
             const more = banner.querySelector('[data-event-banner-more]');
             if (more) more.hidden = !open;
@@ -11533,7 +11541,7 @@
                     <div id="sheet-organizer-avatar" data-person-id="${parseInt(creatorId, 10) || 0}" data-initial="${escapeAttr(creatorInitial)}" style="width:40px;height:40px;border-radius:50%;background:${creatorAvatarBg};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:#fff;flex-shrink:0;overflow:hidden;">${organizerAvatarInner(creatorId, creatorInitial)}</div>
                     <div style="flex:1;min-width:0;">
                         <div style="font-size:12px;color:var(--text-muted);line-height:1.2;">${uiText('Організатор:')}</div>
-                        <div style="font-size:14px;font-weight:700;color:var(--text-primary);margin-top:2px;">
+                        <div class="event-organizer-name" style="font-size:14px;font-weight:700;color:var(--text-primary);margin-top:2px;">
                             ${escapeHtml(creatorDisplay || uiText('Організатор'))}${creatorUsername ? ` <span style="font-weight:400;color:var(--blue);">(@${escapeHtml(creatorUsername)})</span>` : ''}
                         </div>
                     </div>
@@ -11624,13 +11632,15 @@
                 ${eventStageHtml(dirId, isSub ? 'member' : 'intro')}
                 <div class="event-banner" data-event-banner="${peopleId}">
                 <div class="event-banner-head event-banner-${sheetCat}" onclick="toggleEventBanner(${peopleId}, event)">
+                <div class="event-banner-main">
                     <div class="cat-ico sheet-cat-ico cat-ico-${sheetCat}" aria-hidden="true">${itemIcon(data?.direction || dir, sheetCat, false)}</div>
-                    <div style="flex:1;min-width:0;">
+                    <div class="event-banner-heading">
                         <div class="sheet-title" style="margin-bottom:2px;">${escapeHtml(dir.title || uiText('Подія'))}</div>
-                        <div class="event-facts">${escapeHtml(factsLine)}</div>
                     </div>
                     ${isMyDir ? `<div style="display:flex;gap:6px;flex-shrink:0;"><button onclick="shareDirectionInvite(${parseInt(dirId) || 0})" style="padding:6px 10px;border-radius:8px;background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.28);color:var(--blue);font-size:14px;cursor:pointer;" data-i18n-title="ui.1056" title="Запросити учасників">📨</button><button data-dir-id="${parseInt(dirId) || 0}" data-dir-title="${escapeAttr(String(dir.title || ''))}" onclick="openEditDirectionFromButton(this)" style="padding:6px 10px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text-secondary);font-size:14px;cursor:pointer;" data-i18n-title="ui.1057" title="Редагувати">✏️</button></div>` : ''}
                     <button type="button" class="event-sheet-x" aria-label="${escapeAttr(uiText('Закрити'))}" onclick="closeSheet()">✕</button>
+                </div>
+                    <div class="event-facts">${escapeHtml(factsLine)}</div>
                 </div>
                 ${bannerBody}
                 </div>
