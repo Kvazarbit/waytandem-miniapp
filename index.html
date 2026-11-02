@@ -3580,7 +3580,7 @@
         .event-banner-head { padding: 12px; cursor: pointer; background: rgba(255,255,255,0.06); }
         .event-banner-main { display: flex; align-items: center; gap: 10px; }
         .event-banner-heading { flex: 1; min-width: 0; }
-        .event-banner .sheet-title { font-size: 20px; line-height: 1.2; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+        .event-banner .sheet-title { font-size: 20px; line-height: 1.2; overflow-wrap: anywhere; display: block; overflow: visible; }
         .event-banner .event-facts { margin-top: 6px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
         .event-banner .event-organizer-name { line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .event-banner[data-expanded="true"] .sheet-title, .event-banner[data-expanded="true"] .event-facts { display: block; -webkit-line-clamp: unset; overflow: visible; }
@@ -11545,7 +11545,7 @@
                             ${escapeHtml(creatorDisplay || uiText('Організатор'))}${creatorUsername ? ` <span style="font-weight:400;color:var(--blue);">(@${escapeHtml(creatorUsername)})</span>` : ''}
                         </div>
                     </div>
-                    ${!isMyDir ? `<button class="btn btn-secondary" style="border:1px solid rgba(56,189,248,0.4);background:rgba(56,189,248,0.08);color:var(--blue);padding:6px 12px;border-radius:12px;font-size:12px;font-weight:600;min-height:36px;white-space:nowrap;line-height:1.3;text-align:center;cursor:pointer;" data-tg-username="${escapeAttr(creatorUsername)}" data-tg-user-id="${parseInt(creatorId, 10) || 0}" onclick="openTelegramContactFromButton(this)" aria-label="${escapeAttr(uiText('💬 Написати') + ' ' + uiText('організатору'))}">${uiText('💬 Написати')}</button>` : `<span class="tag tag-green">${uiText('Ваша ідея')}</span>`}
+                    ${!isMyDir ? `<button class="btn btn-secondary" style="border:1px solid rgba(56,189,248,0.4);background:rgba(56,189,248,0.08);color:var(--blue);padding:6px 12px;border-radius:12px;font-size:12px;font-weight:600;min-height:36px;white-space:nowrap;line-height:1.3;text-align:center;cursor:pointer;" data-tg-username="${escapeAttr(creatorUsername)}" data-tg-user-id="${parseInt(creatorId, 10) || 0}" onclick="openTelegramContactFromButton(this)" aria-label="${escapeAttr(uiText('💬 Написати') + ' ' + uiText('організатору'))}">${uiText('💬 Написати')}</button>` : `<div data-event-organizer-tools style="display:flex;gap:6px;flex-shrink:0;"><button onclick="shareDirectionInvite(${parseInt(dirId) || 0})" style="padding:6px 10px;border-radius:8px;background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.28);color:var(--blue);font-size:14px;cursor:pointer;" data-i18n-title="ui.1056" title="Запросити учасників">📨</button><button data-dir-id="${parseInt(dirId) || 0}" data-dir-title="${escapeAttr(String(dir.title || ''))}" onclick="openEditDirectionFromButton(this)" style="padding:6px 10px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text-secondary);font-size:14px;cursor:pointer;" data-i18n-title="ui.1057" title="Редагувати">✏️</button></div>`}
                 </div>` : '';
             const hasPickup = !!S.pickupCoords;
             // «Гармошка» (власник 2026-09-26): кроки розгортаються тут же, під кнопкою, а не в новій шторці.
@@ -11637,18 +11637,17 @@
                     <div class="event-banner-heading">
                         <div class="sheet-title" style="margin-bottom:2px;">${escapeHtml(dir.title || uiText('Подія'))}</div>
                     </div>
-                    ${isMyDir ? `<div style="display:flex;gap:6px;flex-shrink:0;"><button onclick="shareDirectionInvite(${parseInt(dirId) || 0})" style="padding:6px 10px;border-radius:8px;background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.28);color:var(--blue);font-size:14px;cursor:pointer;" data-i18n-title="ui.1056" title="Запросити учасників">📨</button><button data-dir-id="${parseInt(dirId) || 0}" data-dir-title="${escapeAttr(String(dir.title || ''))}" onclick="openEditDirectionFromButton(this)" style="padding:6px 10px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text-secondary);font-size:14px;cursor:pointer;" data-i18n-title="ui.1057" title="Редагувати">✏️</button></div>` : ''}
                     <button type="button" class="event-sheet-x" aria-label="${escapeAttr(uiText('Закрити'))}" onclick="closeSheet()">✕</button>
                 </div>
                     <div class="event-facts">${escapeHtml(factsLine)}</div>
                 </div>
                 ${bannerBody}
                 </div>
-                ${organizerEventSummaryHtml}
-                ${isMyDir ? `<div data-organizer-membership="${parseInt(dirId, 10) || 0}"></div>` : ''}
                 ${isSub ? pickupButton : `<div style="display:flex;flex-direction:column;gap:8px;margin:14px 0 6px;">${joinPrimaryCta}${eventChatButton}</div>`}
                 <div class="event-people-block" data-event-people="${peopleId}"></div>
                 ${isSub ? `<button class="event-leave-quiet" onclick="confirmLeaveDirection(${dirId})">${uiText('🚪 Вийти з події')}</button>` : ''}
+                ${organizerEventSummaryHtml}
+                ${isMyDir ? `<div data-organizer-membership="${parseInt(dirId, 10) || 0}"></div>` : ''}
             `);
             // Люди події (рішення власника 2026-09-24): фільтри «Водії» / «Попутники» з
             // цифрами для всіх; імена попутників — лише тим, кому їх віддає сервер
