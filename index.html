@@ -8628,6 +8628,54 @@
         // (і водія), з діями «Включити автопошук» / «Вийти». Дзеркало
         // openMapAutoSearchPanel; переживає F5 через maybeOpenMapResultPanelOnHydrate
         // (бо auto_match тепер персистентний у web_subscriptions).
+        function manualSearchStageContext(dirId) {
+            const safeDirId = parseInt(dirId, 10) || 0;
+            const cached = S._manualSearchStageCache;
+            return {
+                dirId: safeDirId,
+                isSub: (Array.isArray(S.subscriptions) ? S.subscriptions : []).some(sub => String(sub.direction_id) === String(safeDirId)),
+                members: cached?.dirId === safeDirId ? cached.members : null
+            };
+        }
+
+        function manualSearchProgressHtml(dirId, compact = false, extra = '') {
+            const safeDirId = parseInt(dirId, 10) || 0;
+            const key = eventStageFor(manualSearchStageContext(safeDirId));
+            if (!compact) return `<div data-manual-search-progress="${safeDirId}">${eventStageHtml(safeDirId, key).replace('data-event-stage-for=', 'data-manual-stage-for=')}</div>`;
+            const stage = EVENT_STAGES[key] || EVENT_STAGES.member;
+            const label = stage.plain ? stage.text() : `${uiFmt('Крок {n} з {total}', { n: stage.n, total: 5 })} · ${stage.text()}`;
+            const bar = [1, 2, 3, 4, 5].map(n => `<i${n <= stage.n ? ' class="on"' : ''}></i>`).join('');
+            const number = stage.plain ? '' : `<span data-manual-progress-number style="flex-shrink:0;font-size:11px;opacity:.75;">${stage.n}/5</span>`;
+            return `<span data-manual-search-progress="${safeDirId}" data-manual-stage-for="${safeDirId}" data-event-stage="${key}" title="${escapeAttr(label)}" aria-label="${escapeAttr(label)}" style="flex:1;min-width:0;display:block;">
+                <span data-search-copy="true" style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0;"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(uiText('Вручну'))}${extra}</span>${number}</span>
+                <span class="event-stage-bar" aria-hidden="true" style="margin-top:4px;">${bar}</span>
+            </span>`;
+        }
+
+        function manualSearchStripHtml(dirId, isDriver, extra = '') {
+            return `<div class="result-strip" role="button" tabindex="0" aria-expanded="false" onclick="toggleMapResultCollapse()" style="padding-top:8px;padding-bottom:8px;">${searchStripSymbol(isDriver)}${manualSearchProgressHtml(dirId, true, extra)}<span role="img" aria-label="${escapeAttr(uiText('Розгорнути'))}" data-strip-arrow="true" style="flex-shrink:0;opacity:.6;font-size:18px;line-height:1;">▴</span></div>`;
+        }
+
+        // The panel may be rebuilt or replaced while this passive read is pending.
+        // Apply only to that exact manual-panel instance; unknown stays unknown.
+        async function reloadManualSearchStage(dirId, extra = '') {
+            const safeDirId = parseInt(dirId, 10) || 0;
+            const panel = document.getElementById('map-result-panel');
+            const meta = panel?._mapResultMeta;
+            if (!safeDirId || !S.userId || meta?.kind !== 'manual_search' || String(meta.dirId) !== String(safeDirId)) return false;
+            const readSeq = (S._manualSearchStageReadSeq || 0) + 1;
+            S._manualSearchStageReadSeq = readSeq;
+            let people = null;
+            try {
+                people = await api(`/api/v3/home/feed/members?direction_id=${safeDirId}&user_id=${encodeURIComponent(S.userId)}`, { silent: true });
+            } catch (_) { /* No invented progress from a missing read. */ }
+            if (S._manualSearchStageReadSeq !== readSeq || panel._mapResultMeta !== meta || !panel.classList.contains('open')) return false;
+            S._manualSearchStageCache = { dirId: safeDirId, members: Array.isArray(people?.cards) ? people.cards : null };
+            const host = panel.querySelector('[data-manual-search-progress]');
+            if (host) host.outerHTML = manualSearchProgressHtml(safeDirId, panel.classList.contains('collapsed'), extra);
+            return true;
+        }
+
         function openMapManualSearchPanel(dirId) {
             const ctx = mapInviteContext(dirId);
             const safeDirId = ctx.safeDirId || (parseInt(dirId) || 0);
@@ -8640,23 +8688,25 @@
             }
             const seats = isDriver ? searchSeatsLabel(safeDirId) : '';
             const own = ownOutingForSearch(safeDirId);
-            const chip = `${uiText('📍 Ручний')}${seats && !own ? ' · ' + seats : ''}`;
+            const progressExtra = own ? ` · ${uiHtml('Вільно: {n}', { n: Number(own.seats_free) || 0 })}` : (seats ? ` · ${escapeHtml(seats)}` : '');
             const sub = isDriver
                 ? uiText('Ви на карті як водій. Тапайте попутників, щоб запросити — або увімкніть автопошук, і система знайде їх сама.')
                 : uiText('Ви на карті. Тапайте машини, щоб запроситись — або увімкніть автопошук, і система знайде водія сама.');
             openMapResultPanel(`
                 ${ctx.safeDirId ? renderMapInviteContextHeader(ctx) : ''}
+                ${manualSearchProgressHtml(safeDirId, false, progressExtra)}
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
                     <div class="sheet-title" style="font-size:15px;">${uiText('📍 Підписані · пошук вручну')}</div>
                     <span onclick="toggleMapResultCollapse()" style="cursor:pointer;opacity:.6;font-size:18px;line-height:1;" title="${escapeAttr(uiText('Згорнути'))}">▾</span>
                 </div>
-                <div class="sheet-sub" style="font-size:12px;margin:4px 0 4px;"><span style="display:inline-block;padding:2px 8px;border-radius:999px;background:rgba(56,189,248,0.12);font-weight:700;">${escapeHtml(chip)}</span></div>
+                ${seats && !own ? `<div class="sheet-sub" style="font-size:12px;margin:4px 0;">${escapeHtml(seats)}</div>` : ''}
                 ${own ? ownOutingSearchBlock(own) : ''}<div class="sheet-sub" style="font-size:12px;margin:0 0 10px;">${escapeHtml(sub)}</div>
                 <div style="display:flex;gap:10px;">
                     <button class="btn btn-primary" style="flex:1;" onclick="enableAutoSearch(${safeDirId})">${uiText('✨ Включити автопошук')}</button>
                     ${own ? '' : `<button class="btn btn-danger" style="flex:1;" onclick="closeMapResultPanel(); confirmLeaveDirection(${safeDirId})">${uiText('🚪 Вийти з події')}</button>`}
                 </div>
-            ${own ? ownOutingLeaveBlock() : ''}`, { kind: 'manual_search', dirId: safeDirId, ownOuting: ownOutingSearchKey(own) }, searchStrip(isDriver, 'manual', own ? ` · ${uiHtml('Вільно: {n}', { n: Number(own.seats_free) || 0 })}` : (seats ? ` · ${escapeHtml(seats)}` : '')));
+            ${own ? ownOutingLeaveBlock() : ''}`, { kind: 'manual_search', dirId: safeDirId, ownOuting: ownOutingSearchKey(own) }, manualSearchStripHtml(safeDirId, isDriver, progressExtra));
+            reloadManualSearchStage(safeDirId, progressExtra);
         }
 
         // СТАТУС-банер «Очікування відповіді партнера» (outgoing). За рішенням —
