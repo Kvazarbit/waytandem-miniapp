@@ -7628,7 +7628,8 @@
             return `${parts.day} ${months[parts.month - 1]}`;
         }
 
-        // D395: event dates shown in the person's language (display only); uk keeps the page's own «з … по …» path.
+        // D395: event dates shown in the person's language (display only); uk keeps the page's own path below — since
+        // 2026-11-03 (owner «Так, коротко») in the same short shape as the other languages: «2–4 листопада».
         function uiDateRange(startDate, endDate) {
             const i18n = typeof window !== 'undefined' ? window.WayTandemI18n : null;
             const lang = typeof S !== 'undefined' && S ? S.lang : 'uk';
@@ -7651,29 +7652,44 @@
             if (end.key < start.key) return '';
             if (start.key === end.key) return formatEventDay(startDate);
             if (start.year === end.year && start.month === end.month) {
-                return `з ${start.day} по ${formatEventDay(endDate)}`;
+                return `${start.day}–${formatEventDay(endDate)}`;
             }
             if (start.year === end.year) {
-                return `з ${formatEventDay(startDate)} по ${formatEventDay(endDate)}`;
+                return `${formatEventDay(startDate)} – ${formatEventDay(endDate)}`;
             }
-            return `з ${formatEventDay(startDate)} ${start.year} по ${formatEventDay(endDate)} ${end.year}`;
+            return `${formatEventDay(startDate)} ${start.year} – ${formatEventDay(endDate)} ${end.year}`;
         }
 
         function formatEventDuration(startDate, endDate) {
+            const days = eventDayCount(startDate, endDate);
+            if (!days) return '';
+            if (typeof S !== 'undefined' && S && (S.lang || 'uk') !== 'uk' && typeof uiCount === 'function') return uiFmt('Тривалість: {days}', { days: uiCount('days', days) });   // D395
+            return `Тривалість: ${days} ${pluralUk(days, 'день', 'дні', 'днів')}`;
+        }
+
+        // Спільний підрахунок днів події для «Тривалість: …» і для дужок у рядку фактів (власник 2026-11-03).
+        function eventDayCount(startDate, endDate) {
             const startRaw = String(startDate || '').trim();
             const endRaw = String(endDate || '').trim();
-            if (!startRaw && !endRaw) return '';
+            if (!startRaw && !endRaw) return 0;
             const start = startRaw ? eventDateParts(startRaw) : eventDateParts(endRaw);
             const end = endRaw ? eventDateParts(endRaw) : eventDateParts(startRaw);
-            if (!start || !end || end.key < start.key) return '';
+            if (!start || !end || end.key < start.key) return 0;
             const startUtc = Date.UTC(start.year, start.month - 1, start.day);
             const endUtc = Date.UTC(end.year, end.month - 1, end.day);
             const spanDays = Math.floor((endUtc - startUtc) / 86400000);
             // Дати події — день виїзду на подію і день виїзду додому, тож рахуємо
             // включно: 10–12 жовтня = 3 дні; туди й назад того ж дня = 1 день.
             const days = spanDays + 1;
-            if (typeof S !== 'undefined' && S && (S.lang || 'uk') !== 'uk' && typeof uiCount === 'function') return uiFmt('Тривалість: {days}', { days: uiCount('days', days) });   // D395
-            return `Тривалість: ${days} ${pluralUk(days, 'день', 'дні', 'днів')}`;
+            return days;
+        }
+
+        // Лише кількість днів («3 дні» / «3 days») — для дужок у рядку фактів події.
+        function formatEventDayCount(startDate, endDate) {
+            const days = eventDayCount(startDate, endDate);
+            if (!days) return '';
+            if (typeof S !== 'undefined' && S && (S.lang || 'uk') !== 'uk' && typeof uiCount === 'function') return uiCount('days', days);
+            return `${days} ${pluralUk(days, 'день', 'дні', 'днів')}`;
         }
 
         function eventDateParts(value) {
@@ -8351,6 +8367,7 @@
             S._driverOnboardingActive = true;
             S._driverOnboardingDirId = safeDirId;
             S._driverOnboardingPhase = 'pickup';
+            syncEventJoinStep(safeDirId, 'Старт');
             renderSubBar();
             // Звідки стартуєш? Точку беремо ДО підписки — pickPickupLocation її не вимагає.
             let picked;
@@ -8358,7 +8375,7 @@
                 picked = await pickPickupLocation(safeDirId, { kind: 'driver_start' });
             } finally { S._driverPickupPending = false; }
             if (!S._driverOnboardingActive || S._driverOnboardingDirId !== safeDirId || !_isDriverRole(S.userRole)) return false;
-            if (!picked) { renderSubBar(); return false; }
+            if (!picked) { syncEventJoinStep(safeDirId, 'Місця'); renderSubBar(); return false; }
             S._driverOnboardingPhase = 'method';
             renderSubBar();
             return openMapDriverMethodSheet(safeDirId);
@@ -10660,23 +10677,36 @@
             const self = Array.isArray(ctx.members) ? ctx.members.find(m => String(m?.user_id || '') === String(S.userId || '')) : null;
             const byStatus = { searching: 'search', subscribed: 'search', waiting_response: 'pending', in_crew: 'reserved',
                                awaiting_pickup: 'pickup', riding: 'riding', finished: 'finished' };
-            return byStatus[String(self?.status || '')] || 'member';
+            const status = String(self?.status || '');
+            if (status === 'subscribed' || status === 'searching') {
+                // §0.40 п.2/8: завершена пара не відновлює пошук попутника і не завершує виїзд водія.
+                if ((!_isDriverRole(S.userRole) && journeyHeldFor(ctx.dirId)) || outingDoneFor(ctx.dirId)) return 'finished';
+                if (S.subscriptionSearchHeld) return 'member';
+            }
+            return byStatus[status] || 'member';
         }
 
-        function eventStageHtml(dirId, key) {
+        function eventStageHtml(dirId, key, joinStep = '') {
             const stage = EVENT_STAGES[key] || EVENT_STAGES.member;
             const bar = [1, 2, 3, 4, 5].map(n => `<i${n <= stage.n ? ' class="on"' : ''}></i>`).join('');
-            const text = stage.plain ? stage.text() : `${uiFmt('Крок {n} з {total}', { n: stage.n, total: 5 })} · ${stage.text()}`;
-            return `<div class="event-stage" data-event-stage-for="${parseInt(dirId, 10) || 0}" data-event-stage="${EVENT_STAGES[key] ? key : 'member'}"><div class="event-stage-bar" aria-hidden="true">${bar}</div><div class="event-stage-label">${escapeHtml(text)}</div></div>`;
+            const step = key === 'intro' && ['Роль', 'Місця', 'Старт', 'Спосіб'].includes(joinStep) ? joinStep : '';
+            const text = stage.plain ? stage.text() : `${uiFmt('Крок {n} з {total}', { n: stage.n, total: 5 })} · ${stage.text()}${step ? ' · ' + uiText(step === 'Старт' ? 'Старт авто' : step) : ''}`;
+            return `<div class="event-stage" data-event-stage-for="${parseInt(dirId, 10) || 0}" data-event-stage="${EVENT_STAGES[key] ? key : 'member'}"${step ? ` data-join-step="${escapeAttr(step)}"` : ''}><div class="event-stage-bar" aria-hidden="true">${bar}</div><div class="event-stage-label">${escapeHtml(text)}</div></div>`;
+        }
+
+        function syncEventJoinStep(dirId, step = '') {
+            const id = parseInt(dirId, 10) || 0;
+            const host = document.querySelector(`[data-event-stage-for="${id}"]`);
+            if (!host) return;
+            const ctx = S._eventPeople;
+            const key = ctx && ctx.dirId === id ? eventStageFor(ctx) : (host.dataset.eventStage || 'intro');
+            host.outerHTML = eventStageHtml(id, key, step);
         }
 
         function updateEventStage(ctx) {
             const host = ctx && document.querySelector(`[data-event-stage-for="${ctx.dirId}"]`);
             if (!host) return;
-            const hidden = host.hidden;
-            host.outerHTML = eventStageHtml(ctx.dirId, eventStageFor(ctx));
-            const fresh = document.querySelector(`[data-event-stage-for="${ctx.dirId}"]`);
-            if (fresh) fresh.hidden = hidden;
+            host.outerHTML = eventStageHtml(ctx.dirId, eventStageFor(ctx), host.dataset.joinStep || '');
         }
 
         // Банер події (власник 2026-11-02, варіант Б): опис — один рядок і ▾; дотик по шапці чи ▾ розгортає опис
@@ -10965,7 +10995,7 @@
             const steps = ['Подія', 'Роль'].concat(isDriver ? ['Місця'] : [], ['Спосіб']);
             const at = Math.max(0, steps.findIndex(s => s === active || uiText(s) === active));   // D395: callers pass the shown (translated) label
             const parts = steps.map((label, i) => `<div class="lifecycle-step ${i < at ? 'done' : (i === at ? 'active' : '')}"><div class="lifecycle-dot"></div>${uiText(label)}</div>`);
-            return `<div class="lifecycle-progress join-steps" role="img" aria-label="${escapeAttr(uiFmt('Крок {n} із {total}: {step}', { n: at + 1, total: steps.length, step: uiText(steps[at]) }))}">${parts.join('<div class="lifecycle-arrow"></div>')}</div>`;
+            return `<div class="lifecycle-progress join-steps" data-join-step="${escapeAttr(steps[at])}" role="img" aria-label="${escapeAttr(uiFmt('Крок {n} із {total}: {step}', { n: at + 1, total: steps.length, step: uiText(steps[at]) }))}">${parts.join('<div class="lifecycle-arrow"></div>')}</div>`;
         }
 
         function organizerMiniHtml(ctx) {
@@ -11017,6 +11047,9 @@
             const box = joinInlineBox(dirId);
             if (!box) return openSheet(html, opts);
             box.innerHTML = html;
+            const progress = box.querySelector('.join-steps');
+            syncEventJoinStep(dirId, progress?.dataset.joinStep || '');
+            box.querySelectorAll('.join-steps').forEach(node => node.remove());
             box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
             return true;
         }
@@ -11031,9 +11064,8 @@
             cta.classList.toggle('join-cta-open', open);
             cta.textContent = open ? uiText('Хочу поїхати ▴') : uiText('Хочу поїхати');
             cta.setAttribute('aria-label', open ? uiText('Згорнути кроки «Хочу поїхати»') : uiText('Хочу поїхати'));
-            // Одна шкала кроків за раз (WD-5): поки відкриті кроки вступу зі своєю смужкою, верхня смужка події прихована.
-            const stage = document.querySelector(`[data-event-stage-for="${parseInt(dirId, 10) || 0}"]`);
-            if (stage) stage.hidden = open;
+            // Підготовка уточнює ту саму фазу; згортання прибирає лише її короткий підпис.
+            if (!open) syncEventJoinStep(dirId);
         }
 
         function toggleJoinInline(dirId) {
@@ -11527,9 +11559,10 @@
             const whenText = formatEventDateRange(startAt, endAt);
             const durationText = formatEventDuration(startAt, endAt);
             const daysText = durationText ? `📅 ${durationText}` : '';
-            // Власник 2026-11-02: факти — одним рядком під назвою, без повторів; слова «Куди:» і «Виїзд:» лишаються
-            // (дні події — дні виїзду, не «Коли»; WEB_FLOWS «Шторка Детальніше»).
-            const factsLine = [meetingPoint ? `📍 ${uiText('Куди:')} ${meetingPoint}` : '', whenText ? `📅 ${uiText('Виїзд:')} ${whenText}` : '', durationText].filter(Boolean).join(' · ');
+            // Власник 2026-11-03 («це мені подобалось»): факти коротко, одним рядком — «📍 місце · 📅 дати (N днів)»,
+            // без «Куди:», «Виїзд:» і окремого «Тривалість:». Дати — той самий спільний форматер, що й у News/карті/Поїздках.
+            const dayCountText = formatEventDayCount(startAt, endAt);
+            const factsLine = [meetingPoint ? `📍 ${meetingPoint}` : '', whenText ? `📅 ${whenText}${dayCountText ? ` (${dayCountText})` : ''}` : ''].filter(Boolean).join(' · ');
 
             const eventSummary = (data?.event_summary && typeof data.event_summary === 'object') ? data.event_summary : {};
             const hasEventSummary = eventSummary.drivers_total != null;
@@ -11593,7 +11626,6 @@
             // Порядок «контекст перед дією» (власник 2026-11-02): крок → назва і факти → що вирішити → люди → деталі;
             // до участі вступ лишається видимим (власник 2026-10-15), учаснику деталі згорнуто, вихід — тихий унизу.
             openSheet(`
-                ${eventStageHtml(dirId, isSub ? 'member' : 'intro')}
                 <div class="event-banner" data-event-banner="${peopleId}">
                 <div class="event-banner-head event-banner-${sheetCat}" onclick="toggleEventBanner(${peopleId}, event)">
                 <div class="event-banner-main">
@@ -11607,6 +11639,7 @@
                 </div>
                 ${bannerBody}
                 </div>
+                ${eventStageHtml(dirId, isSub ? 'member' : 'intro')}
                 ${isSub ? pickupButton : `<div style="display:flex;flex-direction:column;gap:8px;margin:14px 0 6px;">${joinPrimaryCta}${eventChatButton}</div>`}
                 <div class="event-people-block" data-event-people="${peopleId}"></div>
                 ${isSub ? `<button class="event-leave-quiet" onclick="confirmLeaveDirection(${dirId})">${uiText('🚪 Вийти з події')}</button>` : ''}
