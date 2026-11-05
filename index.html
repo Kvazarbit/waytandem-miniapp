@@ -1417,14 +1417,14 @@
             line-height: 1;
             filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5));
         }
-        /* «Гармошка» «Хочу поїхати»: кроки розгортаються в тій самій шторці (власник 2026-09-26). */
+        /* «Гармошка» «Візьму участь»: кроки розгортаються в тій самій шторці (власник 2026-09-26). */
         .join-inline {
             border-top: 1px solid var(--border);
             padding-top: 12px;
             margin-top: 2px;
         }
 
-        /* Відкрита «гармошка»: кнопка — тихий заголовок «Хочу поїхати ▴» (згортає), яскрава дія — «Далі». */
+        /* Відкрита «гармошка»: кнопка — тихий заголовок «Візьму участь ▴» (згортає), яскрава дія — «Далі». */
         .btn.join-cta-open {
             background: transparent;
             border: 1px solid var(--border);
@@ -1446,30 +1446,9 @@
             margin: -4px 0 12px;
         }
 
+        /* DM-2026-11-04-001: the dock's step region only holds the 1-5 event scale; it adds no spacing of its own */
         .dock-steps {
-            display: flex;
-            gap: 6px;
-            margin: 8px 0 2px;
-        }
-
-        .dock-step {
-            flex: 1;
-            text-align: center;
-            font-size: 10px;
-            color: var(--text-muted);
-            border-top: 2px solid var(--border);
-            padding-top: 4px;
-        }
-
-        .dock-step.done {
-            color: var(--green);
-            border-top-color: var(--green);
-        }
-
-        .dock-step.active {
-            color: var(--text-primary);
-            font-weight: 800;
-            border-top-color: var(--accent);
+            margin: 0;
         }
 
         .sheet-actions {
@@ -3491,10 +3470,11 @@
         }
         #map-trip-dock .dock-actions {
             display: flex;
+            flex-wrap: wrap;   /* DM-2026-11-05-001: a button that does not fit a 320 px screen goes to the next row */
             gap: 10px;
             margin-top: 12px;
         }
-        #map-trip-dock .dock-actions .btn { flex: 1; }
+        #map-trip-dock .dock-actions .btn { flex: 1; max-width: 100%; overflow-wrap: break-word; }
         /* Context is on demand; the phase strip and current actions always remain visible. */
         #map-trip-dock .dock-compact-title, #map-trip-dock .dock-compact-context { display: none; }
         #map-trip-dock.compact .dock-sub,
@@ -3601,6 +3581,50 @@
         .event-chat-icon { min-width: 36px; padding: 8px 9px !important; }
     </style>
 
+<style>/* DM-2026-11-04-001 r3: once «Візьму участь» is open the event card is not shown (owner 04.11); collapsing the steps returns it */
+.event-banner.is-compact{display:none !important}
+/* DM-2026-11-04-001 r3 (P05): the hint never covers the address field or its results; results readable */
+#map-picker:has(.map-picker-search:focus) .map-picker-hint,
+#map-picker:has(.map-picker-results:not(:empty)) .map-picker-hint,
+#map-picker:has(.map-picker-results:not(:empty)) .map-picker-gps{display:none}
+.map-picker-result{font-size:15px;line-height:1.35;color:var(--text-primary);padding:11px 14px}
+.map-picker-result small{display:block;font-size:12.5px;color:var(--text-secondary);margin-top:2px}
+/* DM-2026-11-04-001 r3 (P14d): the crew tree in the dock, full width after the head; the scheme warning stays one small line */
+#map-trip-dock [data-dock-crew-tree] .crew-tree{margin-top:6px;padding:6px 10px}
+/* DM-2026-11-04-001 r3.1 (D757 R1): a long name never pushes the row fact off screen — the name wraps, the fact stays whole */
+.crew-member .crew-name{flex:1 1 auto;min-width:0;overflow-wrap:anywhere}
+.crew-member .crew-role{flex:0 0 auto;white-space:nowrap}
+/* DM-2026-11-04-001 r3.2 (D759): the fact is the point of the tree — as easy to read as the name, without badges */
+.crew-tree .crew-member .crew-role{font-size:12.5px;color:var(--text-secondary);font-weight:600}
+/* DM-2026-11-04-001 r3.4: the scope button sits at the end of the top strip, on the map screen only */
+body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{display:none}
+#sub-bar .map-scope-btn{font-size:12px;padding:5px 12px}
+/* DM-2026-11-04-001 r3.5 (owner 04.11): a folder tree — the passengers and free seats sit one step in under the driver */
+.crew-tree > :not(:first-child){padding-left:20px}
+/* DM-2026-11-04-001 r3.7 (D767): the driver's pickup cards — drag by the grip (only it blocks page scrolling), 🧭 per person */
+.pickup-grip{width:28px;height:44px;border:none;border-radius:8px;background:transparent;color:var(--text-secondary);font-size:20px;line-height:1;cursor:grab;touch-action:none;user-select:none;padding:0}
+.pickup-nav,.pickup-head-btn{width:44px;height:44px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,0.06);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;flex-shrink:0}
+.pickup-grip:focus-visible,.pickup-nav:focus-visible,.pickup-head-btn:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+[data-pickup-card][data-dragging="true"]{background:rgba(56,189,248,0.16)!important;border-color:var(--blue)!important;box-shadow:0 6px 18px rgba(0,0,0,.35)}
+[data-pickup-waiting-list][data-saving="true"]{opacity:.6;pointer-events:none}
+/* DM-2026-11-04-001 r3.12: «Зв'язок екіпажу» folded in the crew sheet (the panel's own title is the summary now) */
+[data-crew-comms-fold]{margin-top:12px;border:1px solid rgba(56,189,248,0.22);border-radius:10px;background:rgba(56,189,248,0.05)}
+[data-crew-comms-fold] > summary{cursor:pointer;padding:12px;font-size:13px;font-weight:800;color:var(--blue);list-style:none}
+[data-crew-comms-fold] > summary::-webkit-details-marker{display:none}
+[data-crew-comms-fold] > summary::after{content:' ▾';opacity:.7}
+[data-crew-comms-fold][open] > summary::after{content:' ▴'}
+[data-crew-comms-fold] [data-driver-comms-panel]{margin:0 !important;border:none !important;background:transparent !important;padding-top:0 !important}
+[data-crew-comms-fold] [data-driver-comms-panel] > div:first-child > div:first-child{display:none}
+/* DM-2026-11-04-001 r3.12: the trip sheets' actions in one row, like the panel's dock-actions */
+[data-map-trip-crew-sheet] + .sheet-actions,[data-map-trip-coordination] + .sheet-actions{flex-direction:row;align-items:stretch;margin-top:12px}
+[data-map-trip-crew-sheet] + .sheet-actions > .btn,[data-map-trip-coordination] + .sheet-actions > .btn{flex:1 1 0;min-width:0;width:auto;white-space:normal}
+/* the «Карта екіпажу» actions can be long («📍 Я біля точки: Оксана») — two per row, the rest below */
+[data-map-trip-coordination] + .sheet-actions{flex-wrap:wrap}
+[data-map-trip-coordination] + .sheet-actions > .btn{flex:1 1 140px}
+/* DM-2026-11-04-001 r3.2: the step going on now is half filled, so «5 з 5» on the road does not read as a finished trip */
+.event-stage-bar i.on.now{background:linear-gradient(90deg,var(--accent) 0 55%,rgba(255,255,255,0.12) 55% 100%)}
+#map-trip-dock [data-dock-crew-tree] [data-pickup-scheme]{font-size:11px !important;margin-top:4px !important}
+</style>
 </head>
 
 <body>
@@ -4981,7 +5005,7 @@
             // поверх пілюлі, а не замінює її текст.
             pill.classList.toggle('is-organizer', Array.isArray(S.myDirections) && S.myDirections.length > 0);
             // Роль — рішення для конкретної події (WD-49). На стартовому екрані новачка
-            // пілюля «Обрати роль» лише відволікає від «Хочу поїхати», тому показуємо її,
+            // пілюля «Обрати роль» лише відволікає від «Візьму участь», тому показуємо її,
             // коли людина вже в події: підписка, поїздка або власна подія. Поза подією
             // роль змінюється в профілі.
             const inEvent = (S.subscriptions || []).length > 0 || !!S.activeTrip
@@ -5120,7 +5144,7 @@
         function activeTripSubBarLabel(trip) {
             if (!trip) return '';
             const icon = trip?.viewer_role === 'driver' ? '🚗' : '👤';
-            return `${icon} ${uiHtml('Екіпаж #{n}', { n: activeTripCrewNumber(trip) })} · ${escapeHtml(activeTripSubBarPhase(trip))}`;
+            return `${icon} ${escapeHtml(trip?.direction_title || uiText('Поїздка'))} ›`;   // DM-2026-11-04-001 r3.2: the phase is in the scale
         }
 
         function activeTripSubBarTitle(trip) {
@@ -5676,7 +5700,7 @@
                     title = `${t?.direction_title || uiText('Поїздка')} · ${uiText('партнер уже підтвердив фініш')}`;
                     cls = 'sub-bar-pending';
                 }
-                parts.push(`<div class="${cls}" role="button" tabindex="0" title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}" onclick="openMapActiveTripFromSubBar()">${label}</div>`);
+                parts.push(`<div class="${cls}" role="button" tabindex="0" title="${escapeAttr(title)}" aria-label="${escapeAttr(title)}" onclick="${cls === 'sub-bar-crew' ? `openSubscribedDirectionDetails(${parseInt(t.direction_id, 10) || 0})` : 'openMapActiveTripFromSubBar()'}">${label}</div>`);
             }
             if (!S.activeTrip && waitingForPartner) {
                 parts.push(`<div class="sub-bar-pending" role="button" tabindex="0" onclick="openMapActiveTripFromSubBar()">${uiText('⏳ Очікуємо підтвердження партнера')}</div>`);
@@ -5717,6 +5741,8 @@
                 const fallback = subBarIdleFallback();
                 parts.push(`<div class="sub-bar-text" role="button" tabindex="0" onclick="${fallback.action}">${escapeHtml(fallback.label)}</div>`);
             }
+            const scopeToggle = mapScopeToggleHtml();   // DM-2026-11-04-001 r3.4: the former «Режим» button, last in the strip
+            if (scopeToggle) parts.push(scopeToggle);
             bar.innerHTML = parts.join('');
         }
 
@@ -5852,6 +5878,7 @@
         // ─── NAVIGATION ───
         function switchScreen(name) {
             S.currentScreen = name;
+            document.body.dataset.screen = name;   // DM-2026-11-04-001 r3.4: map-only controls in the top strip
             syncMapSearchPanelVisibility();
             if (S.screenHelpOpen) closeScreenHelp();
             closeBlockingSheetForScreen(name);
@@ -6996,17 +7023,15 @@
             const safeDirId = parseInt(dirId, 10) || 0;
             const pts = (S.joinPoints || {})[safeDirId];
             if (!pts) return `<div data-join-points="${safeDirId}" style="font-size:12px;color:var(--text-secondary);margin:8px 0;">${uiText('Перевіряємо ваші точки…')}</div>`;
-            // stage 'start' = before the first boarding of this journey; 'current' = already travelled (transfer / way back)
+            // DM-2026-11-04-001 r3 (owner 04.11): one line — the point this request carries; the request still confirms exactly what
+            // is shown here (D200 Q3, visibleJoinPoints). No landmark line, no profile checkbox, no explanation.
             const current = pts.stage === 'current';
             const pk = pts.pickup ? placeText(pts.pickup) : uiText('не вказано');
             const canPull = !current && pts.saved_start && !(pts.pickup && samePoint(pts.pickup, pts.saved_start));
-            const landmark = pts.return ? landmarkText(pts) : (current ? uiText('невідомий') : uiText('з’явиться разом із точкою старту'));
-            const linkBtn = 'class="btn btn-ghost" style="padding:2px 8px;min-height:0;font-size:11px;width:auto;"';
-            return `<div data-join-points="${safeDirId}" data-join-points-stage="${current ? 'current' : 'start'}" data-join-points-ready="${escapeAttr(pts.points_fp || '')}" style="margin:10px 0 6px;padding:10px;border:1px solid var(--border);border-radius:12px;background:rgba(255,255,255,0.03);font-size:12px;line-height:1.6;">
-                <div>📍 ${current ? uiText('Звідки забрати зараз') : uiText('Точка старту')}: <b>${escapeHtml(pk)}</b> <button ${linkBtn} data-change-pickup="true" onclick="changeJoinPickup(${safeDirId})">${pts.pickup ? uiText('Змінити') : uiText('Вибрати на карті')}</button>${canPull ? ` <button ${linkBtn} data-use-saved-start="true" onclick="useSavedStart(${safeDirId})">${uiText('Використати збережену')}</button>` : ''}</div>
-                <div>🧭 ${current ? uiText('Орієнтир висадки') : uiText('Повернення — орієнтир')}: <b>${escapeHtml(landmark)}</b></div>
-                ${current ? '' : `<label style="display:flex;gap:6px;align-items:center;color:var(--text-secondary);font-size:11px;"><input type="checkbox" data-save-start-profile="true" ${S.saveStartToProfile ? 'checked' : ''} onchange="S.saveStartToProfile = this.checked"> ${uiText('Зберегти в профілі як точку старту')}</label>`}
-                <div style="color:var(--text-muted);font-size:11px;">${current ? uiText('Ви вже в подорожі: вкажіть, де вас забрати зараз. Орієнтир — ваша точка старту; повертатися туди не обов’язково.') : uiText('Тут водій вас забере; ця ж точка — орієнтир, куди можна повернути.')} ${uiText('Запит передасть водієві саме ці точки.')}</div>
+            const locked = !!(S.activeTrip && String(S.activeTrip.direction_id) === String(safeDirId));   // an agreed pair keeps its frozen point (§0.40 п.7)
+            const linkBtn = 'class="btn btn-ghost" style="padding:2px 8px;min-height:0;font-size:12px;width:auto;"';
+            return `<div data-join-points="${safeDirId}" data-join-points-stage="${current ? 'current' : 'start'}" data-join-points-ready="${escapeAttr(pts.points_fp || '')}" style="margin:8px 0 4px;font-size:13px;line-height:1.5;display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;">
+                <span>📍 ${current ? uiText('Чекаю тут') : uiText('Місце мого старту')}: <b>${escapeHtml(pk)}</b></span>${locked ? '' : `<button ${linkBtn} data-change-pickup="true" onclick="changeJoinPickup(${safeDirId})">${pts.pickup ? uiText('Змінити') : uiText('Вибрати на карті')}</button>`}${canPull ? `<button ${linkBtn} data-use-saved-start="true" onclick="useSavedStart(${safeDirId})">${uiText('Використати збережену')}</button>` : ''}
             </div>`;
         }
 
@@ -7032,7 +7057,8 @@
             const picked = await pickPickupLocation(dirId, { kind: 'passenger_wait', persistUserLocation: true,
                 hint: current ? 'Звідки вас забрати зараз? Перетягніть карту так, щоб пін був там, де чекатимете водія'
                               : 'Точка старту: перетягніть карту так, щоб пін був там, де водій вас забере',
-                confirmLabel: current ? uiText('✓ Забрати звідси') : uiText('✓ Точка старту') });
+                confirmLabel: current ? uiText('✓ Чекаю тут') : uiText('✓ Місце мого старту'),
+                successToast: current ? uiText('✓ Місце очікування вказано') : '' });
             if (picked && !current && S.saveStartToProfile) await saveStartToProfile(picked.lat, picked.lng, S.pickupLabel);
             if (picked) await reloadJoinPoints(dirId);
             return picked;
@@ -7785,7 +7811,7 @@
             // t.me link (NOT the raw hosting URL) and carries Telegram auth, so a new user is
             // bootstrapped on open — no bot-chat role gate. Falls back to bot /start when the
             // Mini App short name is not yet known. Lands on the event invite card (role only
-            // after explicit "Хочу поїхати"), per invite-first design.
+            // after explicit "Візьму участь"), per invite-first design.
             const app = sanitizeMiniAppShortName(S.miniAppShortName || '');
             if (botUsername && app) return `https://t.me/${botUsername}/${app}?startapp=dir_${safeDirId}`;
             return `https://t.me/${botUsername}?start=dir_${safeDirId}`;
@@ -8020,7 +8046,7 @@
             const creatorUsername = sanitizeBotUsername(dirMeta.creator_username || (isMyDir ? S.userUsername : '') || '');
             const creatorDisplay = creatorName || (creatorUsername ? '@' + creatorUsername : ctx.creatorDisplay);
             const primaryAction = `joinInvitedDirection(${ctx.safeDirId}, 'map')`;
-            const primaryLabel = uiText('Хочу поїхати');
+            const primaryLabel = uiText('Візьму участь');
             const meetingPoint = String(dirMeta.meeting_point || '').trim();
             const desc = String(dirMeta.description || '').trim();
             const startAt = String(dirMeta.start_date || '').trim();
@@ -8218,7 +8244,7 @@
                 mapInline: true,
                 manualOnly: !autoMatch,
                 suppressSubscribedSheet: true,
-                successToast: !autoMatch ? '✓ Точку очікування вказано' : '',
+                successToast: !autoMatch ? '✓ Місце старту вказано' : '',
             });
             } finally {
                 // D171: an accepted subscribe whose read failed keeps the point until a poll re-reads the subscriptions
@@ -8290,7 +8316,7 @@
                     : `<span style="color:var(--text-muted);">${uiText('місць немає')}</span>`;
                 const distHtml = Number.isFinite(c._dist) ? ` · ${uiFmt('{distance} від вас', { distance: _fmtDistKm(c._dist) })}` : '';
                 const btn = freeSeats > 0
-                    ? `<button class="btn btn-primary" style="padding:8px 12px;font-size:12px;min-height:36px;width:auto;" onclick="requestJoin(${orgId}, ${safeDirId}, { source: 'map', keepMapContext: true })">${uiText('Запроситись')}</button>`
+                    ? `<button class="btn btn-primary" style="padding:8px 12px;font-size:12px;min-height:36px;width:auto;" onclick="requestJoin(${orgId}, ${safeDirId}, { source: 'map', keepMapContext: true })">${uiText('🤝 Домовитись')}</button>`
                     : '';
                 return `<div style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:rgba(255,255,255,0.03);">
                     ${renderAvatarInline(name, c.driver_photo_url || c.organizer_photo_url || '', 38)}
@@ -8303,8 +8329,9 @@
             }).join('');
             return `
                 <div data-nearby-crews-sheet-dir-id="${safeDirId}">
+                ${eventStageHtml(safeDirId, 'search').replace('data-event-stage-for=', 'data-nearby-stage-for=')}
                 <div class="sheet-title">${uiText('Оберіть екіпаж')}</div>
-                <div class="sheet-sub">${uiText('Водії цієї події, найближчі до вашої точки очікування — зверху.')}</div>
+                <div class="sheet-sub">${uiText('Водії цієї події, найближчі до вашої точки старту — зверху.')}</div>
                 ${joinPointsSummaryHtml(safeDirId)}
                 <div style="margin:12px 0 4px;max-height:42vh;overflow-y:auto;">${rows}</div>
                 <div class="sheet-actions">
@@ -8546,7 +8573,7 @@
                         <div style="font-size:12px;font-weight:850;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(c.name || uiText('Водій'))}</div>
                         <div style="font-size:11px;color:#86efac;">${uiCount('freeSeats', freeSeats)}</div>
                     </div>
-                    <button class="btn btn-primary" style="width:auto;min-height:32px;padding:7px 10px;font-size:12px;border-radius:9px;" onclick="requestJoin(${orgId}, ${safeDirId}, { source: 'auto_search', keepMapContext: true })">${uiText('Запроситись')}</button>
+                    <button class="btn btn-primary" style="width:auto;min-height:32px;padding:7px 10px;font-size:12px;border-radius:9px;" onclick="requestJoin(${orgId}, ${safeDirId}, { source: 'auto_search', keepMapContext: true })">${uiText('🤝 Домовитись')}</button>
                 </div>`;
             }).join('');
             return `<div data-auto-search-open-crews="true" style="margin:8px 0 10px;">
@@ -8642,7 +8669,7 @@
             const safeDirId = parseInt(dirId, 10) || 0;
             const key = eventStageFor(manualSearchStageContext(safeDirId));
             if (!compact) return `<div data-manual-search-progress="${safeDirId}">${eventStageHtml(safeDirId, key).replace('data-event-stage-for=', 'data-manual-stage-for=')}</div>`;
-            const stage = EVENT_STAGES[key] || EVENT_STAGES.member;
+            const stages = eventStageDefs(), stage = stages[key] || stages.member;
             const label = stage.plain ? stage.text() : `${uiFmt('Крок {n} з {total}', { n: stage.n, total: 5 })} · ${stage.text()}`;
             const bar = [1, 2, 3, 4, 5].map(n => `<i${n <= stage.n ? ' class="on"' : ''}></i>`).join('');
             const number = stage.plain ? '' : `<span data-manual-progress-number style="flex-shrink:0;font-size:11px;opacity:.75;">${stage.n}/5</span>`;
@@ -8850,7 +8877,7 @@
             const safeDirId = parseInt(dirId, 10) || 0;
             const compact = !!options.compact;
             const allowJoin = !!options.allowJoin;
-            const joinLabel = options.joinLabel || uiText('Запроситись');
+            const joinLabel = options.joinLabel || uiText('🤝 Домовитись');
             const drivers = (Array.isArray(organizers) ? organizers : [])
                 .filter(o => normalizeRole(o?.role || 'driver') === 'driver')
                 .slice()
@@ -8974,7 +9001,7 @@
                     <button class="btn btn-secondary" style="flex:1;font-size:12px;" data-i18n="ui.400" onclick="openDirection(${safeDirId})">Деталі події</button>
                     <button class="btn btn-ghost" style="flex:1;font-size:12px;" onclick="closeSheet(); switchScreen('explore'); maybeOpenMapResultPanelOnHydrate();">${eventTrip ? 'Назад до екіпажу' : eventPending ? 'Назад до запиту' : S.subscriptionSearchHeld ? 'Назад до мапи' : 'Назад до пошуку'}</button>
                 </div>`
-                : `<button class="btn btn-primary" style="width:100%;margin-bottom:8px;" onclick="joinInvitedDirection(${joinArgs})">Хочу поїхати</button>
+                : `<button class="btn btn-primary" style="width:100%;margin-bottom:8px;" onclick="joinInvitedDirection(${joinArgs})">Візьму участь</button>
                 <div style="display:flex;gap:8px;">
                     <button class="btn btn-secondary" style="flex:1;font-size:12px;" data-i18n="ui.400" onclick="openDirection(${safeDirId})">Деталі події</button>
                     <button class="btn btn-ghost" style="flex:1;font-size:12px;" onclick="closeSheet()">Пізніше</button>
@@ -9281,12 +9308,15 @@
             showToast(st.state === 'missing' ? 'У події немає точки на карті' : 'Завантажуємо точку події…', '');
         }
 
-        function renderMapModeStrip() {
-            const strip = document.getElementById('map-mode-strip');
-            if (!strip) return;
+        function renderMapModeStrip(decisionOnly = false) {
             const raw = activeMapContextForMap();
             // Перемикач Підписка/Загальна доступний лише для активної ПІДПИСКИ (не під час поїздки)
             const canToggle = !!(raw && raw.kind === 'subscription');
+            // DM-2026-11-04-001: the toggle now ends the top strip; mapScopeToggleHtml asks here, the one documented
+            // raw-context toggle surface, and gets only the decision
+            if (decisionOnly) return canToggle;
+            const strip = document.getElementById('map-mode-strip');
+            if (!strip) return;
             // Авто-скидання на «Підписка» при зміні активної підписки
             const rawDirId = canToggle ? String(raw.dirId) : '';
             if (S._mapScopeDirId !== rawDirId) {
@@ -9301,17 +9331,20 @@
                         : (_isPassengerRole(S.userRole) ? 'drivers' : 'all'))
                     : 'all';
             }
-            const scoped = mapContextScoped();
-            const value = scoped ? uiText('координація події') : uiText('пошук виїзду');
-            let toggleHtml = '';
-            if (canToggle) {
-                const isSub = S.mapScope !== 'all';
-                toggleHtml = `<button class="map-scope-btn ${isSub ? 'scope-sub' : ''}" onclick="toggleMapScope()" type="button">${isSub ? uiText('📍 Підписка') : uiText('🌐 Загальна')}</button>`;
-            }
-            // Поза подією рядок лише повторює підказку «Оберіть напрямок» і не має
-            // керування (перемикач є тільки для підписки), тож новачок його не бачить.
-            strip.style.display = raw ? 'flex' : 'none';
-            strip.innerHTML = `<span class="map-mode-label">${uiText('Режим:')}</span><span class="map-mode-value">${value}</span>${toggleHtml}`;
+            // DM-2026-11-04-001 r3.4 (owner 04.11): no «Режим: …» strip over the map; its button lives at the end of the top strip
+            strip.style.display = 'none';
+            strip.innerHTML = '';
+            const placed = document.querySelector('#sub-bar [data-map-scope-toggle]');
+            const html = mapScopeToggleHtml();
+            if (placed && html) placed.outerHTML = html;
+            else if (!!placed !== !!html) renderSubBar();
+        }
+
+        function mapScopeToggleHtml() {
+            // the map scope button («📍 Підписка» / «🌐 Загальна»), only in a subscription context (not during a trip)
+            if (!renderMapModeStrip(true)) return '';
+            const isSub = S.mapScope !== 'all';
+            return `<button class="map-scope-btn ${isSub ? 'scope-sub' : ''}" data-map-scope-toggle="true" onclick="toggleMapScope()" type="button">${isSub ? uiText('📍 Підписка') : uiText('🌐 Загальна')}</button>`;
         }
 
         function toggleMapScope() {
@@ -10319,9 +10352,14 @@
 
         function mapGoogleNavigationTarget(trip = S.activeTrip) {
             if (!trip) return null;
-            if (trip.is_started) return tripEventDestination(trip);
-
             const isDriver = String(trip.viewer_role || '').toLowerCase() === 'driver';
+            if (trip.is_started) {
+                // DM-2026-11-05-001 (variant B): on the road with somebody still to pick up, the driver's 🧭 leads to that stop
+                // (the crew sheet is only the tree now); a claimed («Не знайшли») stop is not a target; then the event
+                const next = isDriver ? nextPickupPassenger(trip) : null;
+                const coord = next && !isPassengerClaimed(next) ? firstFiniteLatLng([next.pickup_lat, next.pickup_lng]) : null;
+                return coord ? { ...coord, label: uiFmt('Забрати: {name}', { name: passengerDisplayName(next) }) } : tripEventDestination(trip);
+            }
             if (isDriver) {
                 // А6/А7: наступна — перша незавершена зупинка черги. Людину без точки не пропускаємо й не ведемо на
                 // її живу геопозицію: дія стає «Уточнити точку в чаті».
@@ -10335,7 +10373,7 @@
             } else {
                 const mine = currentPassengerMemberForTrip(trip);
                 const coord = mine ? crewMemberMapCoord(mine, trip) : null;
-                if (coord) return { ...coord, label: uiText('Ваша точка очікування') };
+                if (coord) return { ...coord, label: uiText('Ваша точка старту') };
             }
 
             const pickup = firstFiniteLatLng([trip.pickup_lat, trip.pickup_lng]);
@@ -10657,7 +10695,7 @@
             if (ctx.members === null) {
                 // Сервер не віддав список: людина ще не учасник (DM-2026-07-25-001).
                 return ctx.passengers
-                    ? `<div class="event-people-note">${uiText('Хто саме їде, побачите, коли натиснете «Хочу поїхати».')}</div>`
+                    ? `<div class="event-people-note">${uiText('Хто саме їде, побачите, коли натиснете «Візьму участь».')}</div>`
                     : `<div class="event-people-note">${uiText('Поки ніхто не шукає місце.')}</div>`;
             }
             const driverIds = new Set(ctx.orgs.map(o => String(o?.user_id || '')));
@@ -10711,16 +10749,18 @@
         // відповіді немає — «Чекаємо відповіді» (pending ≠ згода, DM-2026-09-27-001). Крок — лише з власного статусу в
         // /home/feed/members (DM-2026-07-25-001); «Подорож триває» — тільки після явного старту (DM-2026-07-12-005).
         // Ще не прочитаний чи невідомий стан і завершена поїздка не вигадують пошук (Астра D667 R3).
-        const EVENT_STAGES = {
-            intro: { n: 1, text: () => uiText('Знайомство з подією') },
-            search: { n: 2, text: () => (_isDriverRole(S.userRole) ? uiText('Пошук попутників') : uiText('Пошук місця')) },
-            pending: { n: 3, text: () => `${uiText('Резервація')} · ${uiText('Чекаємо відповіді')}` },
-            reserved: { n: 3, text: () => `${uiText('Резервація')} · ${uiText('Екіпаж зібрано')}` },
-            pickup: { n: 4, text: () => uiText('Збір') },
-            riding: { n: 5, text: () => uiText('Подорож триває') },
-            finished: { n: 5, plain: true, text: () => uiText('Поїздку завершено') },
-            member: { n: 1, plain: true, text: () => uiText('Ви учасник події') }
-        };
+        function eventStageDefs() {
+            return {
+                intro: { n: 1, text: () => uiText('Знайомство з подією') },
+                search: { n: 2, text: () => (_isDriverRole(S.userRole) ? uiText('Пошук попутників') : uiText('Пошук місця')) },
+                pending: { n: 3, text: () => `${uiText('Резервація')} · ${uiText('Чекаємо відповіді')}` },
+                reserved: { n: 3, text: () => `${uiText('Резервація')} · ${uiText('Екіпаж зібрано')}` },
+                pickup: { n: 4, text: () => uiText('Збір') },
+                riding: { n: 5, text: () => uiText('Подорож триває') },
+                finished: { n: 5, plain: true, text: () => uiText('Поїздку завершено') },
+                member: { n: 1, plain: true, text: () => uiText('Ви учасник події') }
+            };
+        }
 
         function eventStageFor(ctx) {
             if (!ctx?.isSub) return 'intro';
@@ -10737,11 +10777,11 @@
         }
 
         function eventStageHtml(dirId, key, joinStep = '') {
-            const stage = EVENT_STAGES[key] || EVENT_STAGES.member;
-            const bar = [1, 2, 3, 4, 5].map(n => `<i${n <= stage.n ? ' class="on"' : ''}></i>`).join('');
+            const stages = eventStageDefs(), stage = stages[key] || stages.member;
+            const bar = [1, 2, 3, 4, 5].map(n => `<i${n < stage.n || (n === stage.n && stage.plain) ? ' class="on"' : (n === stage.n ? ' class="on now"' : '')}></i>`).join('');
             const step = key === 'intro' && ['Роль', 'Місця', 'Старт', 'Спосіб'].includes(joinStep) ? joinStep : '';
             const text = stage.plain ? stage.text() : `${uiFmt('Крок {n} з {total}', { n: stage.n, total: 5 })} · ${stage.text()}${step ? ' · ' + uiText(step === 'Старт' ? 'Старт авто' : step) : ''}`;
-            return `<div class="event-stage" data-event-stage-for="${parseInt(dirId, 10) || 0}" data-event-stage="${EVENT_STAGES[key] ? key : 'member'}"${step ? ` data-join-step="${escapeAttr(step)}"` : ''}><div class="event-stage-bar" aria-hidden="true">${bar}</div><div class="event-stage-label">${escapeHtml(text)}</div></div>`;
+            return `<div class="event-stage" data-event-stage-for="${parseInt(dirId, 10) || 0}" data-event-stage="${stages[key] ? key : 'member'}"${step ? ` data-join-step="${escapeAttr(step)}"` : ''}><div class="event-stage-bar" aria-hidden="true">${bar}</div><div class="event-stage-label">${escapeHtml(text)}</div></div>`;
         }
 
         function syncEventJoinStep(dirId, step = '') {
@@ -10856,7 +10896,7 @@
                 explore: 'На мапі — події. Торкніться піна, щоб побачити подію. Плитки вгорі — теми й кількість подій.',
                 news: 'Тут новини подій: хто долучився, що змінив організатор. Торкніться картки, щоб відкрити подію.',
                 board: 'Події за темами: відкрийте розділ або знайдіть подію пошуком угорі.',
-                trips: 'Тут з’являться ваші поїздки, коли ви натиснете «Хочу поїхати» в події.',
+                trips: 'Тут з’являться ваші поїздки, коли ви натиснете «Візьму участь» в події.',
                 profile: 'Тут ваше ім’я, роль і мова, а також ваша подія, якщо ви її створили.',
             })[screen] || '';
         }
@@ -11056,7 +11096,7 @@
 
         function showActiveDealWarning(activeDirId, mode = 'switch') {
             // Одна людина — одна подія (I-149); укладену домовленість покидають лише запитом на скасування, з яким
-            // погоджується партнер (власник 2026-09-26). Вікно — одразу, до майстра «Хочу поїхати», і на відмову сервера.
+            // погоджується партнер (власник 2026-09-26). Вікно — одразу, до майстра «Візьму участь», і на відмову сервера.
             const tripDirId = parseInt(activeDirId, 10) || parseInt(S.activeTrip?.direction_id, 10) || 0;
             const known = (allDirections || []).find(d => String(d.id) === String(tripDirId));
             const title = S.activeTrip?.direction_title || known?.title || (tripDirId ? `Подія #${tripDirId}` : 'цю подію');
@@ -11086,7 +11126,7 @@
         }
 
         function joinInlineBox(dirId) {
-            // «Гармошка» (власник 2026-09-26): кроки «Хочу поїхати» розгортаються в тій самій шторці події.
+            // «Гармошка» (власник 2026-09-26): кроки «Візьму участь» розгортаються в тій самій шторці події.
             const safeDirId = parseInt(dirId, 10) || 0;
             if (!safeDirId || S.joinInlineDirId !== safeDirId) return null;
             const box = document.querySelector(`[data-join-inline="${safeDirId}"]`);
@@ -11105,15 +11145,16 @@
         }
 
         function setJoinCtaOpen(dirId, open) {
-            // Натиснута «Хочу поїхати» не лишається яскравою: стає тихим заголовком «Хочу поїхати ▴», який згортає
+            // Натиснута «Візьму участь» не лишається яскравою: стає тихим заголовком «Візьму участь ▴», який згортає
             // кроки; яскрава — лише наступна дія «Далі» (власник 2026-09-26: без розпорошення уваги).
             const cta = document.querySelector(`[data-join-cta="${parseInt(dirId, 10) || 0}"]`);
             if (!cta) return;
             cta.setAttribute('aria-expanded', open ? 'true' : 'false');
             cta.classList.toggle('btn-primary', !open);
             cta.classList.toggle('join-cta-open', open);
-            cta.textContent = open ? uiText('Хочу поїхати ▴') : uiText('Хочу поїхати');
-            cta.setAttribute('aria-label', open ? uiText('Згорнути кроки «Хочу поїхати»') : uiText('Хочу поїхати'));
+            document.querySelector(`[data-event-banner="${parseInt(dirId, 10) || 0}"]`)?.classList.toggle('is-compact', open);   // DM-2026-11-04-001
+            cta.textContent = open ? uiText('Візьму участь ▴') : uiText('Візьму участь');
+            cta.setAttribute('aria-label', open ? uiText('Згорнути кроки «Візьму участь»') : uiText('Візьму участь'));
             // Підготовка уточнює ту саму фазу; згортання прибирає лише її короткий підпис.
             if (!open) syncEventJoinStep(dirId);
         }
@@ -11596,7 +11637,7 @@
             const hasPickup = !!S.pickupCoords;
             // «Гармошка» (власник 2026-09-26): кроки розгортаються тут же, під кнопкою, а не в новій шторці.
             const joinInlineId = parseInt(dirId, 10) || 0;
-            const joinPrimaryCta = `<button class="btn btn-primary" style="width:100%;" data-join-cta="${joinInlineId}" aria-expanded="false" aria-controls="join-inline-${joinInlineId}" onclick="toggleJoinInline(${dirId})">${uiText('Хочу поїхати')}</button><div class="join-inline" id="join-inline-${joinInlineId}" data-join-inline="${joinInlineId}" hidden></div>`;
+            const joinPrimaryCta = `<button class="btn btn-primary" style="width:100%;" data-join-cta="${joinInlineId}" aria-expanded="false" aria-controls="join-inline-${joinInlineId}" onclick="toggleJoinInline(${dirId})">${uiText('Візьму участь')}</button><div class="join-inline" id="join-inline-${joinInlineId}" data-join-inline="${joinInlineId}" hidden></div>`;
             const emptyCrewLine = uiText('Поки немає відкритих екіпажів. Можна їхати як водій або шукати місце.');
 
             const dirMeta = data?.direction || dir || {};
@@ -12160,7 +12201,7 @@
                 let action = '';
                 if (reqId && uid && !flags.driverFinished) {
                     if (started && (picked || flags.clientFinished)) {
-                        action = `<button class="btn btn-secondary" data-compact-action="finish" onclick="confirmOwnFinish('request', ${reqId}, { stayOnCrew: true, partnerId: ${uid} })">${flags.clientFinished ? uiText('Підтвердити') : uiText('Висадити')}</button>`;
+                        action = `<button class="btn btn-secondary" data-compact-action="finish" onclick="confirmOwnFinish('request', ${reqId}, { stayOnCrew: true, partnerId: ${uid} })">${flags.clientFinished ? uiText('Підтвердити') : uiText('Висадити з авто')}</button>`;
                     } else if (!picked && !cancelBy && (trip.is_started || trip.status === 'pickup')) {
                         action = `<button class="btn btn-primary" data-compact-action="pickup" onclick="markPassengerPickedUp(${reqId}, ${uid})">${uiText('В авто')}</button>`;
                     }
@@ -12205,7 +12246,7 @@
             if (!outing) return '';
             const title = outing.is_started ? uiText('Виїзд триває') : uiText('Авто відкрите');
             return `<section class="${compact ? 'dock-strip' : 'hero compact-driver-trips'}" data-own-outing="true">
-                <div><strong>${escapeHtml(title)}</strong> · ${uiHtml('{n} вільних місць', { n: Number(outing.seats_free) || 0 })}
+                <div><strong>${escapeHtml(title)}</strong> · ${uiCount('freeSeats', Number(outing.seats_free) || 0, `${Number(outing.seats_free) || 0} ${pluralUk(Number(outing.seats_free) || 0, 'вільне місце', 'вільні місця', 'вільних місць')}`)}
                 ${!compact ? `<div class="hero-sub">${escapeHtml(outing.direction_title || uiText('Подія'))}</div>` : ''}</div>
                 <button class="btn btn-secondary" onclick="finishOwnOuting()">${uiText('Завершити свій виїзд')}</button>
             </section>`;
@@ -12223,7 +12264,7 @@
         }
 
         function ownOutingSearchLine(o) {
-            return `🚗 ${o.is_started ? uiText('Виїзд триває') : uiText('Авто відкрите')} · ${uiHtml('{n} вільних місць', { n: Number(o.seats_free) || 0 })}`;
+            return `🚗 ${o.is_started ? uiText('Виїзд триває') : uiText('Авто відкрите')} · ${uiCount('freeSeats', Number(o.seats_free) || 0, `${Number(o.seats_free) || 0} ${pluralUk(Number(o.seats_free) || 0, 'вільне місце', 'вільні місця', 'вільних місць')}`)}`;
         }
 
         function ownOutingSearchBlock(o) {
@@ -12376,7 +12417,7 @@
                     ? 'var(--amber)'
                     : (passengerWaitingDriver ? 'var(--green)' : 'var(--text-secondary)');
                 const disabled = !reqId || !passengerId || flags.driverFinished;
-                const actionLabel = flags.driverFinished ? uiText('Фініш відмічено') : (passengerWaitingDriver ? uiText('Підтвердити') : uiText('Висадити'));
+                const actionLabel = flags.driverFinished ? uiText('Фініш відмічено') : (passengerWaitingDriver ? uiText('Підтвердити') : uiText('Висадити з авто'));
                 const lm = p.return_point ? firstFiniteLatLng([p.return_point.lat, p.return_point.lng]) : null;
                 const lmLine = p.return_point ? `<div data-finish-landmark="true" style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${uiHtml('🧭 Орієнтир: точка старту — {place}', { place: placeText(p.return_point, 'Точка старту') })}</div>` : '';
                 const lmNav = lm ? `<button class="btn btn-secondary" data-finish-landmark-nav="true" data-nav-lat="${lm.lat}" data-nav-lng="${lm.lng}" style="padding:8px 10px;font-size:12px;" aria-label="${escapeAttr(uiFmt('Маршрут до орієнтира висадки: {place}', { place: name }))}" title="${escapeAttr(uiText('Орієнтир висадки — точка старту'))}" onclick="openMapNavigationFromButton(this)">🧭</button>` : '';
@@ -12465,7 +12506,7 @@
             const who = escapeHtml(name || uiText('попутника'));
             const sure = await new Promise(resolve => {
                 openSheet(`
-                    <div class="sheet-title">${uiHtml('Не знайшли {who}?', { who: uiTrusted(who) })}</div>
+                    <div class="sheet-title">${uiHtml('Не знайшли на точці: {who}?', { who: uiTrusted(who) })}</div>
                     <div class="sheet-sub">${uiHtml('{who} отримає повідомлення й зможе відповісти «Я на місці». Домовленість не скасовується: якщо людина підійде, позначте «в авто». Якщо ні — зможете вирушити без неї.', { who: uiTrusted(who) })}</div>
                     <div class="sheet-actions">
                         <button class="btn btn-primary" id="g5-claim-yes" data-i18n="ui.977">Так, не знайшов</button>
@@ -12505,10 +12546,10 @@
             const who = escapeHtml(name || uiText('попутника'));
             const sure = await new Promise(resolve => {
                 openSheet(`
-                    <div class="sheet-title">${uiHtml('Зняти «в авто» з {who}?', { who: uiTrusted(who) })}</div>
+                    <div class="sheet-title">${uiHtml('Виправити позначку «в авто»: {who}?', { who: uiTrusted(who) })}</div>
                     <div class="sheet-sub" data-i18n="ui.937">Лише якщо позначили помилково: людина ще не сідала. Якщо вона вже їхала з вами, це не неявка.</div>
                     <div class="sheet-actions">
-                        <button class="btn btn-primary" id="g5-revoke-yes" data-i18n="ui.938">Так, помилково</button>
+                        <button class="btn btn-primary" id="g5-revoke-yes">Так, позначив помилково</button>
                         <button class="btn btn-ghost" id="g5-revoke-no" data-i18n="ui.939">Ні</button>
                     </div>`);
                 document.getElementById('g5-revoke-yes').onclick = () => { closeSheet(); resolve(true); };
@@ -12599,7 +12640,7 @@
                 const reqId = passengerRequestId(p), paxId = parseInt(p.user_id || 0, 10) || 0, name = passengerDisplayName(p);
                 return `<div data-g5-revoke="${reqId}" style="display:flex;align-items:center;gap:8px;justify-content:space-between;margin-top:6px;">
                     <span style="font-size:13px;opacity:.85;">${uiHtml('✅ В авто: {name}', { name })}</span>
-                    <button class="btn btn-ghost" style="padding:6px 10px;font-size:12px;" onclick="closeSheet();revokePassengerPickup(${reqId}, ${paxId}, ${JSON.stringify(name).replace(/"/g, '&quot;')})" data-i18n="ui.946">↩ Помилково</button>
+                    <button class="btn btn-ghost" style="padding:6px 10px;font-size:12px;" onclick="closeSheet();revokePassengerPickup(${reqId}, ${paxId}, ${JSON.stringify(name).replace(/"/g, '&quot;')})" data-i18n="ui.946">↩ Позначив помилково</button>
                 </div>`;
             }).join('');
             return `<div data-g5-driver-claims="true" style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);">
@@ -12874,6 +12915,136 @@
             return { tone: 'ok', text: uiText('Схема збору з\'єднує точки — це не дорога й не час у дорозі') };
         }
 
+        // DM-2026-11-04-001 r3.7 (owner 04.11, D767): the driver drags a passenger card by its grip. One drop = one full-order request
+        // with the seen/version captured when the drag started; the server checks role, phase, composition and version.
+        let _pickupDrag = null;
+
+        function refreshPickupViews() {
+            // DM-2026-11-04-001 r3.8 (D768 R1): every OPEN surface showing this queue goes back to the confirmed state; scroll kept;
+            // a closed sheet is not reopened
+            const sheet = document.getElementById('sheet');
+            const body = document.getElementById('sheet-body');
+            if (sheet?.classList.contains('open') && body) {
+                const top = body.scrollTop;
+                if (body.querySelector('[data-map-trip-crew-sheet]')) refreshOpenMapTripCrewSheet();
+                else if (body.querySelector('[data-map-trip-coordination]') && S.activeTrip) openMapTripCoordinationSheet();
+                body.scrollTop = top;
+            }
+            if (S.currentScreen === 'trips' && typeof renderTrips === 'function') renderTrips();
+            // whatever still shows an unsaved drop or a saving mark gets the confirmed block
+            document.querySelectorAll('[data-crew-pickup-sequence]').forEach(el => {
+                if (!el.querySelector('[data-saving="true"], [data-dragging="true"]')) return;
+                el.outerHTML = S.activeTrip ? buildPickupSequence(S.activeTrip) : '';
+            });
+        }
+
+        // DM-2026-11-04-001 r3.8 (D768 R2): the gesture lives only while the surface where it started is still open and current
+        function pickupDragSurfaceAlive(d) {
+            if (!d || !d.list.isConnected || d.list.offsetParent === null) return false;
+            if (d.sheet && !d.sheet.classList.contains('open')) return false;
+            if (d.screen && !d.screen.classList.contains('active')) return false;
+            return true;
+        }
+
+        // moving a card in the page drops the grip's pointer capture, so the gesture is followed on the window
+        function pickupDragListeners(on) {
+            const f = on ? 'addEventListener' : 'removeEventListener';
+            window[f]('pointermove', pickupGripMove, { passive: false });
+            window[f]('pointerup', pickupGripUp);
+            window[f]('pointercancel', pickupGripUp);
+            window[f]('keydown', pickupDragKey);
+        }
+
+        function pickupDragKey(ev) {
+            if (ev.key === 'Escape' && _pickupDrag) { ev.preventDefault(); cancelPickupDrag(); }
+        }
+
+        function pickupGripDown(ev, requestId) {
+            if (_pickupDrag && !_pickupDrag.list.isConnected) { pickupDragListeners(false); _pickupDrag = null; }   // a re-render ended the old gesture
+            const t = S.activeTrip;
+            if (_pickupDrag || !pickupQueueEditable(t) || (ev.button !== undefined && ev.button !== 0)) return;
+            const grip = ev.currentTarget;
+            const row = grip.closest('[data-pickup-card]');
+            const list = row && row.closest('[data-pickup-waiting-list]');
+            if (!row || !list) return;
+            ev.preventDefault();
+            _pickupDrag = { reqId: parseInt(requestId, 10) || 0, seen: waitingPickupPassengers(t).map(p => passengerRequestId(p)),
+                            version: Number(t.pickup_queue_version || 0), crewId: parseInt(t.crew_id, 10) || 0,
+                            row, list, grip, pointerId: ev.pointerId, moved: false,
+                            sheet: list.closest('#sheet'), screen: list.closest('.screen') };
+            row.dataset.dragging = 'true';
+            pickupDragListeners(true);
+        }
+
+        function pickupGripMove(ev) {
+            const d = _pickupDrag;
+            if (!d || ev.pointerId !== d.pointerId) return;
+            if (!pickupDragSurfaceAlive(d)) { cancelPickupDrag(); return; }   // R2: the sheet closed / the list was replaced
+            ev.preventDefault();
+            // the card takes the place where the pointer passes a neighbour's middle; nothing is sent while moving
+            const cards = [...d.list.querySelectorAll('[data-pickup-card]')];
+            const before = cards.find(c => c !== d.row && ev.clientY < c.getBoundingClientRect().top + c.getBoundingClientRect().height / 2);
+            if (before) { if (d.row.nextElementSibling !== before) { d.list.insertBefore(d.row, before); d.moved = true; } }
+            else if (d.list.lastElementChild !== d.row) { d.list.appendChild(d.row); d.moved = true; }
+        }
+
+        function cancelPickupDrag(message = '') {
+            const d = _pickupDrag;
+            _pickupDrag = null;
+            pickupDragListeners(false);
+            if (d) delete d.row.dataset.dragging;
+            if (message) showToast(message, '');
+            refreshPickupViews();   // the confirmed order again
+            return false;
+        }
+
+        async function pickupGripUp(ev) {
+            const d = _pickupDrag;
+            if (!d || ev.pointerId !== d.pointerId) return false;
+            if (!pickupDragSurfaceAlive(d)) return cancelPickupDrag(d.moved && !d.list.isConnected ? 'Черга оновилась — перетягніть ще раз' : '');
+            const r = d.list.getBoundingClientRect();
+            const outside = ev.type === 'pointercancel' || ev.clientX < r.left - 24 || ev.clientX > r.right + 24
+                || ev.clientY < r.top - 48 || ev.clientY > r.bottom + 48;
+            const order = [...d.list.querySelectorAll('[data-pickup-card]')].map(c => parseInt(c.dataset.pickupCard, 10) || 0);
+            const unchanged = order.length === d.seen.length && order.every((id, i) => id === d.seen[i]);
+            const sameSet = order.length === d.seen.length && [...order].sort().join() === [...d.seen].sort().join();
+            if (outside || unchanged || !sameSet || order.includes(0)) return cancelPickupDrag();
+            _pickupDrag = null;
+            pickupDragListeners(false);
+            delete d.row.dataset.dragging;
+            if (!beginOp('pickup_queue_move')) return cancelPickupDrag();
+            d.list.dataset.saving = 'true';
+            try {
+                const res = await apiWithStatus('/api/v3/trip/queue', { method: 'POST', silent: true,
+                    body: JSON.stringify({ user_id: S.userId, crew_id: d.crewId, expected_version: d.version, seen: d.seen, order }) });
+                if (res.ok && res.data?.status === 'ok') { showToast('Чергу збору змінено', 'success'); await hydrate(); refreshPickupViews(); return true; }
+                showToast(res.status === 409 ? 'Склад змінився — чергу оновлено, спробуйте ще раз' : 'Не вдалося змінити чергу', 'error');
+                if (res.status === 409) await hydrate();
+                refreshPickupViews();   // never leave an unsaved drop on screen; no automatic retry
+                return false;
+            } finally { endOp('pickup_queue_move'); }
+        }
+
+        function pickupGripKey(ev, requestId) {
+            if (ev.key === 'Escape' && _pickupDrag) { ev.preventDefault(); cancelPickupDrag(); return; }
+            if (_pickupDrag || (ev.key !== 'ArrowUp' && ev.key !== 'ArrowDown')) return;
+            ev.preventDefault();
+            movePickupStop(requestId, ev.key === 'ArrowUp' ? -1 : 1);   // keyboard: one existing one-step request
+        }
+
+        // 🧭 of one card: Google Maps to THIS person's agreed pickup point; the queue is not touched
+        function openPickupStopNavigation(requestId) {
+            const p = waitingPickupPassengers(S.activeTrip).find(m => passengerRequestId(m) === (parseInt(requestId, 10) || 0));
+            if (!p) { refreshPickupViews(); return; }
+            const coord = firstFiniteLatLng([p?.pickup_lat, p?.pickup_lng]);
+            if (!coord) { openPickupPointClarifyChat(passengerRequestId(p), p.user_id); return; }
+            const url = googleNavigationUrl({ ...coord, label: uiFmt('Забрати: {name}', { name: passengerDisplayName(p) }) });
+            if (!url) return;
+            const tg = window.Telegram?.WebApp;
+            if (tg?.openLink) tg.openLink(url, { try_instant_view: false });
+            else window.open(url, '_blank', 'noopener');
+        }
+
         function buildPickupSequence(trip) {
             if (!trip) return '';
             const passengers = orderedPickupPassengers(trip);
@@ -12920,12 +13091,14 @@
                     type: 'passenger-stop',
                     icon: isSelf ? '🟢' : '👤',
                     number: index + 1,
-                    title: isSelf ? uiText('Ваша точка очікування') : uiFmt('Забрати: {name}', { name }),
+                    title: isSelf ? uiText('Ваша точка старту') : uiFmt('Забрати: {name}', { name }),
                     meta: pointLabelShown(p.pickup || p.pickup_label || uiText('точка на карті')) + (hasPoint ? '' : uiText(' · точки на карті немає')),
                     badge: isPickup && isNext ? uiText('зараз') : (index === 0 ? uiText('наступний') : uiText('далі')),
                     isSelf,
                     status: isPickup && isNext ? 'next' : 'waiting',
                     reqId: passengerRequestId(p),
+                    paxId: parseInt(p.user_id || 0, 10) || 0,
+                    hasPoint,
                     name,
                     canUp: editable && index > 0,
                     canDown: editable && index < waiting.length - 1,
@@ -12951,26 +13124,51 @@
             const rowHtml = row => `<div data-pickup-stop="${escapeAttr(row.type)}" data-pickup-status="${escapeAttr(row.status || '')}" style="display:grid;grid-template-columns:28px 1fr auto;gap:8px;align-items:center;padding:8px;border-radius:8px;background:${row.isSelf ? 'rgba(52,211,153,0.10)' : 'rgba(255,255,255,0.04)'};border:1px solid ${row.isSelf ? 'rgba(52,211,153,0.24)' : 'rgba(255,255,255,0.06)'};">
                         <div style="width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,0.58);font-size:13px;">${row.icon}</div>
                         <div style="min-width:0;">
-                            <div style="font-size:13px;font-weight:850;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${row.number ? `${row.number}. ` : ''}${escapeHtml(row.title)}</div>
+                            <div style="font-size:13px;font-weight:850;overflow-wrap:anywhere;">${row.number ? `${row.number}. ` : ''}${escapeHtml(row.title)}</div>
                             ${row.meta ? `<div style="font-size:11px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(row.meta)}</div>` : ''}
                         </div>
                         <div style="display:flex;align-items:center;gap:6px;">
                             <div style="font-size:10px;font-weight:850;color:${row.isSelf ? 'var(--green)' : 'var(--text-secondary)'};text-transform:uppercase;">${escapeHtml(row.badge)}</div>
-                            ${editable && row.type === 'passenger-stop' && row.status !== 'picked_up' ? `${moveBtn(row, -1)}${moveBtn(row, 1)}` : ''}
                         </div>
                     </div>`;
+            const pickupCardHtml = row => {
+                const grip = editable ? `<button type="button" class="pickup-grip" data-pickup-grip="${row.reqId}" aria-label="${escapeAttr(uiFmt('Перетягнути: {name}. Стрілки вгору/вниз — змінити чергу', { name: row.name }))}" title="${escapeAttr(uiText('Перетягніть, щоб змінити чергу'))}" onpointerdown="pickupGripDown(event, ${row.reqId})" onkeydown="pickupGripKey(event, ${row.reqId})">⠿</button>` : '';
+                const navName = uiFmt(row.hasPoint ? 'Маршрут до: {name}' : 'Уточнити точку в чаті: {name}', { name: row.name });
+                const nav = row.hasPoint
+                    ? `<button type="button" class="pickup-nav" data-pickup-nav-row="${row.reqId}" aria-label="${escapeAttr(navName)}" title="${escapeAttr(navName)}" onclick="openPickupStopNavigation(${row.reqId})">🧭</button>`
+                    : `<button type="button" class="pickup-nav" data-pickup-clarify-row="${row.reqId}" aria-label="${escapeAttr(navName)}" title="${escapeAttr(navName)}" ${row.reqId ? '' : 'disabled'} onclick="openPickupPointClarifyChat(${row.reqId}, ${row.paxId})">💬</button>`;
+                return `<div data-pickup-card="${row.reqId}" data-pickup-stop="passenger-stop" data-pickup-status="${escapeAttr(row.status || '')}" style="display:grid;grid-template-columns:${editable ? '28px ' : ''}26px minmax(0,1fr) 44px;gap:8px;align-items:center;padding:8px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);">
+                    ${grip}
+                    <div style="width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,0.58);font-size:13px;">${row.icon}</div>
+                    <div style="min-width:0;">
+                        <div style="font-size:14px;font-weight:850;overflow-wrap:anywhere;">${row.number}. ${escapeHtml(row.title)}</div>
+                        ${row.meta ? `<div style="font-size:12px;color:var(--text-secondary);overflow-wrap:anywhere;">${escapeHtml(row.meta)}</div>` : ''}
+                        <div style="font-size:10px;font-weight:850;color:${row.number === 1 ? 'var(--blue)' : 'var(--text-secondary)'};text-transform:uppercase;margin-top:2px;">${escapeHtml(row.badge)}</div>
+                    </div>
+                    ${nav}
+                </div>`;
+            };
+            // «Весь маршрут» — a small, separately named header icon; its reasons stay as a note
+            const route = isDriverViewer && waiting.length ? pickupFullRoute(trip) : null;
+            const headIcons = (route?.ok ? `<button type="button" class="pickup-head-btn" data-pickup-full-route="true" aria-label="${escapeAttr(uiFmt('Весь маршрут у Google, зупинок: {n}', { n: route.count }))}" title="${escapeAttr(uiText('Весь маршрут у Google. Якщо проміжних зупинок не видно — їдьте по одній точці'))}" onclick="openPickupFullRoute()">🗺</button>` : '')
+                + (route && !route.ok && route.reason === 'no_event_point' && route.query ? `<button type="button" class="pickup-head-btn" data-event-address-search="true" aria-label="${escapeAttr(uiText('Адреса події в Google'))}" title="${escapeAttr(uiText('Адреса події в Google'))}" onclick="openEventAddressSearch()">🔎</button>` : '');
+            const routeNoteText = !route || route.ok ? '' : (route.reason === 'no_event_point' ? uiText('Весь маршрут — коли в події буде точка на карті; адресу події можна знайти пошуком.')
+                : route.reason === 'too_many' ? uiFmt('Весь маршрут у Google — до {limit} зупинок; зараз {count}, тож навігація по одній точці.', { limit: route.limit, count: route.count })
+                : route.reason === 'missing' ? uiFmt('Весь маршрут — коли точка буде в усіх (немає: {name}).', { name: passengerDisplayName(route.member) }) : '');
+            const routeNote = routeNoteText ? `<div data-pickup-route-note="${escapeAttr(route.reason)}" style="font-size:11px;color:var(--text-secondary);margin-top:8px;">${escapeHtml(routeNoteText)}</div>` : '';
             return `<div data-crew-pickup-sequence="true" data-pickup-queue-version="${escapeAttr(String(trip.pickup_queue_version ?? ''))}" style="margin-top:12px;padding:10px;border-radius:10px;background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.18);">
-                <div style="font-size:11px;font-weight:900;color:var(--blue);text-transform:uppercase;letter-spacing:.6px;">${escapeHtml(uiText(title))}</div>
+                <div style="display:flex;align-items:center;gap:8px;"><div style="flex:1;min-width:0;font-size:11px;font-weight:900;color:var(--blue);text-transform:uppercase;letter-spacing:.6px;">${escapeHtml(uiText(title))}</div>${headIcons}</div>
                 <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">${escapeHtml(uiText(hint))}</div>
                 ${queueLine ? `<div data-pickup-queue-line="true" style="font-size:13px;font-weight:850;color:var(--text);margin-top:6px;">${escapeHtml(queueLine)}</div>` : ''}
                 <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;">
-                    ${[startRow, ...stopRows].map(rowHtml).join('')}
+                    ${rowHtml(startRow)}
+                    <div data-pickup-waiting-list="true" style="display:flex;flex-direction:column;gap:8px;">${stopRows.map(isDriverViewer ? pickupCardHtml : rowHtml).join('')}</div>
                 </div>
                 ${boardedRows.length ? `<div data-pickup-boarded="true" style="margin-top:10px;">
                     <div style="font-size:11px;font-weight:900;color:var(--green);text-transform:uppercase;letter-spacing:.6px;">${uiText('Вже в авто')}</div>
                     <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px;">${boardedRows.map(rowHtml).join('')}</div>
                 </div>` : ''}
-                ${isDriverViewer && waiting.length ? buildPickupNavActions(trip) : ''}
+                ${routeNote}
             </div>`;
         }
 
@@ -13065,7 +13263,9 @@
                        <button class="btn btn-secondary" onclick="closeSheet();openMapTripCrewSheet()" data-i18n="ui.089">👥 Екіпаж</button>
                        <button class="btn btn-ghost" onclick="closeSheet()">${uiText('Карта')}</button>`
                     : `<button class="btn btn-secondary" onclick="closeSheet();openChat(${safeReqId}, ${safePartnerId})">${uiText('💬 Чат')}</button>
-                       <button class="btn btn-success" onclick="closeSheet();confirmOwnFinish('trip')" data-i18n="ui.109">🏁 Підтвердити завершення</button>
+                       ${tripViewerFinished(t) && !tripPartnerFinished(t)
+                           ? `<button class="btn btn-ghost" disabled data-finish-waiting="true">${uiText('⏳ Чекаємо підтвердження партнера')}</button>`
+                           : `<button class="btn btn-success" onclick="closeSheet();confirmOwnFinish('trip')">${tripPartnerFinished(t) ? uiText('🏁 Підтвердити завершення') : uiText('🏁 Завершити поїздку')}</button>`}
                        <button class="btn btn-ghost" onclick="closeSheet()">${uiText('Карта')}</button>`)
                 : (isDriver
                     ? `${!isPickup ? `<button class="btn btn-secondary" onclick="arriveAtPickup().then(ok => { if (ok) openTripMap(); })">${collectionStartLabel(t)}</button>` : ''}
@@ -13078,12 +13278,10 @@
                        <button class="btn btn-ghost" onclick="closeSheet()">${uiText('Пізніше')}</button>`);
             openSheet(`
                 <div data-map-trip-coordination="true">
-                    <div style="font-size:11px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:var(--blue);margin-bottom:6px;">Карта екіпажу</div>
-                    <div class="sheet-title">${escapeHtml(title)}</div>
-                    <div class="sheet-sub">${escapeHtml(status)}</div>
-                    ${buildCrewPresenceSummary(t)}
-                    ${buildPickupSequence(t)}
+                    <div class="sheet-title" data-coord-sheet-head="true">🚗 ${uiText('Екіпаж')}</div>
+                    ${buildCrewTreeStates(t)}
                     ${buildPickupActionPanel(t, { includeAction: false })}
+                    <div data-coord-sheet-stage="true" style="margin-top:12px;">${eventStageHtml(parseInt(t.direction_id, 10) || 0, isStarted ? 'riding' : (isPickup ? 'pickup' : 'reserved')).replace('data-event-stage-for=', 'data-coord-stage-for=')}</div>
                 </div>
                 <div class="sheet-actions" data-map-command-count="3">
                     ${actions}
@@ -14022,6 +14220,8 @@
             syncMapSearchPanelVisibility();
             document.body.style.paddingBottom = micro ? '' : '170px';
             syncBottomStripStacking();
+            // DM-2026-11-04-001: the search panel just appeared — the own-car strip of the same event must go now, not at the next poll
+            if (meta && (meta.kind === 'manual_search' || meta.kind === 'auto_search') && document.getElementById('map-trip-dock')?.querySelector('[data-own-outing]')) verifyMapTripDockState();
         }
 
         function closeMapResultPanel() {
@@ -14477,22 +14677,28 @@
                 : `<button class="btn btn-secondary" onclick="closeSheet();openChat(${safeReqId}, ${safePartnerId})">${uiText('💬 Чат')}</button>
                    ${!isStarted ? `<button class="btn btn-ghost" onclick="closeSheet();cancelTrip()" data-i18n="ui.127">🚪 Попросити вихід</button>` : ''}
                    <button class="btn btn-ghost" onclick="closeSheet()">${uiText('Карта')}</button>`;
+            // DM-2026-11-05-001 (variant B): the tree in every phase, also on the road with somebody still to pick up —
+            // that pickup's «в авто» is in the dock; the cards with actions live in «Поїздки»
             return `
                 <div data-map-trip-crew-sheet="true">
-                    <div style="font-size:11px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:var(--blue);margin-bottom:6px;">${uiText('Екіпаж на карті')}</div>
-                    <div class="sheet-title">${title}</div>
-                    <div class="sheet-sub">${escapeHtml(status)}</div>
-                    ${buildCrewPresenceSummary(t)}
-                    ${isDriver && isStarted && nextPickupPassenger(t) ? buildCompactDriverPassengerCards(t) : buildCrewTree(t)}
-                    ${buildPickupSequence(t)}
+                    <div class="sheet-title" data-crew-sheet-head="true">🚗 ${uiText('Екіпаж')}</div>
+                    ${status === uiText('Потрібна відповідь на вихід попутника') ? `<div class="sheet-sub">${escapeHtml(status)}</div>` : ''}
+                    ${buildCrewTreeStates(t)}
                     ${isDriver ? buildDriverPresenceClaimsPanel(t) : ''}
-                    ${isDriver ? buildDriverCrewCommsPanel(t) : ''}
+                    ${isDriver ? crewCommsFold(t) : ''}
                     ${isDriver ? buildDriverFinishPanel(t) : ''}
+                    <div data-crew-sheet-stage="true" style="margin-top:12px;">${eventStageHtml(parseInt(t.direction_id, 10) || 0, mapTripDockPhase(t) === 'driving' ? 'riding' : (mapTripDockPhase(t) === 'pickup' ? 'pickup' : 'reserved')).replace('data-event-stage-for=', 'data-crew-stage-for=')}</div>
                 </div>
                 <div class="sheet-actions" data-map-command-count="3">
                     ${actions}
                 </div>
             `;
+        }
+
+        // DM-2026-11-04-001 r3.12: the driver's crew comms block folded, so the actions stay at the bottom like in the panel
+        function crewCommsFold(t) {
+            const panel = buildDriverCrewCommsPanel(t);
+            return panel ? `<details data-crew-comms-fold="true"><summary>💬 ${uiText('Звʼязок екіпажу')}</summary>${panel}</details>` : '';
         }
 
         function openMapTripCrewSheet() {
@@ -14517,15 +14723,11 @@
         }
 
         function mapTripPhaseStepper(phase, finishDone) {
-            const steps = [
-                { key: 'reservation', label: uiText('Домовились') },
-                { key: 'pickup', label: uiText('Збір') },
-                { key: 'driving', label: uiText('В дорозі') },
-                { key: 'finish', label: uiText('Фініш') },
-            ];
-            const order = ['reservation', 'pickup', 'driving', 'finish'];
-            const activeIdx = finishDone ? 3 : Math.max(0, order.indexOf(phase));
-            return `<div class="dock-steps" aria-hidden="true">${steps.map((s, i) => `<span class="dock-step${i < activeIdx ? ' done' : ''}${i === activeIdx ? ' active' : ''}">${i < activeIdx ? '●' : (i === activeIdx ? '◉' : '○')} ${s.label}</span>`).join('')}</div>`;
+            // DM-2026-11-04-001: one 1-5 scale continues after agreement instead of a second 4-step stepper; it stays the
+            // dock's step region (dock-steps), visible in the folded dock too
+            const key = phase === 'driving' || finishDone ? 'riding' : (phase === 'pickup' ? 'pickup' : 'reserved');
+            const dirId = parseInt(S.activeTrip?.direction_id || lastKnownTripForRating?.direction_id || 0, 10) || 0;
+            return `<div class="dock-steps">${eventStageHtml(dirId, key).replace('data-event-stage-for=', 'data-dock-stage-for=')}</div>`;
         }
 
         function buildMapTripDockBody(t, phase) {
@@ -14647,12 +14849,19 @@
                     // ДІЮ» + spine driving.allowed_actions дає фініш ОБОМ ролям
                     // (max 3 команди). «Екіпаж» лишається — ростер потрібен для
                     // pending-виходів і огляду під час руху.
-                    actions = isDriver
+                    // DM-2026-11-05-001 (variant B): still collecting on the road -> the next pickup's «в авто» here, the crew
+                    // sheet is only the tree; the crew finish comes back once everybody is aboard
+                    const collectNext = isDriver && nextPassenger && !isPassengerClaimed(nextPassenger) && nextReqId && nextPassengerId;
+                    actions = collectNext
+                        ? `<button class="btn btn-secondary" onclick="openChat(${nextReqId}, ${nextPassengerId})">${uiText('💬 Чат')}</button>
+                           <button class="btn btn-primary" data-dock-collect-next="${nextReqId}" onclick="markPassengerPickedUp(${nextReqId}, ${nextPassengerId})">${uiHtml('✅ {name} в авто', { name: nextName })}</button>
+                           <button class="btn btn-secondary" onclick="openMapTripCrewSheet()" data-i18n="ui.089">👥 Екіпаж</button>`
+                        : isDriver
                         ? `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">${uiText('💬 Чат')}</button>
                            <button class="btn btn-secondary" onclick="openMapTripCrewSheet()">${nextPassenger ? uiText('👥 Забрати попутника') : uiText('👥 Екіпаж')}</button>
                            <button class="btn btn-success" onclick="confirmOwnFinish('driver_dock')" data-i18n="ui.109">🏁 Підтвердити завершення</button>`
                         : `<button class="btn btn-secondary" onclick="openChat(${safeReqId}, ${safePartnerId})">${uiText('💬 Чат')}</button>
-                           <button class="btn btn-success" onclick="confirmOwnFinish('trip')" data-i18n="ui.109">🏁 Підтвердити завершення</button>`;
+                           <button class="btn btn-success" onclick="confirmOwnFinish('trip')">${uiText('🏁 Завершити поїздку')}</button>`;
                 } else {
                     // DM-2026-06-15: gap #6 — до старту поїздки ("Поїхали") вихід з
                     // домовленості можливий лише через взаємну згоду (cancelTrip() ->
@@ -14752,23 +14961,25 @@
                 ? `<div class="dock-sub" data-pickup-queue-position="true" style="margin-top:4px;white-space:normal;color:var(--text);">🔢 ${escapeHtml(queueText)}</div>`
                 : '';
             const self = !isDriver && phase === 'pickup' ? orderedPickupPassengers(t).find(p => String(p.user_id) === String(S.userId)) : null;
+            const treeMode = !isDriver && (phase === 'pickup' || phase === 'driving') && !alertStyle;   // DM-2026-11-04-001 r3 (P14d, P15d)
             const compactHead = self && !alertStyle
                 ? (isPassengerPickedUp(self) ? { icon: '✅', title: uiText('Ви в авто · Збір триває') }
                     : (driverAtPoint(self) ? { icon: '📍', title: uiText('Водій біля вашої точки · Збір') } : { icon: '🚗', title: uiText('Чекаєте посадки · Збір') }))
                 : head;
             return `<div class="dock-head${atPointArrivalForViewer(t) ? ' at-point-status' : ''}"${atPointArrivalForViewer(t) ? ' data-at-point-status="true"' : ''}>
                     <div style="min-width:0;">
-                        <div class="dock-title dock-full-title">${head.icon} ${escapeHtml(uiText(head.title))}</div>
+                        <div class="dock-title dock-full-title">${head.icon} ${escapeHtml(treeMode ? uiText('Екіпаж') : uiText(head.title))}</div>
                         ${S.mapTripDockCompact ? `<div class="dock-title dock-compact-title">${compactHead.icon} ${escapeHtml(uiText(compactHead.title))}${seatsChip}</div>` : ''}
                         ${S.mapTripDockCompact && alertStyle ? `<div class="dock-compact-context" style="${alertStyle}">${hint}</div>` : ''}
-                        <div class="dock-sub">${metaLine}</div>
-                        <div class="dock-sub" style="${alertStyle || 'color:var(--text);'}margin-top:5px;white-space:normal;">${hint}</div>
+                        ${treeMode ? '' : `<div class="dock-sub">${metaLine}</div>
+                        <div class="dock-sub" style="${alertStyle || 'color:var(--text);'}margin-top:5px;white-space:normal;">${hint}</div>`}
                         ${atPointRetry ? `<div data-at-point-retry-line="true" style="margin-top:6px;">${atPointRetry}</div>` : ''}
                         ${queueLine}
-                        ${schemeLine}
+                        ${treeMode ? '' : schemeLine}
                     </div>
                     ${mapTripDockDetailsToggle()}
                 </div>
+                ${treeMode ? `<div class="dock-sub" data-dock-crew-tree="true">${buildCrewTreeStates(t)}${schemeLine}</div>` : ''}
                 ${mapTripPhaseStepper(phase, partnerFinished || viewerFinished)}
                 <div class="dock-actions">${actions}</div>`;
         }
@@ -14892,13 +15103,8 @@
             if (!trip || !trip.members) return '';
             const isDriver = trip.viewer_role === 'driver';
             // Sort: driver first, then passengers, then empty seats
-            const sorted = [...trip.members].sort((a, b) => {
-                if (a.role === 'driver') return -1;
-                if (b.role === 'driver') return 1;
-                return 0;
-            });
-            const totalSeats = Math.max(sorted.length, seatCount(trip.total_seats ?? trip.seats_total, sorted.length));
-            const emptySeats = Math.max(0, totalSeats - sorted.length);
+            const sorted = crewTreeOrder(trip);   // DM-2026-11-04-001 r3.9: in the confirmed pickup order
+            const emptySeats = crewTreeEmptySeats(trip, sorted);   // DM-2026-11-04-001 r3: the driver is not a seat
             let html = '<div class="crew-tree">';
             sorted.forEach((m, i) => {
                 const isLast = i === sorted.length - 1 && emptySeats === 0;
@@ -14910,7 +15116,7 @@
                 html += `<div class="crew-member${isMe ? ' is-self' : ''}">
                     ${connector ? `<span class="crew-connector">${connector} </span>` : ''}
                     <span class="crew-icon">${icon}</span>
-                    <span>${name}</span>
+                    <span class="crew-name">${name}</span>
                     ${roleLabel ? `<span class="crew-role">${roleLabel}</span>` : ''}
                 </div>`;
             });
@@ -14925,6 +15131,56 @@
             }
             html += '</div>';
             return html;
+        }
+
+        function buildCrewTreeStates(trip) {
+            // DM-2026-11-04-001 r3 (P14d, owner 04.11): the crew-sheet tree, each row with its own fact from the trip data —
+            // «в авто» only for picked_up, «наступна точка» only for nextPickupPassenger; free seats as buildCrewTree counts them
+            if (!trip || !trip.members) return '';
+            const next = nextPickupPassenger(trip);
+            const sorted = crewTreeOrder(trip);   // DM-2026-11-04-001 r3.9: in the confirmed pickup order
+            const emptySeats = crewTreeEmptySeats(trip, sorted);
+            let html = '<div class="crew-tree">';
+            sorted.forEach((m, i) => {
+                const connector = i === 0 ? '' : ((i === sorted.length - 1 && emptySeats === 0) ? '└' : '├');
+                const isMe = String(m.user_id) === String(S.userId);
+                const isDrv = m.role === 'driver';
+                const fact = isDrv ? uiText('водій') : [isMe ? uiText('Ви') : '',
+                    isPendingCrewMember(m) ? uiText('чекає відповіді')
+                        : (isPassengerPickedUp(m) ? uiText('в авто') : (next && String(next.user_id) === String(m.user_id) ? uiText('на черзі') : ''))]
+                    .filter(Boolean).join(' · ');
+                html += `<div class="crew-member${isMe ? ' is-self' : ''}" data-crew-row-fact="${escapeAttr(fact)}">
+                    ${connector ? `<span class="crew-connector">${connector} </span>` : ''}
+                    <span class="crew-icon">${isDrv ? '🚗' : '👤'}</span>
+                    <span class="crew-name">${escapeHtml(m.name || `#${m.user_id || '?'}`)}</span>
+                    ${fact ? `<span class="crew-role">${escapeHtml(fact)}</span>` : ''}
+                </div>`;
+            });
+            for (let e = 0; e < emptySeats; e++) {
+                const connector = sorted.length === 0 && e === 0 ? '' : (e === emptySeats - 1 ? '└' : '├');
+                html += `<div class="crew-empty" data-crew-row-fact="free">
+                    ${connector ? `<span class="crew-connector">${connector} </span>` : ''}
+                    <span class="crew-icon">⬜</span>
+                    <span>${uiText('Вільне місце')}</span>
+                </div>`;
+            }
+            return html + '</div>';
+        }
+
+        function crewTreeOrder(trip) {
+            // DM-2026-11-04-001 r3.9: driver, then the passengers in the confirmed pickup queue (set in «Поїздки»), pending last
+            const all = Array.isArray(trip?.members) ? trip.members : [];
+            const ordered = orderedPickupPassengers(trip);
+            return [...all.filter(m => m.role === 'driver'), ...ordered, ...all.filter(m => m.role !== 'driver' && !ordered.includes(m))];
+        }
+
+        function crewTreeEmptySeats(trip, rows) {
+            // DM-2026-11-04-001 r3: seats_total is the passenger seats (server: the driver's seats_total), the driver row is not a seat —
+            // the same count as tripEmptySeats; the old member-based count stays only when no total is known
+            const total = tripSeatTotal(trip);
+            const passengerRows = rows.filter(m => m.role !== 'driver').length;
+            if (total > 0) return Math.max(0, total - passengerRows);
+            return Math.max(0, Math.max(rows.length, seatCount(trip.total_seats ?? trip.seats_total, rows.length)) - rows.length);
         }
 
         function ratingPartnerName(trip, partnerId = null, requestId = null) {
@@ -15125,6 +15381,24 @@
             });
         }
 
+        // DM-2026-11-04-001 r3.11 (owner 04.11): right after «Поїхали» the driver is offered the way to the event — one tap, nothing written
+        function offerEventNavigationAfterStart() {
+            const t = S.activeTrip;
+            const dest = tripEventDestination(t);
+            if (!t || !dest) return false;
+            const hasPoint = dest.lat != null && dest.lng != null;
+            openSheet(`
+                <div data-start-nav-offer="true">
+                    <div class="sheet-title">${uiText('🚀 Ви в дорозі')}</div>
+                    <div class="sheet-sub">${escapeHtml(t.direction_title || uiText('Подія'))}</div>
+                    <div class="sheet-actions">
+                        <button class="btn btn-primary" data-start-nav-go="true" onclick="closeSheet(); openGoogleNavigationFromMap()">${hasPoint ? uiText('🧭 Навігація до події') : uiText('🔎 Адреса події в Google')}</button>
+                        <button class="btn btn-ghost" data-start-nav-later="true" onclick="closeSheet()">${uiText('Пізніше')}</button>
+                    </div>
+                </div>`);
+            return true;
+        }
+
         async function startTrip() {
             if (!S.activeTrip) return false;
             if (S.activeTrip.viewer_role === 'driver') {
@@ -15146,7 +15420,12 @@
                 const body = { request_id: reqId, user_id: S.userId };
                 if (claimed.length) body.without_request_ids = claimed.map(passengerRequestId);
                 const res = await api('/api/v3/trip/start', { method: 'POST', body: JSON.stringify(body) });
-                if (res?.status === 'ok') { showToast(uiText('🚀 Поїхали!'), 'success'); await hydrate(); return true; }
+                if (res?.status === 'ok') {
+                    showToast(uiText('🚀 Поїхали!'), 'success');
+                    await hydrate();
+                    if (S.activeTrip?.viewer_role === 'driver') offerEventNavigationAfterStart();   // DM-2026-11-04-001 r3.11 (owner 04.11)
+                    return true;
+                }
                 if (res?.reason === 'without_set_mismatch') {
                     showToast(uiText('Склад змінився. Перевірте, хто в авто, і натисніть «Поїхали» ще раз'), 'error');
                     await hydrate();
@@ -16435,6 +16714,7 @@
                 if (!options?.suppressRatingReopen) maybeOpenCompletedTripRatingSheet('sheet-close');
                 maybeOpenMatchSheet();
                 maybeOpenMapResultPanelOnHydrate();
+                if (typeof verifyMapTripDockState === 'function') verifyMapTripDockState();   // DM-2026-11-04-001: one strip (D519)
             }, 0);
         }
 
@@ -16454,7 +16734,7 @@
                     <p>${uiText('Спільні поїздки на події: знаходьте водія чи попутників і їдьте разом.')}</p>
                     <ol style="padding-left: 20px; margin: 8px 0;">
                         <li>${uiText('Знайдіть подію на мапі або в каталозі.')}</li>
-                        <li>${uiText('Натисніть «Хочу поїхати».')}</li>
+                        <li>${uiText('Натисніть «Візьму участь».')}</li>
                         <li>${uiText('Оберіть, як ви їдете:')}</li>
                     </ol>
                     <p><strong style="color:#38bdf8;">${uiText('🚗 Можу взяти людей:')}</strong> ${uiText('вкажіть, скільки у вас вільних місць, і відкрийте місця — попутники самі постукають до вас.')}</p>
@@ -16846,7 +17126,7 @@
                     box.innerHTML = '<div class="map-picker-result" style="opacity:.6;cursor:default;">' + uiText('Нічого не знайдено') + '</div>';
                     return;
                 }
-                box.innerHTML = arr.map(it => `<div class="map-picker-result" data-lat="${it.lat}" data-lng="${it.lon}">${escapeHtml(it.display_name)}</div>`).join('');
+                box.innerHTML = arr.map(it => { const parts = String(it.display_name || '').split(','); return `<div class="map-picker-result" data-lat="${it.lat}" data-lng="${it.lon}">${escapeHtml(parts[0].trim())}${parts.length > 1 ? `<small>${escapeHtml(parts.slice(1).join(',').trim())}</small>` : ''}</div>`; }).join('');
                 Array.from(box.querySelectorAll('.map-picker-result[data-lat]')).forEach(el => {
                     el.onclick = () => {
                         if (!isCurrent()) return;
@@ -17351,8 +17631,8 @@
                         : uiText('Спершу вкажіть, де вас забрати. Перетягніть карту так, щоб пін був там, де чекати водія')),
                     searchPlaceholder: isDriverStart
                         ? uiText('🔍 Звідки стартуєте')
-                        : uiText('🔍 Де чекати водія'),
-                    confirmLabel: options?.confirmLabel || (isDriverStart ? uiText('✓ Авто на карті') : uiText('✓ Точка очікування')),
+                        : uiText('🔍 Звідки вас забрати'),
+                    confirmLabel: options?.confirmLabel || (isDriverStart ? uiText('✓ Авто на карті') : uiText('✓ Місце мого старту')),
                     onCancel: () => resolve(null),
                     onConfirm: async ({ lat, lng, label }) => {
                         S.pickupCoords = { lat, lng };
@@ -17363,7 +17643,7 @@
                             const saved = await persistPickupPointForCoordination(dirId);
                             if (!saved) { showToast(uiText('Не вдалося зберегти точку'), 'error'); resolve(null); return; }
                         }
-                        showToast(isDriverStart ? uiText('✓ Авто на карті') : uiText('✓ Точку очікування вказано'), 'success');
+                        showToast(isDriverStart ? uiText('✓ Авто на карті') : (options?.successToast || uiText('✓ Місце старту вказано')), 'success');
                         if (options?.closeSheetAfterConfirm) closeSheet();
                         resolve(S.pickupCoords);
                     }
