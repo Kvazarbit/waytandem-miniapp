@@ -6259,7 +6259,12 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
                     ? `<button onclick="requestJoin(${safeOrganizerId}, ${safeDirectionId}, { source: 'map', keepMapContext: true })" style="flex:1;padding:8px;border-radius:10px;background:rgba(163,230,53,0.15);color:#a3e635;border:1px solid rgba(163,230,53,0.3);font-weight:700;font-size:12px;cursor:pointer;">${uiText('✓ Запроситись')}</button>`
                     : '';
                 const chatBtn = mapDriverPinChatButtonHtml(c);
-                const openBtn = '<button onclick="openDirectionFromMap(' + safeDirectionId + ')" style="flex:1;padding:8px;border-radius:10px;background:rgba(56,189,248,0.14);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-weight:700;font-size:12px;cursor:pointer;">' + uiText('→ Подія') + '</button>';
+                // Owner 06.11 (docs/FRONTEND_SCREENS.md §1.7): on the own car «→ Подія» repeated the «📍 Подія» tile above the map;
+                // the own pin offers what is about this car — «📍 Змінити точку старту», as a passenger's own pin does — and
+                // nothing once a passenger agreed or the car has left (the start is frozen then, §0.40 п.2, п.7).
+                const openBtn = isMine
+                    ? (driverStartChangeAllowed(safeDirectionId) ? `<button type="button" data-change-car-start="${safeDirectionId}" onclick="if (S.map) S.map.closePopup(); changeDriverStart(${safeDirectionId})" style="flex:1;padding:8px;border-radius:10px;background:rgba(56,189,248,0.14);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-weight:700;font-size:12px;cursor:pointer;">${escapeHtml(uiText('📍 Змінити точку старту'))}</button>` : '')
+                    : '<button onclick="openDirectionFromMap(' + safeDirectionId + ')" style="flex:1;padding:8px;border-radius:10px;background:rgba(56,189,248,0.14);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-weight:700;font-size:12px;cursor:pointer;">' + uiText('→ Подія') + '</button>';
                 marker.bindPopup('<div style="text-align:center;min-width:230px;"><div style="font-weight:800;font-size:14px;margin-bottom:4px;">' + escapeHtml(popupName) + '</div><div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">' + popupDirection + '</div>' + crewRosterHtml + '<div style="display:flex;flex-wrap:wrap;gap:8px;">' + chatBtn + requestBtn + openBtn + '</div></div>', MAP_POPUP_PAN_OPTS);
                 S.mapMarkers.push(marker);
             });
@@ -8251,13 +8256,14 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
                 : '';   // owner 05.11: «Оберіть спосіб…» repeated the question; consent is seen at the proposal itself
             const manualLabel = isDriver ? uiText('🚗 Поставити авто на карту') : uiText('🗺 Виберу водія сам');
             const autoLabel = isDriver ? uiText('✨ Автоматичний пошук попутників') : uiText('✨ Знайти місце автоматично');
+            // Owner 06.11 (docs/FRONTEND_SCREENS.md §1.5): we recommend automatic search to both roles — bright and first.
+            // (A JS comment, not an HTML comment inside the template: the V7 audit refuses HTML-like comments in a script.)
             wizardShow(ctx.safeDirId, `
                 ${joinInlineBox(ctx.safeDirId) ? '' : renderMapInviteContextHeader(ctx)}
                 ${joinStepsHtml('Спосіб', isDriver)}
                 <div class="sheet-title">${escapeHtml(title)}</div>
                 ${sub ? `<div class="sheet-sub">${escapeHtml(sub)}</div>` : ''}
                 <div class="sheet-actions" data-map-command-count="3">
-                    <!-- Owner 06.11 (docs/FRONTEND_SCREENS.md §1.5): we recommend automatic search to both roles — bright and first -->
                     <button class="btn btn-primary" onclick="chooseMapInviteMethod(${ctx.safeDirId}, true)">${autoLabel}</button>
                     <button class="btn btn-secondary" onclick="chooseMapInviteMethod(${ctx.safeDirId}, false)">${manualLabel}</button>
                     <button class="btn btn-ghost" onclick="openMapInviteRoleSheet(${ctx.safeDirId})">${uiText('Назад')}</button>
@@ -14584,7 +14590,7 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
         function verifyMapTripDockState() {
             const panel = document.getElementById('map-trip-dock');
             if (!panel) return;
-            const ownSearchMerged = syncOwnOutingSearchPanel();   // D519: the search panel follows the own car first
+            syncOwnOutingSearchPanel();   // D519: the search panel follows the own car first
             const t = S.activeTrip;
             const handshake = document.getElementById('handshake-panel');
             const handshakeOpen = handshake && handshake.classList.contains('open');
@@ -14624,11 +14630,10 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
                 return;
             }
             if (!t && S.outing && S.currentScreen === 'explore' && !handshakeOpen && !waitingForPartner) {
-                if (ownSearchMerged) { closeMapTripDock(); syncBottomStripStacking(); return; }   // D519: one strip, not two
-                // G1: the own-car card is a strip; as a strip it stacks above the manual-search strip instead of under it.
-                panel.classList.remove('compact', 'stacked-above-result');
-                panel.innerHTML = buildOwnOutingCard(true);
-                panel.classList.add('open', 'collapsed');
+                // Owner 06.11 (docs/FRONTEND_SCREENS.md §1.6, кадр 7; DM-2026-11-04-001 ADDENDUM): the own-car banner «Авто відкрите
+                // · N вільних місць · Завершити свій виїзд» never shows on the map — not beside the search, not beside «Очікуємо
+                // відповіді партнера», not alone. Free seats: the bottom strip and the 🚗 chip; the finish: «Поїздки», open search.
+                closeMapTripDock();
                 syncBottomStripStacking();
                 return;
             }
@@ -17696,6 +17701,51 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
             const locked = !!(S.activeTrip && String(S.activeTrip.direction_id) === String(id));
             if (!id || locked || _isDriverRole(S.userRole)) return label;
             return `<div style="font-weight:700;margin-bottom:8px;">${label}</div><button type="button" class="btn btn-secondary" style="width:100%;" data-change-start-point="${id}" onclick="if (S.map) S.map.closePopup(); changeJoinPickup(${id})">${escapeHtml(uiText('📍 Змінити точку старту'))}</button>`;
+        }
+
+        // Owner 06.11 (docs/FRONTEND_SCREENS.md §1.7): the driver moves the start of the own open car from the own car pin —
+        // only before an agreed passenger and before the start; the server checks the same and writes nothing on a refusal.
+        function driverStartChangeAllowed(dirId) {
+            const o = ownOutingForSearch(dirId);
+            return !!(o && !o.is_started && !o.first_started_at && _isDriverRole(S.userRole));
+        }
+
+        async function changeDriverStart(dirId) {
+            const safeDirId = parseInt(dirId, 10) || 0;
+            if (!driverStartChangeAllowed(safeDirId)) return false;
+            const o = S.outing;
+            const picked = await new Promise((resolve) => openLocationPicker({
+                lat: Number.isFinite(Number(o?.pickup_lat)) ? Number(o.pickup_lat) : undefined,
+                lng: Number.isFinite(Number(o?.pickup_lng)) ? Number(o.pickup_lng) : undefined,
+                fallbackCenters: pickupPickerFallbackCenters(safeDirId),
+                hint: uiText('Перетягніть карту так, щоб пін був там, звідки стартує ваше авто'),
+                searchPlaceholder: uiText('🔍 Звідки стартуєте'),
+                confirmLabel: uiText('✓ Авто на карті'),
+                onCancel: () => resolve(null),
+                onConfirm: (point) => resolve(point),
+            }));
+            if (!picked || !beginOp('change_driver_start')) return false;
+            try {
+                const label = String(picked.label || '').trim();
+                const response = await apiWithStatus('/api/v3/crews/start-point', { method: 'POST', silent: true,
+                    body: JSON.stringify({ user_id: S.userId, direction_id: safeDirId, lat: picked.lat, lng: picked.lng,
+                                           label: /^-?\d+\.\d+, -?\d+\.\d+$/.test(label) ? '' : label }) });
+                const res = response?.data;
+                if (!response?.ok || res?.status !== 'ok') {
+                    showToast(res?.reason === 'agreed_pair_keeps_points' ? uiText('Попутник уже погодився — точку старту авто не змінити')
+                        : res?.reason === 'car_already_started' ? uiText('Авто вже виїхало — точку старту не змінити')
+                        : uiText('Не вдалося змінити точку старту'), 'error');
+                    return false;
+                }
+                S.pickupCoords = { lat: Number(res.lat), lng: Number(res.lng) };
+                S.pickupLabel = res.pickup || '';
+                S.pickupKind = 'driver_start';
+                clearPickupMarkerOnly();
+                showToast(uiText('✓ Точку старту авто змінено'), 'success');
+                await hydrate();
+                await refreshMap();
+                return true;
+            } finally { endOp('change_driver_start'); }
         }
 
         function renderPickupMarker(label = 'Моя точка', kind = S.pickupKind || '', dirId = 0) {
