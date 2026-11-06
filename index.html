@@ -6335,7 +6335,7 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
                         html: '<div class="pickup-point-pin pickup-point-passenger" role="img" data-i18n-aria-label="ui.410" aria-label="Я чекаю тут">👤</div>',
                         iconSize: [34, 34], iconAnchor: [17, 17], popupAnchor: [0, -25]
                     })
-                }).bindPopup(uiText('Я чекаю тут'));
+                }).bindPopup(() => ownPointPopupHtml(mapContextScoped()?.dirId));
             } else {
                 S._ownWaitMarker.setLatLng(ll);
             }
@@ -7062,6 +7062,15 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
             </div>`;
         }
 
+        // Owner 06.11 (docs/FRONTEND_SCREENS.md кадр 5): the point the person confirmed one step earlier («✓ Місце мого
+        // старту») is the point they saw — the same one the server returned for this event — so «Оберіть екіпаж» does not
+        // repeat it on screen and «🤝 Домовитись» does not open one more sheet. Any other point still asks (fallback).
+        function confirmedJoinPoints(dirId) {
+            const pts = (S.joinPoints || {})[parseInt(dirId, 10) || 0];
+            if (!pts || !pts.points_fp || !pts.pickup || S.pickupKind !== 'passenger_wait' || !S.pickupCoords) return null;
+            return samePoint(pts.pickup, S.pickupCoords) ? pts : null;
+        }
+
         function visibleJoinPoints(dirId) {
             const safeDirId = parseInt(dirId, 10) || 0;
             const pts = (S.joinPoints || {})[safeDirId];
@@ -7111,7 +7120,7 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
             S.pickupCoords = { lat: Number(saved.lat), lng: Number(saved.lng) };
             S.pickupLabel = saved.label || 'Збережена точка старту';
             S.pickupKind = 'passenger_wait';
-            renderPickupMarker('Я чекаю тут', 'passenger_wait');
+            renderPickupMarker('Я чекаю тут', 'passenger_wait', safeDirId);
             showToast('✓ Точку старту підтягнуто з профілю', 'success');
             await reloadJoinPoints(safeDirId);
             return true;
@@ -7223,7 +7232,7 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
             const confirmed = await confirmOutgoingSwitchIfNeeded(orgId, dirId);
             if (!confirmed) return;
             // D200 Q3: the request confirms exactly the points the person SEES; nothing old is persisted silently here.
-            const shownPoints = visibleJoinPoints(dirId);
+            const shownPoints = visibleJoinPoints(dirId) || confirmedJoinPoints(dirId);
             if (!shownPoints) { await openJoinPointsConfirmSheet(orgId, dirId, opts); return false; }
             const fromMap = opts?.source === 'map' || !!opts?.keepMapContext || (!!opts?.closeSheetOnSuccess && S.currentScreen === 'explore');
             if (!beginOp('request_join')) return;
@@ -8210,8 +8219,25 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
             const roleOk = await setRole(normalizedRole, { keepSheetOpen: true, silentToast: true, skipPendingAction: true });
             if (!roleOk) return false;
             // Водій: спершу скільки місць → звідки старт → як шукати (без порожнього
-            // повторення «постав авто»). Попутник лишається на старому метод-кроці.
+            // повторення «постав авто»). Попутник (власник 06.11): так само — спершу точка старту, потім як шукати.
             if (_isDriverRole(S.userRole)) return openMapDriverSeatsSheet(safeDirId);
+            return openPassengerStartStep(safeDirId);
+        }
+
+        // Owner 06.11 (docs/FRONTEND_SCREENS.md кадри 3–4): after «Як ви поїдете?» the passenger first puts their own start
+        // point on the map; then — being on the map — chooses how to find the others («Як шукати?»). Cancelling the picker
+        // goes back to «Як ви поїдете?». The point is persisted at confirm (as before, ahead of the subscription).
+        async function openPassengerStartStep(dirId) {
+            const safeDirId = parseInt(dirId) || 0;
+            if (!safeDirId) return false;
+            if (guardPassengerRequestWhileInTrip()) return false;
+            clearPickupPoint();
+            S._passengerJoinStage = 'joining';   // D170: a poll must not take the joining passenger for idle
+            const picked = await pickPickupLocation(safeDirId, { kind: 'passenger_wait', persistUserLocation: true });
+            if (!picked) {
+                S._passengerJoinStage = null;
+                return openMapInviteRoleSheet(safeDirId);
+            }
             return openMapInviteMethodSheet(safeDirId);
         }
 
@@ -8245,16 +8271,21 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
             if (!safeDirId) return false;
             if (guardPassengerRequestWhileInTrip()) return false;
             const autoMatch = !!auto;
-            clearPickupPoint();
             S._passengerJoinStage = 'joining';   // D170: a poll must not take the joining passenger for idle
-            // closeSheetAfterConfirm: 06-04 UX-trap (sheet поверх карти блокував тап по
-            // машині) — прямий шлях до пікера зобов'язаний закривати шторку після
-            // підтвердження, людина лишається на карті зі своїм піном.
-            const picked = await pickPickupLocation(safeDirId, { kind: 'passenger_wait', persistUserLocation: true, closeSheetAfterConfirm: true });
-            if (!picked) {
-                S._passengerJoinStage = null;
-                openMapInviteMethodSheet(safeDirId);
-                return false;
+            // Owner 06.11: the start point is already set one step earlier (openPassengerStartStep); it is asked here only
+            // when this step is reached without one. Either way the sheet closes and the person stays on the map with the
+            // pin (06-04 UX-trap: a sheet over the map blocked taps on the cars).
+            const hasPoint = S.pickupKind === 'passenger_wait' && Number.isFinite(S.pickupCoords?.lat) && Number.isFinite(S.pickupCoords?.lng);
+            if (hasPoint) {
+                closeSheet();
+            } else {
+                clearPickupPoint();
+                const picked = await pickPickupLocation(safeDirId, { kind: 'passenger_wait', persistUserLocation: true, closeSheetAfterConfirm: true });
+                if (!picked) {
+                    S._passengerJoinStage = null;
+                    openMapInviteMethodSheet(safeDirId);
+                    return false;
+                }
             }
             // suppressSubscribedSheet: map-manual шлях лишає людину НА КАРТІ зі своїм
             // піном (канон 06-04); «підписка активна» шторка тут була б тією ж
@@ -8359,7 +8390,6 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
                 ${eventStageHtml(safeDirId, 'search').replace('data-event-stage-for=', 'data-nearby-stage-for=')}
                 <div class="sheet-title">${uiText('Оберіть екіпаж')}</div>
                 <div class="sheet-sub">${uiText('Водії цієї події, найближчі до вашої точки старту — зверху.')}</div>
-                ${joinPointsSummaryHtml(safeDirId)}
                 <div style="margin:12px 0 4px;max-height:42vh;overflow-y:auto;">${rows}</div>
                 <div class="sheet-actions">
                     <button class="btn btn-secondary" onclick="closeSheet()">${uiText('🗺 Дивитись на карті')}</button>
@@ -8450,6 +8480,7 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
 
         function backToEventCard(dirId) {
             discardDriverDraft();
+            if (S._passengerJoinStage === 'joining') S._passengerJoinStage = null;   // the passenger left the steps
             return collapseJoinInline(dirId);
         }
 
@@ -17657,7 +17688,17 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
             clearPickupMarkerOnly();
         }
 
-        function renderPickupMarker(label = 'Моя точка', kind = S.pickupKind || '') {
+        // Owner 06.11 (docs/FRONTEND_SCREENS.md кадр 5): the passenger changes the start point from their own pin on the map
+        // («👤 Я чекаю тут» → «📍 Змінити точку старту»). An agreed pair keeps its frozen point (§0.40 п.7): no button then.
+        function ownPointPopupHtml(dirId) {
+            const id = parseInt(dirId, 10) || 0;
+            const label = escapeHtml(uiText('Я чекаю тут'));
+            const locked = !!(S.activeTrip && String(S.activeTrip.direction_id) === String(id));
+            if (!id || locked || _isDriverRole(S.userRole)) return label;
+            return `<div style="font-weight:700;margin-bottom:8px;">${label}</div><button type="button" class="btn btn-secondary" style="width:100%;" data-change-start-point="${id}" onclick="if (S.map) S.map.closePopup(); changeJoinPickup(${id})">${escapeHtml(uiText('📍 Змінити точку старту'))}</button>`;
+        }
+
+        function renderPickupMarker(label = 'Моя точка', kind = S.pickupKind || '', dirId = 0) {
             if (!S.pickupCoords?.lat || !S.pickupCoords?.lng || !S.map) return;
             if (S._pickupMarker) { S.map.removeLayer(S._pickupMarker); }
             const isPassengerWait = kind === 'passenger_wait';
@@ -17670,7 +17711,7 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
                     html: `<div class="pickup-point-pin ${markerClass}" role="img" aria-label="${escapeAttr(markerLabel)}">${markerIcon}</div>`,
                     iconSize: [34, 34], iconAnchor: [17, 17], popupAnchor: [0, -25]
                 })
-            }).addTo(S.map).bindPopup(markerLabel);
+            }).addTo(S.map).bindPopup(isPassengerWait ? () => ownPointPopupHtml(dirId) : markerLabel);
             S.map.flyTo([S.pickupCoords.lat, S.pickupCoords.lng], 15, { duration: 1 });
         }
 
@@ -17709,7 +17750,7 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
                         S.pickupCoords = { lat, lng };
                         S.pickupLabel = label || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
                         S.pickupKind = kind;
-                        renderPickupMarker(isDriverStart ? 'Старт авто' : 'Я чекаю тут', kind);
+                        renderPickupMarker(isDriverStart ? 'Старт авто' : 'Я чекаю тут', kind, dirId);
                         if (options?.persistUserLocation) {
                             const saved = await persistPickupPointForCoordination(dirId);
                             if (!saved) { showToast(uiText('Не вдалося зберегти точку'), 'error'); resolve(null); return; }
