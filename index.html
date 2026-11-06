@@ -3550,6 +3550,12 @@
         .event-stage-bar i { flex: 1; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.12); }
         .event-stage-bar i.on { background: var(--accent); }
         .event-stage-label { font-size: 11px; color: var(--text-secondary); margin-top: 4px; font-weight: 600; }
+        /* Owner 05.11 (docs/FRONTEND_SCREENS.md §1.5): inside the «Візьму участь» steps the strip stands under the step
+           title, right above the choices; its caption is for screen readers only — the title says what to do, the strip
+           shows progress. Outside the steps (frame 1 and the later phases) the caption stays visible. */
+        [data-join-inline] .event-stage { margin: 12px 0 14px; }
+        .event-stage[data-join-step] .event-stage-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+        [data-join-cta][hidden] { display: none !important; }
         .event-facts { font-size: 12px; color: var(--text-secondary); font-weight: 600; line-height: 1.35; }
         /* Власник 2026-11-02 (r9): «Водії» і «Попутники» — дві кнопки зі стрілкою, кожна одразу розгортає свій список. */
         .event-people-block .event-people-chips { margin: 8px 0 6px; }
@@ -8134,14 +8140,13 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
                 ${joinInlineBox(ctx.safeDirId) ? '' : renderMapInviteContextHeader(ctx)}
                 ${joinStepsHtml(uiText('Роль'), _isDriverRole(selectedRole))}
                 <div class="sheet-title">${uiText('Як ви поїдете?')}</div>
-                <div class="sheet-sub">${uiText('Оберіть роль — її видно вгорі, змінити можна будь-коли.')}</div>
                 <div class="map-role-options" role="radiogroup" aria-label="${escapeAttr(uiText('Як ви поїдете?'))}">
                     ${roleOption('driver', '🚗 Можу взяти людей', 'Я за кермом і маю вільні місця.')}
                     ${roleOption('client', '👤 Шукаю місце', 'Хочу приєднатися до водія.')}
                 </div>
                 <div class="sheet-actions" data-map-command-count="2">
                     ${firstChoice ? '' : `<button class="btn btn-primary" data-map-role-continue onclick="confirmMapInviteRole(${ctx.safeDirId})" ${selectedRole ? '' : 'disabled'}>${uiText('Далі')}</button>`}
-                    ${joinInlineBox(ctx.safeDirId) ? '' : `<button class="btn btn-ghost" onclick="openStartDirectionInvite(${ctx.safeDirId}, { source: 'map', sheetMaxHeight: '65vh', fullInvite: true })">${uiText('Назад')}</button>`}
+                    ${joinInlineBox(ctx.safeDirId) ? `<button class="btn btn-ghost" data-join-back onclick="backToEventCard(${ctx.safeDirId})">${uiText('Назад')}</button>` : `<button class="btn btn-ghost" data-join-back onclick="discardDriverDraft(); openStartDirectionInvite(${ctx.safeDirId}, { source: 'map', sheetMaxHeight: '65vh', fullInvite: true })">${uiText('Назад')}</button>`}
                 </div>
             `, { maxHeight: '65vh' });
             return true;
@@ -8216,14 +8221,14 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
             const title = isDriver ? uiText('Поставте авто на карту') : uiText('Як шукати?');
             const sub = isDriver
                 ? uiText('Спершу покажіть, звідки стартуєте. Далі попутники побачать вашу машину, а ви зможете запрошувати людей на карті.')
-                : uiText('Оберіть спосіб. Резервація зʼявиться тільки після згоди обох сторін.');
+                : '';   // owner 05.11: «Оберіть спосіб…» repeated the question; consent is seen at the proposal itself
             const manualLabel = isDriver ? uiText('🚗 Поставити авто на карту') : uiText('🗺 Виберу водія сам');
             const autoLabel = isDriver ? uiText('✨ Автоматичний пошук попутників') : uiText('✨ Знайти місце автоматично');
             wizardShow(ctx.safeDirId, `
                 ${joinInlineBox(ctx.safeDirId) ? '' : renderMapInviteContextHeader(ctx)}
                 ${joinStepsHtml('Спосіб', isDriver)}
                 <div class="sheet-title">${escapeHtml(title)}</div>
-                <div class="sheet-sub">${escapeHtml(sub)}</div>
+                ${sub ? `<div class="sheet-sub">${escapeHtml(sub)}</div>` : ''}
                 <div class="sheet-actions" data-map-command-count="3">
                     <button class="btn btn-primary" onclick="chooseMapInviteMethod(${ctx.safeDirId}, false)">${manualLabel}</button>
                     <button class="btn btn-secondary" onclick="chooseMapInviteMethod(${ctx.safeDirId}, true)">${autoLabel}</button>
@@ -8392,11 +8397,9 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
                 ${joinInlineBox(ctx.safeDirId) ? '' : renderMapInviteContextHeader(ctx)}
                 ${joinStepsHtml(uiText('Місця'), true)}
                 <div class="sheet-title">${uiText('Скільки місць для попутників?')}</div>
-                <div class="sheet-sub">${uiText('Стільки людей зможе сісти до вас в авто. Можна змінити пізніше.')}</div>
                 <div style="display:flex;gap:8px;margin:12px 0 4px;">${chip(1)}${chip(2)}${chip(3)}${chip(4)}</div>
                 <div class="sheet-actions" data-map-command-count="1">
                     <button class="btn btn-ghost" onclick="openMapInviteRoleSheet(${ctx.safeDirId})">${uiText('Назад')}</button>
-                    ${S._driverOnboardingActive ? '<button class="btn btn-ghost" onclick="cancelDriverOnboarding()">' + uiText('Скасувати оформлення') + '</button>' : ''}
                 </div>
             `, { maxHeight: '65vh' });
             return true;
@@ -8428,7 +8431,10 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
             return openMapDriverMethodSheet(safeDirId);
         }
 
-        function cancelDriverOnboarding() {
+        // Owner 05.11/06.11 (docs/FRONTEND_SCREENS.md §1.5): no separate «Скасувати оформлення» — walking «Назад» back to
+        // the event card drops the unfinished car registration (it is local only: nothing exists on the server before the
+        // search method); closing the sheet only pauses it («Продовжити оформлення» resumes).
+        function discardDriverDraft() {
             if (!S._driverOnboardingActive || S.activeTrip || S.myCrew || S._driverOnboardingPhase === 'opening') return false;
             closeLocationPicker();
             S._driverOnboardingActive = false;
@@ -8436,9 +8442,19 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
             S._driverOnboardingPhase = '';
             S._driverOnboardingSeats = null;
             if (S.pickupKind === 'driver_start') clearPickupPoint();
+            renderSubBar();
+            return true;
+        }
+
+        function backToEventCard(dirId) {
+            discardDriverDraft();
+            return collapseJoinInline(dirId);
+        }
+
+        function cancelDriverOnboarding() {
+            if (!discardDriverDraft()) return false;
             S.joinInlineDirId = null;
             closeSheet();
-            renderSubBar();
             return true;
         }
 
@@ -8469,12 +8485,10 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
                 ${joinInlineBox(ctx.safeDirId) ? '' : renderMapInviteContextHeader(ctx)}
                 ${joinStepsHtml('Спосіб', true)}
                 <div class="sheet-title">${uiText('Як знайти попутників?')}</div>
-                <div class="sheet-sub">${uiHtml('Місць: {n}. Старт авто вказано на карті. Оберіть, як шукати людей.', { n: driverDraftSeats(ctx.safeDirId) })}</div>
                 <div class="sheet-actions" data-map-command-count="3">
                     <button class="btn btn-primary" onclick="chooseDriverMethod(${ctx.safeDirId}, true)">${uiText('✨ Знайти автоматично')}</button>
                     <button class="btn btn-secondary" onclick="chooseDriverMethod(${ctx.safeDirId}, false)">${uiText('🗺 Я знайду на карті')}</button>
                     <button class="btn btn-ghost" onclick="openMapDriverSeatsSheet(${ctx.safeDirId})">${uiText('Назад')}</button>
-                    <button class="btn btn-ghost" onclick="cancelDriverOnboarding()">${uiText('Скасувати оформлення')}</button>
                 </div>
             `, { maxHeight: '65vh' });
             return true;
@@ -11174,9 +11188,17 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
         function wizardShow(dirId, html, opts) {
             const box = joinInlineBox(dirId);
             if (!box) return openSheet(html, opts);
+            const sid = parseInt(dirId, 10) || 0;
+            const ctaEl = document.querySelector(`[data-join-cta="${sid}"]`);
+            const stageBefore = document.querySelector(`[data-event-stage-for="${sid}"]`);
+            if (stageBefore && ctaEl && box.contains(stageBefore)) ctaEl.before(stageBefore);   // keep the strip out of the old step
             box.innerHTML = html;
             const progress = box.querySelector('.join-steps');
             syncEventJoinStep(dirId, progress?.dataset.joinStep || '');
+            // Owner 05.11 (docs/FRONTEND_SCREENS.md §1.5): title → strip → choices.
+            const stageNow = document.querySelector(`[data-event-stage-for="${sid}"]`);
+            const anchor = box.querySelector('.sheet-sub') || box.querySelector('.sheet-title');
+            if (stageNow && anchor) anchor.after(stageNow);
             box.querySelectorAll('.join-steps').forEach(node => node.remove());
             box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
             return true;
@@ -11188,6 +11210,9 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
             const cta = document.querySelector(`[data-join-cta="${parseInt(dirId, 10) || 0}"]`);
             if (!cta) return;
             cta.setAttribute('aria-expanded', open ? 'true' : 'false');
+            // Owner 05.11 (docs/FRONTEND_SCREENS.md §1.5): in sequential steps the way back is «Назад» — the folded
+            // «Візьму участь ▴» header only took attention, so it is hidden while the steps are open.
+            cta.hidden = open;
             cta.classList.toggle('btn-primary', !open);
             cta.classList.toggle('join-cta-open', open);
             document.querySelector(`[data-event-banner="${parseInt(dirId, 10) || 0}"]`)?.classList.toggle('is-compact', open);   // DM-2026-11-04-001
@@ -11212,6 +11237,9 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
         function collapseJoinInline(dirId) {
             const safeDirId = parseInt(dirId, 10) || 0;
             const box = document.querySelector(`[data-join-inline="${safeDirId}"]`);
+            const stageIn = document.querySelector(`[data-event-stage-for="${safeDirId}"]`);
+            const ctaBack = document.querySelector(`[data-join-cta="${safeDirId}"]`);
+            if (box && stageIn && ctaBack && box.contains(stageIn)) ctaBack.before(stageIn);   // the strip returns above the CTA
             if (box) { box.hidden = true; box.innerHTML = ''; }
             setJoinCtaOpen(safeDirId, false);
             if (S.joinInlineDirId === safeDirId) S.joinInlineDirId = null;
