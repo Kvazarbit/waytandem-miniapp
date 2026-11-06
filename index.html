@@ -3282,6 +3282,18 @@
             margin: 8px 12px !important;
         }
 
+        /* Owner 06.11 (docs/FRONTEND_SCREENS.md §1.8): in a pin card the event title is the soft, readable way to the event —
+           a light transparent pill with «›»; it opens the event card on the map, never «Каталог». */
+        .map-popup-event {
+            display: inline-block; max-width: 100%; padding: 4px 12px; border-radius: 999px; cursor: pointer;
+            background: rgba(226, 232, 240, 0.10); border: 1px solid rgba(226, 232, 240, 0.24);
+            background: color-mix(in srgb, var(--text) 10%, transparent); border-color: color-mix(in srgb, var(--text) 24%, transparent);
+            color: var(--text); font-family: inherit; font-size: 12px; font-weight: 700; line-height: 1.35;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .map-popup-event:active { background: rgba(226, 232, 240, 0.18); }
+        .map-popup-event span { opacity: .7; }
+
         /* ═══════ HANDSHAKE PANEL (Persistent Overlay) ═══════ */
         #handshake-panel {
             position: fixed;
@@ -6252,8 +6264,10 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
                 const canRequest = S.userId && String(S.userId) !== String(c.organizer_id) && S.userRole !== 'driver' && freeSeats > 0;
                 const safeOrganizerId = Number.isFinite(Number(c.organizer_id)) ? Number(c.organizer_id) : 0;
                 const safeDirectionId = Number.isFinite(Number(c.direction_id)) ? Number(c.direction_id) : 0;
-                const popupName = isMine ? uiText('Ваше авто') : (c.driver_name || c.organizer_name || uiText('Екіпаж'));
-                const popupDirection = escapeHtml(c.direction_title || '');
+                // Owner 06.11 (docs/FRONTEND_SCREENS.md §1.8): the head no longer repeats the driver's name — the crew row below
+                // shows «Андрій · водій»; only the own car keeps «Ваше авто». The event title is the card's way to the event.
+                const popupName = isMine ? uiText('Ваше авто') : '';
+                const popupDirection = c.direction_title ? `<button type="button" class="map-popup-event" data-map-popup-event="${safeDirectionId}" onclick="openDirectionFromMap(${safeDirectionId})">${escapeHtml(c.direction_title)}<span aria-hidden="true"> ›</span></button>` : '';
                 const crewRosterHtml = renderMapCrewRoster(c);
                 const requestBtn = canRequest
                     ? `<button onclick="requestJoin(${safeOrganizerId}, ${safeDirectionId}, { source: 'map', keepMapContext: true })" style="flex:1;padding:8px;border-radius:10px;background:rgba(163,230,53,0.15);color:#a3e635;border:1px solid rgba(163,230,53,0.3);font-weight:700;font-size:12px;cursor:pointer;">${uiText('✓ Запроситись')}</button>`
@@ -6264,8 +6278,8 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
                 // nothing once a passenger agreed or the car has left (the start is frozen then, §0.40 п.2, п.7).
                 const openBtn = isMine
                     ? (driverStartChangeAllowed(safeDirectionId) ? `<button type="button" data-change-car-start="${safeDirectionId}" onclick="if (S.map) S.map.closePopup(); changeDriverStart(${safeDirectionId})" style="flex:1;padding:8px;border-radius:10px;background:rgba(56,189,248,0.14);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-weight:700;font-size:12px;cursor:pointer;">${escapeHtml(uiText('📍 Змінити точку старту'))}</button>` : '')
-                    : '<button onclick="openDirectionFromMap(' + safeDirectionId + ')" style="flex:1;padding:8px;border-radius:10px;background:rgba(56,189,248,0.14);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-weight:700;font-size:12px;cursor:pointer;">' + uiText('→ Подія') + '</button>';
-                marker.bindPopup('<div style="text-align:center;min-width:230px;"><div style="font-weight:800;font-size:14px;margin-bottom:4px;">' + escapeHtml(popupName) + '</div><div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">' + popupDirection + '</div>' + crewRosterHtml + '<div style="display:flex;flex-wrap:wrap;gap:8px;">' + chatBtn + requestBtn + openBtn + '</div></div>', MAP_POPUP_PAN_OPTS);
+                    : '';   // another person's car: the event title above is the way to the event (§1.8)
+                marker.bindPopup('<div style="text-align:center;min-width:230px;">' + (popupName ? '<div style="font-weight:800;font-size:14px;margin-bottom:4px;">' + escapeHtml(popupName) + '</div>' : '') + (popupDirection ? '<div style="margin:0 18px 8px;">' + popupDirection + '</div>' : '') + crewRosterHtml + '<div style="display:flex;flex-wrap:wrap;gap:8px;">' + chatBtn + requestBtn + openBtn + '</div></div>', MAP_POPUP_PAN_OPTS);
                 S.mapMarkers.push(marker);
             });
             renderMapPassengersOnMap();
@@ -6567,7 +6581,9 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
             await openDirection(dirId);
         }
 
-        async function openDirectionFromMap(dirId) { switchScreen('board'); openDirection(dirId); }
+        // Owner 06.11 (docs/FRONTEND_SCREENS.md §1.8): opening an event from the map keeps the map — the same event card as the
+        // event pin; it used to switch to «Каталог», and the person lost the map, the driver and the search they were in.
+        async function openDirectionFromMap(dirId) { if (S.map) S.map.closePopup(); await openDirectionInviteFromMap(dirId); }
 
         function renderMapOverlay(crews) {
             const c = document.getElementById('map-overlay-cards');
@@ -10301,9 +10317,12 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
                 const chatBtn = isDriverViewer
                     ? `<button data-passenger-chat="true" data-tg-user-id="${safePassengerId}" onclick="openTelegramContactFromButton(this)" style="flex:1;padding:8px;border-radius:10px;background:rgba(56,189,248,0.14);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-weight:700;font-size:12px;cursor:pointer;">${uiText('💬 Чат')}</button>`
                     : '';
-                const openBtn = `<button onclick="openDirectionFromMap(${safeDirectionId})" style="flex:1;padding:8px;border-radius:10px;background:rgba(56,189,248,0.14);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-weight:700;font-size:12px;cursor:pointer;">${uiText('→ Подія')}</button>`;
-                const actionRow = isDriverViewer ? chatBtn : openBtn;
-                marker.bindPopup('<div style="text-align:center;min-width:180px;"><div style="font-weight:800;font-size:14px;margin-bottom:4px;">' + escapeHtml(name) + '</div><div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">' + uiText('Чекає на водія') + (directionTitle ? ' · ' + directionTitle : '') + '</div>' + (inviteBtn ? '<div style="margin-bottom:8px;">' + inviteBtn + '</div>' : '') + '<div style="display:flex;gap:8px;">' + actionRow + '</div></div>', MAP_POPUP_PAN_OPTS);
+                // Owner 06.11 (docs/FRONTEND_SCREENS.md §1.8): for a non-driver the event title itself opens the event on the map —
+                // no separate «→ Подія»; the driver's card keeps exactly invite + chat (D83), the title stays plain text there.
+                const eventPill = !isDriverViewer && directionTitle ? `<button type="button" class="map-popup-event" data-map-popup-event="${safeDirectionId}" onclick="openDirectionFromMap(${safeDirectionId})">${directionTitle}<span aria-hidden="true"> ›</span></button>` : '';
+                const contextLine = uiText('Чекає на водія') + (isDriverViewer && directionTitle ? ' · ' + directionTitle : '');
+                const actionRow = isDriverViewer ? chatBtn : '';
+                marker.bindPopup('<div style="text-align:center;min-width:180px;"><div style="font-weight:800;font-size:14px;margin-bottom:4px;">' + escapeHtml(name) + '</div><div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">' + contextLine + '</div>' + (eventPill ? '<div style="margin-bottom:8px;">' + eventPill + '</div>' : '') + (inviteBtn ? '<div style="margin-bottom:8px;">' + inviteBtn + '</div>' : '') + (actionRow ? '<div style="display:flex;gap:8px;">' + actionRow + '</div>' : '') + '</div>', MAP_POPUP_PAN_OPTS);
                 marker.on('add', () => bindMarkerPopupTap(marker));
                 bindMarkerPopupTap(marker);
                 marker._wtPassengerId = safePassengerId;
