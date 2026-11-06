@@ -1,4 +1,4 @@
-/* Stand-only prototype layer, delta A (Opus, D503 / owner 28.10): people pins. A photo, or the first letter when there is no photo
+/*  Stand-only prototype layer, delta A (Opus, D503 / owner 28.10): people pins. A photo, or the first letter when there is no photo
    or it fails to load, instead of 👤 / 🚗; a small 🚗 mark at the driver; three quiet corner badges — ✓ «у вашому екіпажі, ще не
    сів», ⏳ «ваша пропозиція чекає відповіді», a red dot «вам доступна дія» (it mirrors the dock button, never replaces it). The
    popup header row it inserted was removed 06.11 (owner, FRONTEND_SCREENS §1.8). Reads S / DOM and the page's own read endpoint
