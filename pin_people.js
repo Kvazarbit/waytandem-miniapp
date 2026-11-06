@@ -1,7 +1,7 @@
 /* Stand-only prototype layer, delta A (Opus, D503 / owner 28.10): people pins. A photo, or the first letter when there is no photo
    or it fails to load, instead of 👤 / 🚗; a small 🚗 mark at the driver; three quiet corner badges — ✓ «у вашому екіпажі, ще не
-   сів», ⏳ «ваша пропозиція чекає відповіді», a red dot «вам доступна дія» (it mirrors the dock button, never replaces it); and a
-   person header (photo, full name, state) on the pin's existing popup. Reads S / DOM and the page's own read endpoint
+   сів», ⏳ «ваша пропозиція чекає відповіді», a red dot «вам доступна дія» (it mirrors the dock button, never replaces it). The
+   popup header row it inserted was removed 06.11 (owner, FRONTEND_SCREENS §1.8). Reads S / DOM and the page's own read endpoint
    /api/v3/events/photos only; no domain writes, no new actions, all data attributes / classes / rings of the pins are kept. */
 (function (root) {
   'use strict';
@@ -43,9 +43,7 @@
 .gps-crew-head > .pp-badge,.gps-person-pin > .pp-badge{top:-4px;bottom:auto}   /* the GPS «антенка» sits bottom-right there */
 .pp-ok{background:#16a34a}.pp-wait{background:#d97706}.pp-act{background:#dc2626}
 .pp-car{position:absolute;left:-4px;bottom:-4px;width:38%;height:38%;box-sizing:border-box;border-radius:50%;background:#fbbf24;border:2px solid #fff;display:grid;place-items:center;font-size:8px;line-height:1;pointer-events:none;z-index:3}
-.pp-host{position:relative}
-.pp-head{display:flex;gap:8px;align-items:center;margin:0 0 6px}.pp-head .pp-face{position:relative;width:34px;height:34px;flex:none}
-.pp-head .pp-state{font-size:12px;color:#94a3b8}`;
+.pp-host{position:relative}`;
   document.head.append(css);
 
   // photos: the page's own cache first; one passive read of the same endpoint the event sheet uses, per direction
@@ -113,26 +111,10 @@
     }
   }
 
-  // popup header: photo + full name + state, inserted into the opened popup's DOM (the popup's own content / buttons stay)
-  function headerFor(uid) {
-    const t = S.activeTrip, m = t && (t.members || []).find(x => String(x.user_id) === String(uid));
-    const mk = (S.mapMarkers || []).find(x => String(parseInt(x._wtPassengerId, 10) || '') === String(uid));
-    const p = m || (S.mapPassengers || []).find(x => String(x.user_id) === String(uid)) || (mk && { name: mk._wtPassengerName || '' }); if (!p) return null;
-    const b = m ? badgeFor(t, m, S.userId, pendingTargets()) : (pendingTargets().has(String(uid)) ? 'wait' : null);
-    const role = String(p.role || '').toLowerCase() === 'driver' ? tr('водій') : tr('попутник');
-    return `<div class="pp-head" data-pp-head="${escapeAttr(String(uid))}"><span class="pp-face">${face(uid, p.name)}</span><span><b>${escapeHtml(p.name || '')}</b><br><span class="pp-state">${escapeHtml(role + (b ? ' · ' + tr(STATE_TEXT[b]) : ''))}</span></span></div>`;
-  }
-  function onPopup(e) {
-    const src = e.popup && e.popup._source, el = src && src.getElement && src.getElement(), box = e.popup.getElement && e.popup.getElement();
-    if (!el || !box) return;
-    // the same source-owned id as the popup's own invite button (signalPassenger(id, …)); crew / GPS pins carry theirs as attributes
-    const own = parseInt(src._wtPassengerId, 10) || 0, pin = el.querySelector('[data-crew-member],[data-snake-member],[data-live-person]');
-    const uid = own ? String(own) : pin && (pin.getAttribute('data-crew-member') || pin.getAttribute('data-snake-member') || pin.getAttribute('data-live-person'));
-    const content = box.querySelector('.leaflet-popup-content'); if (!uid || !content || content.querySelector('[data-pp-head]')) return;
-    const html = headerFor(uid); if (html) content.insertAdjacentHTML('afterbegin', html);
-  }
+  // Owner 06.11 (docs/FRONTEND_SCREENS.md §1.8): no inserted header row in a person's popup any more — it repeated the name
+  // above the popup's own title and pushed it down; each popup draws its own person row. Pins keep their faces and badges.
 
   const wrap = name => { const orig = root[name]; if (typeof orig !== 'function') return; root[name] = function () { const r = orig.apply(this, arguments); try { decorate(); } catch (_) {} return r; }; };
   wrap('renderCrewMembersOnMap'); wrap('renderMapPassengersOnMap');
-  setInterval(() => { try { decorate(); } catch (_) {} if (S.map && !S.map._ppPopup) { S.map.on('popupopen', onPopup); S.map._ppPopup = true; } }, 1000);   // the GPS layer re-renders every second
+  setInterval(() => { try { decorate(); } catch (_) {} }, 1000);   // the GPS layer re-renders every second
 })(typeof window !== 'undefined' ? window : {});
