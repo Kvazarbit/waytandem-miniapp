@@ -3556,6 +3556,7 @@
         [data-join-inline] .event-stage { margin: 12px 0 14px; }
         .event-stage[data-join-step] .event-stage-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
         [data-join-cta][hidden] { display: none !important; }
+        [data-event-people][hidden] { display: none !important; }
         .event-facts { font-size: 12px; color: var(--text-secondary); font-weight: 600; line-height: 1.35; }
         /* Власник 2026-11-02 (r9): «Водії» і «Попутники» — дві кнопки зі стрілкою, кожна одразу розгортає свій список. */
         .event-people-block .event-people-chips { margin: 8px 0 6px; }
@@ -8230,8 +8231,9 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
                 <div class="sheet-title">${escapeHtml(title)}</div>
                 ${sub ? `<div class="sheet-sub">${escapeHtml(sub)}</div>` : ''}
                 <div class="sheet-actions" data-map-command-count="3">
-                    <button class="btn btn-primary" onclick="chooseMapInviteMethod(${ctx.safeDirId}, false)">${manualLabel}</button>
-                    <button class="btn btn-secondary" onclick="chooseMapInviteMethod(${ctx.safeDirId}, true)">${autoLabel}</button>
+                    <!-- Owner 06.11 (docs/FRONTEND_SCREENS.md §1.5): we recommend automatic search to both roles — bright and first -->
+                    <button class="btn btn-primary" onclick="chooseMapInviteMethod(${ctx.safeDirId}, true)">${autoLabel}</button>
+                    <button class="btn btn-secondary" onclick="chooseMapInviteMethod(${ctx.safeDirId}, false)">${manualLabel}</button>
                     <button class="btn btn-ghost" onclick="openMapInviteRoleSheet(${ctx.safeDirId})">${uiText('Назад')}</button>
                 </div>
             `, { maxHeight: '65vh' });
@@ -11213,6 +11215,9 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
             // Owner 05.11 (docs/FRONTEND_SCREENS.md §1.5): in sequential steps the way back is «Назад» — the folded
             // «Візьму участь ▴» header only took attention, so it is hidden while the steps are open.
             cta.hidden = open;
+            // Owner 06.11 (§1.5): «👥 Переглянути учасників» is a different task — hidden while the steps are open; it is back
+            // on the event card. The host keeps its content, so re-renders while hidden stay correct.
+            document.querySelector(`[data-event-people="${parseInt(dirId, 10) || 0}"]`)?.toggleAttribute('hidden', open);
             cta.classList.toggle('btn-primary', !open);
             cta.classList.toggle('join-cta-open', open);
             document.querySelector(`[data-event-banner="${parseInt(dirId, 10) || 0}"]`)?.classList.toggle('is-compact', open);   // DM-2026-11-04-001
