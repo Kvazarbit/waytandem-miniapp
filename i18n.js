@@ -1363,7 +1363,8 @@
     "✓ Точку старту авто змінено": "ui.1189",
     "Попутник уже погодився — точку старту авто не змінити": "ui.1190",
     "Авто вже виїхало — точку старту не змінити": "ui.1191",
-    "Не вдалося змінити точку старту": "ui.1192"
+    "Не вдалося змінити точку старту": "ui.1192",
+    "це ви": "ui.1193"
 };
     const messages = {
     "uk": {
@@ -2558,7 +2559,8 @@
         "ui.1189": "✓ Точку старту авто змінено",
         "ui.1190": "Попутник уже погодився — точку старту авто не змінити",
         "ui.1191": "Авто вже виїхало — точку старту не змінити",
-        "ui.1192": "Не вдалося змінити точку старту"
+        "ui.1192": "Не вдалося змінити точку старту",
+        "ui.1193": "це ви"
     },
     "ru": {
         "ui.001": "Карта",
@@ -3752,7 +3754,8 @@
         "ui.1189": "✓ Точка старта машины изменена",
         "ui.1190": "Попутчик уже согласился — точку старта машины не изменить",
         "ui.1191": "Машина уже выехала — точку старта не изменить",
-        "ui.1192": "Не удалось изменить точку старта"
+        "ui.1192": "Не удалось изменить точку старта",
+        "ui.1193": "это вы"
     },
     "pl": {
         "ui.001": "Mapa",
@@ -4946,7 +4949,8 @@
         "ui.1189": "✓ Punkt startu auta zmieniony",
         "ui.1190": "Pasażer już się zgodził — punktu startu auta nie można zmienić",
         "ui.1191": "Auto już wyjechało — punktu startu nie można zmienić",
-        "ui.1192": "Nie udało się zmienić punktu startu"
+        "ui.1192": "Nie udało się zmienić punktu startu",
+        "ui.1193": "to Ty"
     },
     "en": {
         "ui.001": "Map",
@@ -6140,7 +6144,8 @@
         "ui.1189": "✓ Car start point changed",
         "ui.1190": "A passenger has already agreed — the car start point can't be changed",
         "ui.1191": "The car has already left — the start point can't be changed",
-        "ui.1192": "Couldn't change the start point"
+        "ui.1192": "Couldn't change the start point",
+        "ui.1193": "that's you"
     }
 };
     let activeLanguage = "uk";
