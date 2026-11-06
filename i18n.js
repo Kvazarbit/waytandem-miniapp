@@ -1364,7 +1364,9 @@
     "Попутник уже погодився — точку старту авто не змінити": "ui.1190",
     "Авто вже виїхало — точку старту не змінити": "ui.1191",
     "Не вдалося змінити точку старту": "ui.1192",
-    "це ви": "ui.1193"
+    "це ви": "ui.1193",
+    "Дозвольте доступ до місця в налаштуваннях бота": "ui.1194",
+    "Доступ до GPS відхилено": "ui.1195"
 };
     const messages = {
     "uk": {
@@ -2560,7 +2562,9 @@
         "ui.1190": "Попутник уже погодився — точку старту авто не змінити",
         "ui.1191": "Авто вже виїхало — точку старту не змінити",
         "ui.1192": "Не вдалося змінити точку старту",
-        "ui.1193": "це ви"
+        "ui.1193": "це ви",
+        "ui.1194": "Дозвольте доступ до місця в налаштуваннях бота",
+        "ui.1195": "Доступ до GPS відхилено"
     },
     "ru": {
         "ui.001": "Карта",
@@ -3755,7 +3759,9 @@
         "ui.1190": "Попутчик уже согласился — точку старта машины не изменить",
         "ui.1191": "Машина уже выехала — точку старта не изменить",
         "ui.1192": "Не удалось изменить точку старта",
-        "ui.1193": "это вы"
+        "ui.1193": "это вы",
+        "ui.1194": "Разрешите доступ к местоположению в настройках бота",
+        "ui.1195": "Доступ к GPS отклонён"
     },
     "pl": {
         "ui.001": "Mapa",
@@ -4950,7 +4956,9 @@
         "ui.1190": "Pasażer już się zgodził — punktu startu auta nie można zmienić",
         "ui.1191": "Auto już wyjechało — punktu startu nie można zmienić",
         "ui.1192": "Nie udało się zmienić punktu startu",
-        "ui.1193": "to Ty"
+        "ui.1193": "to Ty",
+        "ui.1194": "Zezwól na dostęp do lokalizacji w ustawieniach bota",
+        "ui.1195": "Odmówiono dostępu do GPS"
     },
     "en": {
         "ui.001": "Map",
@@ -6145,7 +6153,9 @@
         "ui.1190": "A passenger has already agreed — the car start point can't be changed",
         "ui.1191": "The car has already left — the start point can't be changed",
         "ui.1192": "Couldn't change the start point",
-        "ui.1193": "that's you"
+        "ui.1193": "that's you",
+        "ui.1194": "Allow location access in the bot's settings",
+        "ui.1195": "GPS access denied"
     }
 };
     let activeLanguage = "uk";
