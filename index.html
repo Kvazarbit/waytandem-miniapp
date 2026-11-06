@@ -4371,7 +4371,8 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
             const uid = parseInt(crew?.organizer_id ?? crew?.driver_id, 10) || 0;
             if (!uid || String(uid) === String(S.userId || '')) return '';
             const username = escapeAttr(sanitizeBotUsername(crew?.telegram_username || ''));
-            return `<button data-map-driver-chat="true" data-tg-username="${username}" data-tg-user-id="${uid}" onclick="openTelegramContactFromButton(this)" style="flex:1;padding:8px;border-radius:10px;background:rgba(56,189,248,0.14);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap;">${uiText('💬 Чат')}</button>`;
+            // Owner 06.11 (FRONTEND_SCREENS §1.3/§1.8): the icon «💬» in the driver's row of the car card; the word for readers.
+            return `<button data-map-driver-chat="true" data-tg-username="${username}" data-tg-user-id="${uid}" onclick="openTelegramContactFromButton(this)" aria-label="${escapeAttr(uiText('💬 Чат'))}" title="${escapeAttr(uiText('💬 Чат'))}" style="flex:none;border:1px solid rgba(56,189,248,0.4);background:rgba(56,189,248,0.08);color:var(--blue);padding:6px 12px;border-radius:12px;font-size:12px;font-weight:600;min-height:36px;line-height:1.3;cursor:pointer;">💬</button>`;
         }
 
         function mapNavigationUrl(lat, lng) {
@@ -6272,14 +6273,14 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
                 const requestBtn = canRequest
                     ? `<button onclick="requestJoin(${safeOrganizerId}, ${safeDirectionId}, { source: 'map', keepMapContext: true })" style="flex:1;padding:8px;border-radius:10px;background:rgba(163,230,53,0.15);color:#a3e635;border:1px solid rgba(163,230,53,0.3);font-weight:700;font-size:12px;cursor:pointer;">${uiText('✓ Запроситись')}</button>`
                     : '';
-                const chatBtn = mapDriverPinChatButtonHtml(c);
+                // Owner 06.11 (§1.8): the driver's chat is the 💬 in the driver's row of crewRosterHtml, not a wide button here.
                 // Owner 06.11 (docs/FRONTEND_SCREENS.md §1.7): on the own car «→ Подія» repeated the «📍 Подія» tile above the map;
                 // the own pin offers what is about this car — «📍 Змінити точку старту», as a passenger's own pin does — and
                 // nothing once a passenger agreed or the car has left (the start is frozen then, §0.40 п.2, п.7).
                 const openBtn = isMine
                     ? (driverStartChangeAllowed(safeDirectionId) ? `<button type="button" data-change-car-start="${safeDirectionId}" onclick="if (S.map) S.map.closePopup(); changeDriverStart(${safeDirectionId})" style="flex:1;padding:8px;border-radius:10px;background:rgba(56,189,248,0.14);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-weight:700;font-size:12px;cursor:pointer;">${escapeHtml(uiText('📍 Змінити точку старту'))}</button>` : '')
                     : '';   // another person's car: the event title above is the way to the event (§1.8)
-                marker.bindPopup('<div style="text-align:center;min-width:230px;">' + (popupName ? '<div style="font-weight:800;font-size:14px;margin-bottom:4px;">' + escapeHtml(popupName) + '</div>' : '') + (popupDirection ? '<div style="margin:0 18px 8px;">' + popupDirection + '</div>' : '') + crewRosterHtml + '<div style="display:flex;flex-wrap:wrap;gap:8px;">' + chatBtn + requestBtn + openBtn + '</div></div>', MAP_POPUP_PAN_OPTS);
+                marker.bindPopup('<div style="text-align:center;min-width:230px;">' + (popupName ? '<div style="font-weight:800;font-size:14px;margin-bottom:4px;">' + escapeHtml(popupName) + '</div>' : '') + (popupDirection ? '<div style="margin:0 18px 8px;">' + popupDirection + '</div>' : '') + crewRosterHtml + ((requestBtn || openBtn) ? '<div style="display:flex;flex-wrap:wrap;gap:8px;">' + requestBtn + openBtn + '</div>' : '') + '</div>', MAP_POPUP_PAN_OPTS);
                 S.mapMarkers.push(marker);
             });
             renderMapPassengersOnMap();
@@ -10219,20 +10220,34 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
             const visible = roster.slice(0, 5);
             const hidden = Math.max(0, roster.length - visible.length);
             const rows = visible.map(m => {
-                const roleText = String(m.role || '').toLowerCase() === 'driver' ? uiText('водій') : uiText('у екіпажі');
+                const isDriverRow = String(m.role || '').toLowerCase() === 'driver';
+                const roleText = isDriverRow ? uiText('водій') : uiText('у екіпажі');
                 const absorbed = m.matched_into_crew ? ' matched-into-crew' : '';
-                return `<div class="map-popup-member${absorbed}" data-map-crew-member="${escapeAttr(m.role || 'passenger')}">
-                    ${renderAvatarInline(m.name || '?', m.photo_url || '', 26, 'crew-mini-avatar map-popup-avatar')}
-                    <div class="crew-mini-info">
-                        <div class="crew-mini-name">${escapeHtml(m.name || '?')}</div>
-                        <div class="map-popup-role">${escapeHtml(roleText)}</div>
-                    </div>
-                </div>`;
+                // Owner 06.11 (FRONTEND_SCREENS §1.8): the driver's 💬 sits in the driver's row; your own row says «це ви».
+                return mapPopupPersonRowHtml({ name: m.name, photo: m.photo_url || personPhoto(m.user_id), state: roleText,
+                    self: !!S.userId && String(m.user_id || '') === String(S.userId), chat: isDriverRow ? mapDriverPinChatButtonHtml(crew) : '',
+                    extraClass: absorbed, attrs: `data-map-crew-member="${escapeAttr(m.role || 'passenger')}"` });
             }).join('');
             const hiddenRow = hidden > 0
                 ? `<div class="map-popup-role" style="text-align:center;">${uiHtml('+{n} ще в екіпажі', { n: hidden })}</div>`
                 : '';
             return `<div class="map-popup-roster" data-map-crew-roster="matched-into-crew">${rows}${hiddenRow}</div>`;
+        }
+
+        // Owner 06.11 (docs/FRONTEND_SCREENS.md §1.8, §1.3): every card over a pin shows a person in this one row — face, name,
+        // state — and opposite the face either the chat icon «💬» of another person or «це ви» on your own row; the card's one
+        // action is a wide button under the row. Used by the car roster, the waiting passenger card and the own pin.
+        function mapPopupPersonRowHtml(p) {
+            const aside = p.self
+                ? `<span data-map-person-self style="flex:none;font-size:11px;font-weight:700;color:var(--text-secondary);padding:4px 10px;border-radius:999px;border:1px solid rgba(148,163,184,0.3);white-space:nowrap;">${escapeHtml(uiText('це ви'))}</span>`
+                : (p.chat || '');
+            return `<div class="map-popup-member${p.extraClass || ''}" data-map-person-row${p.attrs ? ' ' + p.attrs : ''}>
+                    ${renderAvatarInline(p.name || '?', p.photo || '', 26, 'crew-mini-avatar map-popup-avatar')}
+                    <div class="crew-mini-info">
+                        <div class="crew-mini-name">${escapeHtml(p.name || '?')}</div>
+                        <div class="map-popup-role">${escapeHtml(p.state || '')}</div>
+                    </div>${aside}
+                </div>`;
         }
 
         function visibleMapPassengersForContext(passengers) {
@@ -10305,10 +10320,11 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
                 }).addTo(S.map);
                 const directionTitle = escapeHtml(p.direction_title || '');
                 // D81/D83: у водія картка вибраного попутника має рівно дві дії — «Запросити в екіпаж» саме цю людину
-                // + чат. Власник 06.11 (FRONTEND_SCREENS §1.8, §1.3): один рядок людини — обличчя, ім'я один раз, «Чекає на
-                // водія · подія», а чат — значок 💬 навпроти обличчя (слово лише в aria-label/title); єдина широка кнопка —
-                // «Запросити в екіпаж». Запрошення активне лише з відомим вільним місцем; інакше неактивне з причиною стану.
-                // Назва події в не-водія — пігулка до події на карті. Оформлення власного авто — на власній
+                // + чат. Власник 06.11 (FRONTEND_SCREENS §1.8, §1.3): картка того самого формату, що й картка авто — угорі подія
+                // (у водія простим текстом, у не-водія — пігулка до події на карті), рядок людини mapPopupPersonRowHtml (обличчя,
+                // ім'я один раз, «Чекає на водія», навпроти обличчя значок 💬, слово лише в aria-label/title), під ним одна широка
+                // кнопка «Запросити в екіпаж». Запрошення активне лише з відомим вільним місцем; інакше неактивне з причиною стану.
+                // Оформлення власного авто — на власній
                 // поверхні поза карткою (чип підшапки → шторка «Ви в події як водій»). Чат — лише контакт, без місця.
                 const isDriverViewer = _isDriverRole(S.userRole);
                 const recruitment = isDriverViewer ? driverCrewRecruitmentState(safeDirectionId) : 'unavailable';
@@ -10322,10 +10338,12 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
                 // Owner 06.11 (docs/FRONTEND_SCREENS.md §1.8): for a non-driver the event title itself opens the event on the map —
                 // no separate «→ Подія»; the driver's card keeps exactly invite + chat (D83), the title stays plain text there.
                 const eventPill = !isDriverViewer && directionTitle ? `<button type="button" class="map-popup-event" data-map-popup-event="${safeDirectionId}" onclick="openDirectionFromMap(${safeDirectionId})">${directionTitle}<span aria-hidden="true"> ›</span></button>` : '';
-                const contextLine = uiText('Чекає на водія') + (isDriverViewer && directionTitle ? ' · ' + directionTitle : '');
-                // padding-right: room for Leaflet's «×» (it sits 12 px into the content), so the 💬 is never under it
-                const personRow = '<div data-map-person-row style="display:flex;align-items:center;gap:8px;text-align:left;padding-right:14px;">' + renderAvatarInline(name, personPhoto(safePassengerId), 34) + '<div style="flex:1;min-width:0;"><div style="font-weight:800;font-size:14px;overflow-wrap:anywhere;">' + escapeHtml(name) + '</div><div style="font-size:11px;color:#94a3b8;">' + contextLine + '</div></div>' + chatBtn + '</div>';
-                marker.bindPopup('<div style="min-width:200px;">' + personRow + (eventPill ? '<div style="margin-top:8px;">' + eventPill + '</div>' : '') + (inviteBtn ? '<div style="margin-top:8px;">' + inviteBtn + '</div>' : '') + '</div>', MAP_POPUP_PAN_OPTS);
+                // the head line keeps the row (and its 💬) below Leaflet's «×», as the head of the car card does
+                const eventHead = isDriverViewer
+                    ? (directionTitle ? '<div data-map-popup-event-text style="font-size:12px;font-weight:700;color:var(--text-secondary);margin:0 18px 2px;overflow-wrap:anywhere;">' + directionTitle + '</div>' : '')
+                    : (eventPill ? '<div style="margin:0 18px 8px;">' + eventPill + '</div>' : '');
+                const personRow = '<div class="map-popup-roster">' + mapPopupPersonRowHtml({ name, photo: personPhoto(safePassengerId), state: uiText('Чекає на водія'), chat: chatBtn }) + '</div>';
+                marker.bindPopup('<div style="text-align:center;min-width:230px;">' + eventHead + personRow + (inviteBtn ? '<div>' + inviteBtn + '</div>' : '') + '</div>', MAP_POPUP_PAN_OPTS);
                 marker.on('add', () => bindMarkerPopupTap(marker));
                 bindMarkerPopupTap(marker);
                 marker._wtPassengerId = safePassengerId;
@@ -17720,9 +17738,14 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
         function ownPointPopupHtml(dirId) {
             const id = parseInt(dirId, 10) || 0;
             const label = escapeHtml(uiText('Я чекаю тут'));
+            // Owner 06.11 (FRONTEND_SCREENS §1.8): the own pin's card is the own car card's format — the head «Я чекаю тут» (it also
+            // keeps the row below Leaflet's «×»), your person row with «це ви» opposite the face, and the one action under it.
+            const row = '<div style="text-align:center;min-width:230px;"><div style="font-weight:800;font-size:14px;margin:0 18px 4px;">' + label + '</div>'
+                + '<div class="map-popup-roster">' + mapPopupPersonRowHtml({ name: S.userName || uiText('Попутник'),
+                photo: S.userPhoto || personPhoto(S.userId), state: uiText('попутник'), self: true }) + '</div></div>';
             const locked = !!(S.activeTrip && String(S.activeTrip.direction_id) === String(id));
-            if (!id || locked || _isDriverRole(S.userRole)) return label;
-            return `<div style="font-weight:700;margin-bottom:8px;">${label}</div><button type="button" class="btn btn-secondary" style="width:100%;" data-change-start-point="${id}" onclick="if (S.map) S.map.closePopup(); changeJoinPickup(${id})">${escapeHtml(uiText('📍 Змінити точку старту'))}</button>`;
+            if (!id || locked || _isDriverRole(S.userRole)) return row;
+            return `${row}<button type="button" class="btn btn-secondary" style="width:100%;" data-change-start-point="${id}" onclick="if (S.map) S.map.closePopup(); changeJoinPickup(${id})">${escapeHtml(uiText('📍 Змінити точку старту'))}</button>`;
         }
 
         // Owner 06.11 (docs/FRONTEND_SCREENS.md §1.7): the driver moves the start of the own open car from the own car pin —
