@@ -1385,7 +1385,14 @@
     "Позначено {k} з {room}": "ui.1211",
     "Екіпаж не зміниться. Кого не залишите, отримає лише: «водій зменшив кількість місць»": "ui.1212",
     "Зменшити до {n}": "ui.1213",
-    "Поки ви вибирали, список змінився — перевірте ще раз": "ui.1214"
+    "Поки ви вибирали, список змінився — перевірте ще раз": "ui.1214",
+    "Шукаємо {n} попутника вручну": "ui.1215",
+    "Шукаємо {n} попутників вручну": "ui.1216",
+    "Шукаємо {n} попутника": "ui.1217",
+    "Шукаємо {n} попутників": "ui.1218",
+    "Шукаємо попутників вручну": "ui.1219",
+    "Шукаємо місце вручну": "ui.1220",
+    "🗺 Шукати вручну": "ui.1221"
 };
     const messages = {
     "uk": {
@@ -2602,7 +2609,14 @@
         "ui.1211": "Позначено {k} з {room}",
         "ui.1212": "Екіпаж не зміниться. Кого не залишите, отримає лише: «водій зменшив кількість місць»",
         "ui.1213": "Зменшити до {n}",
-        "ui.1214": "Поки ви вибирали, список змінився — перевірте ще раз"
+        "ui.1214": "Поки ви вибирали, список змінився — перевірте ще раз",
+        "ui.1215": "Шукаємо {n} попутника вручну",
+        "ui.1216": "Шукаємо {n} попутників вручну",
+        "ui.1217": "Шукаємо {n} попутника",
+        "ui.1218": "Шукаємо {n} попутників",
+        "ui.1219": "Шукаємо попутників вручну",
+        "ui.1220": "Шукаємо місце вручну",
+        "ui.1221": "🗺 Шукати вручну"
     },
     "ru": {
         "ui.001": "Карта",
@@ -3818,7 +3832,14 @@
         "ui.1211": "Отмечено {k} из {room}",
         "ui.1212": "Экипаж не изменится. Кого не оставите, получит только: «водитель уменьшил количество мест»",
         "ui.1213": "Уменьшить до {n}",
-        "ui.1214": "Пока вы выбирали, список изменился — проверьте ещё раз"
+        "ui.1214": "Пока вы выбирали, список изменился — проверьте ещё раз",
+        "ui.1215": "Ищем {n} попутчика вручную",
+        "ui.1216": "Ищем {n} попутчиков вручную",
+        "ui.1217": "Ищем {n} попутчика",
+        "ui.1218": "Ищем {n} попутчиков",
+        "ui.1219": "Ищем попутчиков вручную",
+        "ui.1220": "Ищем место вручную",
+        "ui.1221": "🗺 Искать вручную"
     },
     "pl": {
         "ui.001": "Mapa",
@@ -5034,7 +5055,14 @@
         "ui.1211": "Zaznaczono {k} z {room}",
         "ui.1212": "Załoga się nie zmieni. Kogo nie zostawisz, dostanie tylko: «kierowca zmniejszył liczbę miejsc»",
         "ui.1213": "Zmniejsz do {n}",
-        "ui.1214": "W czasie wyboru lista się zmieniła — sprawdź jeszcze raz"
+        "ui.1214": "W czasie wyboru lista się zmieniła — sprawdź jeszcze raz",
+        "ui.1215": "Szukamy {n} pasażera ręcznie",
+        "ui.1216": "Szukamy {n} pasażerów ręcznie",
+        "ui.1217": "Szukamy {n} pasażera",
+        "ui.1218": "Szukamy {n} pasażerów",
+        "ui.1219": "Szukamy pasażerów ręcznie",
+        "ui.1220": "Szukamy miejsca ręcznie",
+        "ui.1221": "🗺 Szukaj ręcznie"
     },
     "en": {
         "ui.001": "Map",
@@ -6250,7 +6278,14 @@
         "ui.1211": "{k} of {room} selected",
         "ui.1212": "Your crew stays as it is. Those not kept only get: “the driver reduced the number of seats”",
         "ui.1213": "Reduce to {n}",
-        "ui.1214": "The list changed while you were choosing — please check again"
+        "ui.1214": "The list changed while you were choosing — please check again",
+        "ui.1215": "Looking for {n} passenger manually",
+        "ui.1216": "Looking for {n} passengers manually",
+        "ui.1217": "Looking for {n} passenger",
+        "ui.1218": "Looking for {n} passengers",
+        "ui.1219": "Looking for passengers manually",
+        "ui.1220": "Looking for a seat manually",
+        "ui.1221": "🗺 Search manually"
     }
 };
     let activeLanguage = "uk";
@@ -6362,4 +6397,4 @@
         normalizeLang,
         pluralCategory,
     };
-}()); 
+}());
