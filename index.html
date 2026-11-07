@@ -11950,7 +11950,6 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
                     </div>
                     ${!isMyDir ? `<button class="btn btn-secondary" style="border:1px solid rgba(56,189,248,0.4);background:rgba(56,189,248,0.08);color:var(--blue);padding:6px 12px;border-radius:12px;font-size:12px;font-weight:600;min-height:36px;white-space:nowrap;line-height:1.3;text-align:center;cursor:pointer;" data-tg-username="${escapeAttr(creatorUsername)}" data-tg-user-id="${parseInt(creatorId, 10) || 0}" onclick="openTelegramContactFromButton(this)" aria-label="${escapeAttr(uiText('💬 Написати') + ' ' + uiText('організатору'))}" title="${escapeAttr(uiText('💬 Написати') + ' ' + uiText('організатору'))}" data-organizer-contact-icon>💬</button>` : `<div data-event-organizer-tools style="display:flex;gap:6px;flex-shrink:0;"><button onclick="shareDirectionInvite(${parseInt(dirId) || 0})" style="padding:6px 10px;border-radius:8px;background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.28);color:var(--blue);font-size:14px;cursor:pointer;" data-i18n-title="ui.1056" title="Запросити учасників">📨</button><button data-dir-id="${parseInt(dirId) || 0}" data-dir-title="${escapeAttr(String(dir.title || ''))}" onclick="openEditDirectionFromButton(this)" style="padding:6px 10px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text-secondary);font-size:14px;cursor:pointer;" data-i18n-title="ui.1057" title="Редагувати">✏️</button></div>`}
                 </div>` : '';
-            const hasPickup = !!S.pickupCoords;
             // «Гармошка» (власник 2026-09-26): кроки розгортаються тут же, під кнопкою, а не в новій шторці.
             const joinInlineId = parseInt(dirId, 10) || 0;
             const joinPrimaryCta = `<button class="btn btn-primary" style="width:100%;" data-join-cta="${joinInlineId}" aria-expanded="false" aria-controls="join-inline-${joinInlineId}" onclick="toggleJoinInline(${dirId})">${uiText('Візьму участь')}</button><div class="join-inline" id="join-inline-${joinInlineId}" data-join-inline="${joinInlineId}" hidden></div>`;
@@ -12025,7 +12024,9 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
             const bannerRow = bannerDesc ? `<div class="event-banner-row">${bannerDesc}<button type="button" class="event-banner-chevron" data-event-banner-chevron aria-expanded="false" aria-label="${escapeAttr(uiText('Про подію'))}" onclick="toggleEventBanner(${peopleId}, event)">▾</button></div>` : '';
             const bannerBodyInner = bannerRow + (isSub ? (bannerMore.trim() ? `<div data-event-banner-more hidden>${bannerMore}</div>` : '') : creatorContactBlock);
             const bannerBody = bannerBodyInner.trim() ? `<div class="event-banner-body">${bannerBodyInner}</div>` : '';
-            const pickupButton = isSub ? `<button class="btn btn-secondary" style="width:100%;margin:6px 0 2px;font-size:13px;" onclick="pickPickupLocation(${dirId}, { kind: ${_isDriverRole(S.userRole) ? "'driver_start'" : "'passenger_wait'"}, persistUserLocation: ${_isDriverRole(S.userRole) ? 'false' : 'true'} })">${hasPickup ? uiText('📍 Точка вказана ✓') : (_isDriverRole(S.userRole) ? uiText('🚗 Поставити авто на карту') : uiText('📍 Вказати де чекати водія'))}</button>` : '';
+            // Owner 07.11 (DM-2026-11-07-004, «Так, прибери»): a member's card has no point button — it opened the generic
+            // picker (for a driver only a local marker and an untrue «✓ Авто на карті», the real car stayed). The start point
+            // is changed only on the own pin («📍 Змінити точку старту», §1.7).
 
             const sheetCat = itemCategory(data?.direction || dir);  // значок рубрики, як на піні (2026-09-25)
             // Після того як шторка намальована — облік «долучились і вийшли» (лише організатор).
@@ -12047,7 +12048,7 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
                 ${bannerBody}
                 </div>
                 ${eventStageHtml(dirId, isSub ? 'member' : 'intro')}
-                ${isSub ? pickupButton : `<div style="display:flex;flex-direction:column;gap:8px;margin:14px 0 6px;">${joinPrimaryCta}${eventChatButton}</div>`}
+                ${isSub ? '' : `<div style="display:flex;flex-direction:column;gap:8px;margin:14px 0 6px;">${joinPrimaryCta}${eventChatButton}</div>`}
                 <div class="event-people-block" data-event-people="${peopleId}"></div>
                 ${isSub ? `<button class="event-leave-quiet" onclick="confirmLeaveDirection(${dirId})">${uiText('🚪 Вийти з події')}</button>` : ''}
                 ${organizerEventSummaryHtml}
