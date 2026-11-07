@@ -3385,6 +3385,30 @@
             cursor: pointer;
         }
 
+        /* Owner 07.11 (DM-2026-11-07-005): in the automatic search a light snake with a fading tail (≈3 cm on a 390 px
+           strip) runs around the strip; the border is dimmed so the snake reads. «Менше руху» on the phone: no snake. */
+        #map-result-panel .result-strip { position: relative; }
+        #map-result-panel .result-strip.search-auto { border-color: rgba(163, 230, 53, 0.28); }
+        .search-snake { position: absolute; inset: -1px; width: calc(100% + 2px); height: calc(100% + 2px); overflow: visible;
+            pointer-events: none; filter: drop-shadow(0 0 4px rgba(163, 230, 53, 0.9)); }
+        .search-snake rect { fill: none; stroke: #d9f99d; stroke-linecap: round; }
+        .search-snake .s0 { stroke-dasharray: 145 855; stroke-opacity: 0.12; stroke-width: 2.0; animation: searchSnake0 2.8s linear infinite; }
+        .search-snake .s1 { stroke-dasharray: 110 890; stroke-opacity: 0.22; stroke-width: 2.2; animation: searchSnake1 2.8s linear infinite; }
+        .search-snake .s2 { stroke-dasharray: 80 920; stroke-opacity: 0.38; stroke-width: 2.5; animation: searchSnake2 2.8s linear infinite; }
+        .search-snake .s3 { stroke-dasharray: 52 948; stroke-opacity: 0.58; stroke-width: 2.8; animation: searchSnake3 2.8s linear infinite; }
+        .search-snake .s4 { stroke-dasharray: 28 972; stroke-opacity: 0.8; stroke-width: 3.0; animation: searchSnake4 2.8s linear infinite; }
+        .search-snake .s5 { stroke-dasharray: 10 990; stroke-opacity: 1.0; stroke-width: 3.4; animation: searchSnake5 2.8s linear infinite; }
+        @keyframes searchSnake0 { from { stroke-dashoffset: 145; } to { stroke-dashoffset: -855; } }
+        @keyframes searchSnake1 { from { stroke-dashoffset: 110; } to { stroke-dashoffset: -890; } }
+        @keyframes searchSnake2 { from { stroke-dashoffset: 80; } to { stroke-dashoffset: -920; } }
+        @keyframes searchSnake3 { from { stroke-dashoffset: 52; } to { stroke-dashoffset: -948; } }
+        @keyframes searchSnake4 { from { stroke-dashoffset: 28; } to { stroke-dashoffset: -972; } }
+        @keyframes searchSnake5 { from { stroke-dashoffset: 10; } to { stroke-dashoffset: -990; } }
+        @media (prefers-reduced-motion: reduce) {
+            .search-snake { display: none; }
+            #map-result-panel .result-strip.search-auto { border-color: var(--accent); }
+        }
+
         /* D525: one gentle nudge of the folded search strip's ▴ (see hintFoldedSearchArrowOnce). Transform only, after the
            0.4 s slide-in, once; the class is set on the first visible strip of a page view only and dropped when the nudge
            ends, so neither a rebuild nor a reveal of the same arrow from display:none replays it. */
@@ -8857,59 +8881,21 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
             if (!safeDirId) return;
             if (hasHandshakeActionSurface()) return;
             const isDriver = _isDriverRole(S.userRole);
-            const title = isDriver ? uiText('✨ Шукаємо попутників') : uiText('✨ Шукаємо місце');
-            const seats = isDriver ? searchSeatsLabel(safeDirId) : '';
             const own = isDriver ? ownOutingForSearch(safeDirId) : null, ownKey = ownOutingSearchKey(own);
-            const chip = `${uiText('✨ Авто')}${seats && !own ? ' · ' + seats : ''}`;
             const panel = document.getElementById('map-result-panel');
             const meta = panel && panel._mapResultMeta;
-            const sameAutoPanel =
-                panel?.classList.contains('open') &&
-                meta?.kind === 'auto_search' &&
-                String(meta?.dirId || '') === String(safeDirId) &&
-                (meta?.ownOuting || '') === ownKey;
-            const collapseStateMatches = !!S.mapResultCollapsed === !!panel?.classList.contains('collapsed');
-            if (sameAutoPanel && collapseStateMatches && (isDriver || S.mapResultCollapsed)) {
+            // Owner 07.11 (DM-2026-11-07-005): the strip with the light snake; opened — ONE action «🗺 Шукати вручну». The open
+            // cars are on the map and the automatic search proposes a driver itself, so no list of cars and no seats or
+            // details buttons here; «Завершити свій виїзд» lives in «Поїздки».
+            const renderSignature = ['auto_search', safeDirId, isDriver ? 'driver' : 'passenger', searchStripLabel(safeDirId, isDriver, true),
+                S.mapResultCollapsed ? 'collapsed' : 'open', ownKey].join('::');
+            if (panel?.classList.contains('open') && meta?.kind === 'auto_search' && String(meta?.dirId || '') === String(safeDirId)
+                && meta?.renderSignature === renderSignature) {
                 return;
             }
-            const crewChoices = isDriver ? [] : passengerOpenCrewChoices(safeDirId, ctx);
-            const renderSignature = [
-                'auto_search',
-                safeDirId,
-                isDriver ? 'driver' : 'passenger',
-                seats,
-                S.mapResultCollapsed ? 'collapsed' : 'open',
-                ownKey,
-                crewChoices.map(c => `${c.organizer_id}:${c.seats_free}:${c.name || ''}`).join('|')
-            ].join('::');
-            if (
-                panel?.classList.contains('open') &&
-                meta?.kind === 'auto_search' &&
-                String(meta?.dirId || '') === String(safeDirId) &&
-                meta?.renderSignature === renderSignature
-            ) {
-                return;
-            }
-            const crewChoicesHtml = renderPassengerOpenCrewChoices(safeDirId, crewChoices);
-            const sub = isDriver
-                ? uiText('Автоматичний пошук активний. Як тільки попутник знайдеться — ви отримаєте пропозицію.')
-                : (crewChoices.length
-                    ? uiText('Автоматичний пошук активний, і вже є відкриті місця. Можете запроситись явно або чекати пропозицію.')
-                    : uiText('Автоматичний пошук активний. Як тільки водій знайдеться — ви отримаєте пропозицію.'));
-            openMapResultPanel(`
-                ${ctx.safeDirId ? renderMapInviteContextHeader(ctx) : ''}
-                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
-                    <div class="sheet-title" style="font-size:15px;">${escapeHtml(title)}</div>
-                    <span onclick="toggleMapResultCollapse()" style="cursor:pointer;opacity:.6;font-size:18px;line-height:1;" title="${escapeAttr(uiText('Згорнути'))}">▾</span>
-                </div>
-                <div class="sheet-sub" style="font-size:12px;margin:4px 0 4px;"><span style="display:inline-block;padding:2px 8px;border-radius:999px;background:rgba(56,189,248,0.12);font-weight:700;">${escapeHtml(chip)}</span></div>
-                ${own ? ownOutingSearchBlock(own) : ''}<div class="sheet-sub" style="font-size:12px;margin-bottom:10px;">${escapeHtml(sub)}</div>
-                ${crewChoicesHtml}
-                <div style="display:flex;gap:10px;">
-                    <button class="btn ${crewChoices.length ? 'btn-primary' : 'btn-secondary'}" style="flex:1;" onclick="closeMapResultPanel(); ${crewChoices.length ? `openNearbyCrewsSheet(${safeDirId})` : `openSubscribedDirectionDetails(${safeDirId})`}">${crewChoices.length ? uiText('Показати місця') : uiText('Деталі')}</button>
-                    <button class="btn btn-secondary" style="flex:1;" onclick="disableAutoSearch(${safeDirId})">${uiText('⏸ Зупинити автопошук')}</button>
-                </div>
-            ${own ? ownOutingLeaveBlock() : ''}`, { kind: 'auto_search', dirId: safeDirId, renderSignature, ownOuting: ownKey }, searchStrip(isDriver, 'auto', own ? ` · ${uiHtml('Вільно: {n}', { n: Number(own.seats_free) || 0 })}` : (seats ? ` · ${escapeHtml(seats)}` : '')));
+            openMapResultPanel(`${searchStripHtml(safeDirId, isDriver, true, true)}
+                <button class="btn btn-secondary" data-search-switch="manual" style="display:block;width:calc(100% - 24px);margin:10px 12px 0;" onclick="disableAutoSearch(${safeDirId})">${uiText('🗺 Шукати вручну')}</button>`,
+                { kind: 'auto_search', dirId: safeDirId, renderSignature, ownOuting: ownKey }, searchStripHtml(safeDirId, isDriver, true));
         }
 
         function hasHandshakeActionSurface() {
@@ -8934,7 +8920,7 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
             };
         }
 
-        function manualSearchProgressHtml(dirId, compact = false, extra = '') {
+        function manualSearchProgressHtml(dirId, compact = false, extra = '', copy = null) {
             const safeDirId = parseInt(dirId, 10) || 0;
             const key = eventStageFor(manualSearchStageContext(safeDirId));
             if (!compact) return `<div data-manual-search-progress="${safeDirId}">${eventStageHtml(safeDirId, key).replace('data-event-stage-for=', 'data-manual-stage-for=')}</div>`;
@@ -8943,14 +8929,11 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
             const bar = [1, 2, 3, 4, 5].map(n => `<i${n <= stage.n ? ' class="on"' : ''}></i>`).join('');
             const number = stage.plain ? '' : `<span data-manual-progress-number style="flex-shrink:0;font-size:11px;opacity:.75;">${stage.n}/5</span>`;
             return `<span data-manual-search-progress="${safeDirId}" data-manual-stage-for="${safeDirId}" data-event-stage="${key}" title="${escapeAttr(label)}" aria-label="${escapeAttr(label)}" style="flex:1;min-width:0;display:block;">
-                <span data-search-copy="true" style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0;"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(uiText('Вручну'))}${extra}</span>${number}</span>
+                <span data-search-copy="true" style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0;"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${copy != null ? escapeHtml(copy) : `${escapeHtml(uiText('Вручну'))}${extra}`}</span>${number}</span>
                 <span class="event-stage-bar" aria-hidden="true" style="margin-top:4px;">${bar}</span>
             </span>`;
         }
 
-        function manualSearchStripHtml(dirId, isDriver, extra = '') {
-            return `<div class="result-strip" role="button" tabindex="0" aria-expanded="false" onclick="toggleMapResultCollapse()" style="padding-top:8px;padding-bottom:8px;">${searchStripSymbol(isDriver)}${manualSearchProgressHtml(dirId, true, extra)}<span role="img" aria-label="${escapeAttr(uiText('Розгорнути'))}" data-strip-arrow="true" style="flex-shrink:0;opacity:.6;font-size:18px;line-height:1;">▴</span></div>`;
-        }
 
         // The panel may be rebuilt or replaced while this passive read is pending.
         // Apply only to that exact manual-panel instance; unknown stays unknown.
@@ -8968,7 +8951,7 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
             if (S._manualSearchStageReadSeq !== readSeq || panel._mapResultMeta !== meta || !panel.classList.contains('open')) return false;
             S._manualSearchStageCache = { dirId: safeDirId, members: Array.isArray(people?.cards) ? people.cards : null };
             const host = panel.querySelector('[data-manual-search-progress]');
-            if (host) host.outerHTML = manualSearchProgressHtml(safeDirId, panel.classList.contains('collapsed'), extra);
+            if (host) host.outerHTML = manualSearchProgressHtml(safeDirId, true, '', searchStripLabel(safeDirId, _isDriverRole(S.userRole), false));
             return true;
         }
 
@@ -8982,27 +8965,13 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
                 S.mapResultCollapseTouched = true;
                 persistCriticalState();
             }
-            const seats = isDriver ? searchSeatsLabel(safeDirId) : '';
+            // Owner 07.11 (DM-2026-11-07-005): opened, the strip shows ONE action. No event header, stage block, title, own-car
+            // row, explanation, «🚪 Вийти з події» (in the event card) or «Завершити свій виїзд» (in «Поїздки»).
             const own = ownOutingForSearch(safeDirId);
-            const progressExtra = own ? ` · ${uiHtml('Вільно: {n}', { n: Number(own.seats_free) || 0 })}` : (seats ? ` · ${escapeHtml(seats)}` : '');
-            const sub = isDriver
-                ? uiText('Ви на карті як водій. Тапайте попутників, щоб запросити — або увімкніть автопошук, і система знайде їх сама.')
-                : uiText('Ви на карті. Тапайте машини, щоб запроситись — або увімкніть автопошук, і система знайде водія сама.');
-            openMapResultPanel(`
-                ${ctx.safeDirId ? renderMapInviteContextHeader(ctx) : ''}
-                ${manualSearchProgressHtml(safeDirId, false, progressExtra)}
-                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
-                    <div class="sheet-title" style="font-size:15px;">${uiText('📍 Підписані · пошук вручну')}</div>
-                    <span onclick="toggleMapResultCollapse()" style="cursor:pointer;opacity:.6;font-size:18px;line-height:1;" title="${escapeAttr(uiText('Згорнути'))}">▾</span>
-                </div>
-                ${seats && !own ? `<div class="sheet-sub" style="font-size:12px;margin:4px 0;">${escapeHtml(seats)}</div>` : ''}
-                ${own ? ownOutingSearchBlock(own) : ''}<div class="sheet-sub" style="font-size:12px;margin:0 0 10px;">${escapeHtml(sub)}</div>
-                <div style="display:flex;gap:10px;">
-                    <button class="btn btn-primary" style="flex:1;" onclick="enableAutoSearch(${safeDirId})">${uiText('✨ Включити автопошук')}</button>
-                    ${own ? '' : `<button class="btn btn-danger" style="flex:1;" onclick="closeMapResultPanel(); confirmLeaveDirection(${safeDirId})">${uiText('🚪 Вийти з події')}</button>`}
-                </div>
-            ${own ? ownOutingLeaveBlock() : ''}`, { kind: 'manual_search', dirId: safeDirId, ownOuting: ownOutingSearchKey(own) }, manualSearchStripHtml(safeDirId, isDriver, progressExtra));
-            reloadManualSearchStage(safeDirId, progressExtra);
+            openMapResultPanel(`${searchStripHtml(safeDirId, isDriver, false, true)}
+                <button class="btn btn-primary" data-search-switch="auto" style="display:block;width:calc(100% - 24px);margin:10px 12px 0;" onclick="enableAutoSearch(${safeDirId})">${uiText('✨ Включити автопошук')}</button>`,
+                { kind: 'manual_search', dirId: safeDirId, ownOuting: ownOutingSearchKey(own) }, searchStripHtml(safeDirId, isDriver, false));
+            reloadManualSearchStage(safeDirId);
         }
 
         // СТАТУС-банер «Очікування відповіді партнера» (outgoing). За рішенням —
@@ -12580,34 +12549,56 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
             return o ? `${parseInt(o.crew_id, 10) || 0}:${Number(o.seats_free) || 0}:${o.is_started ? 1 : 0}` : '';
         }
 
-        function ownOutingSearchLine(o) {
-            return `🚗 ${o.is_started ? uiText('Виїзд триває') : uiText('Авто відкрите')} · ${uiCount('freeSeats', Number(o.seats_free) || 0, `${Number(o.seats_free) || 0} ${pluralUk(Number(o.seats_free) || 0, 'вільне місце', 'вільні місця', 'вільних місць')}`)}`;
-        }
-
-        function ownOutingSearchBlock(o) {
-            return `<div class="sheet-sub" data-own-outing-row="true" style="font-size:13px;font-weight:700;margin:4px 0 8px;">${ownOutingSearchLine(o)}</div>`;
-        }
-
         // D522 / D523 (owner chose «Силует і лупа»): the folded search strip shows WHO is searched — a person for a driver,
         // a car for a passenger — with a small magnifier, the way of search in words, and the driver's own free seats when the
         // own car is here. Same height as mapResultStrip; the expand affordance is ▴ alone at every width (D525) and the whole strip
         // stays the one tap zone; no new state or action.
-        function searchStripSymbol(isDriver) {
+        function searchStripSymbol(isDriver, auto = false) {
             const subject = isDriver
                 ? '<circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/>'
                 : '<path d="m21 8-2 2-1.5-3.7A2 2 0 0 0 15.646 5H8.4a2 2 0 0 0-1.903 1.257L5 10 3 8"/><path d="M7 14h.01"/><path d="M17 14h.01"/><rect width="18" height="8" x="3" y="10" rx="2"/><path d="M5 18v2"/><path d="M19 18v2"/>';
             const svg = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"';
             return `<span aria-hidden="true" data-search-for="${isDriver ? 'passengers' : 'driver'}" style="position:relative;flex:0 0 24px;width:24px;height:24px;">`
                 + `<svg ${svg} width="20" height="20" stroke-width="1.8" style="position:absolute;left:0;top:0;">${subject}</svg>`
-                + `<svg ${svg} width="13" height="13" stroke-width="2.4" data-search-glass="true" style="position:absolute;right:0;bottom:0;color:var(--accent);background:var(--bg-elevated);border-radius:3px;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span>`;
+                + `<svg ${svg} width="13" height="13" stroke-width="2.4" data-search-glass="true" style="position:absolute;right:0;bottom:0;color:${auto ? 'var(--accent)' : 'var(--text-secondary)'};background:var(--bg-elevated);border-radius:3px;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span>`;
         }
 
-        function searchStrip(isDriver, kind, extra = '') {
-            const mode = kind === 'auto' ? uiText('Автопошук') : uiText('Вручну');
-            // the 24 px symbol is taller than a text line: 8 px instead of 10 px vertical padding keeps the strip at the r1 height (~41 px)
-            return `<div class="result-strip" role="button" tabindex="0" aria-expanded="false" onclick="toggleMapResultCollapse()" style="padding-top:8px;padding-bottom:8px;">${searchStripSymbol(isDriver)}`
-                + `<span data-search-copy="true" style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(mode)}${extra}</span>`
-                + `<span role="img" aria-label="${escapeAttr(uiText('Розгорнути'))}" data-strip-arrow="true" style="flex-shrink:0;opacity:.6;font-size:18px;line-height:1;">▴</span></div>`;
+        // Owner 07.11 (DM-2026-11-07-005): the strip says what happens — «Шукаємо 3 попутників вручну» / «Шукаємо місце вручну»;
+        // the automatic search drops «вручну» and shows the light snake and the lime magnifier. The driver's number is his free
+        // seats (1 → «попутника»). The same strip opened (▾) tops the panel with its one action.
+        function driverFreeSeatsForSearch(dirId) {
+            const own = ownOutingForSearch(dirId);
+            if (own) return Math.max(0, Number(own.seats_free) || 0);
+            const mc = S.myCrew;
+            if (!mc || String(mc.direction_id) !== String(dirId)) return 0;
+            const total = seatCount(mc.seats_total);
+            if (total <= 0) return 0;
+            return hasFiniteNumber(mc.seats_free) ? Math.min(total, seatCount(mc.seats_free)) : Math.max(0, total - seatCount(mc.seats_used));
+        }
+
+        function searchStripLabel(dirId, isDriver, auto) {
+            if (!isDriver) return uiText(auto ? 'Шукаємо місце' : 'Шукаємо місце вручну');
+            const n = driverFreeSeatsForSearch(dirId);
+            if (n <= 0) return uiText(auto ? 'Шукаємо попутників' : 'Шукаємо попутників вручну');
+            const one = n === 1;
+            return uiFmt(auto ? (one ? 'Шукаємо {n} попутника' : 'Шукаємо {n} попутників')
+                : (one ? 'Шукаємо {n} попутника вручну' : 'Шукаємо {n} попутників вручну'), { n });
+        }
+
+        function searchSnakeHtml() {
+            return '<svg class="search-snake" aria-hidden="true" data-search-snake="true">'
+                + [0, 1, 2, 3, 4, 5].map(i => `<rect class="s${i}" x="0" y="0" width="100%" height="100%" rx="40" pathLength="1000"/>`).join('')
+                + '</svg>';
+        }
+
+        function searchStripHtml(dirId, isDriver, auto, open = false) {
+            const label = searchStripLabel(dirId, isDriver, auto);
+            const mode = auto ? uiText('Автопошук') : uiText('Вручну');
+            const arrow = open
+                ? `<span role="img" aria-label="${escapeAttr(uiText('Згорнути'))}" title="${escapeAttr(uiText('Згорнути'))}" data-strip-arrow="true" style="flex-shrink:0;opacity:.6;font-size:18px;line-height:1;">▾</span>`
+                : `<span role="img" aria-label="${escapeAttr(uiText('Розгорнути'))}" data-strip-arrow="true" style="flex-shrink:0;opacity:.6;font-size:18px;line-height:1;">▴</span>`;
+            return `<div class="result-strip${auto ? ' search-auto' : ''}" data-search-mode="${auto ? 'auto' : 'manual'}" role="button" tabindex="0" aria-expanded="${open ? 'true' : 'false'}" aria-label="${escapeAttr(mode + ' · ' + label)}" onclick="toggleMapResultCollapse()" style="padding-top:8px;padding-bottom:8px;">`
+                + (auto ? searchSnakeHtml() : '') + searchStripSymbol(isDriver, auto) + manualSearchProgressHtml(dirId, true, '', label) + arrow + '</div>';
         }
 
         // D525: the first time the folded search strip is actually visible in this page view, nudge its ▴ once. A rebuild
@@ -12625,11 +12616,6 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
             arrow.classList.add('strip-arrow-hint');
         }
 
-        // with an unfinished own outing the server refuses to leave (409 unfinished_driver_outing): say why, offer the existing finish
-        function ownOutingLeaveBlock() {
-            return `<div class="sheet-sub" data-own-outing-leave="true" style="font-size:12px;margin:10px 0 6px;">${uiText('Вийти з події можна після завершення свого виїзду.')}</div>
-                <button class="btn btn-secondary" style="width:100%;" data-own-outing-finish="true" onclick="finishOwnOuting()">${uiText('Завершити свій виїзд')}</button>`;
-        }
 
         // the open search panel follows the facts: rebuilt once when the own car appears / changes / goes; returns «merged now»
         function syncOwnOutingSearchPanel() {
