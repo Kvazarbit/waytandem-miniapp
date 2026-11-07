@@ -17170,7 +17170,7 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
             // owner 07.11: the sheet edits a draft (closing it changes nothing); 1..4 like the server, core, bot and the open-crew step
             S._seatsDraft = Math.max(1, Math.min(4, parseInt(S.seats, 10) || 1));
             S._seatsChoice = null;
-            openSheet(`<div class="sheet-title" data-i18n="ui.028">Місця</div><div class="sheet-sub" data-i18n="ui.133">Кількість пасажирських місць</div><div style="display:flex;align-items:center;justify-content:center;gap:24px;margin:20px 0;"><div style="width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;" onclick="changeSeats(-1)">−</div><div style="font-size:40px;font-weight:900;min-width:60px;text-align:center;" id="seats-display">${S._seatsDraft}</div><div style="width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;" onclick="changeSeats(1)">+</div></div><div id="seats-error" data-seats-error role="status" style="min-height:18px;margin:-8px 0 12px;font-size:13px;line-height:1.35;color:var(--red);text-align:center;"></div><div id="seats-choice" data-seats-choice></div><button class="btn btn-primary" id="seats-save" onclick="saveSeats()" data-i18n="ui.040">Зберегти</button>`);
+            openSheet(`<div class="sheet-title" data-i18n="ui.028">Місця</div><div class="sheet-sub" id="seats-sub" data-i18n="ui.133">Кількість пасажирських місць</div><div id="seats-counter" style="display:flex;align-items:center;justify-content:center;gap:24px;margin:20px 0;"><div style="width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;" onclick="changeSeats(-1)">−</div><div style="font-size:40px;font-weight:900;min-width:60px;text-align:center;" id="seats-display">${S._seatsDraft}</div><div style="width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;" onclick="changeSeats(1)">+</div></div><div id="seats-error" data-seats-error role="status" style="min-height:18px;margin:-8px 0 12px;font-size:13px;line-height:1.35;color:var(--red);text-align:center;"></div><div id="seats-choice" data-seats-choice></div><button class="btn btn-primary" id="seats-save" onclick="saveSeats()" data-i18n="ui.040">Зберегти</button>`);
         }
 
         function changeSeats(d) {
@@ -17247,6 +17247,9 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
             const box = document.getElementById('seats-choice');
             const btn = document.getElementById('seats-save');
             const c = S._seatsChoice;
+            // owner 07.11: one action per step — the number is already chosen; while choosing whom to keep the counter is gone
+            const counter = document.getElementById('seats-counter'); if (counter) counter.style.display = c ? 'none' : 'flex';
+            const sub = document.getElementById('seats-sub'); if (sub) sub.style.display = c ? 'none' : '';
             if (!c) { if (box) box.innerHTML = ''; if (btn) { btn.textContent = uiText('Зберегти'); btn.disabled = false; } return; }
             const many = c.people.length > 1;
             const rows = c.people.map((p, i) => {
