@@ -5501,6 +5501,99 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
             body.scrollTop = scrollTop;
         }
 
+        // Owner 07.11 (FRONTEND_SCREENS §1.10): ONE person banner for every request card — face · name · «роль · подія» in the light
+        // colour of THAT person's role · 📍 (the map with both of you) and 💬 side by side; the box lightly tinted with the role
+        // colour (§1.1). No points, coordinates, landmark, navigation or km here: owners change their points on their own pins.
+        function requestPersonBannerHtml(p) {
+            const tint = p.role === 'driver'
+                ? { rgb: '56,189,248', stripe: '#38bdf8', text: '#7dd3fc', word: uiText('водій') }
+                : { rgb: '52,211,153', stripe: '#34d399', text: '#86efac', word: uiText('попутник') };
+            const pid = parseInt(p.partnerId, 10) || 0;
+            const did = parseInt(p.dirId, 10) || 0;
+            const line = [tint.word, p.event, p.state].filter(Boolean).join(' · ');
+            const icon = 'flex:none;border:1px solid rgba(56,189,248,0.4);background:rgba(56,189,248,0.08);color:var(--blue);padding:6px 0;width:44px;border-radius:12px;font-size:15px;min-height:38px;line-height:1.2;cursor:pointer;';
+            const mapLabel = escapeAttr(uiText('📍 Показати на карті'));
+            const chatLabel = escapeAttr(uiText('💬 Чат'));
+            const hasPoint = requestPersonMapPoints(p.match || {}, pid).length > 0;
+            const mapBtn = `<button type="button" data-request-person-map="${pid}" ${hasPoint ? '' : 'disabled '}onclick="focusRequestPersonOnMap(${pid}, ${did})" aria-label="${mapLabel}" title="${mapLabel}" style="${icon}${hasPoint ? '' : 'opacity:.45;cursor:default;'}">📍</button>`;
+            const chatBtn = pid && String(pid) !== String(S.userId || '')
+                ? `<button type="button" data-request-person-chat="${pid}" data-tg-username="${escapeAttr(sanitizeBotUsername(p.username || ''))}" data-tg-user-id="${pid}" onclick="openTelegramContactFromButton(this)" aria-label="${chatLabel}" title="${chatLabel}" style="${icon}">💬</button>`
+                : '';
+            return `<div data-request-person="${p.role === 'driver' ? 'driver' : 'passenger'}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:12px;background:rgba(${tint.rgb},0.10);border:1px solid rgba(${tint.rgb},0.38);border-left:4px solid ${tint.stripe};${p.margin || ''}">
+                    ${renderAvatarInline(p.name || '?', p.photo || '', p.size || 40)}
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(p.name || '?')}</div>
+                        <div data-request-person-line="true"${p.statusAttr ? ' data-pending-status="true"' : ''} style="font-size:11px;font-weight:600;color:${tint.text};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;">${escapeHtml(line)}</div>
+                    </div>
+                    <div style="display:flex;gap:6px;flex:none;">${mapBtn}${chatBtn}</div>
+                </div>`;
+        }
+
+        // 📍 of the banner: where that person is plus your own place, from what the page already holds (no new reads, nothing invented).
+        function requestPersonMapPoints(m, partnerId) {
+            const pid = parseInt(partnerId, 10) || 0;
+            const ok = (lat, lng) => {
+                if (lat === null || lat === undefined || lat === '' || lng === null || lng === undefined || lng === '') return null;
+                const a = Number(lat), b = Number(lng);
+                return Number.isFinite(a) && Number.isFinite(b) ? [a, b] : null;
+            };
+            const driver = _isDriverRole(S.userRole);
+            let them = null;
+            if (driver) {
+                them = ok(m?.pickup_lat, m?.pickup_lng) || ok(m?.points?.pickup?.lat, m?.points?.pickup?.lng);
+                if (!them) {
+                    const p = (S.mapPassengers || []).find(x => (parseInt(x?.user_id, 10) || 0) === pid);
+                    them = p ? ok(p.lat, p.lng) : null;
+                }
+            } else {
+                const c = (S.mapCrews || []).find(x => (parseInt(x?.organizer_id ?? x?.driver_id, 10) || 0) === pid);
+                them = c ? ok(c.lat, c.lng) : null;
+            }
+            if (!them) return [];
+            let mine = null;
+            if (driver) {
+                mine = ok(m?.car_start_lat, m?.car_start_lng);
+                if (!mine) {
+                    const c = (S.mapCrews || []).find(x => String(x?.organizer_id ?? '') === String(S.userId || ''));
+                    mine = c ? ok(c.lat, c.lng) : null;
+                }
+            } else {
+                mine = S.pickupCoords ? ok(S.pickupCoords.lat, S.pickupCoords.lng) : null;
+                if (!mine && typeof passiveOwnWaitingPoint === 'function') {
+                    const w = passiveOwnWaitingPoint();
+                    mine = w ? ok(w.lat, w.lng) : null;
+                }
+            }
+            return mine ? [them, mine] : [them];
+        }
+
+        // 📍 from any tab: back to the map, the request's wait-point pin for a driver, both of you above the panel; nothing is written.
+        function focusRequestPersonOnMap(partnerId, dirId) {
+            const pid = parseInt(partnerId, 10) || 0;
+            const did = parseInt(dirId, 10) || 0;
+            const pm = S.proposedMatch && (parseInt(S.proposedMatch.partner_id, 10) || 0) === pid ? S.proposedMatch : null;
+            const m = (S.pendingMatches || []).find(x => x && (parseInt(x.partner_id || x.sender_id || x.target_id, 10) || 0) === pid
+                && (!did || (parseInt(x.direction_id, 10) || 0) === did)) || pm || {};
+            if (S.currentScreen !== 'explore' && typeof switchScreen === 'function') switchScreen('explore');
+            if (document.getElementById('sheet')?.classList.contains('open') && typeof closeSheet === 'function') closeSheet();
+            if (_isDriverRole(S.userRole) && m.scope === 'incoming') showIncomingPickupOnMap(m, { focus: false });
+            const pts = requestPersonMapPoints(m, pid);
+            return pts.length ? fitMapCoordsAboveOverlays(pts, 15) : false;
+        }
+
+        // The request sheet's title says what happened to me when all its rows are of one kind (owner 07.11); mixed → the neutral name.
+        function mapPendingSheetTitle(matches, extra = false) {
+            const list = (matches || []).filter(Boolean);
+            const driver = _isDriverRole(S.userRole);
+            if (!extra && list.length && list.every(x => x.scope === 'incoming')) {
+                return driver ? uiText(list.length > 1 ? '📩 Просяться у ваш екіпаж' : '📩 Проситься у ваш екіпаж') : uiText('📩 Вас запросили в екіпаж');
+            }
+            if (!extra && list.length && list.every(x => x.scope === 'outgoing')) {
+                return driver ? uiText('⏳ Ви запросили в екіпаж') : uiText('⏳ Ви попросились в екіпаж');
+            }
+            return uiText('Запити на карті');
+        }
+
         function renderMapPendingMatchRow(m, opts = {}) {
             const isIncoming = m.scope === 'incoming';
             const partnerId = parseInt(m.partner_id || m.sender_id || m.target_id || 0, 10) || 0;
@@ -5510,6 +5603,8 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
                 : (m.target_name || m.partner_name || m.sender_name || `#${partnerId}`);
             const dirTitle = m.direction || m.direction_title || uiText('Подія');
             const awaitingDriver = isIncoming && m.points_next === 'driver_confirm';   // D355: own accept recorded, the driver confirms
+            const scopes = new Set((S.pendingMatches || []).map(x => x?.scope));   // owner 07.11: the state words only where the title cannot say them
+            const mixed = scopes.has('incoming') && scopes.has('outgoing');
             const tag = awaitingDriver ? uiText('ви погодились · чекаємо підтвердження водія') : (isIncoming ? uiText('потрібна відповідь') : uiText('чекаємо відповідь'));
             const key = pendingRowKey(m);   // D357 r3
             const reread = `<button class="btn btn-secondary" data-row-reread="${escapeAttr(key)}" onclick="rereadPendingRow('${escapeAttr(key)}')">${uiText('⚠️ Умови змінились — переглянути')}</button>`;
@@ -5525,15 +5620,9 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
             const slotA = after ? '<button class="btn btn-secondary" data-row-reread-done="true" disabled>' + uiText('✓ Переглянуто') + '</button>' : (positive && opts.reread ? reread : positive);
             const actions = `${slotA}${slotA ? ' ' : ''}${negative}`;
             return `<div data-pending-row="${escapeAttr(key)}" style="padding:12px 0;border-bottom:1px solid var(--border);${opts.minH ? `box-sizing:border-box;min-height:${opts.minH}px;` : ''}">
-                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-                    ${renderAvatarInline(partnerName, m.partner_photo_url || m.sender_photo_url || m.target_photo_url || '', 34)}
-                    <div style="flex:1;min-width:0;">
-                        <div style="font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(partnerName)}</div>
-                        <div data-pending-status="true" style="font-size:11px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(dirTitle)} · ${escapeHtml(tag)}</div>
-                        ${isIncoming && _isDriverRole(S.userRole) ? `<div data-incoming-pickup-line="true" style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${escapeHtml(incomingPickupLine(m))}</div>` : ''}
-                        ${m.points ? `<div data-proposal-points="true" style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${escapeHtml(proposalPointsLine(m, _isDriverRole(S.userRole)))}</div>${proposalPointsNavHtml(m, _isDriverRole(S.userRole))}` : ''}
-                    </div>
-                </div>
+                ${requestPersonBannerHtml({ name: partnerName, photo: m.partner_photo_url || m.sender_photo_url || m.target_photo_url || '',
+                    role: _isDriverRole(S.userRole) ? 'passenger' : 'driver', event: dirTitle, state: awaitingDriver || mixed ? tag : '',
+                    partnerId, dirId, match: m, size: 34, margin: 'margin-bottom:8px;', statusAttr: true })}
                 <div style="display:flex;gap:8px;">${actions}</div>
                 ${after ? `<div data-row-positive-line="true" style="display:flex;gap:8px;margin-top:8px;">${positive}</div>` : ''}
             </div>`;
@@ -5664,8 +5753,7 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
                 : '';
             const html = `
                 <div data-map-pending-matches-sheet="${normalizedScope}">
-                <div class="sheet-title">${uiText('Запити на карті')}</div>
-                <div class="sheet-sub">${uiText('Поточні рішення можна закрити тут, не переходячи у «Поїздки».')}</div>
+                <div class="sheet-title">${escapeHtml(mapPendingSheetTitle(matches, !!proposedHtml))}</div>
                 <div style="margin:10px 0 4px;">${rows}${proposedHtml}${emptyHtml}</div>
                 <div class="sheet-actions" data-map-command-count="1">
                     <button class="btn btn-ghost" onclick="closeSheet()">${uiText('Карта')}</button>
@@ -11579,12 +11667,6 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
             };
         }
 
-        function incomingPickupLine(m) {
-            const info = incomingPickupInfo(m);
-            if (!info.hasPickup) return uiText('📍 Точку очікування не вказано');
-            return info.distance ? uiFmt('📍 Чекає {distance} від старту вашого авто', { distance: info.distance }) : uiText('📍 Точка очікування — на мапі');
-        }
-
         function clearIncomingPickupMarker() {
             if (S._incomingPickupMarker && S.map) S.map.removeLayer(S._incomingPickupMarker);
             S._incomingPickupMarker = null;
@@ -11619,11 +11701,6 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
                 fitMapCoordsAboveOverlays(info.car ? [info.car, info.pickup] : [info.pickup], 15);
             }
             return true;
-        }
-
-        function focusIncomingPickupOnMap() {
-            const m = (S.pendingMatches || []).find(x => x && x.scope === 'incoming');
-            if (m) showIncomingPickupOnMap(m, { focus: true });
         }
 
         // Пункт 6: поки після поїздки стан участі утримується, смужка й шторка кажуть
@@ -14093,6 +14170,7 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
             const p = document.getElementById('handshake-panel');
             if (p) { p.dataset.shownFp = ''; p.dataset.rereadDone = `${p.dataset.shownPartner || ''}:${p.dataset.shownCase || ''}`; }   // F1: THIS request was re-read
             verifyHandshakePanelState();
+            if (p?.dataset.shownPartner) focusRequestPersonOnMap(p.dataset.shownPartner, p.dataset.shownDir);   // owner 07.11: re-read = see the moved point
         }
 
         function dismissLocatorFailure() {   // D357 r3 (L3): the person closes the failed-locator card explicitly
@@ -14294,14 +14372,12 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
                 const partnerId = m.partner_id || m.sender_id;
                 const dirTitle = m.direction || m.direction_title || uiText('Подія');
                 const isDriver = _isDriverRole(S.userRole);
-                const title = isDriver ? uiText('📩 Запит в екіпаж') : uiText('📩 Знайдено водія');
+                const title = isDriver ? uiText('📩 Проситься у ваш екіпаж') : uiText('📩 Вас запросили в екіпаж');   // owner 07.11: what happened to me
                 const acceptText = isDriver ? uiText('✓ Взяти в екіпаж') : uiText('✓ Прийняти');
                 const declineText = isDriver ? uiText('✕ Пропустити') : uiText('✕ Відхилити');
-                // 2zi (Ф1): водій вирішує, знаючи, де чекає попутник і як далеко від старту авто.
-                const pickupInfo = isDriver ? incomingPickupInfo(m) : null;
-                const pickupLine = isDriver
-                    ? `<div data-incoming-pickup-line="true" ${pickupInfo.hasPickup ? 'role="button" tabindex="0" onclick="focusIncomingPickupOnMap()" style="cursor:pointer;' : 'style="'}font-size:12px;color:var(--text);white-space:normal;margin-top:4px;">${escapeHtml(incomingPickupLine(m))}${pickupInfo.hasPickup ? ` <span style="color:var(--accent);font-weight:700;">· ${uiText('показати')}</span>` : ''}</div>`
-                    : '';
+                // 2zi (Ф1) → owner 07.11: the driver sees WHERE the passenger waits as a pin on the map (shown and focused once below)
+                // and by 📍 in the banner — no text line and no km (owner: a number is noise).
+                const others = (S.pendingMatches || []).filter(x => x && x !== m).length;
                 const pickupFocusKey = `${partnerId}:${m.direction_id}`;
                 const caseKey = `${parseInt(partnerId, 10) || 0}:${m.case_id ?? ''}`;   // F1 (D360)
                 if (panel.dataset.rereadDone && panel.dataset.rereadDone !== caseKey) delete panel.dataset.rereadDone;   // a re-read belongs to ONE request
@@ -14334,25 +14410,16 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
                 document.body.style.paddingBottom = '175px';
 
                 panel.innerHTML = `
-                    <div style="font-weight:800;font-size:14px;margin-bottom:10px;color:var(--accent);display:flex;align-items:center;gap:6px;">
-                        🟢 ${escapeHtml(title)}
-                    </div>
-                    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;padding:10px;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border);">
-                        ${renderAvatarInline(partnerName, m.partner_photo_url || m.sender_photo_url || m.target_photo_url || '', 40)}
-                        <div style="flex:1;min-width:0;">
-                            <div style="font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(partnerName)}</div>
-                            <div style="font-size:11px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;">🎯 ${escapeHtml(dirTitle)}</div>
-                            ${pickupLine}
-                            ${m.points ? `<div data-proposal-points="true" style="font-size:12px;color:var(--text);white-space:normal;margin-top:4px;">${escapeHtml(proposalPointsLine(m, isDriver))}</div>${proposalPointsNavHtml(m, isDriver)}` : ''}
-                        </div>
-                    </div>
+                    <div data-request-title="true" style="font-weight:800;font-size:15px;margin-bottom:10px;color:var(--accent);">${escapeHtml(title)}</div>
+                    ${requestPersonBannerHtml({ name: partnerName, photo: m.partner_photo_url || m.sender_photo_url || m.target_photo_url || '',
+                        role: isDriver ? 'passenger' : 'driver', event: dirTitle, partnerId, dirId: m.direction_id, match: m, margin: 'margin-bottom:12px;' })}
                     ${afterReread ? `<div data-accept-line="true" style="display:flex;gap:10px;margin-bottom:8px;"><button class="btn btn-primary" style="flex:1;height:40px;font-size:13px;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, true, '', '${proposalButtonFp(m)}')">${escapeHtml(acceptText)}</button></div>` : ''}
                     <div style="display:flex;gap:10px;margin-bottom:8px;">
                         ${pointsChanged ? `<button class="btn btn-secondary" data-points-reread="true" style="flex:1;height:40px;font-size:13px;" onclick="acknowledgeHandshakePoints()">${uiText('⚠️ Точки змінились — переглянути')}</button>` : (afterReread ? '<button class="btn btn-secondary" data-reread-done="true" disabled style="flex:1;height:40px;font-size:13px;">' + uiText('✓ Переглянуто') + '</button>' : `<button class="btn btn-primary" style="flex:1;height:40px;font-size:13px;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, true, '', '${proposalButtonFp(m)}')">${escapeHtml(acceptText)}</button>`)}
                         <button class="btn btn-danger" style="flex:1;height:40px;font-size:13px;" onclick="respondHandshake(${partnerId}, ${m.direction_id}, false)">${escapeHtml(declineText)}</button>
                     </div>
                     ${incoming.length > 1 ? `<div data-more-requests="${incoming.length - 1}" style="font-size:11px;color:var(--text-secondary);margin:0 0 6px;">${uiHtml('+{n} — ще запит в «Інших запитах»', { n: incoming.length - 1 })}</div>` : ''}
-                    <button class="btn btn-secondary" style="width:100%;height:36px;font-size:12px;background:transparent;border:1px solid rgba(255,255,255,0.15);" onclick="openMapRequestsFromHandshakePanel()">${uiText('Інші запити')}</button>
+                    ${others ? `<button class="btn btn-secondary" style="width:100%;height:36px;font-size:12px;background:transparent;border:1px solid rgba(255,255,255,0.15);" onclick="openMapRequestsFromHandshakePanel()">${uiText('Інші запити')}</button>` : ''}
                 `;
                 panel.dataset.shownPartner = String(parseInt(partnerId, 10) || 0);   // P240: the card this person is reading
                 panel.dataset.shownDir = String(parseInt(m.direction_id, 10) || 0);
@@ -14401,18 +14468,12 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
                     <div style="font-weight:800;font-size:14px;margin-bottom:10px;color:var(--accent);display:flex;align-items:center;gap:6px;">
                         ${escapeHtml(title)}
                     </div>
-                    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;padding:10px;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border);">
-                        ${renderAvatarInline(partnerName, pm.partner_photo_url || '', 40)}
-                        <div style="flex:1;min-width:0;">
-                            <div style="font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(partnerName)}</div>
-                            <div style="font-size:11px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;">🎯 ${escapeHtml(dirTitle)}</div>
-                        </div>
-                    </div>
+                    ${requestPersonBannerHtml({ name: partnerName, photo: pm.partner_photo_url || '', role: isDriver ? 'passenger' : 'driver',
+                        event: dirTitle, partnerId, dirId: pm.direction_id, match: pm, margin: 'margin-bottom:12px;' })}
                     <div style="display:flex;gap:10px;margin-bottom:8px;">
                         <button class="btn btn-primary" style="flex:1;height:40px;font-size:13px;" onclick="inviteProposedMatch(${partnerId}, ${pm.direction_id})">${uiText('✓ Запросити')}</button>
                         <button class="btn btn-danger" style="flex:1;height:40px;font-size:13px;" onclick="declineProposedMatch(${partnerId}, ${pm.direction_id})">${uiText('✕ Пропустити')}</button>
                     </div>
-                    <button class="btn btn-secondary" style="width:100%;height:36px;font-size:12px;background:transparent;border:1px solid rgba(255,255,255,0.15);" onclick="openMapRequestsFromHandshakePanel()">${uiText('Інші запити')}</button>
                 `;
                 panel.classList.add('open');
                 parkHandshakePanelIfCovered(panel);
@@ -17106,15 +17167,117 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
 
         function openSeatsSettings() {
             if (!_isDriverRole(S.userRole)) { showToast(uiText('Доступно тільки для ролі Водій'), 'error'); return; }
-            openSheet(`<div class="sheet-title" data-i18n="ui.028">Місця</div><div class="sheet-sub" data-i18n="ui.133">Кількість пасажирських місць</div><div style="display:flex;align-items:center;justify-content:center;gap:24px;margin:20px 0;"><div style="width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;" onclick="changeSeats(-1)">−</div><div style="font-size:40px;font-weight:900;min-width:60px;text-align:center;" id="seats-display">${S.seats}</div><div style="width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;" onclick="changeSeats(1)">+</div></div><button class="btn btn-primary" onclick="saveSeats()" data-i18n="ui.040">Зберегти</button>`);
+            // owner 07.11: the sheet edits a draft (closing it changes nothing); 1..4 like the server, core, bot and the open-crew step
+            S._seatsDraft = Math.max(1, Math.min(4, parseInt(S.seats, 10) || 1));
+            S._seatsChoice = null;
+            openSheet(`<div class="sheet-title" data-i18n="ui.028">Місця</div><div class="sheet-sub" data-i18n="ui.133">Кількість пасажирських місць</div><div style="display:flex;align-items:center;justify-content:center;gap:24px;margin:20px 0;"><div style="width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;" onclick="changeSeats(-1)">−</div><div style="font-size:40px;font-weight:900;min-width:60px;text-align:center;" id="seats-display">${S._seatsDraft}</div><div style="width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;" onclick="changeSeats(1)">+</div></div><div id="seats-error" data-seats-error role="status" style="min-height:18px;margin:-8px 0 12px;font-size:13px;line-height:1.35;color:var(--red);text-align:center;"></div><div id="seats-choice" data-seats-choice></div><button class="btn btn-primary" id="seats-save" onclick="saveSeats()" data-i18n="ui.040">Зберегти</button>`);
         }
 
-        function changeSeats(d) { S.seats = Math.max(1, Math.min(8, S.seats + d)); const el = document.getElementById('seats-display'); if (el) el.textContent = S.seats; }
+        function changeSeats(d) {
+            S._seatsDraft = Math.max(1, Math.min(4, (parseInt(S._seatsDraft, 10) || parseInt(S.seats, 10) || 1) + d));
+            const el = document.getElementById('seats-display'); if (el) el.textContent = S._seatsDraft;
+            const err = document.getElementById('seats-error'); if (err) err.textContent = '';
+            seatsChoiceReset();
+        }
 
-        function saveSeats() {
+        async function saveSeats() {
+            // owner 07.11: «Місця збережено» and the profile change only after the server said OK; a refusal keeps the server's
+            // number and says why right here, in the person's language (never the raw English server text)
+            const want = Math.max(1, Math.min(4, parseInt(S._seatsDraft, 10) || parseInt(S.seats, 10) || 1));
+            const err = document.getElementById('seats-error');
+            const btn = document.getElementById('seats-save');
+            if (err) err.textContent = '';
+            // owner 07.11: when more people wait than the seats left, the driver's own answer to «Кого залишити?» goes along
+            const choice = S._seatsChoice && S._seatsChoice.seats === want ? S._seatsChoice : null;
+            if (choice && choice.keep.length !== choice.room) { renderSeatsChoice(); return false; }
+            let released = [];
+            if (S.apiBase) {
+                if (btn) btn.disabled = true;
+                let r = null;
+                const body = { user_id: S.userId, seats: want };
+                if (choice) { body.keep_ids = choice.keep.slice(); body.waiting_ids = choice.people.map(p => p.id); }
+                try {
+                    r = await apiWithStatus('/api/v3/driver/seats', { method: 'POST', silent: true, body: JSON.stringify(body) });
+                } finally { if (btn) btn.disabled = false; }
+                if (!r?.ok) {
+                    if (r?.status === 409 && r?.data?.status === 'choose_who_stays') {
+                        showSeatsChoice(r.data, want);
+                        if (choice && err) err.textContent = uiText('Поки ви вибирали, список змінився — перевірте ще раз');
+                        return false;
+                    }
+                    seatsChoiceReset();
+                    const why = seatsRefusalText(r);
+                    if (err) err.textContent = why; else showToast(why, 'error');
+                    return false;
+                }
+                released = Array.isArray(r?.data?.released) ? r.data.released : [];
+            }
+            S.seats = want; S._seatsDraft = null; S._seatsChoice = null;
             saveProfile(); updateRolePill(); closeSheet();
-            if (S.apiBase) api('/api/v3/driver/seats', { method: 'POST', body: JSON.stringify({ user_id: S.userId, seats: S.seats }) });
             showToast('Місця збережено', 'success');
+            if (released.length && typeof hydrate === 'function') {   // the released requests leave the driver's map now
+                try { const p = hydrate(); if (p && typeof p.catch === 'function') p.catch(() => {}); } catch (_) { /* the next poll refreshes */ }
+            }
+            return true;
+        }
+
+        function showSeatsChoice(data, want) {
+            // owner 07.11: «Кого залишити?» — everyone waiting, earliest first; the ones the server suggests (the earlier) are
+            // preselected; the crew is never in this list. Nothing is released until «Зменшити до N».
+            const people = (Array.isArray(data?.waiting) ? data.waiting : []).map(p => ({
+                id: parseInt(p?.user_id, 10), name: String(p?.name || '').trim() || uiText('Учасник'),
+                kind: p?.kind === 'invite' ? 'invite' : 'request', suggested: p?.suggested === true,
+            })).filter(p => p.id > 0);
+            const room = Math.max(0, Math.min(people.length, parseInt(data?.room, 10) || 0));
+            S._seatsChoice = { seats: want, room, people, keep: people.filter(p => p.suggested).map(p => p.id).slice(0, room) };
+            renderSeatsChoice();
+        }
+
+        function toggleSeatsKeep(id) {
+            const c = S._seatsChoice;
+            const pid = parseInt(id, 10);
+            if (!c || !c.people.some(p => p.id === pid) || c.room < 1) return;
+            if (c.room === 1) c.keep = [pid];
+            else if (c.keep.includes(pid)) c.keep = c.keep.filter(x => x !== pid);
+            else if (c.keep.length < c.room) c.keep = [...c.keep, pid];
+            renderSeatsChoice();
+        }
+
+        function renderSeatsChoice() {
+            const box = document.getElementById('seats-choice');
+            const btn = document.getElementById('seats-save');
+            const c = S._seatsChoice;
+            if (!c) { if (box) box.innerHTML = ''; if (btn) { btn.textContent = uiText('Зберегти'); btn.disabled = false; } return; }
+            const many = c.people.length > 1;
+            const rows = c.people.map((p, i) => {
+                const on = c.keep.includes(p.id);
+                const note = [uiText(p.kind === 'invite' ? 'ваше запрошення' : 'запит до вас')]
+                    .concat(i === 0 && many ? [uiText('чекає довше')] : []).join(' · ');
+                const mark = c.room < 1 ? '✕' : (on ? '◉' : '○');
+                return `<button type="button" class="btn btn-secondary" data-seats-keep="${p.id}" aria-pressed="${on ? 'true' : 'false'}"${c.room < 1 ? ' disabled' : ''} onclick="toggleSeatsKeep(${p.id})" style="display:flex;align-items:center;gap:10px;width:100%;margin:0 0 8px;text-align:left;justify-content:flex-start;"><span aria-hidden="true" style="font-size:18px;">${mark}</span><span style="display:flex;flex-direction:column;min-width:0;"><b>${escapeHtml(p.name)}</b><span style="font-size:12px;opacity:.75;">${escapeHtml(note)}</span></span></button>`;
+            }).join('');
+            const head = c.room < 1 ? uiText('Вільних місць не лишиться — знімемо всі запити, що чекають:')
+                : uiFmt('Чекають {w}, місць для них лишиться: {room}. Кого залишити?', { w: c.people.length, room: c.room });
+            const count = c.room > 1 ? `<div data-seats-choice-count style="font-size:12px;opacity:.75;margin:-2px 0 8px;">${escapeHtml(uiFmt('Позначено {k} з {room}', { k: c.keep.length, room: c.room }))}</div>` : '';
+            if (box) box.innerHTML = `<div data-seats-choice-head style="font-size:14px;font-weight:700;line-height:1.35;margin:0 0 10px;">${escapeHtml(head)}</div>${rows}${count}<div data-seats-choice-foot style="font-size:12px;line-height:1.4;opacity:.8;margin:4px 0 14px;">${escapeHtml(uiText('Екіпаж не зміниться. Кого не залишите, отримає лише: «водій зменшив кількість місць»'))}</div>`;
+            if (btn) { btn.textContent = uiFmt('Зменшити до {n}', { n: c.seats }); btn.disabled = c.keep.length !== c.room; }
+        }
+
+        function seatsChoiceReset() {
+            S._seatsChoice = null;
+            renderSeatsChoice();
+        }
+
+        function seatsRefusalText(r) {
+            // server_v3 /driver/seats (07.11): «cannot decrease seats below crew (N)» = the people already in the crew.
+            // An older server: «… below committed load (N)» = the crew + own waiting invites, «… below current load (N)» = the
+            // crew + everyone waiting (seats_used). Anything else (incl. a failed fetch) = not saved.
+            const detail = String(r?.data?.detail || '');
+            const n = parseInt((detail.match(/\((\d+)\)/) || [])[1], 10) || 0;
+            if (n && detail.includes('below crew')) return uiFmt('Менше {n} не можна: стільки людей уже у вашому екіпажі', { n });
+            if (n && detail.includes('committed load')) return uiFmt('Менше {n} не можна: стільки місць уже зайняли екіпаж і ваші запрошення, що чекають відповіді', { n });
+            if (n && detail.includes('current load')) return uiFmt('Менше {n} не можна: стільки місць уже зайняли екіпаж і запити, що чекають відповіді', { n });
+            return uiText('Місця не збережено — спробуйте ще раз');
         }
 
         function openLangSelector() {
