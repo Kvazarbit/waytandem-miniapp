@@ -3650,6 +3650,8 @@
 #map-picker:has(.map-picker-search:focus) .map-picker-hint,
 #map-picker:has(.map-picker-results:not(:empty)) .map-picker-hint,
 #map-picker:has(.map-picker-results:not(:empty)) .map-picker-gps{display:none}
+/* Owner 07.11 (FRONTEND_SCREENS frame 4): the bubble leaves after the first own move and does not come back in this picker */
+#map-picker .map-picker-hint.is-dismissed{display:none}
 .map-picker-result{font-size:15px;line-height:1.35;color:var(--text-primary);padding:11px 14px}
 .map-picker-result small{display:block;font-size:12.5px;color:var(--text-secondary);margin-top:2px}
 /* DM-2026-11-04-001 r3 (P14d): the crew tree in the dock, full width after the head; the scheme warning stays one small line */
@@ -17374,6 +17376,14 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
         function _markPickerChoice() {
             _mapPicker.choiceMade = true;
             _setPickerConfirmEnabled(true);
+            dismissPickerHint();
+        }
+
+        // Owner 07.11 (docs/FRONTEND_SCREENS.md frame 4): the bubble says what to do first and leaves after the first own move —
+        // a drag of the map, a successful 🎯, a tap into the address field (the keyboard). It does not come back until the picker
+        // opens again; the confirm button keeps its own lock and text.
+        function dismissPickerHint() {
+            document.getElementById('map-picker-hint')?.classList.add('is-dismissed');
         }
 
         function openLocationPicker(opts = {}) {
@@ -17392,6 +17402,7 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
             overlay.style.display = 'block';
             const hint = document.getElementById('map-picker-hint');
             if (hint) hint.textContent = opts.hint || uiText('Перетягни карту так, щоб пін був на місці події');
+            if (hint) hint.classList.remove('is-dismissed');   // owner 07.11: a fresh picker shows its first step again
             const search = document.getElementById('map-picker-search');
             if (search) search.placeholder = opts.searchPlaceholder || uiText('🔍 Місто або місце (напр. Люблін)');
             const confirm = document.getElementById('map-picker-confirm');
@@ -17402,7 +17413,9 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
             const { center, zoom } = locationPickerInitialCenter(opts);   // follow-up 2026-10-25: draft -> own point -> profile -> old fallback
 
             if (!_mapPicker.map) {
-                _mapPicker.map = L.map('map-picker-map', { zoomControl: true, attributionControl: true }).setView(center, zoom);
+                // Owner 08.11 (FRONTEND_SCREENS frame 4): «Прибрати «+ −»» — no zoom buttons here, like the main map; two fingers,
+                // a double tap and the wheel still zoom (Leaflet defaults, left on).
+                _mapPicker.map = L.map('map-picker-map', { zoomControl: false, attributionControl: true }).setView(center, zoom);
                 _mapPicker.map.attributionControl.setPrefix(false);
                 L.tileLayer(MAP_TILE_URL, { maxZoom: 19, attribution: MAP_TILE_ATTRIBUTION }).addTo(_mapPicker.map);
             } else {
@@ -17507,6 +17520,7 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
                 if (q.length < 3) { if (box) box.innerHTML = ''; return; }
                 _mapPicker.searchTimer = setTimeout(() => _runPickerSearch(q), 450);
             };
+            if (search) search.onfocus = () => dismissPickerHint();   // owner 07.11: the keyboard is the first move too
         }
 
         async function _runPickerSearch(q) {
@@ -18082,9 +18096,11 @@ body[data-screen]:not([data-screen="explore"]) #sub-bar [data-map-scope-toggle]{
                     lat: S.pickupCoords?.lat,
                     lng: S.pickupCoords?.lng,
                     fallbackCenters: pickupPickerFallbackCenters(dirId),
+                    // Owner 07.11 (FRONTEND_SCREENS frame 4): the bubble says only the first step — the locked button already says
+                    // «Перетягніть карту, щоб обрати»; it leaves after the first own move (dismissPickerHint).
                     hint: options?.hint || (isDriverStart
-                        ? uiText('Перетягніть карту так, щоб пін був там, звідки стартує ваше авто')
-                        : uiText('Спершу вкажіть, де вас забрати. Перетягніть карту так, щоб пін був там, де чекати водія')),
+                        ? uiText('Спочатку вкажіть, звідки стартуєте')
+                        : uiText('Спочатку вкажіть, звідки вас забрати')),
                     searchPlaceholder: isDriverStart
                         ? uiText('🔍 Звідки стартуєте')
                         : uiText('🔍 Звідки вас забрати'),
